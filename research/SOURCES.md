@@ -745,6 +745,128 @@ is removed.
 - accessed: 2026-07-03
 - relevance: DDP receiver behavior and large-install topology guidance
 
+### [S153] WLED changelog — DDP realtime support added in 0.11.0
+- type: docs
+- url: https://github.com/wled/WLED/blob/main/CHANGELOG.md
+- author: WLED contributors (Aircoookie et al.)
+- license: EUPL-1.2
+- accessed: 2026-07-03
+- relevance: dates WLED's DDP receive (0.11.0, 2020-11) and DDP send (0.13) support
+
+### [S154] xLights documentation — controller output protocols (DDP, E1.31, Art-Net)
+- type: docs
+- url: https://manual.xlights.org/
+- author: xLights contributors
+- accessed: 2026-07-03
+- relevance: confirms DDP as a mainstream sequencer output alongside E1.31/Art-Net
+
+### [S155] Falcon Player (FPP) documentation — channel outputs incl. DDP
+- type: docs
+- url: https://falconchristmas.github.io/FPP_Manual(5.0).pdf
+- author: Falcon Christmas / FPP contributors (Rick Harris)
+- published: 2021-08-07
+- accessed: 2026-07-03
+- relevance: FPP output support for DDP/E1.31/Art-Net; MultiSync protocol owner
+
+### [S156] LedFx — Python engine DDP device implementation
+- type: code
+- url: https://github.com/LedFx/LedFx/blob/main/ledfx/devices/ddp.py
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
+- author: LedFx contributors
+- license: GPL-3.0
+- accessed: 2026-07-03
+- relevance: existing Python engine that chose DDP as primary transport
+
+### [S157] ANSI E1.31-2016 — Entertainment Technology: Lightweight streaming protocol for transport of DMX512 using ACN
+- type: spec
+- url: https://tsp.esta.org/tsp/documents/docs/E1-31-2016.pdf
+- author: ESTA Technical Standards Program (CP/2014-1009r3)
+- published: 2016
+- accessed: 2026-07-03
+- relevance: normative sACN packet layout (126-byte overhead + 513 data), priority 0-200, sync packets, 2.5s data-loss timeout, multicast mapping
+
+### [S158] WLED knowledge base — E1.31/Art-Net/DDP interfaces and multicast guidance
+- type: docs
+- url: https://kno.wled.ge/interfaces/e1.31-dmx/
+- author: WLED contributors
+- accessed: 2026-07-03
+- relevance: WLED receiver behavior for sACN/Art-Net/DDP; unicast-over-multicast guidance on WiFi
+
+### [S159] Art-Net 4 Protocol Release V1.4 (rev 1.4dp, 2025-10-23)
+- type: spec
+- url: https://art-net.org.uk/downloads/art-net.pdf
+- author: Artistic Licence Engineering Ltd
+- license: royalty-free use, copyright Artistic Licence, trademark credit required
+- published: 2025-10-23
+- accessed: 2026-07-03
+- relevance: normative ArtDmx (18B header + 512B), unicast-only ArtDmx rule, ArtSync semantics with 4s timeout, 40/400/4000 universe rule of thumb
+
+### [S160] Open Pixel Control protocol description
+- type: spec
+- url: http://openpixelcontrol.org/
+- author: Ka-Ping Yee (protocol page); ecosystem by Micah Scott (FadeCandy)
+- accessed: 2026-07-03
+- relevance: OPC wire format (4-byte header, TCP), 8-bit-only standard messages
+
+### [S161] scanlime/fadecandy — archived GitHub repository
+- type: code
+- url: https://github.com/scanlime/fadecandy
+- author: Micah Elizabeth Scott
+- license: MIT (firmware/server mixed licenses)
+- accessed: 2026-07-03
+- relevance: evidence OPC's flagship implementation is discontinued/archived — waning verdict
+
+### [S162] WLED knowledge base — UDP Realtime Control (WARLS/DRGB/DRGBW/DNRGB)
+- type: docs
+- url: https://kno.wled.ge/interfaces/udp-realtime/
+- author: WLED contributors
+- accessed: 2026-07-03
+- relevance: byte layouts, per-packet LED limits, timeout semantics of WLED-native realtime UDP
+
+### [S163] FPP ControlProtocol.txt — MultiSync wire protocol
+- type: docs
+- url: https://github.com/FalconChristmas/fpp/blob/master/docs/ControlProtocol.txt
+- author: Falcon Christmas / FPP contributors
+- license: GPL-2.0 (FPP repo)
+- accessed: 2026-07-03
+- relevance: MultiSync packet format — port 32320, multicast 239.70.80.80, frame-number sync of pre-stored sequences
+
+### [S164] xLights Manual — Controllers Settings / lighting networks (protocol support matrix)
+- type: docs
+- url: https://manual.xlights.org/xlights/chapters/chapter-four-set-up/lighting-networks
+- author: xLights contributors
+- accessed: 2026-07-03
+- relevance: lists DDP support across FPP/Kulp, HinksPix, Falcon v3/v4/v5, WLED, Genius, Minleon; calls DDP more efficient than Art-Net/E1.31
+
+### [S165] WLED knowledge base — FAQ (LED count, WiFi limits, DDP and Ethernet recommendations)
+- type: docs
+- url: https://kno.wled.ge/basics/faq/
+- author: WLED contributors
+- accessed: 2026-07-03
+- relevance: 750-LED per-controller guidance, 720 kbit/s @1000 LED/30fps, DDP-over-E1.31 recommendation, QuinLED/Olimex Ethernet advice
+
+### [S166] Electric UI — "Latency comparison of common wireless links for microcontrollers"
+- type: article
+- url: https://electricui.com/blog/latency-comparison
+- author: Electric UI
+- published: 2024-02
+- accessed: 2026-07-03
+- relevance: logic-analyzer-measured ESP32 WiFi latency: 74-84 ms default config; ~6 ms TCP / ~9 ms UDP median, ~25 ms outliers after power-save/Nagle/IRAM tuning
+
+### [S167] espressif/esp-idf issue #15345 — "Making UDP send latency more predictable (reducing jitter)"
+- type: forum
+- url: https://github.com/espressif/esp-idf/issues/15345
+- author: esp-idf users / Espressif
+- accessed: 2026-07-03
+- relevance: documents FreeRTOS-scheduler-driven UDP jitter tail on ESP32; power-save (WIFI_PS_NONE) as main latency lever
+
+### [S168] ESP32 forum — "UDP packet delays" (noisy-WiFi delay measurements)
+- type: forum
+- url: https://esp32.com/viewtopic.php?t=27665
+- author: esp32.com community
+- accessed: 2026-07-03
+- relevance: reported 200-388 ms UDP delays in congested RF — worst-case WiFi tail for realtime pixels
+
 ## Block S200–S249 — RA-05 Pattern-engine design
 
 ### [S200] ElectroMage / Pixelblaze documentation
@@ -753,6 +875,248 @@ is removed.
 - author: Ben Hencke
 - accessed: 2026-07-03
 - relevance: the expression-language + (index, x, y, z) render model — best-in-class pattern authoring to learn from
+
+### [S201] Pixelblaze expression language reference (README.expressions.md)
+- type: docs
+- url: https://github.com/simap/pixelblaze/blob/master/README.expressions.md
+- pinned: simap/pixelblaze@209c587253236301e0e7391e1635d5c553791ba8
+- author: Ben Hencke (simap)
+- license: none stated in repo (docs for closed firmware)
+- accessed: 2026-07-03
+- relevance: authoritative spec of the Pixelblaze language: 16.16 fixed point, render/render2D/render3D + beforeRender(delta), time()/wave() built-ins, live compile
+
+### [S202] Pixelblaze mapper reference (README.mapper.md)
+- type: docs
+- url: https://github.com/simap/pixelblaze/blob/master/README.mapper.md
+- pinned: simap/pixelblaze@209c587253236301e0e7391e1635d5c553791ba8
+- author: Ben Hencke (simap)
+- license: none stated in repo
+- accessed: 2026-07-03
+- relevance: coordinate normalization to 0..1 "world units" from arbitrary physical units
+
+### [S203] Pixelblaze V3 Crowd Supply update — "Manufacturing, UI Controls, POV!"
+- type: article
+- url: https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3/updates/manufacturing-ui-controls-pov
+- author: Ben Hencke
+- published: 2020 (campaign update)
+- accessed: 2026-07-03
+- relevance: introduces convention-based UI controls (sliderSpeed, hsvPickerColor) generated from exported function names
+
+### [S204] Pixelblaze Sensor Expansion Board (ElectroMage shop / bhencke.com)
+- type: product
+- url: https://www.bhencke.com/pixelblaze-sensor-expansion
+- author: Ben Hencke
+- accessed: 2026-07-03
+- relevance: sensor feature injection as exported pattern variables (frequencyData[32], energyAverage, accelerometer[3], light, analogInputs[5])
+
+### [S205] WLED docs — Custom Features (adding effects via usermods)
+- type: docs
+- url: https://kno.wled.ge/advanced/custom-features/
+- author: WLED project
+- accessed: 2026-07-03
+- relevance: effect function signature (free void fn + SEGMENT/SEGENV/SEGLEN macros), strip.addEffect registration, PROGMEM metadata string, compile-in-only effects
+
+### [S206] WLED issue #3478 — effect metadata consistency (metadata string format)
+- type: forum
+- url: https://github.com/Aircoookie/WLED/issues/3478
+- author: WLED maintainers/contributors
+- accessed: 2026-07-03
+- relevance: documents the `name@sliders;colors;palette;flags;defaults` metadata DSL and fixed slider slots (sx/ix/custom)
+
+### [S207] WLED MoonModules — ARTI-FX documentation
+- type: docs
+- url: https://mm.kno.wled.ge/moonmodules/arti-fx/
+- author: MoonModules (ewowi et al.)
+- accessed: 2026-07-03
+- relevance: runtime-interpreted effect language bolted onto WLED-SR; renderFrame/renderLed split; Pixelblaze-compat functions; evidence WLED authoring model is a felt bottleneck
+
+### [S208] LedFx effect base module (ledfx/effects/__init__.py)
+- type: code
+- url: https://github.com/LedFx/LedFx/blob/main/ledfx/effects/__init__.py
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
+- author: LedFx team
+- license: GPL-3.0
+- accessed: 2026-07-03
+- relevance: Effect base class, render() on self.pixels NumPy (N,3), voluptuous CONFIG_SCHEMA merged up MRO, universal blur/flip/mirror knobs
+
+### [S209] LedFx audio analysis + AudioReactiveEffect (ledfx/effects/audio.py)
+- type: code
+- url: https://github.com/LedFx/LedFx/blob/main/ledfx/effects/audio.py
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
+- author: LedFx team
+- license: GPL-3.0
+- accessed: 2026-07-03
+- relevance: shared AudioAnalysisSource (melbanks/pitch/onset/bar_oscillator), audio_data_updated callback, per-virtual frequency-range melbank helper
+
+### [S210] led-control documentation site
+- type: docs
+- url: https://jackw01.github.io/led-control/
+- pinned: jackw01/led-control@8e3fe1d0456e589213ecdef1dc8ce57aa15142b6
+- author: jackw01
+- license: MIT
+- accessed: 2026-07-03
+- relevance: Python-as-fragment-shader signature (t, dt, x, y, z, prev_state), RestrictedPython + C-extension perf split, 150 fps @ 150 RGBW on Pi Zero claim; repo dormant since 2023-11-10
+
+### [S211] todbot — "Speed up CircuitPython LED animations 10x!" (+ code repo)
+- type: article
+- url: https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/
+- author: Tod Kurt (todbot)
+- published: 2022-10-21
+- accessed: 2026-07-03
+- relevance: measured vectorization gain: fire effect, 256 LEDs, RP2040 — ~40 ms/frame Python loop vs ~4 ms/frame ulab; working-copy idiom (code: github.com/todbot/circuitpython_led_effects)
+
+### [S212] scottlawsonbc/audio-reactive-led-strip
+- type: code
+- url: https://github.com/scottlawsonbc/audio-reactive-led-strip
+- author: Scott Lawson
+- license: MIT
+- accessed: 2026-07-03
+- relevance: archetypal NumPy-per-frame audio visualizer (ancestor of LedFx); Pi "just fast enough" at ~256 px; unmaintained (archived-era, last activity ~2018)
+
+### [S213] TouchDesigner DMX/Art-Net LED mapping workflow (Derivative workshop + TouchLED)
+- type: docs
+- url: https://derivative.ca/workshop/dmx-artnet-and-led-mapping-touchdesigner/71671
+- also: https://github.com/yastefan/TouchLED-DMX
+- author: Derivative / yastefan
+- accessed: 2026-07-03
+- relevance: canonical GPU route — TOP sampled at SOP fixture points, DMX CHOP emits Art-Net/sACN; TouchLED library wraps mapping+visualizer
+
+### [S214] ISF — Interactive Shader Format specification
+- type: spec
+- url: https://isf.vidvox.net/ (spec repo: https://github.com/mrRay/ISF_Spec/)
+- author: VIDVOX (mrRay)
+- accessed: 2026-07-03
+- relevance: GLSL fragment shader + JSON header declaring typed INPUTS — best-in-class parameter-manifest design for auto-generated UIs
+
+### [S215] ENTTEC ELM Effects documentation
+- type: docs
+- url: https://support.enttec.com/dmx-software/elm/elm-effects
+- author: ENTTEC
+- accessed: 2026-07-03
+- relevance: commercial media-server bridge; every effect parameter remotely controllable via DMX/Art-Net/sACN/OSC/HTTP — parameter-as-address pattern
+
+### [S216] Chromatik / LX — "Coding in LX" developer guide
+- type: docs
+- url: https://chromatik.co/develop/coding/
+- author: Mark Slee / heronarts
+- accessed: 2026-07-03
+- relevance: first-class parameter objects: addParameter + CompoundParameter(label, init, min, max) → auto UI knob + MIDI/OSC mapping + LFO modulation; LXPattern.run(deltaMs) lifecycle
+
+## Block S250–S299 — RA-06 Frame pipeline & motion quality
+
+### [S250] ElectroMage forum — "Rendered FPS vs maximum refresh rate ... for strobing"
+- type: forum
+- url: https://forum.electromage.com/t/rendered-fps-vs-maximum-refresh-rate-for-strobing/3255
+- author: Ben Hencke (wizard) et al.
+- accessed: 2026-07-03
+- relevance: authoritative statement of Pixelblaze's frame pacing model — free-running render, pipelined WS2812 output, frame skip on overdraw
+
+### [S251] ElectroMage forum — "Output expander that implements Fadecandy dithering"
+- type: forum
+- url: https://forum.electromage.com/t/output-expander-that-implements-fadecandy-dithering/840
+- author: Ben Hencke (wizard) et al.
+- accessed: 2026-07-03
+- relevance: Hencke's rationale for NOT doing Fadecandy-style temporal dithering (refresh-rate coupling, 64-LED cap) and preferring APA102-class global brightness / HDR chips
+
+### [S252] WLED issue #5408 — "FPS target set to 0 by default"
+- type: forum
+- url: https://github.com/wled/WLED/issues/5408
+- accessed: 2026-07-03
+- relevance: documents WLED's intended default target FPS of 42, the 1000/42 frametime constant, and that FPS 0 = "unlimited, not recommended, experimental"
+
+### [S253] WLED docs — UDP Realtime / WARLS / DRGB / DNRGB
+- type: docs
+- url: https://kno.wled.ge/interfaces/udp-realtime/
+- author: WLED project
+- accessed: 2026-07-03
+- relevance: WLED's loss handling for realtime pixel streams — timeout byte, hold-then-revert semantics, per-protocol LED-count limits, no smoothing/interpolation
+
+### [S254] LedFx — virtuals.py frame loop (code)
+- type: code
+- url: https://github.com/LedFx/LedFx/blob/main/ledfx/virtuals.py
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
+- author: LedFx team
+- license: GPL-3.0 (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: LedFx's per-virtual frame clock — compensated sleep loop, refresh rate = min of member devices, 0.4 s default effect crossfade, removed interpolation dead code
+
+### [S255] led-control — IntervalTimer scheduler (code)
+- type: code
+- url: https://github.com/jackw01/led-control/blob/master/ledcontrol/intervaltimer.py
+- pinned: jackw01/led-control@8e3fe1d0456e589213ecdef1dc8ce57aa15142b6
+- author: jackw01
+- license: MIT (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: led-control's frame scheduler — cycle-time-compensated interval thread, default 60 fps, Windows drift variant; paired with time-parameterized (t, dt) pattern functions
+
+### [S256] FPP — ControlProtocol.txt (MultiSync wire format)
+- type: spec
+- url: https://github.com/FalconChristmas/fpp/blob/master/docs/ControlProtocol.txt
+- author: FalconChristmas / FPP developers
+- accessed: 2026-07-03
+- relevance: MultiSync packet layout — UDP 32320, multicast 239.70.80.80, sync packet with frame number + elapsed-seconds float + filename; playback-position sync model
+
+### [S257] WLED docs — UDP Sync (notifier)
+- type: docs
+- url: https://kno.wled.ge/interfaces/udp-notifier/
+- author: WLED project
+- accessed: 2026-07-03
+- relevance: WLED sync is state-only (brightness/color/effect/palette in ~24-byte packet); no frame or clock synchronization exists
+
+### [S258] Cryptkeeper — fseq-file-format (reverse-engineered FSEQ v2 spec)
+- type: spec
+- url: https://github.com/Cryptkeeper/fseq-file-format
+- author: Cryptkeeper (Nick Krecklow)
+- accessed: 2026-07-03
+- relevance: FSEQ v2 header — uint8 step time in ms at byte 18 (20-30 fps typical), frame/channel counts, zstd/zlib chunk compression; fixes the xLights/FPP ecosystem's authoring frame rate
+
+### [S259] ANSI E1.31-2016 — Lightweight streaming protocol for transport of DMX512 (sACN)
+- type: spec
+- url: https://tsp.esta.org/tsp/documents/docs/E1-31-2016.pdf
+- author: ESTA Technical Standards Program
+- published: 2016-10-11
+- accessed: 2026-07-03
+- relevance: Universe Synchronization packets (added in 2016 revision) — buffered data latched on sync packet per Synchronization Address; sync address 0 reserved/ignored
+
+### [S260] Mark Kriegsman — "Anti-aliased light bar example" (FastLED demo)
+- type: code
+- url: https://pastebin.com/yAgKs0Ay
+- author: Mark Kriegsman
+- published: 2013-11-29
+- accessed: 2026-07-03
+- relevance: canonical sub-pixel strip motion technique — 1/16th-pixel positions, coverage-proportional edge brightness; the reference every later AA-on-a-strip discussion cites
+
+### [S261] FastLED — release_notes.md (sub-pixel rendering, XYPath, fl:: raster)
+- type: docs
+- url: https://github.com/FastLED/FastLED/blob/master/release_notes.md
+- author: FastLED project (Zach Vorhies et al.)
+- license: MIT
+- accessed: 2026-07-03
+- relevance: only framework with first-class sub-pixel drawing — float-coordinate 2x2 splatting ("256 effective steps ... between neighbors"), XYPath rasterization to sparse rasters
+
+### [S262] FastLED — lib8tion.h easing functions (code)
+- type: code
+- url: https://github.com/FastLED/FastLED/blob/master/src/lib8tion.h
+- pinned: FastLED/FastLED@8df8258c86200112b2c9e917b4b3fec5d19a946e
+- author: FastLED project
+- license: MIT
+- accessed: 2026-07-03
+- relevance: de facto easing norms in LED land — ease8InOutQuad, ease8InOutCubic (3x^2-2x^3 smoothstep), ease8InOutApprox, 16-bit variants; fixed-point, pattern-side
+
+### [S263] AusChristmasLighting forum — "Convert 20 to 40 fps"
+- type: forum
+- url: https://auschristmaslighting.com/threads/convert-20-to-40-fps.13740/
+- accessed: 2026-07-03
+- relevance: practitioner norms on show frame rates — 20 fps legacy standard, 40 fps recommended for dense/HD modern displays
+
+### [S264] heronarts/LX — LXEngine.java (code)
+- type: code
+- url: https://github.com/heronarts/LX/blob/master/src/main/java/heronarts/lx/LXEngine.java
+- pinned: heronarts/LX@b7c10b3cf5d588de6bd95fb9200eb649b77f366c
+- author: Mark Slee / Heron Arts
+- license: custom "CHROMATIK / LX SOFTWARE LICENSE AND DISTRIBUTION AGREEMENT" (source-available, NOT OSI; verified header 2026-07-03 — read terms before any reuse)
+- accessed: 2026-07-03
+- relevance: mature engine frame clock — FPS BoundedParameter default 60 (range 1-300), scheduleAtFixedRate render loop, separate 60 Hz input tick, actual-frame-rate measurement, deltaMs clamping
 
 ## Block S300–S349 — RA-07 Mapping & topology
 
@@ -774,6 +1138,99 @@ is removed.
 - url: https://forum.electromage.com/t/i-made-an-led-3d-mapping-tool-that-might-be-of-interest/3598/11
 - accessed: 2026-07-03
 - relevance: practitioner mapping workflows in the Pixelblaze ecosystem
+
+### [S303] WLED knowledge base — Mapping (ledmap.json)
+- type: docs
+- url: https://kno.wled.ge/advanced/mapping/
+- author: WLED contributors
+- accessed: 2026-07-03
+- relevance: canonical spec of WLED ledmap.json index-permutation format, -1 gaps, width/height 2D keys, per-preset map selection
+
+### [S304] Pixelblaze mapper README (simap/pixelblaze)
+- type: docs
+- url: https://github.com/simap/pixelblaze/blob/master/README.mapper.md
+- author: Ben Hencke
+- accessed: 2026-07-03
+- relevance: spec of Pixelblaze pixel-map JSON, map generator functions, 0..1 world-unit normalization, Fill/Contain scaling, render2D/render3D
+
+### [S305] LedFx docs — "How to: Create and Edit Virtuals"
+- type: docs
+- url: https://docs.ledfx.app/en/latest/howto/virtuals.html
+- author: LedFx contributors
+- accessed: 2026-07-03
+- relevance: defines virtuals/segments (device,start,end,reverse), span vs copy modes, rows/grouping 2D reshaping, complex-segments numpy fast path
+
+### [S306] xLights manual — Custom Model
+- type: docs
+- url: https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/custom-model
+- author: xLights contributors
+- accessed: 2026-07-03
+- relevance: custom-model node-number grid format, depth for 3D voxel models, .xmodel export
+
+### [S307] xLights manual — Model Settings (buffer styles)
+- type: docs
+- url: https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/model-attribute
+- author: xLights contributors
+- accessed: 2026-07-03
+- relevance: buffer render styles decouple effect buffer layout from wiring; per-model and group buffer styles
+
+### [S308] FPP manual — Pixel Overlay Models
+- type: docs
+- url: https://falcon-player.gitbooks.io/falcon-player-manual/content/chapter_five_inputoutput_setup/pixel_overlay_models.html
+- author: FalconChristmas contributors
+- accessed: 2026-07-03
+- relevance: FPP channel-arithmetic model definition (start channel, strands/strings, orientation) and overlay/transparency states
+
+### [S309] Chromatik guide — Custom Fixtures (.lxf format)
+- type: docs
+- url: https://chromatik.co/guide/custom-fixtures/
+- author: Mark Slee / Heron Arts
+- accessed: 2026-07-03
+- relevance: the most complete declarative LED map format: point/points/strip/arc components, nested fixtures, translate/yaw-pitch-roll transforms, +Y-up convention, parametric variables, per-component protocol outputs
+
+### [S310] ElectroMage forum — "Automatic Mapping Preview" (zranger1)
+- type: forum
+- url: https://forum.electromage.com/t/automatic-mapping-preview/3453
+- author: zranger1
+- published: 2024-03-11
+- accessed: 2026-07-03
+- relevance: OpenCV webcam auto-mapper for Pixelblaze; JSON/CSV export or direct push; documents practical CV pitfalls (auto-exposure frame discard, reflections); prototype at github.com/zranger1/CVTest
+
+### [S311] ElectroMage forum — 2D pixel coordinate mapping tool for images
+- type: forum
+- url: https://forum.electromage.com/t/2d-pixel-coordinate-mapping-tool-for-images/714
+- accessed: 2026-07-03
+- relevance: manual click-on-photo mapping tool emitting Pixelblaze map JSON — the low-tech manual path
+
+### [S312] L.E.D. Lab (iOS app, App Store listing)
+- type: product
+- url: https://apps.apple.com/us/app/l-e-d-lab/id832042156
+- author: Christopher Schardt
+- accessed: 2026-07-03
+- relevance: mature commercial phone/tablet camera-mapping path; photographic map files; drives LEDs over Art-Net, layers over WLED
+
+### [S313] savdb/led_camera_map
+- type: code
+- url: https://github.com/savdb/led_camera_map
+- author: savdb
+- license: MIT
+- accessed: 2026-07-03
+- relevance: OpenCV + Art-Net blink mapper that emits WLED ledmap.json directly; automates WLED's manual format
+
+### [S314] Vitminee/wled-mapper
+- type: code
+- url: https://github.com/Vitminee/wled-mapper
+- author: Vitminee
+- license: TBD
+- accessed: 2026-07-03
+- relevance: camera capture to WLED ledmap + 2D gap mask export; AI-assisted authorship; recent hobby tool
+
+### [S315] ENTTEC ELM pixel-mapping software (product page)
+- type: product
+- url: https://www.enttec.com/product/dmx-lighting-control-software/pixel-mapping-software/
+- author: ENTTEC
+- accessed: 2026-07-03
+- relevance: commercial 2D/3D pixel mapper with DXF CAD import — CAD-drawing (not camera) mapping convention in the pro space
 
 ## Block S350–S399 — RA-08 Hardware: host-driven tier
 
