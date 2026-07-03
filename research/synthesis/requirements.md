@@ -1,0 +1,76 @@
+# pewpew requirements — per form factor, with cited rationale
+
+Date: 2026-07-03
+Status: Proposed (Phase 3 synthesis; numbers marked *prototype* must be
+confirmed by the benchmarks listed in
+[`architecture.md`](architecture.md#prototype-to-verify)).
+
+Every numeric requirement cites the evidence that motivates it. Requirement
+IDs (`Q-*` common, `W-*` wearable, `P-*` portable, `R-*` room) are stable and
+referenced from [`architecture.md`](architecture.md) and the ADRs.
+
+## Q. Common quality bar ("better than clown mode")
+
+These apply to every tier; they are the definition of the project's quality
+floor and are justified in [ADR-001](decisions/ADR-001-internal-color-pipeline.md)
+and [ADR-002](decisions/ADR-002-dithering-strategy.md).
+
+| ID | Requirement | Rationale |
+|---|---|---|
+| Q-1 | Internal color math in float32 linear-light (or ≥16-bit linear fixed point on MCU tiers); **quantize exactly once, at the output driver** | Every high-fidelity system converges on this: Pixelblaze v3.47 is "all 16 bit per element throughout" [S063]; Fadecandy interpolates into 16-bit and dithers at the very end [S600:firmware/fc_pixel.cpp#L58-L88]; HyperHDR carries float3 into the driver, which self-quantizes [S700:sources/led-drivers/LedDevice.cpp#L625-L678]. The counterexample: WLED's 8-bit-everywhere pipeline leaves ~5 effective bits at typical indoor brightness and its dithering request has been open since 2021 [S645:wled00/FX_fcn.cpp#L1781][S054]. |
+| Q-2 | Perceptual linearization (gamma ≈2.6–3.0 or inverse CIE-L\*) applied as the **last lossy step** from the wide space, never as an 8→8 table; a configurable linear toe at the bottom of the curve | An 8→8 γ=2.8 table maps the first ~16 input codes to 0 or 1 [S058]; inverse-L\* is the perceptually correct curve and is steeper than γ2.2 near black [S059][S061]; Fadecandy's `linearCutoff` toe is the proven anti-dither-flicker control [S600:server/src/fcdevice.cpp#L243-L253]. |
+| Q-3 | Where temporal dithering runs, the output refresh must be **≥400 Hz** (degrade dither depth gracefully below that) | FastLED's dither budget assumes 400 Hz and warns of visible flicker below ~50 Hz full-cycle rate [S615:src/pixel_controller.h#L253-L302][S050]; SmoothLed states "preferably above 400Hz" [S019]; Fadecandy achieves ~400–500 Hz by capping lines at 64 px [S600:README.md][S016]. |
+| Q-4 | One-wire (WS281x-class) line lengths sized against the refresh budget: ~100 px/line for ~305 Hz, ~64–85 px/line for ≥400 Hz (RGB, 280 µs reset); longer runs use parallel outputs or clocked chips | Frame time = N × 30 µs + 280 µs reset [S108][S105]; the dithering ceiling is the binding constraint, not raw fps [S127]; FastLED computes 3 virtual dither bits only at ~400 Hz, "only possible with 85 pixels or fewer" per line [S615:src/pixel_controller.h#L253-L291]. |
+| Q-5 | Pattern motion is **time-parameterized** (functions of `t`), never frame-counted, so dropped/late frames slow nothing | led-control and Pixelblaze convention [S660:ledcontrol/animationcontroller.py#L368-L373][S680:README.expressions.md#L23]; projectMM's binding rule "must animate at every tick rate" [S715:docs/architecture.md#L403-L414]. |
+| Q-6 | 16-bit-native chips (HD108/NS108, WS2816) must receive all 16 bits losslessly from the engine | The chips exist and are driver-supported (FastLED HD108 merged 2025-10-30 [S130]; WS2816 48-bit [S122]); FastLED's own HD108 driver wastes the chip by feeding it an 8-bit pipeline — the documented anti-pattern [S615:src/fl/chipsets/hd108.h#L59-L88]. DDP is the only transport that carries 16-bit natively [S150]. |
+| Q-7 | Per-output color correction (white point / batch trim) is applied multiplicatively in linear space *before* the perceptual curve | Fadecandy multiplies whitepoint "prior to gamma correction" and bakes it into the 16-bit LUT [S600:server/src/fcdevice.cpp#L235-L360]; FastLED's premixed-adjustment pattern folds correction × temperature × brightness per frame [S615:src/crgb.cpp.hpp#L29-L52]. |
+| Q-8 | Power limiting computed in the renderer on **linear** values before quantization (estimate-and-scale), with per-chip-family current models | WLED's ABL rewrites the already-quantized 8-bit buffer [S645:wled00/bus_manager.cpp#L183-L253]; HyperHDR's limiter runs on gamma-encoded values, a poor proxy for LED current [S700:sources/infinite-color-engine/InfiniteProcessing.cpp#L646-L663]; FastLED's `setMaxPowerInVoltsAndMilliamps` is the estimate-and-scale reference [S413]; WS2815 needs a max(R,G,B) model, not a sum [S645:wled00/bus_manager.cpp#L183-L253]. |
+
+## W. Wearable tier (standalone on-body, occasional phone tweaks)
+
+| ID | Requirement | Value | Rationale |
+|---|---|---|---|
+| W-1 | Pixel count (design envelope) | 50–300 px per garment; 300 is the engineering ceiling, ~150 the sweet spot | Power: 60 mA/px full-white worst case is the planning constant [S417]; a 150-px costume at ~15% average duty already draws ~1.35 A — beyond small packs without a limiter [S418]. Compute: ulab-vectorized CircuitPython does 256 px in ~4 ms/frame on RP2040 [S400]; plain-Python loops manage only ~25 fps at 256 px [S400]. |
+| W-2 | Render frame rate | ≥30 fps, target 60 fps | 60 fps is the live-engine norm (LX default [S264:src/main/java/heronarts/lx/LXEngine.java#L109-L110], led-control default [S255]); ulab benchmark shows 60 fps of compute headroom at ≤256 px on RP2040 [S400], ~2× more on RP2350 [S403][NEEDS-VERIFICATION]. |
+| W-3 | Output/dither refresh | ≥400 Hz on strips ≤~85 px/line; configurable dither depth (fewer bits at lower Hz) | SmoothLed proves interpolate+dither fits ATtiny-class parts at ≥400 Hz with a `ditherMask` depth knob [S716:src/SmoothLed.h#L13-L15][S019]; refresh budget per Q-4 [S615][S127]. |
+| W-4 | Device RAM budget for the quality layer | 5 bytes/channel (15 B/RGB px) interpolator+dither state; e.g. 150 px ≈ 2.3 KB | SmoothLed's Interpolator is exactly value(16)+step(16)+dither(8) per channel; 60 LEDs = 900 B on a 2 KB ATtiny [S716:src/SmoothLed.h#L63-L79]. RP2040/nRF52840 have orders of magnitude more; the number sets the floor. |
+| W-5 | Radio & control | BLE GATT for phone tweaks (parameter writes + pattern file push); WiFi AP only as an explicit short-session mode | ESP32 SoftAP draws ~100–130 mA with no modem power-save available in AP mode — ~10%/hour of a 1200 mAh pack before any LED [S411]; nRF52840 BLE idles at µA and is the measured best-in-class for BLE current [S412]; BLE file push is a solved workflow (FileTransferService + web editor) though "simple (not fast)" [S407][S409]. |
+| W-6 | Battery & current limiting | 1200–2000 mAh LiPo; software current cap enforced every frame (default cap ~850 mA, user-set to pack rating) | WLED's ABL default is 850 mA and a 2000 mAh pack yields ~2 h at that cap [S418]; FastLED's estimate-and-scale is the algorithm to port — CircuitPython has no built-in equivalent [S413]. Direct-from-LiPo (3.7 V) drive of 5 V pixels is acceptable and avoids boost losses [S417]. |
+| W-7 | Standalone operation | Full pattern rendering on-device with no host; parameters persist across power cycles; phone connects only to tweak | The stated form-factor contract; precedent is Pixelblaze (standalone ESP32 + occasional phone/browser) [S013][S200] and CircuitPython wearables [S416]. |
+| W-8 | Audio/motion reactivity (optional) | If equipped: one normalized "sensor frame" (≥16 bands GEQ + energy + IMU) at 40–60 Hz, consumed by patterns as read-only variables | Pixelblaze sensor board format: 32 bands + energy + accelerometer at ~39 Hz over serial, MIT [S462][S683:src/output.c#L71-L145]; WLED-MM ships a 44-byte feature packet at ~43 Hz [S453]. Patterns consume features, never raw audio [S204]. |
+| W-9 | Chips | 5 V SK6812 (RGBW, ~1.2 kHz PWM) or WS2812B-2020/V5 (~2 kHz PWM) in small packages; HD107s/HD108 for POV/high-fidelity pieces | SK6812's 1.2 kHz PWM and small packages (3535/1515) make it the wearable workhorse [S114][S115]; classic WS2812B's 400 Hz PWM is the flicker liability, fixed in current revisions [S109]; HD107s/HD108 have 27 kHz PWM and 3.0 V logic thresholds (no shifter) [S101][S102]. |
+
+## P. Portable tier (props, totems, bikes; battery or small PSU)
+
+| ID | Requirement | Value | Rationale |
+|---|---|---|---|
+| P-1 | Pixel count | 150–2,000 px per prop; ≤750 px per WiFi ESP32 receiver | WLED's FAQ: 750 LEDs "the recommended maximum" per controller; 1000 px @30 fps ≈ 720 kbit/s is "difficult... over WiFi" [S165]; QuinLED Dig-Next-2 suggests ~1,200 total (~600/port) [S357]. |
+| P-2 | Render frame rate | 60 fps target, 40 fps floor | 40 fps is current practitioner advice for dense modern displays [S263]; WLED's own default tick is 42 [S252]; 60 matches the host-engine norm [S264]. |
+| P-3 | Output refresh for dithering | Dithered outputs keep ≤~150 px/line (≥200 Hz) — prefer ≤85 px/line (400 Hz) via multiple outputs; or use clocked chips (SK9822/HD107s) where dither-free depth is wanted | Refresh math per Q-4 [S108][S105]; community guidance caps a dithered one-wire line at roughly 100–150 px [S127]; APA102-class chips make kHz refresh trivial and add the 5-bit brightness field (pseudo-13-bit) [S128][S615:src/fl/gfx/five_bit_hd_gamma.cpp.hpp#L36-L130]. |
+| P-4 | Latency (hosted mode, audio-reactive) | ≤50 ms audio-to-photon; receiver transport jitter ≤1 frame (16.7 ms) median | Detectability edge for lagging visuals ≈45 ms (ITU-R BT.1359-1) [S459]; optimized ESP32 WiFi measures ~9 ms median / ~25 ms outliers — the tail eats the budget, so tune WiFi (sleep off) or wire it [S166][S158]. |
+| P-5 | Power | 5 V, AHCT125-class level shifting as a fixed design assumption; injection every 2.5–5 m; USB-C PD packs for bigger props | 3.3 V data into 5 V strips is out of spec without a shifter [S133]; ≤10% voltage-drop rule forces 5 V injection at 2.5–5 m [S135]; Adafruit's Sparkle Motion line standardizes USB-C PD (5/12/20 V up to 100 W) for exactly this class [S414]. |
+| P-6 | Standalone-vs-hosted | Dual-mode: receiver runs local effects standalone; when a pewpew host appears it streams and **preempts**; on stream loss the receiver holds the last frame then reverts after a sender-set timeout (1–2 s) | WLED's realtime-lock contract: every packet re-arms a timeout (default 2.5 s), then the node falls back to local state — self-healing when the host dies [S645:wled00/udp.cpp#L410-L456][S253][S162]. |
+| P-7 | Host hardware (hosted mode) | Pi Zero 2 W-class minimum for ≤2k px; Pi 5/laptop for comfort | LedFx-style Python engines run on Pi-class hosts [S012]; Pi Zero 2 is FPP-supported but WiFi-only/512 MB — fine for a prop, wrong for a backbone [S368]. |
+
+## R. Room-scale / light-art tier (installations, room+)
+
+| ID | Requirement | Value | Rationale |
+|---|---|---|---|
+| R-1 | Pixel count | 2,000–20,000 px total, sharded across receivers; ≤~1,000 px per WiFi receiver, 1,000–4,000 per Ethernet receiver/port group | WLED WiFi guidance per P-1 [S165]; Falcon F16v5 does 1,024 px/output × 16 outputs over Ethernet+DDP [S359]; per-port physics: ~800 px/port at 40 fps [S360]. |
+| R-2 | Render frame rate | 60 fps host render; every receiver fed every frame | 60 fps engine norm [S264][S255]; at 10k px, DDP costs 21 packets/frame ≈ 1,260 pkt/s and ~15.2 Mbit/s at 8-bit — trivial for a wired host [S150]. 16-bit doubles it (~30.3 Mbit/s) — still trivial on gigabit, but per-receiver packet rate is the real constraint [S150][S165]. |
+| R-3 | Transport efficiency | Native transport must be ~3× more packet-efficient than sACN/Art-Net at pixel loads and carry 16-bit natively | DDP: 94.9% efficient vs sACN 72.7% / Art-Net 85.9%; sACN/Art-Net need ~2.8× the packets; only DDP has a 16-bit wire format [S150]. Per-packet processing, not bandwidth, saturates ESP32 receivers — WLED recommends DDP for exactly this reason [S165]. |
+| R-4 | Latency incl. audio-sync | ≤45 ms audio-to-photon (detectability edge); ≤30 ms felt as "tight" [folk figure, prototype]; signed delay knob (±ms, up to +5 s) for Bluetooth-delayed speakers | ITU-R BT.1359-1: detectability ≈ +45 ms when audio leads [S459]; stage budget: capture 8–17 ms + driver 2–10 ms + DSP <1 ms + render 1–5 ms + transport 2–10 ms + strip refresh 1–10 ms ≈ 15–50 ms total [S011][S458][S166]; LedFx ships the delay knob (0–5000 ms) for Bluetooth sinks [S011:ledfx/effects/audio.py#L459-L463]. The 30 ms figure is uncited folklore — flagged for the user test in prototype-to-verify. |
+| R-5 | Network | Unicast UDP per receiver (never multicast on WiFi); Ethernet receivers for the backbone; broadcast Push/sync packet per frame for cross-receiver coherence | WiFi multicast loss ≈ raw PER (~5%) vs <0.1% for retried unicast [S150]; WLED docs steer realtime streaming to Ethernet boards [S165]; DDP broadcast-Push flips all buffers simultaneously [S150] — its real-world skew is a prototype item. |
+| R-6 | Frame coherence | Fill-then-latch semantics (DDP Push) so multi-packet frames never tear; sequence numbers for loss detection; hold-last-frame on loss | DDP Push decouples buffer-fill from display [S150]; WLED renders non-Push senders per-packet — tearing is structural in WLED's own DNRGB [S645:wled00/e131.cpp#L20-L93][S162]; hold-then-revert is the field-standard loss policy [S253]. |
+| R-7 | Power | 12 V WS2815 (RGB) / WS2814 (RGBW), fused multi-point injection, ≤10% drop; xConnect connectors for new gear | 12 V cuts current ~3× and constant-current pixels mask droop; injection stretches to 5–10 m [S112][S135]; WS2814 is the ascendant commodity 12/24 V RGBW part [S119]; xConnect won the pigtail war [S370]. |
+| R-8 | Host | Pi 5 or N100-class mini-PC, wired gigabit; host never bit-bangs pixels | Pi 5's native WS2812 output is broken by the RP1 I/O chip — irrelevant in a network architecture [S367]; FPP 9.x supports Pi 5 as a render host [S368]. |
+| R-9 | Engine throughput | ≥20k px × 60 fps (1.2 M px·frames/s) of pattern evaluation + pipeline on a Pi 5-class host — *prototype: no published NumPy benchmark exists at this scale* | Vectorization buys 1–2 orders of magnitude over per-pixel Python (10× measured even on RP2040 [S400][S211]); per-pixel CPython caps at ~22.5k px/s (led-control) [S660:README.md#L17-L24][S210]; the 5k–50k px NumPy figure is the known measurement gap [RA-05 open questions]. |
+| R-10 | Multi-receiver sync | All receivers of one canvas latch the same frame within ≤1 frame period of each other | DDP broadcast-Push / E1.31 sync / ArtSync all exist for this [S150][S157][S159]; no source measures actual skew on WiFi — prototype item. FPP MultiSync's position-sync model is the fallback for pre-rendered content [S256][S163]. |
+
+## Cross-cutting: standalone-vs-hosted expectations summary
+
+| Tier | Default mode | Host present | Host lost |
+|---|---|---|---|
+| Wearable | Standalone render on device (W-7) | Phone/laptop over BLE tweaks parameters, pushes patterns [S407][S409] | N/A — device is self-contained |
+| Portable | Receiver local effects (WLED) | Host streams DDP, preempts local [S253] | Hold last frame → revert to local after timeout [S645:wled00/udp.cpp#L410-L456] |
+| Room | Hosted; receivers are dumb sinks | Host streams DDP at 60 fps (R-2) | Same hold/revert contract per receiver; show degrades to per-node local effects [S253][S162] |
