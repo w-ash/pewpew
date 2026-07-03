@@ -1965,3 +1965,25 @@ is removed.
 - published: n/a (work 2009)
 - accessed: 2026-07-03
 - relevance: fire→LED retrofit for long-term public install (60+ custom controllable LED packages) with button-triggered pattern interaction; no code-level docs found.
+
+## Block S600–S699 — Code-reading deep dives
+
+### [S600] fadecandy — firmware + fcserver (PimentNoir community mirror)
+- type: code
+- url: https://github.com/PimentNoir/fadecandy
+- pinned: PimentNoir/fadecandy@36f616158f195a327f8486474af2956dad52881d
+- author: Micah Elizabeth Scott (scanlime); mirror maintained by PimentNoir
+- license: MIT (per-file headers; firmware and server carry MIT permission text)
+- accessed: 2026-07-03
+- relevance: canonical temporal-dithering + keyframe-interpolation LED controller; the reference for "better than clown mode" low-brightness fades
+- provenance: original scanlime/fadecandy repo deleted by author (confirmed 2026-07-03 [S015][S027]); this is a community mirror. Authenticity checked 2026-07-03: MIT LICENSE (c) 2013 Micah Elizabeth Scott, README references scanlime URLs, shallow history includes "Merge branch 'master' of https://github.com/scanlime/fadecandy" (ee9da65); mirror-added changes are limited to examples (dependabot minimist bump, Processing example tweaks) — firmware/ and server/ appear unmodified from upstream.
+- excerpts: research/excerpts/S600-fadecandy-pixel-pipeline/ (updatePixel, lutInterpolate, calculateInterpCoefficient)
+
+### [S615] FastLED repository (deep-dive pin)
+- type: code
+- url: https://github.com/FastLED/FastLED
+- pinned: FastLED/FastLED@8df8258c86200112b2c9e917b4b3fec5d19a946e
+- author: Zach Vorhies (maintainer), Daniel Garcia & Mark Kriegsman (original)
+- license: MIT (verified in LICENSE at pinned sha, 2026-07-03)
+- accessed: 2026-07-03
+- relevance: deep-dive pin for quality machinery — temporal dithering, five_bit_hd_gamma, color correction, palettes, chipset timing; supersedes seed [S008] for line-level cites. Findings: research/code-reading/fastled.md. Excerpts: research/excerpts/S615-binary-dither/, S615-five-bit-hd-gamma/, S615-compute-adjustment/. Note: tree is 3.10.4-dev (`FASTLED_VERSION 3010004`), release_notes.md at this sha lists 3.10.4 as "Next Release"
