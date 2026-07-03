@@ -1241,6 +1241,153 @@ is removed.
 - accessed: 2026-07-03
 - relevance: reference DIY controller boards + extensive practical wiring/power-injection guides (seed)
 
+### [S351] WLED knowledge base — Compatible controllers
+- type: docs
+- url: https://kno.wled.ge/basics/compatible-controllers/
+- author: WLED project (Aircoookie et al.)
+- accessed: 2026-07-03
+- relevance: official WLED hardware guidance — ESP8266 deprecation, ESP32 variant support tiers, Ethernet boards
+
+### [S352] MoonModules/MoonLight — Releases (v0.5.8–v1.0.0)
+- type: docs
+- url: https://github.com/MoonModules/MoonLight/releases
+- author: MoonModules (ewowi et al.)
+- license: GPL-3.0
+- published: 2025-08-15 through 2026-05-06 (v1.0.0)
+- accessed: 2026-07-03
+- relevance: MoonLight hardware targets (S3/P4 best, PSRAM 130K LEDs, PARLIO P4 driver, supported boards)
+
+### [S353] Espressif Developer Portal — Wireless Connectivity Solutions for ESP32-P4
+- type: docs
+- url: https://developer.espressif.com/blog/wireless-connectivity-solutions-for-esp32-p4/
+- author: Espressif Systems
+- accessed: 2026-07-03
+- relevance: authoritative statement that P4 has no radio; ESP-Hosted/ESP-AT companion-chip (C6) architecture
+
+### [S354] Hackaday — Poking at the ESP32-P4 and C6 dies in an ESP32-P4-M3 module
+- type: article
+- url: https://hackaday.com/2026/02/19/poking-at-the-esp32-p4-and-c6-dies-in-an-esp32-p4-m3-module/
+- author: Hackaday
+- published: 2026-02-19
+- accessed: 2026-07-03
+- relevance: evidence that newer P4 modules co-package a C6 die for WiFi
+
+### [S355] esphome issue #10956 — P4 & C6 WiFi issues via esp32_hosted
+- type: forum
+- url: https://github.com/esphome/esphome/issues/10956
+- author: esphome users
+- accessed: 2026-07-03
+- relevance: hosted-WiFi instability on P4+C6 boards as of early 2026 — P4 WiFi path not yet boring
+
+### [S356] WLED issue #5576 — ESP8266 too big for OTA update (2-step _min workaround)
+- type: forum
+- url: https://github.com/wled/WLED/issues/5576
+- author: WLED users/maintainers
+- accessed: 2026-07-03
+- relevance: concrete evidence ESP8266 is being squeezed out of full WLED builds (flash exhaustion); see also #5363
+
+### [S357] QuinLED Dig-Next-2 specifications
+- type: product
+- url: https://quinled.info/dig-next-2-specifications/
+- author: Quindor (Intermittent Technology)
+- accessed: 2026-07-03
+- relevance: current-gen QuinLED small board — ESP32 8MB/2MB PSRAM, 2 outputs, 5-48V, fusing, firmware compatibility list
+
+### [S358] QuinLED Dig-Octa — modular WLED LED system
+- type: product
+- url: https://quinled.info/quinled-dig-octa/
+- author: Quindor (Intermittent Technology)
+- accessed: 2026-07-03
+- relevance: room/stage-scale QuinLED — 8 channels + Ethernet brainboard on 30-100A fused powerboards, E1.31/Art-Net/DDP
+
+### [S359] Falcon F16v5 pixel controller (store page)
+- type: product
+- url: https://pixelcontroller.com/store/featured/88-f16v5.html
+- author: Falcon / pixelcontroller.com
+- accessed: 2026-07-03
+- relevance: F16v5 specs — $280, 16+4 ports (to 32), 1024 px/output, 192 universes E1.31/Art-Net/DDP, e-fuses, 2-port Ethernet switch
+
+### [S360] Kulp K16A-B controller owner's manual
+- type: docs
+- url: https://kulplights.com/manuals/K16A-B-Manual.pdf
+- author: Kulp Lights LLC
+- accessed: 2026-07-03
+- relevance: authoritative per-port limit statement — 800 px/port @40fps, 1500 @20fps; BeagleBone cape running FPP natively
+
+### [S361] Kulp K40D-PB product page
+- type: product
+- url: https://kulplights.com/product/k40d-pb/
+- author: Kulp Lights LLC
+- accessed: 2026-07-03
+- relevance: PocketBeagle cape, 10 RJ45 differential ports / 40 strings — long-range FPP-native architecture
+
+### [S362] Advatek PixLite Mk3 range (A4-S product page + comparison)
+- type: product
+- url: https://www.advateklighting.com/products/a4-s-mk3
+- author: Advatek Lighting
+- accessed: 2026-07-03
+- relevance: professional tier — A4-S Mk3 4080 px over 4 outputs; E4-S Ethernet and T8-S long-range variants
+
+### [S363] HinksPix Pro V3 CPU (HolidayCoro)
+- type: product
+- url: https://www.holidaycoro.com/HinksPix-Pro-V3-CPU-20-Long-Range-Jacks-80-Ports-p/952-6.htm
+- author: HolidayCoro
+- accessed: 2026-07-03
+- relevance: high-density holiday-show controller — V3 CPU + expansions to 16,320 px, 80-port long-range configs
+
+### [S364] forkineye/ESPixelStick — repository and releases
+- type: code
+- url: https://github.com/forkineye/ESPixelStick
+- author: Shelby Merrick (forkineye)
+- license: MIT
+- accessed: 2026-07-03
+- relevance: ESPixelStick V4 firmware stuck at v4.0-beta4 (2023-11) with development in fork/CI artifacts — waning evidence
+
+### [S365] simap/pixelblaze_output_expander — firmware + serial protocol
+- type: code
+- url: https://github.com/simap/pixelblaze_output_expander
+- author: Ben Hencke (simap)
+- license: MIT
+- accessed: 2026-07-03
+- relevance: open 2Mbps framed serial protocol, 8 channels, 240 RGB/180 RGBW px buffered per channel, 8 boards per line; host-agnostic (Pi/Arduino)
+
+### [S366] ElectroMage Pro Output Expander (shop page)
+- type: product
+- url: https://shop.electromage.com/products/pixelblaze-pro-output-expander-pro-8x-ws2812-apa102-led-driver
+- author: ElectroMage (Ben Hencke)
+- accessed: 2026-07-03
+- relevance: Pro expander — 8-64 channels per serial line, 600/800 px per channel buffering
+
+### [S367] jgarff/rpi_ws281x — Raspberry Pi 5 support (wiki + repo)
+- type: code
+- url: https://github.com/jgarff/rpi_ws281x/wiki/Raspberry-Pi-5-Support
+- author: Jeremy Garff et al.
+- license: BSD-2-Clause
+- accessed: 2026-07-03
+- relevance: Pi 5 RP1 chip broke legacy WS281x GPIO output; needs rp1_ws281x_pwm kernel module — evidence native Pi pixel output is a dead end
+
+### [S368] FalconChristmas/fpp — releases (FPP 9.x Pi 5 support)
+- type: code
+- url: https://github.com/FalconChristmas/fpp/releases
+- author: FalconChristmas
+- license: GPL-2.0/GPL-3.0 mixed (FPP)
+- accessed: 2026-07-03
+- relevance: FPP 9.x (latest 9.5) images support Pi Zero through Pi 5 and BeagleBone — render-host OS support status
+
+### [S369] QuinLED — The Ultimate LED Strip Power Injection Guide (+ wire thickness guide)
+- type: docs
+- url: https://quinled.info/the-ultimate-led-strip-power-injection-guide/
+- author: Quindor (Intermittent Technology)
+- accessed: 2026-07-03
+- relevance: injection sizing (≤10% Vdrop), 5V-vs-12V injection cadence, 18AWG strip-feed guidance, edge-vs-mid injection fusing
+
+### [S370] AusChristmasLighting — pigtail connector plug type comparisons (Ray Wu vs xConnect)
+- type: forum
+- url: https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/
+- author: AusChristmasLighting community
+- accessed: 2026-07-03
+- relevance: Ray Wu vs xConnect near-identical mechanically; xConnect single wiring standard + universal store stocking — the connector to standardize on
+
 ## Block S400–S449 — RA-09 Hardware: wearable tier
 
 ### [S400] todbot — "Speed up CircuitPython LED animations 10x with ulab"
@@ -1258,6 +1405,153 @@ is removed.
 - accessed: 2026-07-03
 - relevance: the standard wearable-tier animation library; API prior art
 
+### [S402] Core Electronics — "Huge MicroPython Speed-Up With WS2812 LEDs" (The Factory)
+- type: video
+- url: https://core-electronics.com.au/videos/the-factory-huge-micropython-speed-up-with-ws2812-leds
+- author: Core Electronics
+- accessed: 2026-07-03
+- relevance: measured ~2x frame-rate gain (10 → ~22 fps) from @micropython.viper on a GlowBit WS2812 matrix; documents viper restrictions
+
+### [S403] CircuitPython board pages — RP2350 boards (Feather RP2350, Plasma 2350 etc.)
+- type: docs
+- url: https://circuitpython.org/board/adafruit_feather_rp2350/
+- accessed: 2026-07-03
+- relevance: confirms ulab is bundled for RP2350-class boards; RP2350 runs CircuitPython roughly 2x faster than RP2040
+
+### [S404] Pixelblaze — language reference and product docs
+- type: docs
+- url: https://electromage.com/docs/language-reference/
+- author: Ben Hencke (ElectroMage)
+- accessed: 2026-07-03
+- relevance: JS-like pattern language compiled off-device (in browser) to instructions executed on ESP32 — closest precedent for host-authored/device-executed patterns
+
+### [S405] Pixelblaze V3 — Crowd Supply campaign page
+- type: product
+- url: https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3
+- author: Ben Hencke (ElectroMage)
+- accessed: 2026-07-03
+- relevance: performance claim ~48k pixels/sec on ESP32; bytecode is platform-dependent between v2/v3
+
+### [S406] wled/WLED PR #4570 — "added support for fseq files"
+- type: code
+- url: https://github.com/wled/WLED/pull/4570
+- author: Andrejchrcek
+- license: EUPL-1.2 (WLED)
+- accessed: 2026-07-03
+- relevance: FSEQ-from-SD standalone playback merged into WLED (2025) — the bake-and-play portability path
+
+### [S407] Adafruit CircuitPython BLE_File_Transfer library
+- type: code
+- url: https://github.com/adafruit/Adafruit_CircuitPython_BLE_File_Transfer
+- author: Adafruit
+- license: MIT
+- accessed: 2026-07-03
+- relevance: BLE service (UUID 0xfebb) for pushing files (i.e. Python patterns) to an nRF52840 wearable from a phone; self-described "simple (not fast)"
+
+### [S408] todbot/circuitpython_led_effects
+- type: code
+- url: https://github.com/todbot/circuitpython_led_effects
+- author: Tod Kurt
+- license: TBD
+- accessed: 2026-07-03
+- relevance: benchmark code behind the ulab 10x speedup claim; idiomatic vectorized LED effects in CircuitPython
+
+### [S409] Adafruit Learn — "Wirelessly Code your Bluetooth Device with CircuitPython"
+- type: docs
+- url: https://learn.adafruit.com/wirelessly-code-your-bluetooth-device-with-circuitpython/overview
+- author: Adafruit
+- accessed: 2026-07-03
+- relevance: browser-based editing of CircuitPython files over BLE on nRF52840 — proves phone/laptop-to-wearable pattern push workflow
+
+### [S410] Raspberry Pi — RP2350 datasheet
+- type: datasheet
+- url: https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
+- author: Raspberry Pi Ltd
+- published: 2024-08-08
+- accessed: 2026-07-03
+- relevance: RP2350 specs — dual Cortex-M33/RISC-V 150 MHz, 3 PIO blocks / 12 state machines, 32-instruction PIO programs
+
+### [S411] ESP32 Forum — "ESP32 Power consumption considerations" (thread t=2662)
+- type: forum
+- url: https://esp32.com/viewtopic.php?t=2662
+- accessed: 2026-07-03
+- relevance: measured ~130 mA average with 0.6 A spikes during active WiFi; notes esp_wifi_set_ps power save works only in station mode (not SoftAP)
+
+### [S412] Seeed forum — msfujino, "BLE Advertising Current Comparison, ESP32C3,C6,S3, MG24, nRF52840"
+- type: forum
+- url: https://forum.seeedstudio.com/t/ble-advertising-current-comparison-esp32c3-c6-s3-mg24-nrf52840/287847
+- author: msfujino
+- published: 2025-01-17
+- accessed: 2026-07-03
+- relevance: measured cross-chip BLE advertising current; verdict "nRF52840 is by far the best for low current consumption BLE applications"
+
+### [S413] FastLED Wiki — Power notes (setMaxPowerInVoltsAndMilliamps)
+- type: docs
+- url: https://github.com/FastLED/FastLED/wiki/Power-notes
+- author: FastLED project
+- license: MIT (FastLED)
+- accessed: 2026-07-03
+- relevance: the reference brightness-limiting pattern — estimate frame power, scale global brightness; applied automatically in show()/delay(); assumes 5 V pixels
+
+### [S414] Adafruit Sparkle Motion — product page (#6100)
+- type: product
+- url: https://www.adafruit.com/product/6100
+- author: Adafruit
+- published: 2025-01-24
+- accessed: 2026-07-03
+- relevance: 2025 flagship WLED/xLights board — ESP32, 4 outputs, USB-C PD 5/12/20V 100W, IR receiver, I2S mic, 33x45mm
+
+### [S415] Adafruit Learn — Sparkle Motion Mini guide
+- type: docs
+- url: https://learn.adafruit.com/adafruit-sparkle-motion-mini/overview
+- author: Adafruit
+- accessed: 2026-07-03
+- relevance: 31.6x19.8mm ESP32 WLED board aimed at wearables/portable rigs; 2 outputs
+
+### [S416] Adafruit LED Glasses Driver — nRF52840 Sensor Board (#5217) + EyeLights guide
+- type: product
+- url: https://www.adafruit.com/product/5217
+- author: Adafruit
+- accessed: 2026-07-03
+- relevance: canonical nRF52840 wearable reference design — thin board, LiPo, LIS3DH, PDM mic, drives 116-LED glasses via IS31FL3741 I2C driver (hardware PWM offload)
+
+### [S417] Adafruit NeoPixel Überguide — Powering NeoPixels
+- type: docs
+- url: https://learn.adafruit.com/adafruit-neopixel-uberguide/powering-neopixels
+- author: Adafruit
+- accessed: 2026-07-03
+- relevance: 60 mA/px worst-case planning constant ("rule of thumb, not hard science"), 3.7 V LiPo direct drive, brownout caps, wearable strain-relief guidance
+
+### [S418] WLED knowledge base — Settings (Automatic Brightness Limiter)
+- type: docs
+- url: https://kno.wled.ge/features/settings/
+- author: WLED project
+- accessed: 2026-07-03
+- relevance: WLED ABL — default 850 mA cap, tunable to supply/pack rating; the shipped-firmware version of estimate-and-scale power limiting
+
+### [S419] Adafruit blog — CircuitPython 10.0.0 (2025-10-01) and 10.2.1 (2026-05-12) release posts
+- type: article
+- url: https://blog.adafruit.com/2025/10/01/circuitpython-10-0-0-released/
+- author: Adafruit
+- published: 2025-10-01
+- accessed: 2026-07-03
+- relevance: evidences healthy CircuitPython release cadence through mid-2026 (10.2.1 on 2026-05-12) — maintenance-status anchor for the wearable Python stack
+
+### [S420] ElectroMage forum + shop — Pixelblaze availability/roadmap threads (2024-2025)
+- type: forum
+- url: https://forum.electromage.com/t/pixelblaze-for-burning-man-2025-sync-wifi-new-product-roadmap/3997
+- author: ElectroMage community / Ben Hencke
+- accessed: 2026-07-03
+- relevance: maintenance-status anchor for Pixelblaze — V3 shipping, V2+ retired, Tindie store paused to 2027, no visible V4 roadmap
+
+### [S421] Adafruit Learn — LIGHTSHIP: LED Animation over WiFi, "SD Card Playback"
+- type: docs
+- url: https://learn.adafruit.com/lightship-led-animation-over-wifi/sd-card-playback
+- author: Adafruit
+- published: 2016-02-04
+- accessed: 2026-07-03
+- relevance: early precedent for baked-frame SD playback at wearable scale (the bake-and-play portability strategy)
+
 ## Block S450–S499 — RA-10 Audio reactivity
 
 ### [S450] WLED-MM — Audio Reactive documentation
@@ -1265,6 +1559,113 @@ is removed.
 - url: https://mm.kno.wled.ge/advanced/audio-reactive/
 - accessed: 2026-07-03
 - relevance: most advanced embedded audio pipeline (GEQ, beat detection, sound sync)
+
+### [S451] aubio-ledfx (LedFx's maintained aubio fork)
+- type: code
+- url: https://github.com/LedFx/aubio-ledfx
+- pinned: LedFx/aubio-ledfx@c9b3bfeebc8acb87940d5e380a693c2f58f713fd
+- author: LedFx team (fork of Paul Brossier's aubio)
+- license: GPL-3.0 (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: maintained wheels of aubio for modern Python; the DSP core LedFx actually ships
+
+### [S452] aubio (upstream repository)
+- type: code
+- url: https://github.com/aubio/aubio
+- author: Paul Brossier
+- license: GPL-3.0 (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: C library for onset/tempo/pitch used (via fork) by LedFx; last release 0.4.9 (2019-02-27), sporadic commits since (last 2026-04-10)
+
+### [S453] WLED-AudioReactive-Usermod (MoonModules)
+- type: code
+- url: https://github.com/MoonModules/WLED-AudioReactive-Usermod
+- pinned: MoonModules/WLED-AudioReactive-Usermod@8d988e985901e00a0a92e119aaa8e3249f817754
+- author: MoonModules (softhack007 et al.)
+- license: EUPL-1.2 (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: the actual WLED-MM audioreactive DSP source (audio_reactive.h, audio_source.h): 22.05 kHz / 512-sample FFT, 16-ch GEQ, AGC, pink-noise mic profiles, UDP sound-sync V2 packet
+
+### [S454] madmom (CPJKU)
+- type: code
+- url: https://github.com/CPJKU/madmom
+- author: Sebastian Böck et al., JKU Linz CP group
+- license: BSD-2-Clause with non-commercial clause on models (custom; GitHub shows NOASSERTION) (checked 2026-07-03)
+- accessed: 2026-07-03
+- relevance: state-of-the-art RNN/DBN beat & downbeat tracking; online mode exists but ~100-200 ms perceived lag reported; last commit 2024-08-25, PyPI 0.16.1 (2018) — effectively unmaintained
+
+### [S455] BTrack (Adam Stark)
+- type: code
+- url: https://github.com/adamstark/BTrack
+- author: Adam Stark
+- license: GPL-3.0 (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: classic C++ real-time causal beat tracker with Python module; stable/legacy academic code (repo pushed 2026-02-26)
+
+### [S456] librosa issue #220 — "Real time analysis"
+- type: forum
+- url: https://github.com/librosa/librosa/issues/220
+- author: librosa maintainers
+- accessed: 2026-07-03
+- relevance: maintainers confirm librosa targets batch/complete-signal analysis, not live streams; disqualifies librosa for pewpew's live path
+
+### [S457] BeatNet (mjhydri)
+- type: code
+- url: https://github.com/mjhydri/BeatNet
+- author: Mojtaba Heydari et al. (ISMIR 2021)
+- license: CC-BY-4.0 (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: CRNN + particle-filter joint beat/downbeat/tempo/meter tracker with true streaming mode, commonly cited sub-50 ms; PyPI 1.1.3 (2023-11-28), repo pushed 2026-04-13; requires PyTorch
+
+### [S458] python-sounddevice documentation
+- type: docs
+- url: https://python-sounddevice.readthedocs.io/
+- author: Matthias Geier
+- license: MIT (library)
+- accessed: 2026-07-03
+- relevance: PortAudio binding used by LedFx; latency/blocksize semantics for the capture stage of the budget
+
+### [S459] ITU-R BT.1359-1 — Relative timing of sound and vision
+- type: spec
+- url: https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1359-1-199811-I!!PDF-E.pdf
+- author: ITU-R
+- published: 1998-11
+- accessed: 2026-07-03
+- relevance: the canonical A/V sync thresholds: detectability +45/-125 ms, acceptability +90/-185 ms; grounds pewpew's <=50 ms audio-to-light target
+
+### [S460] scottlawsonbc/audio-reactive-led-strip
+- type: code
+- url: https://github.com/scottlawsonbc/audio-reactive-led-strip
+- author: Scott Lawson
+- license: MIT (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: ancestor of LedFx's melbank/energy-beat approach ("systematic_leds" lineage); documents 60 FPS as responsiveness/latency knob; archived-era but widely copied
+
+### [S461] pyloudnorm
+- type: code
+- url: https://github.com/csteinmetz1/pyloudnorm
+- author: Christian Steinmetz
+- license: MIT (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: Python EBU R128 / ITU-R BS.1770 loudness (LUFS); suits slow gain-riding, not per-hop AGC; pushed 2026-01-04
+
+### [S462] pixelblaze_sensor_board (firmware + hardware)
+- type: code
+- url: https://github.com/simap/pixelblaze_sensor_board
+- pinned: simap/pixelblaze_sensor_board@15b3d271e0d6535965a68b15f057bac58a3154d7
+- author: Ben Hencke (ElectroMage)
+- license: MIT (software), CC-BY-SA-4.0 (hardware) (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: STM32F0 coprocessor doing fixed-point FFT; serial "SB1.0" frame: 32x uint16 spectrum (37 Hz-10 kHz), energy, max-freq, 3-axis 16G accel, light, 5 analog — the wearable sensor-frame precedent
+
+### [S463] PixelblazeSensorBoardLibrary (Arduino client)
+- type: code
+- url: https://github.com/simap/PixelblazeSensorBoardLibrary
+- pinned: simap/PixelblazeSensorBoardLibrary@1185e4a71d7b0ce7091d381d99f237d49d78dbf5
+- author: Ben Hencke (ElectroMage)
+- license: MIT (verified 2026-07-03)
+- accessed: 2026-07-03
+- relevance: documents the SB1.0 frame parse (~8-9 ms/frame) and API for consuming sensor-board features on third-party MCUs
 
 ## Block S500–S549 — RA-11 Simulation, preview & dev ergonomics
 
@@ -1279,3 +1680,288 @@ is removed.
 - url: https://pypi.org/project/fastled/
 - accessed: 2026-07-03
 - relevance: NOT a Python LED engine — it's the CLI for the WASM compiler; disambiguation matters
+
+### [S502] jandelgado/fastled-wasm — "FastLED for the Web" (unrelated to zackees')
+- type: code
+- url: https://github.com/jandelgado/fastled-wasm
+- author: Jan Delgado
+- license: TBD
+- accessed: 2026-07-03
+- relevance: earlier independent FastLED->WASM port with live browser demo (jandelgado.github.io/fastled-wasm); disambiguation from [S500]
+
+### [S503] FastLED WasmScreenCoords example (fastled.io docs)
+- type: docs
+- url: https://fastled.io/docs/_wasm_screen_coords_8ino.html
+- author: FastLED project
+- accessed: 2026-07-03
+- relevance: shows the screenmap API — per-LED coordinates passed to the browser renderer for physical-layout preview
+
+### [S504] Pixelblaze V3 Standard product listing (Tindie, ElectroMage)
+- type: product
+- url: https://www.tindie.com/products/electromage/pixelblaze-v3-standard-wifi-led-controller/
+- author: Ben Hencke / ElectroMage
+- accessed: 2026-07-03
+- relevance: maintainer-written description of live editor: recompile-and-send on every change, inline syntax/runtime error highlighting, variable watcher, UI-controls-as-functions
+
+### [S505] pixelblaze-client (Python websocket library)
+- type: code
+- url: https://github.com/zranger1/pixelblaze-client
+- author: zranger1
+- license: MIT
+- published: 2025-12-03 (v1.1.7)
+- accessed: 2026-07-03
+- relevance: Python client for the Pixelblaze websocket API; proof the live-control channel is stable third-party tooling surface
+
+### [S506] xLights Manual (manual.xlights.org)
+- type: docs
+- url: https://manual.xlights.org/
+- author: xLights project
+- accessed: 2026-07-03
+- relevance: House Preview window, multiple preview layouts over background photos, per-model render buffers, Render All workflow, render-progress diagnostics
+
+### [S507] AusChristmasLighting thread — "Speeding up rendering" (xLights)
+- type: forum
+- url: https://auschristmaslighting.com/threads/speeding-up-rendering.13383/
+- accessed: 2026-07-03
+- relevance: community evidence that xLights render iteration latency is a recurring pain point
+
+### [S508] LedFx docs — "How to: Create a Dummy Matrix"
+- type: docs
+- url: https://docs.ledfx.app/en/latest/howto/dummy_matrix.html
+- author: LedFx project
+- accessed: 2026-07-03
+- relevance: dummy device renders only to browser frontend for hardware-free testing; 4096-px frontend pixel cap and throttle slider
+
+### [S509] LedFx docs — "How to: Create and Edit Virtuals"
+- type: docs
+- url: https://docs.ledfx.app/en/latest/howto/virtuals.html
+- author: LedFx project
+- accessed: 2026-07-03
+- relevance: virtuals = remap arbitrary device pixel segments into one logical target; mapping layer doubling as preview target
+
+### [S510] WLED docs — "Compiling WLED" (kno.wled.ge)
+- type: docs
+- url: https://kno.wled.ge/advanced/compiling-wled/
+- author: WLED project
+- accessed: 2026-07-03
+- relevance: official build docs are PlatformIO/ESP-only — evidence WLED has no native PC/simulator build target
+
+### [S511] wled-sim (13rac1) — desktop WLED simulator
+- type: code
+- url: https://github.com/13rac1/wled-sim
+- author: 13rac1
+- license: TBD
+- accessed: 2026-07-03
+- relevance: Go/Fyne desktop app emulating a WLED node (JSON API + DDP listener + GUI matrix) for client dev and integration tests; emulates API, not firmware effects
+
+### [S512] Wokwi project — WLED Effects Editor on simulated ESP32
+- type: code
+- url: https://wokwi.com/projects/288883342157283852
+- accessed: 2026-07-03
+- relevance: full WLED firmware running in browser ESP32 instruction simulator — existence proof, but not a practical fast iteration loop
+
+### [S513] Web LED/point-cloud previewer survey (ledcube-webgl; LEDCube-ThreeJS; potree)
+- type: code
+- url: https://github.com/ultrafez/ledcube-webgl
+- accessed: 2026-07-03
+- relevance: representative one-off WebGL/three.js LED simulators (also github.com/lrascius/LEDCube-ThreeJS, github.com/potree/potree) — pattern is common, no reusable packaged component found
+
+### [S514] neopixel-plus (PyPI)
+- type: code
+- url: https://pypi.org/project/neopixel-plus/
+- author: Marco Schlicht et al.
+- license: TBD
+- accessed: 2026-07-03
+- relevance: NeoPixel library with terminal (ANSI) testing mode — preview LEDs in a terminal with no microcontroller
+
+### [S515] Python NeoPixel GUI emulators (having11; Footleg)
+- type: code
+- url: https://github.com/having11/NeoPixel-Emulator
+- accessed: 2026-07-03
+- relevance: Pyglet strip/matrix emulator with Adafruit-GFX port; also github.com/Footleg/neopixel-emulator (API-compatible mock of Adafruit RPi NeoPixel library) — the hardware-API-mock preview pattern
+
+### [S516] LedFx test suite (tests/ directory, inspected via GitHub API)
+- type: code
+- url: https://github.com/LedFx/LedFx/tree/main/tests
+- author: LedFx project
+- license: GPL-3.0
+- accessed: 2026-07-03
+- relevance: direct inspection 2026-07-03: effect tests are HTTP-API smoke tests (set effect, assert JSON), no pixel-output/golden-frame assertions — evidence nobody frame-tests effects
+
+### [S517] FastLED test suite (tests/ directory, inspected via GitHub API)
+- type: code
+- url: https://github.com/FastLED/FastLED/tree/master/tests
+- author: FastLED project
+- license: MIT
+- accessed: 2026-07-03
+- relevance: host-compiled doctest unit suite (math/color primitives, build-bloat regressions); no effect frame-snapshot tests found
+
+### [S518] pytest-mpl — matplotlib image comparison plugin
+- type: docs
+- url: https://github.com/matplotlib/pytest-mpl
+- author: matplotlib project
+- license: BSD-3-Clause
+- accessed: 2026-07-03
+- relevance: the transferable golden-image testing pattern: baseline images + RMS tolerance instead of byte-exact diff
+
+### [S519] watchfiles (samuelcolvin)
+- type: code
+- url: https://github.com/samuelcolvin/watchfiles
+- author: Samuel Colvin
+- license: MIT
+- accessed: 2026-07-03
+- relevance: standard Rust-backed Python file watcher; powers Uvicorn reload; sync/async APIs + run_process — substrate for pewpew's hot-reload loop
+
+### [S520] Python hot-swap reloaders: jurigged & promplate/hmr
+- type: code
+- url: https://github.com/breuleux/jurigged
+- author: Olivier Breuleux (jurigged); promplate (hmr, github.com/promplate/hmr)
+- license: MIT (jurigged); hmr TBD
+- accessed: 2026-07-03
+- relevance: in-place code patching (jurigged: existing instances get new behavior) and reactive module re-run (hmr) — the state-preserving alternatives to process restart
+
+## Block S550–S599 — RA-12 Prior art & control plane
+
+### [S550] WLED docs — JSON API
+- type: docs
+- url: https://kno.wled.ge/interfaces/json-api/
+- author: WLED project (Aircoookie et al.)
+- published: n/a (living doc)
+- accessed: 2026-07-03
+- relevance: canonical spec of WLED's single-JSON-state control model: state/seg objects, presets, playlists, fxdata metadata, per-LED `i` writes and buffer limits.
+
+### [S551] WLED docs — WebSocket interface
+- type: docs
+- url: https://kno.wled.ge/interfaces/websocket/
+- author: WLED project
+- published: n/a (living doc)
+- accessed: 2026-07-03
+- relevance: /ws semantics — same JSON vocabulary as HTTP, server-push of merged state on change, {"v":true} full state, {"lv":true} exclusive live-preview stream, 4-client limit.
+
+### [S552] zranger1/pixelblaze-client (Python protocol reference)
+- type: code
+- url: https://github.com/zranger1/pixelblaze-client
+- pinned: zranger1/pixelblaze-client@9be84700248fa17f0123c702a2939213ba69800a
+- author: zranger1 (JEM) and contributors
+- license: MIT
+- published: v1.1.7 2025-12-03 (last push 2025-12-20)
+- accessed: 2026-07-03
+- relevance: de-facto documentation of the Pixelblaze ws://:81 protocol — exact JSON command keys, binary frame type bytes, sequencer modes, save-flag semantics.
+
+### [S553] Home Assistant — WLED integration docs
+- type: docs
+- url: https://www.home-assistant.io/integrations/wled/
+- author: Home Assistant project (integration by Franck Nijhof)
+- published: n/a (living doc)
+- accessed: 2026-07-03
+- relevance: reference mapping of an LED engine to smart-home entities (segments→lights, presets/playlists/palettes→selects, speed/intensity→numbers); local-push via WebSocket with 10 s polling fallback.
+
+### [S554] WLED docs — Presets (and timed presets)
+- type: docs
+- url: https://kno.wled.ge/features/presets/
+- author: WLED project
+- published: n/a (living doc)
+- accessed: 2026-07-03
+- relevance: preset storage model (/presets.json, 250 slots, preset=any API command), playlist-in-preset structure, 8 timer slots + sunrise/sunset, boot preset, LittleFS write-blocking caveats.
+
+### [S555] Chromatik Guide — OSC
+- type: docs
+- url: https://chromatik.co/guide/osc/
+- author: Heron Arts / Mark Slee
+- published: n/a (living doc)
+- accessed: 2026-07-03
+- relevance: the reference OSC design for LED engines — /lx/ parameter tree, normalized float32 semantics, OSCQuery zeroconf discovery, OSC-driven tempo/beat.
+
+### [S556] Chromatik Guide — MIDI
+- type: docs
+- url: https://chromatik.co/guide/midi/
+- author: Heron Arts / Mark Slee
+- published: n/a (living doc)
+- accessed: 2026-07-03
+- relevance: three-tier MIDI model (native control surfaces incl. APC40 mkII, device-agnostic learn-mode mappings, MIDI-into-patterns) plus MIDI Beat Clock sync.
+
+### [S557] hzeller/spixels PR #1 — Schardt's APA102/SK9822 per-pixel 5-bit dimming
+- type: code
+- url: https://github.com/hzeller/spixels/pull/1
+- pinned: hzeller/spixels@n/a (PR of record; merged into spixels)
+- author: Christopher Schardt (GitHub: schardt)
+- license: TBD (spixels repo license)
+- published: 2017 (PR)
+- accessed: 2026-07-03
+- relevance: primary-source documentation of Schardt's APA102 technique — per-48-bit-pixel 5-bit dimming for extended dynamic range and SK9822 color-shift compensation; ancestor of FastLED APA102HD.
+
+### [S558] Burning Man Journal — "Christopher Schardt: from Engineering to Aesthetics"
+- type: article
+- url: https://journal.burningman.org/2015/12/burning-man-arts/brc-art/christopher-schardt-from-engineering-to-aesthetics/
+- author: Burning Man Journal
+- published: 2015-12
+- accessed: 2026-07-03
+- relevance: documented taste lesson — Schardt's engineer-to-artist transition and art-first framing of LED work.
+
+### [S559] Piper Faust Public Art — Firmament (Christopher Schardt)
+- type: article
+- url: https://www.piperfaustpublicart.com/firmament
+- author: Piper Faust Public Art (representing Schardt)
+- published: n/a
+- accessed: 2026-07-03
+- relevance: Firmament specs — 52-ft canopy, 21,000+ LEDs, patterns paired with classical music; documents the overhead-canopy + curated-music presentation model.
+
+### [S560] Evil Genius Labs — Fibonacci128 technique page
+- type: docs
+- url: https://www.evilgeniuslabs.org/fibonacci128
+- author: Jason Coon
+- published: n/a (living page)
+- accessed: 2026-07-03
+- relevance: documents Fermat's-spiral LED layout, zig-zag physical order, and XY vs polar (radius/angle) pixel maps as creative primitives; maps shipped for Pixelblaze and his MIT FastLED webserver firmware.
+
+### [S561] Hackaday — "Remoticon 2021 // Debra Ansell Connects PCB In Ways You Didn't Expect"
+- type: article
+- url: https://hackaday.com/2022/01/20/remoticon-2021-debra-ansell-connects-pcb-in-ways-you-didnt-expect/
+- author: Hackaday (talk by Debra Ansell / GeekMomProjects)
+- published: 2022-01-20
+- accessed: 2026-07-03
+- relevance: documented LEDs/PCBs-as-structure techniques; companion to her PyCascades 2021 "Sparking Creativity in LED Art with CircuitPython" talk.
+
+### [S562] Adafruit Learn — "Make It Glow: NeoPixel and LED Diffusion Tips & Tricks" (Erin St Blaine)
+- type: docs
+- url: https://learn.adafruit.com/make-it-glow-neopixel-and-led-diffusion-tips-tricks
+- author: Erin St Blaine / Adafruit
+- published: n/a
+- accessed: 2026-07-03
+- relevance: rare written treatment of diffusion materials/spacing; her FastLED guides (LED Campfire etc.) document gradient-palette-driven design.
+
+### [S563] titanicsend/LXStudio-TE — Titanic's End Chromatik app
+- type: code
+- url: https://github.com/titanicsend/LXStudio-TE
+- pinned: titanicsend/LXStudio-TE@863926450a3ae6102d8c5f89c26ffe3b443d944f
+- author: Titanic's End collective (lead: Andrew Look)
+- license: custom LICENSE.md (GitHub: NOASSERTION)
+- published: 2022– (pushed 2026-04-18)
+- accessed: 2026-07-03
+- relevance: largest open LED-art codebase — GLSL shaders on 128k LEDs, AutoVJ (Rekordbox phrase/beat autopilot), MIDI/OSC/ArtNet middleware, team-maintainability practices.
+
+### [S564] CharlesGadeken.com — Squared / 2SQUARED
+- type: article
+- url: https://www.charlesgadeken.com/squared
+- author: Charles Gadeken
+- published: n/a (work 2014)
+- accessed: 2026-07-03
+- relevance: 2×50-ft trees, 768 LED cubes each; documents audience-facing control surfaces (iPad app + RFID table); cube-installation family from which LX emerged.
+
+### [S565] ZackFreedman/Chromance
+- type: code
+- url: https://github.com/ZackFreedman/Chromance
+- pinned: ZackFreedman/Chromance@1cefefb0290369672de02d04cbe8fba5e3625fea
+- author: Zack Freedman (Voidstar Lab)
+- license: MIT
+- published: 2021 (last push 2023-02-02)
+- accessed: 2026-07-03
+- relevance: documented graph-topology (node/edge) LED mapping with ripple routing, ambient default behavior, full kit docs (Dozuki guide, BOM, video).
+
+### [S566] Flaming Lotus Girls — Soma
+- type: article
+- url: https://www.flaminglotus.com/sculptures/soma
+- author: Flaming Lotus Girls
+- published: n/a (work 2009)
+- accessed: 2026-07-03
+- relevance: fire→LED retrofit for long-term public install (60+ custom controllable LED packages) with button-triggered pattern interaction; no code-level docs found.

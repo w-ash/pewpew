@@ -28,7 +28,8 @@ BLOCKS = [
     (500, 549, "Block S500–S549 — RA-11 Simulation, preview & dev ergonomics"),
     (550, 599, "Block S550–S599 — RA-12 Prior art & control plane"),
     (600, 699, "Block S600–S699 — Code-reading deep dives"),
-    (700, 9999, "Block S700+ — Synthesis & later additions"),
+    (700, 749, "Block S700–S749 — Code-reading deep dives (Phase 1 additions)"),
+    (750, 9999, "Block S750+ — Synthesis & later additions"),
 ]
 
 ENTRY_RE = re.compile(r"^### \[S(\d+)\]")

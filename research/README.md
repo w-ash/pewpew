@@ -98,7 +98,8 @@ another block.
 | S500–S549 | RA-11 Simulation, preview & dev ergonomics |
 | S550–S599 | RA-12 Prior art & control plane |
 | S600–S699 | Code-reading deep dives |
-| S700–     | Synthesis & later additions |
+| S700–S749 | Code-reading deep dives (added from Phase 1 queues) |
+| S750–     | Synthesis & later additions |
 
 ## Topic docs
 
