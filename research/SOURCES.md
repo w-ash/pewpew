@@ -1987,3 +1987,63 @@ is removed.
 - license: MIT (verified in LICENSE at pinned sha, 2026-07-03)
 - accessed: 2026-07-03
 - relevance: deep-dive pin for quality machinery — temporal dithering, five_bit_hd_gamma, color correction, palettes, chipset timing; supersedes seed [S008] for line-level cites. Findings: research/code-reading/fastled.md. Excerpts: research/excerpts/S615-binary-dither/, S615-five-bit-hd-gamma/, S615-compute-adjustment/. Note: tree is 3.10.4-dev (`FASTLED_VERSION 3010004`), release_notes.md at this sha lists 3.10.4 as "Next Release"
+
+### [S630] LedFx — Python audio-reactive LED engine (repo)
+- type: code
+- url: https://github.com/LedFx/LedFx
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
+- author: LedFx developers (Austin Hodges et al.)
+- license: GPL-3.0
+- accessed: 2026-07-03
+- relevance: The most complete Python LED engine; object model, render loop, audio pipeline, and network output drivers directly inform pewpew's architecture.
+
+### [S645] WLED repository (deep-dive pin)
+- type: code
+- url: https://github.com/wled/WLED
+- pinned: wled/WLED@14709dd3ea9fca9e5164509772f6c75185e3ab63
+- author: Christian Schwinne (Aircoookie) and WLED contributors
+- license: EUPL v1.2 or later
+- accessed: 2026-07-03
+- relevance: candidate receiver tier for pewpew; segment/effect model, realtime UDP/E1.31/DDP ingest, bus_manager/NeoPixelBus output, ABL power limiting, sync + JSON API. Findings: research/code-reading/wled.md
+- excerpts: research/excerpts/S645-abl-power-limiter/, S645-gamma-tables/, S645-ddp-ingest/
+
+### [S646] WLED-MM (MoonModules fork)
+- type: code
+- url: https://github.com/MoonModules/WLED-MM
+- pinned: MoonModules/WLED-MM@7c55f91f1aecca548a63582e25934fdb0b7f6988
+- author: MoonModules team (ex Atuline/WLED-SR; @softhack007 et al.)
+- license: EUPL v1.2 or later
+- accessed: 2026-07-03
+- relevance: WLED fork (v0.14 base, branch mdev, tag nightly) — origin of the audioreactive usermod and um_data_t audio exchange (since upstreamed); HUB75 output; doc-level diff in research/code-reading/wled.md §6
+
+### [S660] led-control — web-controlled Python LED animation engine for Raspberry Pi
+- type: code
+- url: https://github.com/jackw01/led-control
+- pinned: jackw01/led-control@8e3fe1d0456e589213ecdef1dc8ce57aa15142b6
+- author: jackw01
+- license: MIT
+- accessed: 2026-07-03
+- relevance: closest prior art to "Python per-pixel pattern engine done well"; RestrictedPython per-pixel shaders + SWIG C render extension; claims ~150 fps @ 150 RGBW on Pi Zero. Pinned code-reading record for seed [S017] (same sha as [S210]/[S255] pins). Maintenance (GitHub API, 2026-07-03): pushed_at 2023-11-10, 193 stars, 40 forks, 17 open issues, bus factor 1 (jackw01: 288 of ~294 contributions). Excerpts: excerpts/S660-hsv2rgb-rainbow-render/, S660-restricted-pattern-compile/, S660-frame-loop-hoisting/. Findings: code-reading/led-control.md
+
+### [S670] marimapper — camera-based 3D LED mapper (code)
+- type: code
+- url: https://github.com/TheMariday/marimapper
+- pinned: TheMariday/marimapper@7dc5f799a1b7c180573c2632f6d12a3be0cbf4fa
+- author: TheMariday (Mari D)
+- license: GPL-3.0
+- accessed: 2026-07-03
+- relevance: current best open camera-based 3D LED mapper; candidate subprocess tool for pewpew spatial mapping
+
+### [S671] marimapper issue tracker — detection failure modes
+- type: forum
+- url: https://github.com/TheMariday/marimapper/issues
+- author: TheMariday + community
+- accessed: 2026-07-03
+- relevance: real-world failure modes (reflections #66/#54, detector hang #84, macOS exposure #51, large-scan corruption #48, LED count regression #37, disconnected maps #81) informing pewpew mapper robustness requirements
+
+### [S672] GNU GPL FAQ — mere aggregation and arm's-length process separation
+- type: docs
+- url: https://www.gnu.org/licenses/gpl-faq.html
+- author: Free Software Foundation
+- accessed: 2026-07-03
+- relevance: establishes that invoking GPLv3 marimapper as a separate process with file/CLI exchange ("pipes, sockets and command-line arguments are communication mechanisms normally used between two separate programs"; free and nonfree programs may ship together if they "communicate at arms length") keeps pewpew unconstrained
