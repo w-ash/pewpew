@@ -174,3 +174,130 @@ idle on nRF52840 [S411][S412] (req W-5). Compile-to-VM (Pixelblaze's model
 [S681:pixelblaze/pixelblaze.py#L1490-L1512]) is explicitly deferred: highest
 performance-per-flexibility but a compiler+VM maintenance burden the evidence
 doesn't yet justify.
+
+## 5. Parameterization & control plane
+
+Decision ([ADR-006](decisions/ADR-006-parameterization.md)): **one canonical
+parameter tree; typed one-line parameter declarations; every knob addressable
+and modulatable.**
+
+- **Typed parameter objects, declared in one line** (`Param(default, range,
+  label)` as in §3's example): LX/Chromatik semantics — a registered parameter
+  automatically gets UI, OSC/MIDI address, and modulation input [S216] — with
+  Pixelblaze's zero-ceremony ergonomics (its naming-convention reflection has
+  no range/default metadata, which is the gap we close) [S203]. Serialized
+  ISF-style so a pattern file is a portable, self-describing document [S214].
+  WLED's fixed-slot relabeling (≤5 knobs, uint8 only) is the anti-pattern
+  [S206]; LedFx's voluptuous schemas are typed but verbose and static — no
+  per-frame modulation [S208].
+- **One canonical state tree, partial-merge mutation**: WLED's single JSON
+  document, GET/POST over HTTP, identical vocabulary over WebSocket with
+  server-push of merged state to all clients — the property that made its
+  third-party ecosystem cheap [S550][S551]. No second WS-only vocabulary.
+- **Parameters are modulation endpoints**: LFOs, audio features (§7), and beat
+  phase patch onto any knob at runtime, DAW-style — LX's `CompoundParameter`
+  model [S216]; OSC paths mirror the tree with normalized 0–1 floats, and
+  tempo/beat is itself an externally settable parameter [S555]. MIDI-learn
+  maps events (not devices) onto the same tree [S556].
+- **Live-vs-persisted split**: a `save` flag on mutating commands (Pixelblaze:
+  RAM-only by default, flash on request) [S552]; WLED-style named presets
+  (preset = any partial state/command) and playlist-as-data
+  `{ps, dur, repeat, end}` [S550][S554]. Scheduling stays minimal (boot preset
+  + a few timers); calendars are delegated to Home Assistant/cron — FPP-grade
+  show scheduling is out of scope [S554][S022].
+- **Hub-friendliness**: mDNS/zeroconf advertisement and push-on-change are
+  what earn HA's "Local Push" grade; enumerable presets/patterns/palettes are
+  what become `select` entities [S553]. Live preview is an opt-in exclusive
+  stream (WLED peek `{"lv":true}` / Pixelblaze binary previewFrame), never an
+  always-on broadcast [S551][S552].
+
+## 6. Mapping & calibration
+
+Decision ([ADR-007](decisions/ADR-007-mapping-calibration.md)): **a
+Chromatik-shaped declarative fixture format authored in physical units,
+presented to patterns the Pixelblaze way, compiled to NumPy gathers at load;
+marimapper as the external 3D calibration tool.**
+
+- **Native map format**: declarative JSON fixtures — `points` (explicit
+  array), `strip` (count + spacing), `arc`, nested/parametric fixtures with
+  sequential translate/rotate/scale transforms; physical units (meters),
+  y-up right-handed; per-component output bindings with
+  start/reverse/stride/repeat. This is the `.lxf` shape, the most expressive
+  open declarative format surveyed [S309] — concepts reimplemented from the
+  documented spec, no LX code (LX's license is non-commercial-capped [S035]).
+  Chromatik's tags/views idea gives masks as first-class named point-subset
+  queries instead of `-1` sentinels [S309][S303].
+- **Pattern-facing coordinates**: per-pixel normalized 0–1 world units with
+  Fill/Contain scaling policy computed at load (Pixelblaze's proven
+  portability model [S304]), plus raw physical coords for scale-aware
+  effects and wiring index for 1D/index-space patterns — both-raw-and-
+  normalized per Chromatik precedent [S309]. Orientation lives in two
+  places, deliberately split: geometry transforms (yaw/pitch/roll) vs wiring
+  byte-order flags (reverse/stride) — the split only Chromatik gets right
+  [S309].
+- **Runtime representation**: the map compiles to flat NumPy arrays
+  (index→coord table; coord→output-slot gather per sink). LedFx's
+  precompiled complex-segments path (claimed up to 13×) is the evidence that
+  compiled gathers are the right Python runtime form [S305]
+  [S630:ledfx/virtuals.py#L409-L495].
+- **Import filters, not format adoption**: WLED `ledmap.json` (index
+  permutation + width/height + `-1` gaps) [S303]; Pixelblaze map JSON
+  [S304]; marimapper `led_map_3d.csv` (`index,x,y,z,xn,yn,zn,error`; units =
+  median LED pitch, sparse missing indices — importer must rescale to meters
+  from one measured spacing and preserve per-point error)
+  [S670:marimapper/file_tools.py#L68-L85]; xLights `.xmodel` optional for
+  the prop ecosystem [S306].
+- **Calibration path**: marimapper — actively maintained (v3.4.2,
+  2026-03), sequential-blink + COLMAP SfM with LED-IDs-as-keypoints, live
+  3D feedback, documented two-method backend API (a pewpew/DDP backend is
+  trivial) [S300][S670:marimapper/scanner.py#L48-L115]. GPL-3.0 is a
+  non-issue run as a separate program whose CSV pewpew imports; never vendor
+  its code [S300]. Its accuracy is unquantified upstream (reprojection error
+  only, no metric ground truth [S670:marimapper/sfm_process.py#L135-L157]) —
+  bench-test in prototype-to-verify. Built-in fallbacks for the regular-
+  geometry 90%: grid/strip generators (Pixelblaze map-generator precedent
+  [S304]) and click-on-photo manual mapping [S311].
+
+## 7. Audio
+
+Decision ([ADR-009](decisions/ADR-009-audio-stack.md)): **LedFx-shaped
+feature pipeline, reimplemented in NumPy (no GPL imports); features — never
+samples — distributed to patterns and nodes.**
+
+- **Capture & analysis**: sounddevice (PortAudio, MIT, maintained [S458])
+  at a fixed 60 Hz analysis hop, resampled to a fixed internal rate; one
+  shared windowed FFT; 2–3 mel-style filterbanks + named scalars (volume,
+  beat/bass/mids/high power, onset, beat-now, bar-phase 0–4) computed
+  lazily, cached per hop, shared across all consumers — LedFx's proven
+  shape [S011][S630:ledfx/effects/audio.py#L1346-L1354]
+  [S630:ledfx/effects/melbank.py#L20-L29]. Cost is a non-issue: FFT+mel
+  measured <0.2 ms/hop in NumPy — capture blocksize and WiFi jitter
+  dominate, not compute [RA-10 findings].
+- **Fix LedFx's structural flaw**: its DSP and all subscriber callbacks run
+  inside the PortAudio callback thread
+  [S630:ledfx/effects/audio.py#L1138-L1141]; pewpew's callback only copies
+  the hop into a ring buffer — analysis runs on the render clock (§4a,
+  [ADR-010](decisions/ADR-010-frame-pipeline.md)).
+- **License boundary**: melbank/energy-beat/bar-phase math reimplemented in
+  NumPy from our documented findings; `aubio-ledfx` (GPL-3.0 [S451]) is not
+  imported. aubio upstream is waning anyway (no release since 0.4.9, 2019
+  [S452]).
+- **Feature bus, not audio bus**: one normalized read-only "sensor frame"
+  (melbanks + scalars + IMU) is what patterns see (req W-8) — the
+  Pixelblaze sensor-board lesson: features arrive pre-chewed, patterns never
+  touch raw audio [S204][S462]. Emit WLED audio-sync V2 (44-byte packed
+  struct, port 11988) as a first-class output so every WLED/WLED-MM node on
+  the LAN reacts for free [S453]; consume it too (wearable/receiver tiers).
+- **Beats**: aubio-style causal tempo + LedFx's energy-beat as default;
+  BeatNet behind an optional extra for downbeat/meter (streaming CRNN, but
+  drags in PyTorch and is lightly maintained [S457]). madmom rejected
+  (unmaintained, PyPI 2018, install pain [S454]); librosa rejected for the
+  live path (batch-oriented by design [S456]).
+- **Latency & sync**: budget ≤45 ms audio-to-photon (ITU-R BT.1359-1
+  detectability edge when audio leads [S459], req P-4/R-4); signed delay
+  knob for Bluetooth-delayed speakers, as LedFx ships (0–5000 ms)
+  [S630:ledfx/effects/audio.py#L459-L463]. Loudness: fast AGC on band
+  energies for reactivity + slow LUFS-style gain riding so quiet tracks fill
+  the visual range [S453][S461]. Live song-structure detection is out of
+  scope — no production system does it; offline pre-analysis producing cue
+  maps is the honest route [S456].
