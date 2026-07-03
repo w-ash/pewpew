@@ -2047,3 +2047,88 @@ is removed.
 - author: Free Software Foundation
 - accessed: 2026-07-03
 - relevance: establishes that invoking GPLv3 marimapper as a separate process with file/CLI exchange ("pipes, sockets and command-line arguments are communication mechanisms normally used between two separate programs"; free and nonfree programs may ship together if they "communicate at arms length") keeps pewpew unconstrained
+
+### [S680] simap/pixelblaze — official docs repo (language + mapper reference)
+- type: docs
+- url: https://github.com/simap/pixelblaze/tree/v3
+- pinned: simap/pixelblaze@20d169f30f7912b2245c57ab9bd721436324bf04 (v3 branch)
+- author: Ben Hencke (simap)
+- license: no LICENSE file (docs repo; firmware itself closed). Third-party component licenses listed in README.
+- published: last commit 2020-10-26
+- accessed: 2026-07-03
+- relevance: canonical pattern-language reference (README.expressions.md) and mapper/world-units doc (README.mapper.md) — same text shipped in the device editor; also indexes all open Pixelblaze-adjacent repos
+
+### [S681] zranger1/pixelblaze-client — Python WebSocket client library
+- type: code
+- url: https://github.com/zranger1/pixelblaze-client
+- pinned: zranger1/pixelblaze-client@9be84700248fa17f0123c702a2939213ba69800a
+- author: ZRanger1 (Jon Belson) et al.
+- license: MIT (verified in LICENSE.md, (c) 2020-2025 ZRanger1)
+- published: last commit 2025-12-20
+- accessed: 2026-07-03
+- relevance: most complete open documentation of the Pixelblaze WebSocket API — pattern upload, setVars, preview frames, config, sequencer control
+
+### [S682] simap/pixelblaze_output_expander — expander firmware + protocol spec (v3.x branch)
+- type: code
+- url: https://github.com/simap/pixelblaze_output_expander/tree/v3.x
+- pinned: simap/pixelblaze_output_expander@7a6295b12056db35be3dfd2629783050020db7ae (v3.x branch)
+- author: Ben Hencke (simap)
+- license: MIT (firmware); CC-BY-SA-4.0 (hardware) — stated in README
+- published: last commit 2023-07-07
+- accessed: 2026-07-03
+- relevance: the open "UPXL" 2 Mbps serial protocol — the one Pixelblaze interface pewpew could drive directly; STM32L432, 8ch, DMA bit-banging per Fadecandy/OctoWS2811
+
+### [S683] simap/pixelblaze_sensor_board — sensor board firmware + serial format
+- type: code
+- url: https://github.com/simap/pixelblaze_sensor_board
+- pinned: simap/pixelblaze_sensor_board@15b3d271e0d6535965a68b15f057bac58a3154d7
+- author: Ben Hencke (simap)
+- license: MIT (firmware); CC-BY-SA-4.0 (hardware) — stated in README
+- published: last commit 2022-07-06
+- accessed: 2026-07-03
+- relevance: open "SB1.0" 115200-baud sensor stream; dual-rate fixed-point FFT (20 kHz + 400 Hz) into 32 log bands, accelerometer/light/analog — reusable audio front-end design
+
+### [S684] ElectroMage forum — "Output expander that implements Fadecandy dithering"
+- type: forum
+- url: https://forum.electromage.com/t/output-expander-that-implements-fadecandy-dithering/840
+- author: forum users; key reply by wizard (Ben Hencke)
+- published: 2020-12-18 (wizard reply)
+- accessed: 2026-07-03
+- relevance: Hencke's on-record position that Pixelblaze does NOT use temporal dithering (refresh-rate limits; prefers APA102-class global-brightness bits) — pins down what v3.47 "HDR" is and is not
+
+### [S685] ElectroMage forum — recent-activity snapshot (latest topics, mid-2026)
+- type: forum
+- url: https://forum.electromage.com/latest
+- author: forum community; wizard (Ben Hencke) active in Pico Plus thread
+- accessed: 2026-07-03
+- relevance: ecosystem-health evidence — forum active May–Jul 2026 (Pico Plus thread with wizard replies 2026-06-28, PXLBLZ third-party editor announced 2026-06-16, editable-vars feature request 2026-07-03); no firmware release announcement newer than v3.47 visible
+
+## Block S700–S749 — Code-reading deep dives (Phase 1 additions)
+
+### [S700] HyperHDR — high-performance ambient lighting engine (Infinite Color Engine)
+- type: code
+- url: https://github.com/awawa-dev/HyperHDR
+- pinned: awawa-dev/HyperHDR@6d5fe8769c8e3d070003a25952d07424a2ae2584
+- author: awawa-dev
+- license: MIT (Copyright (c) 2020-2026 awawa-dev)
+- accessed: 2026-07-03
+- relevance: Only shipping implementation of pewpew's target output stack — float linear-sRGB pipeline + adaptive temporal dithering + deep-color (HD108) output. Master at pin contains the v22 Infinite Color Engine (tag v22.0.0.0beta2 = a6fa8a2d6e51734785f4331a2d758c4a0247fea0, plus smoothing drift fix #1561).
+
+### [S715] projectMM (MoonModules v3 clean-slate LED/DMX runtime)
+- type: code
+- url: https://github.com/ewowi/projectMM (redirects to https://github.com/MoonModules/projectMM)
+- pinned: ewowi/projectMM@d5ee07ce3d6c590019cbbde670de8c532b2df511
+- author: ewowi (Ewoud Wijma) / MoonModules
+- license: GPL-3.0 (verified from LICENSE, 2026-07-03)
+- accessed: 2026-07-03
+- relevance: 2026 clean-slate successor to MoonLight by the WLED-MM authors; Layouts→Layers→Drivers pipeline, modifier-as-LUT-fold mapping, live no-reboot reconfiguration, and an 818-line explicit postmortem of MoonLight/WLED architecture decisions — a free autopsy of the architectures pewpew might otherwise copy. Deep dive: code-reading/modern-engines.md §A.
+
+### [S716] SmoothLed (ATtiny interpolating/dithering WS2812 driver)
+- type: code
+- url: https://github.com/mattshepcar/SmoothLed
+- pinned: mattshepcar/SmoothLed@e09236cfc63a96c565d97ef316073452a38cf86d
+- author: Matt Shepcar
+- license: MIT (verified from LICENSE, 2026-07-03)
+- published: 2020 (last commit 2020-07-07; dormant since)
+- accessed: 2026-07-03
+- relevance: Fadecandy-style interpolation + temporal dithering on ATtiny-class AVR (5 B RAM/channel, 64 cycles/channel, zero frame buffer via CCL hardware waveform) — existence proof for pewpew's wearable-tier quality layer. Deep dive: code-reading/modern-engines.md §B. Excerpts: excerpts/S716-smoothled-inner-loop/.
