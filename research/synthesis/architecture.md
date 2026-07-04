@@ -301,3 +301,158 @@ samples — distributed to patterns and nodes.**
   the visual range [S453][S461]. Live song-structure detection is out of
   scope — no production system does it; offline pre-analysis producing cue
   maps is the honest route [S456].
+
+## 8. Preview & dev loop
+
+The dev loop is a first-class deliverable: Pixelblaze's editor is the UX
+benchmark (recompile-and-push on every keystroke; runtime errors surface as
+annotations while the last valid pattern keeps running [S504]), and a Python
+engine gets that loop cheaper than anyone — no compile step, versus
+fastled-wasm's 1–3 s state of the art for compiled LED dev [S500].
+
+Build order (leverage-ordered, from RA-11's recommendation):
+
+1. **Pure render core + preview-as-a-sink.** `render(t, mapping, params,
+   seed) → frame` is pure; the preview is just another sink beside DDP/sACN —
+   LedFx's dummy device proves this costs ~nothing and is the documented
+   no-hardware dev path [S508]. Purity unlocks deterministic scrubbing and
+   testing.
+2. **Hot-reload with state carry-over.** watchfiles-driven re-import of the
+   edited pattern module while the engine keeps running; `t`, parameter
+   values, and the frame buffer carry across the swap [S519]. Leaf-module
+   re-import, not jurigged-style whole-process hot-patching — patterns are
+   small modules with a known interface [S520]. Per-frame exception
+   containment per §3 [S504][S660:ledcontrol/animationcontroller.py#L418-L434].
+3. **Browser preview over websocket**: serve map positions once, stream
+   compact color buffers; 2D canvas first, three.js `Points` cloud when the
+   map is 3D (tens of thousands of points at 60 fps is routine WebGL
+   [S513]; Chromatik's 3D-first UI is the authoring precedent [S034]).
+   Budget the stream deliberately — LedFx's frontend caps at 4096 px with a
+   throttle slider [S508]. ANSI terminal preview comes free via the same
+   sink interface (ssh/CI) [S514]; xLights' photo-underlay preview is the
+   later nice-to-have [S506].
+4. **Golden-frame tests from day one.** Fixed seed + fake clock → N frames
+   per pattern, compared with perceptual tolerance (pytest-mpl's
+   baseline+RMS model [S518]). No surveyed project tests effect output at
+   all — LedFx asserts HTTP responses, FastLED tests primitives, WLED has
+   no effect tests [S516][S517] — the pure core makes pewpew the first.
+
+Anti-goals: no device emulator before the engine exists (wled-sim's lane
+[S511]); no offline pre-render loop (xLights' model — pewpew is a live
+engine [S506]).
+
+## 9. What we ADOPT / BUILD / INTEGRATE
+
+License policy ([ADR-012](decisions/ADR-012-pewpew-license.md)): pewpew is
+permissively licensed, so **GPL/EUPL/LX-licensed systems are integration
+targets and idea sources only — algorithms are reimplemented from the
+documented findings in this research tree; their code is never copied or
+linked in-process.** This applies to LedFx (GPL-3.0 [S011]), marimapper
+(GPL-3.0 [S670:LICENSE#L1-L5]), aubio-ledfx (GPL-3.0 [S451]), WLED
+(EUPL-1.2 [S001]), xLights (GPL-3.0 [S026]), and Chromatik/LX (custom
+non-commercial-capped license [S035]). MIT sources (Fadecandy
+[S600:LICENSE#L1-L3], FastLED [S008], led-control [S017], pixelblaze-client
+[S552], UPXL expander firmware [S682]) could legally be ported with
+attribution, but the default is still reimplementation against our documented
+findings — the excerpts in `research/excerpts/` exist for verification, not
+transplanting.
+
+**ADOPT (use directly, as dependency, tool, or peer device):**
+
+| What | Why | License posture |
+|---|---|---|
+| NumPy / CircuitPython+ulab | The two-tier array substrate; ulab mirrors NumPy by design [S400][S403] | BSD/MIT — fine |
+| sounddevice (PortAudio) | Capture; maintained, NumPy-native [S458] | MIT — fine |
+| watchfiles | Hot-reload watcher; de-facto standard [S519] | MIT — fine |
+| DDP + sACN/Art-Net wire formats | Protocols, not code [S150][S157] | Specs — fine |
+| WLED audio-sync V2 packet format | 44-byte feature struct, port 11988 — wire format only [S453] | Format — fine |
+| Stock WLED / WLED-MM firmware | Day-one receivers over the network ([ADR-004]) | Separate device; network boundary |
+| marimapper | External calibration tool; pewpew imports its CSV [S300] | GPL, separate process — no obligation |
+| Pixelblaze output expanders | Host-driven serial sinks via open UPXL protocol [S682][S365] | MIT — fine |
+
+**BUILD (pewpew's own code, reimplemented from documented findings):**
+
+- Float32-linear quantize-once pipeline, 16-bit perceptual LUT, linear toe
+  ([ADR-001]) — technique from Fadecandy/HyperHDR/Pixelblaze findings
+  [S600][S700][S063].
+- Host-side adaptive temporal dithering + five-bit-HD joint quantizer
+  ([ADR-002]) — HyperHDR and FastLED recipes, reimplemented [S700][S615].
+- Vectorized pattern engine + authoring surface ([ADR-005]), parameter tree
+  ([ADR-006]), mapping compiler ([ADR-007]), paced frame pipeline
+  ([ADR-010]).
+- NumPy melbank/energy-beat/bar-phase feature bus ([ADR-009]) — LedFx's
+  shape, our math [S630][S011].
+- Estimate-and-scale power limiter with per-chip current models —
+  FastLED's algorithm, reimplemented [S413] (req Q-8).
+- Later: pewpew receiver firmware (ESP32-S3 interpolate+dither, [ADR-004])
+  and the wearable device runtime ([ADR-008]).
+
+**INTEGRATE (interoperate with, never depend on):**
+
+- WLED ecosystem — DDP out, its JSON API model informs ours [S550][S645].
+- LedFx — can coexist as a feature source/peer on the LAN [S011].
+- Home Assistant — mDNS discovery + push, WLED-integration-shaped [S553].
+- xLights/FPP ecosystem — `.xmodel` import [S306]; FSEQ as the wearable
+  baked-frames format [S406][S258].
+- Chromatik/LX — `.lxf` concepts clean-roomed from the documented spec
+  [S309]; OSC/OSCQuery conventions [S555].
+
+## 10. Buy / avoid hardware list
+
+Decision ([ADR-013](decisions/ADR-013-hardware-bets.md)). Verdicts as of
+2026-07; full rationale in RA-03/RA-08/RA-09.
+
+**Chips — buy:**
+
+- SK6812 / SK6812-RGBW (5 V wearable/portable workhorse: 1.2 kHz PWM, small
+  packages) [S114][S115]; WS2812B only in current revisions
+  (V5/2020-package, ~2 kHz PWM — never legacy 400 Hz stock) [S109][S105].
+- WS2815 (12 V RGB room default: per-pixel, backup data line, relaxed
+  injection) [S111][S112]; WS2814 (ascendant commodity 12/24 V RGBW — mind
+  its color-order trap [S121]) [S119].
+- HD107s (27 kHz PWM, 40 MHz clock, 3.0 V logic — the de-facto APA102 of
+  2026) [S101][S102]; SK9822 as the budget clocked part (current-source
+  global brightness → flicker-free pseudo-13-bit) [S128].
+- HD108/NS108 (16-bit in silicon — ends dithering; FastLED support merged
+  2025-10-30; specialty supply) [S130][S100][S131] and WS2816 (16-bit
+  one-wire, watch availability [S122][S123]) — the chips the 16-bit pipeline
+  exists for (req Q-6).
+
+**Chips — avoid:** genuine APA102 (440 Hz global-brightness PWM; clone
+displacement) [S128][S101]; WS2811 3-LED-group strips (displaced) [S126];
+legacy-revision WS2812B [S109].
+
+**Receivers/controllers — buy:** classic ESP32 for WLED-upstream duty (its
+only production-recommended chip [S351]); ESP32-S3 with PSRAM as the default
+new buy and the future pewpew-receiver target (MoonLight's sweet spot
+[S352]); QuinLED Dig-Next-2 / Dig-Octa (fused, level-shifted, 5–48 V,
+ecosystem fit [S357][S358]); Falcon F16v5 for the Ethernet room backbone
+(16×1,024 px, DDP, e-fuses, ~$17.50/port [S359]); Olimex ESP32-POE-class
+boards for wired satellites [S351]. Keep and reuse: existing Pixelblaze
+output expanders (open protocol, host-agnostic [S365][S682]).
+
+**Receivers — avoid:** ESP8266 (WLED: "should not be used for any new
+installations" [S351][S356]); ESP32-C3/S2 (single-core stutter, bad board
+revisions [S351]); ESP32-P4 except Ethernet-attached early-adopter use (no
+onboard radio; hosted WiFi still flaky [S353][S355]); ESPixelStick (V4 beta
+since 2023, niche lost to WLED [S364]); HinksPix (Windows/holiday-show
+ecosystem mismatch [S363]). Advatek is fine gear priced for paid installs —
+not for this project [S362].
+
+**Hosts — buy:** Pi 5 or N100-class mini-PC, wired gigabit (req R-8); the
+Pi 5's broken native WS2812 output is irrelevant when receivers do the pixel
+wiggling [S367][S368]. Pi Zero 2 W only as a per-prop portable host (WiFi-
+only, 512 MB [S368]).
+
+**Wearable MCUs — buy:** RP2350 boards for the non-radio core (PIO output +
+best interpreted-Python throughput [S410][S403]); nRF52840 (LED Glasses
+Driver-class) for the BLE tier — measured best-in-class BLE current
+[S412][S416]. 1200–2000 mAh LiPo + JST-PH, software current cap per W-6
+[S418][S417]. **Avoid** for all-day on-body: any ESP32 that must keep
+SoftAP up (~100–130 mA radio floor [S411]); SAMD21-class legacy wearables
+(too slow for the engine [S416]).
+
+**Wiring/power standards:** AHCT125-class shifters as a fixed assumption at
+5 V [S133]; ≤10% voltage-drop injection sizing (2.5–5 m at 5 V, 5–10 m at
+12 V) [S135][S369]; fuse every power channel [S369]; xConnect pigtails for
+all new gear [S370].
