@@ -456,3 +456,70 @@ SoftAP up (~100–130 mA radio floor [S411]); SAMD21-class legacy wearables
 5 V [S133]; ≤10% voltage-drop injection sizing (2.5–5 m at 5 V, 5–10 m at
 12 V) [S135][S369]; fuse every power channel [S369]; xConnect pigtails for
 all new gear [S370].
+
+## 11. Phased build plan
+
+Ordering rationale: the two riskiest bets (vectorized authoring surface,
+Python throughput at scale) are validated before any engine code hardens
+around them; everything hardware-custom (receiver firmware, wearable
+runtime) comes last because stock WLED and baked frames are adequate interim
+carriers ([ADR-004](decisions/ADR-004-receiver-strategy.md),
+[ADR-008](decisions/ADR-008-wearable-tier-strategy.md)).
+
+**Phase 0 — de-risk (benchmarks before architecture hardens).**
+The two execution-model gates from §12: the NumPy/Numba throughput
+microbenchmark (N ∈ {300, 3k, 30k}; no published figure exists at this
+scale [RA-05 open questions]) and a ~5-pattern prototype of the
+scalar-looking-over-arrays authoring surface, including the `if` vs
+`np.where` branching question ([ADR-005], [ADR-011]). Failure here changes
+ADR-011 (Numba/compiled tier promoted from optional to required), not the
+product shape.
+
+**Phase 1 — host engine core, end-to-end on real LEDs.** Pure render core
+(`render(t, mapping, params, seed)`), pattern contract (§3), typed params
+(§5), preview-as-a-sink + ANSI sink, hot reload with state carry-over (§8),
+one paced clock ([ADR-010]), DDP 8-bit out to a stock WLED node
+([ADR-003], [ADR-004]). Golden-frame tests start here, not later (§8).
+
+**Phase 2 — the quality pipeline.** Float32-linear stages 1–6 of §2:
+16-bit perceptual LUT + linear toe, white-point trim, estimate-and-scale
+power limiter, host-side adaptive dithering for 8-bit sinks, DDP 16-bit
+sink, five-bit-HD quantizer for APA102-family via the UPXL expander sink
+([ADR-001], [ADR-002]). Photodiode bench rig built here (it settles three
+§12 items).
+
+**Phase 3 — control plane, audio, mapping.** HTTP+WS JSON tree, presets/
+playlists, OSC + MIDI-learn, mDNS/HA (§5); feature bus + WLED sync V2 out
+(§7, [ADR-009]); fixture format, map compiler, marimapper import + pewpew
+backend, three.js 3D preview (§6, [ADR-007]).
+
+**Phase 4 — the custom hardware tiers.** Wearable runtime: ulab pattern
+subset, device pipeline (16-bit interpolate+dither), BLE GATT control,
+FSEQ-style baked-frames fallback ([ADR-008]). pewpew receiver firmware
+(ESP32-S3): DDP16 ingest, keyframe interpolation + ≥400 Hz device-side
+dithering — the field's biggest unclaimed quality lever [S600][S054][S251]
+([ADR-004]).
+
+## 12. Prototype-to-verify
+
+Claims the research could not settle from sources — only a bench settles
+them. Drawn from the topic docs' open questions; requirement IDs link back
+to [requirements.md](requirements.md).
+
+| # | Claim to verify | Gap | Bench |
+|---|---|---|---|
+| 1 | A NumPy engine sustains ≥20k px × 60 fps on a Pi 5-class host (R-9) | No published NumPy LED benchmark at 5k–50k px anywhere [RA-05] | Microbenchmark: per-pixel loop vs NumPy vs Numba, N ∈ {300, 3k, 30k}, desktop + Pi 5 |
+| 2 | Authors tolerate the vectorized surface (scalar-looking code over arrays) | No prior art in the LED space [RA-05] | Write 5 canonical patterns (fire, comet, plasma, GEQ, 3D SDF); count `np.where` stumbles |
+| 3 | DDP broadcast-Push latches N WiFi receivers within ≤1 frame (R-10, R-5) | No source measures real Push skew [RA-04][S150] | 3+ ESP32s + photodiode/logic-analyzer rig (method of [S166]) |
+| 4 | Stock WLED/WLED-MM handling of 16-bit DDP (truncate? dither?) | Listed as a format [S152]; behavior unverified [RA-04] | Code read of the DDP ingest path + on-device test |
+| 5 | Dither effective-bit gain vs refresh rate (Q-3, W-3) | Only figure is NeoPXL8HDR's "12–13 bits" [S064]; no measured curve [RA-02] | Photodiode bench: bits gained vs Hz on WS2812/SK6812 |
+| 6 | ≤45 ms audio-to-photon is met; whether ~30 ms is the real "tight" edge (R-4, P-4) | 30 ms is uncited folklore [S459][RA-10] | Click-to-photodiode latency rig + small variable-delay user test |
+| 7 | marimapper accuracy is adequate (§6) | Upstream publishes no error figures [S300][RA-07] | Map a known-geometry grid; compute RMS vs ground truth |
+| 8 | RP2350 runs the ulab contract ~2× RP2040 (W-1, W-2) | Inferred from vendor pages, not benchmarked [S403][RA-09] | Run the fire benchmark [S408] on RP2350 |
+| 9 | BLE pattern push is seconds, not minutes (W-5) | FileTransferService is "simple (not fast)" — no KB/s figure [S407][RA-09] | Push a 100 KB pattern via FileTransferService; measure |
+| 10 | One AP sustains enough 60 fps unicast streams for a room (R-1, R-5) | Community guidance qualitative only [S165][RA-04] | Airtime math + incremental-receiver soak test |
+| 11 | Device-side keyframe interpolation is invisible at host rates ≥30 fps (Phase 4 receiver) | No primary source on the threshold [RA-06] | Vary keyframe rate on the interp+dither receiver; observe fades |
+| 12 | OKLab blending is affordable on the wearable tier (§2 stage 1) | No fixed-point MCU OKLab implementation found [RA-02] | ulab OKLab µbenchmark on RP2350 |
+
+Items 1–2 gate Phase 1; 3–6 gate Phase 2/3 defaults (they can only *retune*
+constants, not change structure); 7–12 gate Phase 3/4 details.
