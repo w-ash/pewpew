@@ -387,9 +387,13 @@ where it's nearly free in Python/numpy.
 
 ## 6. Ecosystem health signals (dated)
 
-- **Firmware: stalled at v3.47 (2023-07-13).** No firmware release
-  announcement newer than v3.47 is visible on the forum as of 2026-07-03
-  [S014][S685]. Hencke, asked for a roadmap (2025-02): "I don't have a
+- **Firmware: slow but not stalled.** [VERIFIED-FALSE 2026-07-03: the earlier
+  "stalled at v3.47 (2023-07-13)" finding was a fetch artifact — the forum's
+  news-and-announcements category (Discourse JSON + search.json cross-check)
+  shows **V3.66 released 2024-12-13** (Community Patterns overhaul, more LED
+  types; finalized beta v3.60) and **V3.67 released 2025-11-28** (bugfixes,
+  pb32 + pico32 binaries) [S750].] v3.47 remains the last *driver-architecture*
+  release [S014]. Hencke, asked for a roadmap (2025-02): "I don't have a
   roadmap shared" [S025].
 - **Vendor: alive, hardware-focused.** Ben Hencke was actively answering
   support/engineering questions on the forum on 2026-06-25/26 (Pixelblaze
@@ -495,5 +499,8 @@ where it's nearly free in Python/numpy.
 - **"HDR" on plain WS2812**: no source states any depth benefit on 8-bit
   chips post-v3.47; inference (speed only) is from silence plus [S684] — a
   bench test would settle it.
-- Whether any firmware beyond v3.47 shipped silently (device updater) without
-  a forum announcement — forum evidence only shows none announced [S685].
+- Whether any firmware beyond v3.47 shipped — **resolved 2026-07-03: yes,
+  announced on the forum**: V3.66 (2024-12-13) and V3.67 (2025-11-28) [S750].
+  Whether either changed the driver pipeline read above is unknown (release
+  notes mention Community Patterns, "More LED types", and bugfixes only);
+  re-read §2 conclusions against V3.67 binaries if driver details matter.

@@ -234,17 +234,23 @@ system has):
 
 ## Open questions
 
-- led-control's exact output path (does it do any gamma/dither before the
-  ws281x driver?) — settle by code read (queue #2). Currently
-  [S017][NEEDS-VERIFICATION].
+- led-control's exact output path — **resolved 2026-07-03 by code read**: no.
+  In `ledcontrol/driver/led_render.h` (master @ 8e3fe1d) the gamma-correction
+  block is commented out and the `gamma` parameter unused; there is no
+  dithering; output is packed 8-bit via `pack_rgbw()` (16-bit only as
+  intermediate scaling in `scale_8()`) [S017:ledcontrol/driver/led_render.h].
+  Strengthens the "no existing Python engine carries >8-bit to the wire"
+  premise (ADR-001).
 - Reddit coverage was via web search only (API-less); a direct sweep of
   r/WLED, r/FastLED, r/led 2024–2026 for "python engine" asks would harden the
   mindshare claim [S040 covers HN only].
 - Is anything brewing in LedFx toward user pattern authoring (their GitHub
   discussions/Discord)? A roadmap item there would shrink pewpew's moat —
   settle with a forum ask or discussions search.
-- ProjectMM/MoonLight trajectory [S006][NEEDS-VERIFICATION] — covered by RA-01
-  main; affects whether pewpew's receiver tier can assume a WLED-class DDP
-  endpoint at 16-bit someday.
+- ProjectMM/MoonLight trajectory [S006][S024] (re-checked 2026-07-03: settled —
+  MoonLight frozen at v1.0.0 2026-05-06; projectMM very active, pushed
+  2026-07-03, the day of this audit) — covered by RA-01 main; affects whether
+  pewpew's receiver tier can assume a WLED-class DDP endpoint at 16-bit
+  someday.
 - Go ecosystem was only lightly swept (no topic search run); low prior of a
   hidden engine there, but unconfirmed.

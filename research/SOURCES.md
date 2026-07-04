@@ -98,6 +98,7 @@ is removed.
 - url: https://electromage.com/pixelblaze/
 - author: Ben Hencke
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260505174829/https://electromage.com/pixelblaze/  # snapshot 2026-05-05
 - relevance: V3 Standard/Pico current; live-editor pattern engine; closed firmware
 
 ### [S014] Pixelblaze v3.47 release — "New HDR LED Drivers"
@@ -120,12 +121,14 @@ is removed.
 - url: http://www.misc.name/fadecandy
 - author: Micah Elizabeth Scott
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250706105326/https://www.misc.name/fadecandy/  # snapshot 2025-07-06
 - relevance: design philosophy behind dithering/interpolation choices
 
 ### [S017] led-control (jackw01)
 - type: code
 - url: https://github.com/jackw01/led-control
 - docs: https://jackw01.github.io/led-control/
+- pinned: jackw01/led-control@8e3fe1d0456e589213ecdef1dc8ce57aa15142b6  # master at read time; repo dormant since 2023-11-10
 - license: MIT (verified 2026-07-03)
 - accessed: 2026-07-03
 - relevance: closest existing "Python pattern engine done well" — Python functions as fragment shaders, 1D/2D/3D, sACN, ~150 fps on Pi Zero claim
@@ -198,6 +201,7 @@ is removed.
 - type: forum
 - url: https://forums.adafruit.com/viewtopic.php?t=207469
 - accessed: 2026-07-03
+- archive: pending (archive.org save returned 520 on 2026-07-03, twice; origin 403s non-browser clients — likely anti-bot, not dead; no prior wayback snapshot exists)
 - relevance: documents that scanlime deleted the original Fadecandy GitHub repo (S015 URL 404s); names surviving mirrors github.com/PimentNoir/fadecandy and github.com/bluewavenet/fadecandyserver
 
 ### [S028] BiblioPixel (ManiacalLabs)
@@ -242,6 +246,7 @@ is removed.
 - author: awawa-dev
 - published: 2026-01-06 / 2026-05-08
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005340/https://github.com/awawa-dev/HyperHDR/releases  # captured 2026-07-03
 - relevance: primary source for Infinite Color Engine: "high-precision floating-point arithmetic" in linear sRGB, deep-color beyond 24-bit incl. HD108 LEDs (beta1, PR #1261); "adaptive temporal dithering" for RGBW with static-scene stabilization (beta2, PRs #1483/#1490)
 
 ### [S033] WLEDVideoSync (zak-45)
@@ -321,6 +326,7 @@ is removed.
 - type: docs
 - url: https://github.com/FastLED/FastLED/wiki/FastLED-Temporal-Dithering
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005414/https://github.com/FastLED/FastLED/wiki/FastLED-Temporal-Dithering  # captured 2026-07-03
 - relevance: binary dithering design: preserves color/light output at low master brightness; needs >400 Hz refresh
 
 ### [S051] FastLED PR #1546 — APA102HD gamma correction
@@ -345,6 +351,7 @@ is removed.
 - type: forum
 - url: https://github.com/Aircoookie/WLED/issues/2416
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005444/https://github.com/wled/WLED/issues/2416  # captured 2026-07-03
 - relevance: feasibility discussion of Fadecandy-grade dithering inside WLED's architecture — instructive about WLED's limits
 
 ### [S055] Björn Ottosson — OKLab color space
@@ -352,6 +359,7 @@ is removed.
 - url: https://bottosson.github.io/posts/oklab/
 - author: Björn Ottosson
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260627175017/https://bottosson.github.io/posts/oklab/  # snapshot 2026-06-27
 - relevance: perceptual color space for blending/gradients; candidate for pewpew's internal color model
 
 ### [S056] Sarah Alroe — temporal dithering of NeoPixels on ATtiny412
@@ -372,6 +380,7 @@ is removed.
 - url: https://learn.adafruit.com/led-tricks-gamma-correction/the-issue
 - author: Phillip Burgess (Adafruit)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260308001421/https://learn.adafruit.com/led-tricks-gamma-correction/the-issue  # snapshot 2026-03-08
 - relevance: the community-standard gamma-2.8 8-bit table; also illustrates the low-end code collapse of 8->8 gamma
 
 ### [S059] ledshield — "LED Brightness to your eye, Gamma correction – No!"
@@ -380,6 +389,7 @@ is removed.
 - author: HP LED Shield blog
 - published: 2012-11-13
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260105233202/https://ledshield.wordpress.com/2012/11/13/led-brightness-to-your-eye-gamma-correction-no/  # snapshot 2026-01-05
 - relevance: argues CIE 1931 L* (not gamma) is the correct perceptual linearization for direct-view LEDs; 16-bit LUT implementation
 
 ### [S060] Jared Sanson — "Linear LED PWM"
@@ -395,6 +405,7 @@ is removed.
 - url: https://www.photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm
 - author: Bill Claff
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260124202640/https://photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm  # snapshot 2026-01-24
 - relevance: quantitative comparison of gamma-2.2 vs CIE L* (18% gray -> 46% vs perceptual 50%)
 
 ### [S062] Fadecandy — pixelmatix fork (live mirror of deleted scanlime repo)
@@ -413,6 +424,7 @@ is removed.
 - author: Ben Hencke
 - published: 2023-07
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005522/https://leds.social/@wizard/110703175509817505  # captured 2026-07-03
 - relevance: primary statement that Pixelblaze v3.47 "HDR" = 16-bit-per-element internal pipeline + native WS2816/NS108 48-bit output; NS108 current draw
 
 ### [S064] Adafruit NeoPXL8HDR guide
@@ -420,6 +432,7 @@ is removed.
 - url: https://learn.adafruit.com/adafruit-neopxl8-featherwing-and-library/neopxl8hdr
 - author: Phillip Burgess (Adafruit)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260413181215/https://learn.adafruit.com/adafruit-neopxl8-featherwing-and-library/neopxl8hdr  # snapshot 2026-04-13
 - relevance: production 16-bit-in / temporal-dither-out library for 8-way parallel WS2812 on RP2040/ESP32-S3; quantifies ~12-13 effective bits and ~1000-pixel budget; built-in gamma + frame blending
 
 ### [S065] ElectroMage forum — WS2816 discussion
@@ -444,6 +457,7 @@ is removed.
 - type: forum
 - url: https://api.github.com/search/repositories?q=oklab+led
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005615/https://api.github.com/search/repositories?q=oklab+led  # captured 2026-07-03
 - relevance: negative result: zero repos matching "oklab led"; issue search shows no OKLab work in FastLED/WLED/Pixelblaze as of 2026-07-03 (only a Nanoleaf screen-mirror tool, SpinGiantCRM/Nanoleaf-Screen-Mirror-for-KDE, uses OKLab)
 
 ### [S069] WLED docs — White handling (CCT & auto-white modes)
@@ -459,18 +473,21 @@ is removed.
 - type: forum
 - url: https://github.com/FastLED/FastLED/issues/1045
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005653/https://github.com/FastLED/FastLED/issues/1045  # captured 2026-07-03
 - relevance: 16-bit chip protocol details and library support discussion
 
 ### [S101] Superlightingled — SK9822 vs APA102 vs APA107 vs HD107(s) vs HD108
 - type: article
 - url: https://www.superlightingled.com/blog/sk9822-vs-apa102-vs-apa107-vs-hd107-vs-hd107s-vs-hd108/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250926214129/https://www.superlightingled.com/blog/sk9822-vs-apa102-vs-apa107-vs-hd107-vs-hd107s-vs-hd108/  # snapshot 2025-09-26
 - relevance: vendor comparison of clocked-chip family; PWM rates, protocol compat
 
 ### [S102] HD108 manufacturer page — HD107s/APA102/APA107/SK9822 relationship
 - type: product
 - url: https://www.hd108-led.com/about-hd107s-apa102-apa107-and-sk9822/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005736/https://www.hd108-led.com/about-hd107s-apa102-apa107-and-sk9822/  # captured 2026-07-03
 - relevance: HD108: 16-bit/channel, 27 kHz PWM, APA102-style protocol, 3.0V logic threshold (3.3V-friendly)
 
 ### [S103] Newstar NS108 product page (27 kHz, 16-bit)
@@ -491,6 +508,7 @@ is removed.
 - author: Tom Verbeure
 - published: 2019-10-13
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260605123325/https://tomverbeure.github.io/2019/10/13/WS2812B_Reset_Old_and_New.html  # snapshot 2026-06-05
 - relevance: measured incompatibility between 50 µs (old) and 280 µs (new) WS2812B reset requirements
 
 ### [S106] WS2812B-V5/W datasheet (WorldSemi, via LCSC)
@@ -519,6 +537,7 @@ is removed.
 - type: product
 - url: https://www.lcsc.com/product-detail/RGB-LEDs-Built-in-IC_Worldsemi-WS2812B-2020_C965555.html
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250801212513/https://lcsc.com/product-detail/RGB-LEDs-Built-in-IC_Worldsemi-WS2812B-2020_C965555.html  # snapshot 2025-08-01
 - relevance: WS2812B-2020 (2020 package) with 2 kHz port refresh frequency vs 400 Hz classic
 
 ### [S110] NeoPixelBus PR #795 — WS2812x ESP32 RMT timing for WS2815 compat
@@ -532,12 +551,14 @@ is removed.
 - url: https://www.normandled.com/upload/201808/WS2815%20LED%20Datasheet.pdf
 - author: WorldSemi
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251011214024/https://www.normandled.com/upload/201808/WS2815%20LED%20Datasheet.pdf  # snapshot 2025-10-11
 - relevance: WS2815 12 V, BIN backup data input behavior, constant-current spec (~15 mA white)
 
 ### [S112] SDIP Light — What is WS2815 and how to use it
 - type: article
 - url: https://www.sdiplight.com/what-is-ws2815-and-how-to-use-ws2815-led/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250613201220/https://www.sdiplight.com/what-is-ws2815-and-how-to-use-ws2815-led/  # snapshot 2025-06-13
 - relevance: WS2815 practical characteristics: per-pixel addressing at 12 V, failure bypass, power behavior
 
 ### [S113] WLED forum — Wiring of WS2815 question
@@ -551,12 +572,14 @@ is removed.
 - url: https://cdn-shop.adafruit.com/product-files/1138/SK6812+LED+datasheet+.pdf
 - author: Opsco Optoelectronics
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260606233015/https://cdn-shop.adafruit.com/product-files/1138/SK6812+LED+datasheet+.pdf  # snapshot 2026-06-06
 - relevance: SK6812 timing, 1.2 kHz PWM, RGBW data format
 
 ### [S115] SuperLightingLED blog — SK6812 vs WS2812B
 - type: article
 - url: https://www.superlightingled.com/blog/sk6812-vs-ws2812b/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260310114317/https://www.superlightingled.com/blog/sk6812-vs-ws2812b/  # snapshot 2026-03-10
 - relevance: vendor comparison: PWM rates (1.2 kHz vs 400 Hz), timing margin, brightness
 
 ### [S116] TM1814 datasheet (Titan Micro, SuperLightingLED mirror)
@@ -583,6 +606,7 @@ is removed.
 - type: product
 - url: https://www.btf-lighting.com/products/ws2814-12v-24v-4-in-1-similar-sk6812-rgbw-pixels-addressable-ws2811-rgbww-rgbcw-5050-3pin-led-lights
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005823/https://www.btf-lighting.com/products/ws2814-rgbw-addressable-led-strip  # captured 2026-07-03
 - relevance: WS2814 commodity availability, 12/24 V RGBW form factors, SK6812-compat claim
 
 ### [S120] WS2814 RGBW datasheet (SuperLightingLED mirror)
@@ -596,12 +620,14 @@ is removed.
 - type: forum
 - url: https://forum.electromage.com/t/trying-out-ws2814-update-officially-supported/2644
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005905/https://forum.electromage.com/t/trying-out-ws2814-update-officially-supported/2644  # captured 2026-07-03
 - relevance: WS2814 color-order gotcha vs SK6812 GRBW; Pixelblaze added explicit support
 
 ### [S122] FastLED issue #1855 — support WS2816 LEDs
 - type: forum
 - url: https://github.com/FastLED/FastLED/issues/1855
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250311203105/https://github.com/FastLED/FastLED/issues/1855  # snapshot 2025-03-11
 - relevance: WS2816 48-bit GRB format, hardware gamma, ~10 kHz refresh; FastLED support discussion
 
 ### [S123] WS2816B-2020 datasheet (TME mirror)
@@ -609,6 +635,7 @@ is removed.
 - url: https://www.tme.eu/Document/6e37dbd0c854ce14f428cca7891158c6/WS2816B-2020.pdf
 - author: WorldSemi
 - accessed: 2026-07-03
+- archive: pending (archive.org save returned 520 on 2026-07-03, twice; origin 403s non-browser clients — likely anti-bot, not dead; no prior wayback snapshot exists)
 - relevance: 16-bit/channel, 65536 grayscale, built-in 4-bit gamma, 2020 package
 
 ### [S124] NeoPixelBus issue #357 — WS2816 support
@@ -627,6 +654,7 @@ is removed.
 - type: article
 - url: https://www.shiji-leds.com/blog/future-trends-in-addressable-led-strip-technology-and-applications/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260415200550/https://www.shiji-leds.com/blog/future-trends-in-addressable-led-strip-technology-and-applications/  # snapshot 2026-04-15
 - relevance: 2026 market drift toward 24 V/48 V pixel systems and higher-refresh chips
 
 ### [S127] FastLED wiki — Temporal Dithering
@@ -634,6 +662,7 @@ is removed.
 - url: https://github.com/FastLED/FastLED/wiki/FastLED-Temporal-Dithering
 - author: FastLED project (Mark Kriegsman)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005414/https://github.com/FastLED/FastLED/wiki/FastLED-Temporal-Dithering  # snapshot 2026-07-04
 - relevance: dithering quality proportional to refresh rate; the mechanism behind the strip-length dithering ceiling
 
 ### [S128] cpldcpu — SK9822: a clone of the APA102?
@@ -642,6 +671,7 @@ is removed.
 - author: Tim (cpldcpu)
 - published: 2016-12-13
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260101013716/https://cpldcpu.com/2016/12/13/sk9822-a-clone-of-the-apa102/  # snapshot 2026-01-01
 - relevance: measured PWM rates (APA102 ~19.2 kHz + ~440 Hz global-brightness PWM; SK9822 4.7 kHz + current-source global brightness); latch/update and end-frame differences
 
 ### [S129] cpldcpu — Understanding the APA102 "Superled"
@@ -665,6 +695,7 @@ is removed.
 - url: https://www.hd108-led.com/product/48pixels-hd108-led-strip/
 - author: Hida (Shenzhen)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010046/https://www.hd108-led.com/product/48pixels-hd108-led-strip/  # captured 2026-07-03
 - relevance: real-world HD108 strip availability and form factor from the originating manufacturer
 
 ### [S132] Newstar — NS108/HD108 16-bit LED strip page
@@ -679,6 +710,7 @@ is removed.
 - url: https://learn.adafruit.com/neopixel-levelshifter
 - author: Adafruit
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260618044601/https://learn.adafruit.com/neopixel-levelshifter  # snapshot 2026-06-18
 - relevance: 74AHCT125 as canonical WS281x level shifter; why I2C MOSFET shifters fail at 800 kHz
 
 ### [S134] Hackaday — Cheating at 5V WS2812 control to use 3.3V data
@@ -693,6 +725,7 @@ is removed.
 - url: https://quinled.info/the-ultimate-led-strip-power-injection-guide/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26
 - relevance: voltage-drop budgets, wire gauge tables, injection-point spacing practice
 
 ### [S136] QuinLED — How much power do addressable LEDs use?
@@ -730,6 +763,7 @@ is removed.
 - url: http://www.3waylabs.com/ddp/
 - author: 3waylabs
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260327012755/https://www.3waylabs.com/ddp/  # snapshot 2026-03-27
 - relevance: 10-byte header; up to 1440 channels/packet; native 1/4/8/16/24/32-bit per-channel — the only mainstream pixel transport with a 16-bit wire format
 
 ### [S151] DDP vs E1.31 vs Art-Net comparison (pixel-led-effects, 2025)
@@ -743,6 +777,7 @@ is removed.
 - type: docs
 - url: https://mm.kno.wled.ge/advanced/ddp/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010214/https://mm.kno.wled.ge/advanced/ddp/  # captured 2026-07-03
 - relevance: DDP receiver behavior and large-install topology guidance
 
 ### [S153] WLED changelog — DDP realtime support added in 0.11.0
@@ -783,6 +818,7 @@ is removed.
 - author: ESTA Technical Standards Program (CP/2014-1009r3)
 - published: 2016
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704005950/https://tsp.esta.org/tsp/documents/docs/E1-31-2016.pdf  # captured 2026-07-03
 - relevance: normative sACN packet layout (126-byte overhead + 513 data), priority 0-200, sync packets, 2.5s data-loss timeout, multicast mapping
 
 ### [S158] WLED knowledge base — E1.31/Art-Net/DDP interfaces and multicast guidance
@@ -806,6 +842,7 @@ is removed.
 - url: http://openpixelcontrol.org/
 - author: Ka-Ping Yee (protocol page); ecosystem by Micah Scott (FadeCandy)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260312072216/http://openpixelcontrol.org/  # captured 2026-07-03
 - relevance: OPC wire format (4-byte header, TCP), 8-bit-only standard messages
 
 ### [S161] scanlime/fadecandy — archived GitHub repository
@@ -821,6 +858,7 @@ is removed.
 - url: https://kno.wled.ge/interfaces/udp-realtime/
 - author: WLED contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21
 - relevance: byte layouts, per-packet LED limits, timeout semantics of WLED-native realtime UDP
 
 ### [S163] FPP ControlProtocol.txt — MultiSync wire protocol
@@ -843,6 +881,7 @@ is removed.
 - url: https://kno.wled.ge/basics/faq/
 - author: WLED contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260621120848/https://kno.wled.ge/basics/faq/  # snapshot 2026-06-21
 - relevance: 750-LED per-controller guidance, 720 kbit/s @1000 LED/30fps, DDP-over-E1.31 recommendation, QuinLED/Olimex Ethernet advice
 
 ### [S166] Electric UI — "Latency comparison of common wireless links for microcontrollers"
@@ -851,6 +890,7 @@ is removed.
 - author: Electric UI
 - published: 2024-02
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260520234140/https://electricui.com/blog/latency-comparison  # snapshot 2026-05-20
 - relevance: logic-analyzer-measured ESP32 WiFi latency: 74-84 ms default config; ~6 ms TCP / ~9 ms UDP median, ~25 ms outliers after power-save/Nagle/IRAM tuning
 
 ### [S167] espressif/esp-idf issue #15345 — "Making UDP send latency more predictable (reducing jitter)"
@@ -900,6 +940,7 @@ is removed.
 - author: Ben Hencke
 - published: 2020 (campaign update)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250612180210/https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3/updates/manufacturing-ui-controls-pov  # snapshot 2025-06-12
 - relevance: introduces convention-based UI controls (sliderSpeed, hsvPickerColor) generated from exported function names
 
 ### [S204] Pixelblaze Sensor Expansion Board (ElectroMage shop / bhencke.com)
@@ -907,6 +948,7 @@ is removed.
 - url: https://www.bhencke.com/pixelblaze-sensor-expansion
 - author: Ben Hencke
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260420032034/https://electromage.com/docs/sensor-expansion-board/  # captured 2026-07-03
 - relevance: sensor feature injection as exported pattern variables (frequencyData[32], energyAverage, accelerometer[3], light, analogInputs[5])
 
 ### [S205] WLED docs — Custom Features (adding effects via usermods)
@@ -914,6 +956,7 @@ is removed.
 - url: https://kno.wled.ge/advanced/custom-features/
 - author: WLED project
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260629193319/https://kno.wled.ge/advanced/custom-features/  # snapshot 2026-06-29
 - relevance: effect function signature (free void fn + SEGMENT/SEGENV/SEGLEN macros), strip.addEffect registration, PROGMEM metadata string, compile-in-only effects
 
 ### [S206] WLED issue #3478 — effect metadata consistency (metadata string format)
@@ -921,6 +964,7 @@ is removed.
 - url: https://github.com/Aircoookie/WLED/issues/3478
 - author: WLED maintainers/contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010048/https://github.com/wled/WLED/issues/3478  # captured 2026-07-03
 - relevance: documents the `name@sliders;colors;palette;flags;defaults` metadata DSL and fixed slider slots (sx/ix/custom)
 
 ### [S207] WLED MoonModules — ARTI-FX documentation
@@ -928,6 +972,7 @@ is removed.
 - url: https://mm.kno.wled.ge/moonmodules/arti-fx/
 - author: MoonModules (ewowi et al.)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260313074616/https://mm.kno.wled.ge/moonmodules/arti-fx/  # snapshot 2026-03-13
 - relevance: runtime-interpreted effect language bolted onto WLED-SR; renderFrame/renderLed split; Pixelblaze-compat functions; evidence WLED authoring model is a felt bottleneck
 
 ### [S208] LedFx effect base module (ledfx/effects/__init__.py)
@@ -955,6 +1000,7 @@ is removed.
 - author: jackw01
 - license: MIT
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251128070835/https://jackw01.github.io/led-control/  # snapshot 2025-11-28
 - relevance: Python-as-fragment-shader signature (t, dt, x, y, z, prev_state), RestrictedPython + C-extension perf split, 150 fps @ 150 RGBW on Pi Zero claim; repo dormant since 2023-11-10
 
 ### [S211] todbot — "Speed up CircuitPython LED animations 10x!" (+ code repo)
@@ -963,6 +1009,7 @@ is removed.
 - author: Tod Kurt (todbot)
 - published: 2022-10-21
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19
 - relevance: measured vectorization gain: fire effect, 256 LEDs, RP2040 — ~40 ms/frame Python loop vs ~4 ms/frame ulab; working-copy idiom (code: github.com/todbot/circuitpython_led_effects)
 
 ### [S212] scottlawsonbc/audio-reactive-led-strip
@@ -979,6 +1026,7 @@ is removed.
 - also: https://github.com/yastefan/TouchLED-DMX
 - author: Derivative / yastefan
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251208001252/https://derivative.ca/workshop/dmx-artnet-and-led-mapping-touchdesigner/71671  # snapshot 2025-12-08
 - relevance: canonical GPU route — TOP sampled at SOP fixture points, DMX CHOP emits Art-Net/sACN; TouchLED library wraps mapping+visualizer
 
 ### [S214] ISF — Interactive Shader Format specification
@@ -986,6 +1034,7 @@ is removed.
 - url: https://isf.vidvox.net/ (spec repo: https://github.com/mrRay/ISF_Spec/)
 - author: VIDVOX (mrRay)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010407/https://isf.vidvox.net/  # captured 2026-07-03
 - relevance: GLSL fragment shader + JSON header declaring typed INPUTS — best-in-class parameter-manifest design for auto-generated UIs
 
 ### [S215] ENTTEC ELM Effects documentation
@@ -1000,6 +1049,7 @@ is removed.
 - url: https://chromatik.co/develop/coding/
 - author: Mark Slee / heronarts
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251111015300/https://chromatik.co/develop/coding/  # snapshot 2025-11-11
 - relevance: first-class parameter objects: addParameter + CompoundParameter(label, init, min, max) → auto UI knob + MIDI/OSC mapping + LFO modulation; LXPattern.run(deltaMs) lifecycle
 
 ## Block S250–S299 — RA-06 Frame pipeline & motion quality
@@ -1016,6 +1066,7 @@ is removed.
 - url: https://forum.electromage.com/t/output-expander-that-implements-fadecandy-dithering/840
 - author: Ben Hencke (wizard) et al.
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010412/https://forum.electromage.com/t/output-expander-that-implements-fadecandy-dithering/840  # captured 2026-07-03
 - relevance: Hencke's rationale for NOT doing Fadecandy-style temporal dithering (refresh-rate coupling, 64-LED cap) and preferring APA102-class global brightness / HDR chips
 
 ### [S252] WLED issue #5408 — "FPS target set to 0 by default"
@@ -1029,6 +1080,7 @@ is removed.
 - url: https://kno.wled.ge/interfaces/udp-realtime/
 - author: WLED project
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21
 - relevance: WLED's loss handling for realtime pixel streams — timeout byte, hold-then-revert semantics, per-protocol LED-count limits, no smoothing/interpolation
 
 ### [S254] LedFx — virtuals.py frame loop (code)
@@ -1068,6 +1120,7 @@ is removed.
 - url: https://github.com/Cryptkeeper/fseq-file-format
 - author: Cryptkeeper (Nick Krecklow)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250603142246/https://github.com/Cryptkeeper/fseq-file-format  # snapshot 2025-06-03
 - relevance: FSEQ v2 header — uint8 step time in ms at byte 18 (20-30 fps typical), frame/channel counts, zstd/zlib chunk compression; fixes the xLights/FPP ecosystem's authoring frame rate
 
 ### [S259] ANSI E1.31-2016 — Lightweight streaming protocol for transport of DMX512 (sACN)
@@ -1144,6 +1197,7 @@ is removed.
 - url: https://kno.wled.ge/advanced/mapping/
 - author: WLED contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260621120941/https://kno.wled.ge/advanced/mapping/  # snapshot 2026-06-21
 - relevance: canonical spec of WLED ledmap.json index-permutation format, -1 gaps, width/height 2D keys, per-preset map selection
 
 ### [S304] Pixelblaze mapper README (simap/pixelblaze)
@@ -1151,6 +1205,7 @@ is removed.
 - url: https://github.com/simap/pixelblaze/blob/master/README.mapper.md
 - author: Ben Hencke
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260420032034/https://github.com/simap/pixelblaze/blob/master/README.mapper.md  # snapshot 2026-04-20
 - relevance: spec of Pixelblaze pixel-map JSON, map generator functions, 0..1 world-unit normalization, Fill/Contain scaling, render2D/render3D
 
 ### [S305] LedFx docs — "How to: Create and Edit Virtuals"
@@ -1158,6 +1213,7 @@ is removed.
 - url: https://docs.ledfx.app/en/latest/howto/virtuals.html
 - author: LedFx contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260521223731/https://docs.ledfx.app/en/latest/howto/virtuals.html  # snapshot 2026-05-21
 - relevance: defines virtuals/segments (device,start,end,reverse), span vs copy modes, rows/grouping 2D reshaping, complex-segments numpy fast path
 
 ### [S306] xLights manual — Custom Model
@@ -1165,6 +1221,7 @@ is removed.
 - url: https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/custom-model
 - author: xLights contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260317062924/https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/custom-model  # snapshot 2026-03-17
 - relevance: custom-model node-number grid format, depth for 3D voxel models, .xmodel export
 
 ### [S307] xLights manual — Model Settings (buffer styles)
@@ -1179,6 +1236,7 @@ is removed.
 - url: https://falcon-player.gitbooks.io/falcon-player-manual/content/chapter_five_inputoutput_setup/pixel_overlay_models.html
 - author: FalconChristmas contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260309180104/https://falcon-player.gitbooks.io/falcon-player-manual/content/chapter_five_inputoutput_setup/pixel_overlay_models.html  # snapshot 2026-03-09
 - relevance: FPP channel-arithmetic model definition (start channel, strands/strings, orientation) and overlay/transparency states
 
 ### [S309] Chromatik guide — Custom Fixtures (.lxf format)
@@ -1186,6 +1244,7 @@ is removed.
 - url: https://chromatik.co/guide/custom-fixtures/
 - author: Mark Slee / Heron Arts
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010455/https://chromatik.co/guide/custom-fixtures/  # captured 2026-07-03
 - relevance: the most complete declarative LED map format: point/points/strip/arc components, nested fixtures, translate/yaw-pitch-roll transforms, +Y-up convention, parametric variables, per-component protocol outputs
 
 ### [S310] ElectroMage forum — "Automatic Mapping Preview" (zranger1)
@@ -1200,6 +1259,7 @@ is removed.
 - type: forum
 - url: https://forum.electromage.com/t/2d-pixel-coordinate-mapping-tool-for-images/714
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250828092218/https://forum.electromage.com/t/2d-pixel-coordinate-mapping-tool-for-images/714  # snapshot 2025-08-28
 - relevance: manual click-on-photo mapping tool emitting Pixelblaze map JSON — the low-tech manual path
 
 ### [S312] L.E.D. Lab (iOS app, App Store listing)
@@ -1246,6 +1306,7 @@ is removed.
 - url: https://kno.wled.ge/basics/compatible-controllers/
 - author: WLED project (Aircoookie et al.)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260621121208/https://kno.wled.ge/basics/compatible-controllers/  # snapshot 2026-06-21
 - relevance: official WLED hardware guidance — ESP8266 deprecation, ESP32 variant support tiers, Ethernet boards
 
 ### [S352] MoonModules/MoonLight — Releases (v0.5.8–v1.0.0)
@@ -1255,6 +1316,7 @@ is removed.
 - license: GPL-3.0
 - published: 2025-08-15 through 2026-05-06 (v1.0.0)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251003145210/https://github.com/MoonModules/MoonLight/releases  # snapshot 2025-10-03
 - relevance: MoonLight hardware targets (S3/P4 best, PSRAM 130K LEDs, PARLIO P4 driver, supported boards)
 
 ### [S353] Espressif Developer Portal — Wireless Connectivity Solutions for ESP32-P4
@@ -1262,6 +1324,7 @@ is removed.
 - url: https://developer.espressif.com/blog/wireless-connectivity-solutions-for-esp32-p4/
 - author: Espressif Systems
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260415161024/https://developer.espressif.com/blog/wireless-connectivity-solutions-for-esp32-p4/  # snapshot 2026-04-15
 - relevance: authoritative statement that P4 has no radio; ESP-Hosted/ESP-AT companion-chip (C6) architecture
 
 ### [S354] Hackaday — Poking at the ESP32-P4 and C6 dies in an ESP32-P4-M3 module
@@ -1277,6 +1340,7 @@ is removed.
 - url: https://github.com/esphome/esphome/issues/10956
 - author: esphome users
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010237/https://github.com/esphome/esphome/issues/10956  # captured 2026-07-03
 - relevance: hosted-WiFi instability on P4+C6 boards as of early 2026 — P4 WiFi path not yet boring
 
 ### [S356] WLED issue #5576 — ESP8266 too big for OTA update (2-step _min workaround)
@@ -1284,6 +1348,7 @@ is removed.
 - url: https://github.com/wled/WLED/issues/5576
 - author: WLED users/maintainers
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260512192114/https://github.com/wled/WLED/issues/5576  # snapshot 2026-05-12
 - relevance: concrete evidence ESP8266 is being squeezed out of full WLED builds (flash exhaustion); see also #5363
 
 ### [S357] QuinLED Dig-Next-2 specifications
@@ -1291,6 +1356,7 @@ is removed.
 - url: https://quinled.info/dig-next-2-specifications/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260418213721/https://quinled.info/dig-next-2-specifications/  # snapshot 2026-04-18
 - relevance: current-gen QuinLED small board — ESP32 8MB/2MB PSRAM, 2 outputs, 5-48V, fusing, firmware compatibility list
 
 ### [S358] QuinLED Dig-Octa — modular WLED LED system
@@ -1298,6 +1364,7 @@ is removed.
 - url: https://quinled.info/quinled-dig-octa/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260526015933/https://quinled.info/quinled-dig-octa/  # snapshot 2026-05-26
 - relevance: room/stage-scale QuinLED — 8 channels + Ethernet brainboard on 30-100A fused powerboards, E1.31/Art-Net/DDP
 
 ### [S359] Falcon F16v5 pixel controller (store page)
@@ -1305,6 +1372,7 @@ is removed.
 - url: https://pixelcontroller.com/store/featured/88-f16v5.html
 - author: Falcon / pixelcontroller.com
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260620030843/https://pixelcontroller.com/store/featured/88-f16v5.html  # snapshot 2026-06-20
 - relevance: F16v5 specs — $280, 16+4 ports (to 32), 1024 px/output, 192 universes E1.31/Art-Net/DDP, e-fuses, 2-port Ethernet switch
 
 ### [S360] Kulp K16A-B controller owner's manual
@@ -1326,6 +1394,7 @@ is removed.
 - url: https://www.advateklighting.com/products/a4-s-mk3
 - author: Advatek Lighting
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260628152046/https://www.advateklighting.com/products/a4-s-mk3  # snapshot 2026-06-28
 - relevance: professional tier — A4-S Mk3 4080 px over 4 outputs; E4-S Ethernet and T8-S long-range variants
 
 ### [S363] HinksPix Pro V3 CPU (HolidayCoro)
@@ -1333,6 +1402,7 @@ is removed.
 - url: https://www.holidaycoro.com/HinksPix-Pro-V3-CPU-20-Long-Range-Jacks-80-Ports-p/952-6.htm
 - author: HolidayCoro
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250423205030/https://www.holidaycoro.com/HinksPix-Pro-V3-CPU-20-Long-Range-Jacks-80-Ports-p/952-6.htm  # snapshot 2025-04-23
 - relevance: high-density holiday-show controller — V3 CPU + expansions to 16,320 px, 80-port long-range configs
 
 ### [S364] forkineye/ESPixelStick — repository and releases
@@ -1379,6 +1449,7 @@ is removed.
 - url: https://quinled.info/the-ultimate-led-strip-power-injection-guide/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26
 - relevance: injection sizing (≤10% Vdrop), 5V-vs-12V injection cadence, 18AWG strip-feed guidance, edge-vs-mid injection fusing
 
 ### [S370] AusChristmasLighting — pigtail connector plug type comparisons (Ray Wu vs xConnect)
@@ -1386,6 +1457,7 @@ is removed.
 - url: https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/
 - author: AusChristmasLighting community
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251208125019/https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/  # snapshot 2025-12-08
 - relevance: Ray Wu vs xConnect near-identical mechanically; xConnect single wiring standard + universal store stocking — the connector to standardize on
 
 ## Block S400–S449 — RA-09 Hardware: wearable tier
@@ -1396,6 +1468,7 @@ is removed.
 - author: Tod Kurt
 - published: 2022-10-21
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19
 - relevance: establishes realistic CircuitPython frame-rate ceilings and the ulab escape hatch — central to the wearable-tier Python question
 
 ### [S401] Adafruit CircuitPython LED Animation library
@@ -1410,12 +1483,14 @@ is removed.
 - url: https://core-electronics.com.au/videos/the-factory-huge-micropython-speed-up-with-ws2812-leds
 - author: Core Electronics
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20220331190314/https://core-electronics.com.au/videos/the-factory-huge-micropython-speed-up-with-ws2812-leds  # snapshot 2022-03-31
 - relevance: measured ~2x frame-rate gain (10 → ~22 fps) from @micropython.viper on a GlowBit WS2812 matrix; documents viper restrictions
 
 ### [S403] CircuitPython board pages — RP2350 boards (Feather RP2350, Plasma 2350 etc.)
 - type: docs
 - url: https://circuitpython.org/board/adafruit_feather_rp2350/
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260414211530/https://circuitpython.org/board/adafruit_feather_rp2350/  # captured 2026-07-03
 - relevance: confirms ulab is bundled for RP2350-class boards; RP2350 runs CircuitPython roughly 2x faster than RP2040
 
 ### [S404] Pixelblaze — language reference and product docs
@@ -1423,6 +1498,7 @@ is removed.
 - url: https://electromage.com/docs/language-reference/
 - author: Ben Hencke (ElectroMage)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260209163257/https://electromage.com/docs/language-reference/  # snapshot 2026-02-09
 - relevance: JS-like pattern language compiled off-device (in browser) to instructions executed on ESP32 — closest precedent for host-authored/device-executed patterns
 
 ### [S405] Pixelblaze V3 — Crowd Supply campaign page
@@ -1430,6 +1506,7 @@ is removed.
 - url: https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3
 - author: Ben Hencke (ElectroMage)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260605034712/https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3  # snapshot 2026-06-05
 - relevance: performance claim ~48k pixels/sec on ESP32; bytecode is platform-dependent between v2/v3
 
 ### [S406] wled/WLED PR #4570 — "added support for fseq files"
@@ -1461,6 +1538,7 @@ is removed.
 - url: https://learn.adafruit.com/wirelessly-code-your-bluetooth-device-with-circuitpython/overview
 - author: Adafruit
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010615/https://learn.adafruit.com/ble-claw  # captured 2026-07-03
 - relevance: browser-based editing of CircuitPython files over BLE on nRF52840 — proves phone/laptop-to-wearable pattern push workflow
 
 ### [S410] Raspberry Pi — RP2350 datasheet
@@ -1469,12 +1547,14 @@ is removed.
 - author: Raspberry Pi Ltd
 - published: 2024-08-08
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251107121354/https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf  # snapshot 2025-11-07
 - relevance: RP2350 specs — dual Cortex-M33/RISC-V 150 MHz, 3 PIO blocks / 12 state machines, 32-instruction PIO programs
 
 ### [S411] ESP32 Forum — "ESP32 Power consumption considerations" (thread t=2662)
 - type: forum
 - url: https://esp32.com/viewtopic.php?t=2662
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010652/https://esp32.com/ext/espressif/stupidbots/challenge.php?n=MTc4MzEyNzIxMC4zNDg4NzM1OTA3&c=833ba4547353e3fced0db144c46d504a0c2baba9216352357a63ccafed972991&h=2ec0c5f60947c67c2a41bdcdcc6acf3dcb3b2cd09435bc3a564e138e516acbf4&from=L3ZpZXd0b3BpYy5waHA/dD0yNjYy  # captured 2026-07-03
 - relevance: measured ~130 mA average with 0.6 A spikes during active WiFi; notes esp_wifi_set_ps power save works only in station mode (not SoftAP)
 
 ### [S412] Seeed forum — msfujino, "BLE Advertising Current Comparison, ESP32C3,C6,S3, MG24, nRF52840"
@@ -1483,6 +1563,7 @@ is removed.
 - author: msfujino
 - published: 2025-01-17
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251026033759/https://forum.seeedstudio.com/t/ble-advertising-current-comparison-esp32c3-c6-s3-mg24-nrf52840/287847  # snapshot 2025-10-26
 - relevance: measured cross-chip BLE advertising current; verdict "nRF52840 is by far the best for low current consumption BLE applications"
 
 ### [S413] FastLED Wiki — Power notes (setMaxPowerInVoltsAndMilliamps)
@@ -1491,6 +1572,7 @@ is removed.
 - author: FastLED project
 - license: MIT (FastLED)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260505174835/https://github.com/FastLED/FastLED/wiki/Power-notes  # snapshot 2026-05-05
 - relevance: the reference brightness-limiting pattern — estimate frame power, scale global brightness; applied automatically in show()/delay(); assumes 5 V pixels
 
 ### [S414] Adafruit Sparkle Motion — product page (#6100)
@@ -1499,6 +1581,7 @@ is removed.
 - author: Adafruit
 - published: 2025-01-24
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260703032624/https://www.adafruit.com/product/6100  # snapshot 2026-07-03
 - relevance: 2025 flagship WLED/xLights board — ESP32, 4 outputs, USB-C PD 5/12/20V 100W, IR receiver, I2S mic, 33x45mm
 
 ### [S415] Adafruit Learn — Sparkle Motion Mini guide
@@ -1506,6 +1589,7 @@ is removed.
 - url: https://learn.adafruit.com/adafruit-sparkle-motion-mini/overview
 - author: Adafruit
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260219011254/https://learn.adafruit.com/adafruit-sparkle-motion-mini/overview  # snapshot 2026-02-19
 - relevance: 31.6x19.8mm ESP32 WLED board aimed at wearables/portable rigs; 2 outputs
 
 ### [S416] Adafruit LED Glasses Driver — nRF52840 Sensor Board (#5217) + EyeLights guide
@@ -1513,6 +1597,7 @@ is removed.
 - url: https://www.adafruit.com/product/5217
 - author: Adafruit
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260703033131/https://www.adafruit.com/product/5217  # snapshot 2026-07-03
 - relevance: canonical nRF52840 wearable reference design — thin board, LiPo, LIS3DH, PDM mic, drives 116-LED glasses via IS31FL3741 I2C driver (hardware PWM offload)
 
 ### [S417] Adafruit NeoPixel Überguide — Powering NeoPixels
@@ -1520,6 +1605,7 @@ is removed.
 - url: https://learn.adafruit.com/adafruit-neopixel-uberguide/powering-neopixels
 - author: Adafruit
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260425060638/https://learn.adafruit.com/adafruit-neopixel-uberguide/powering-neopixels  # snapshot 2026-04-25
 - relevance: 60 mA/px worst-case planning constant ("rule of thumb, not hard science"), 3.7 V LiPo direct drive, brownout caps, wearable strain-relief guidance
 
 ### [S418] WLED knowledge base — Settings (Automatic Brightness Limiter)
@@ -1527,6 +1613,7 @@ is removed.
 - url: https://kno.wled.ge/features/settings/
 - author: WLED project
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260629193319/https://kno.wled.ge/features/settings/  # snapshot 2026-06-29
 - relevance: WLED ABL — default 850 mA cap, tunable to supply/pack rating; the shipped-firmware version of estimate-and-scale power limiting
 
 ### [S419] Adafruit blog — CircuitPython 10.0.0 (2025-10-01) and 10.2.1 (2026-05-12) release posts
@@ -1607,6 +1694,7 @@ is removed.
 - url: https://github.com/librosa/librosa/issues/220
 - author: librosa maintainers
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010807/https://github.com/librosa/librosa/issues/220
 - relevance: maintainers confirm librosa targets batch/complete-signal analysis, not live streams; disqualifies librosa for pewpew's live path
 
 ### [S457] BeatNet (mjhydri)
@@ -1623,6 +1711,7 @@ is removed.
 - author: Matthias Geier
 - license: MIT (library)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260701120149/https://python-sounddevice.readthedocs.io/en/0.5.3/
 - relevance: PortAudio binding used by LedFx; latency/blocksize semantics for the capture stage of the budget
 
 ### [S459] ITU-R BT.1359-1 — Relative timing of sound and vision
@@ -1631,6 +1720,7 @@ is removed.
 - author: ITU-R
 - published: 1998-11
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250903014127/https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1359-1-199811-I!!PDF-E.pdf
 - relevance: the canonical A/V sync thresholds: detectability +45/-125 ms, acceptability +90/-185 ms; grounds pewpew's <=50 ms audio-to-light target
 
 ### [S460] scottlawsonbc/audio-reactive-led-strip
@@ -1701,6 +1791,7 @@ is removed.
 - url: https://www.tindie.com/products/electromage/pixelblaze-v3-standard-wifi-led-controller/
 - author: Ben Hencke / ElectroMage
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260114105355/https://www.tindie.com/products/electromage/pixelblaze-v3-standard-wifi-led-controller/
 - relevance: maintainer-written description of live editor: recompile-and-send on every change, inline syntax/runtime error highlighting, variable watcher, UI-controls-as-functions
 
 ### [S505] pixelblaze-client (Python websocket library)
@@ -1717,6 +1808,7 @@ is removed.
 - url: https://manual.xlights.org/
 - author: xLights project
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704012133/https://manual.xlights.org/xlights
 - relevance: House Preview window, multiple preview layouts over background photos, per-model render buffers, Render All workflow, render-progress diagnostics
 
 ### [S507] AusChristmasLighting thread — "Speeding up rendering" (xLights)
@@ -1730,6 +1822,7 @@ is removed.
 - url: https://docs.ledfx.app/en/latest/howto/dummy_matrix.html
 - author: LedFx project
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251003085253/https://docs.ledfx.app/en/latest/howto/dummy_matrix.html
 - relevance: dummy device renders only to browser frontend for hardware-free testing; 4096-px frontend pixel cap and throttle slider
 
 ### [S509] LedFx docs — "How to: Create and Edit Virtuals"
@@ -1802,6 +1895,7 @@ is removed.
 - author: matplotlib project
 - license: BSD-3-Clause
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704012215/https://github.com/matplotlib/pytest-mpl
 - relevance: the transferable golden-image testing pattern: baseline images + RMS tolerance instead of byte-exact diff
 
 ### [S519] watchfiles (samuelcolvin)
@@ -1828,6 +1922,7 @@ is removed.
 - author: WLED project (Aircoookie et al.)
 - published: n/a (living doc)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251219022207/https://kno.wled.ge/interfaces/json-api/
 - relevance: canonical spec of WLED's single-JSON-state control model: state/seg objects, presets, playlists, fxdata metadata, per-LED `i` writes and buffer limits.
 
 ### [S551] WLED docs — WebSocket interface
@@ -1836,6 +1931,7 @@ is removed.
 - author: WLED project
 - published: n/a (living doc)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251219071936/https://kno.wled.ge/interfaces/websocket/
 - relevance: /ws semantics — same JSON vocabulary as HTTP, server-push of merged state on change, {"v":true} full state, {"lv":true} exclusive live-preview stream, 4-client limit.
 
 ### [S552] zranger1/pixelblaze-client (Python protocol reference)
@@ -1854,6 +1950,7 @@ is removed.
 - author: Home Assistant project (integration by Franck Nijhof)
 - published: n/a (living doc)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20251224021119/https://www.home-assistant.io/integrations/wled
 - relevance: reference mapping of an LED engine to smart-home entities (segments→lights, presets/playlists/palettes→selects, speed/intensity→numbers); local-push via WebSocket with 10 s polling fallback.
 
 ### [S554] WLED docs — Presets (and timed presets)
@@ -1862,6 +1959,7 @@ is removed.
 - author: WLED project
 - published: n/a (living doc)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260116004106/https://kno.wled.ge/features/presets/
 - relevance: preset storage model (/presets.json, 250 slots, preset=any API command), playlist-in-preset structure, 8 timer slots + sunrise/sunset, boot preset, LittleFS write-blocking caveats.
 
 ### [S555] Chromatik Guide — OSC
@@ -1870,6 +1968,7 @@ is removed.
 - author: Heron Arts / Mark Slee
 - published: n/a (living doc)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260218122037/https://chromatik.co/guide/osc/
 - relevance: the reference OSC design for LED engines — /lx/ parameter tree, normalized float32 semantics, OSCQuery zeroconf discovery, OSC-driven tempo/beat.
 
 ### [S556] Chromatik Guide — MIDI
@@ -1878,6 +1977,7 @@ is removed.
 - author: Heron Arts / Mark Slee
 - published: n/a (living doc)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704012358/https://chromatik.co/guide/midi/
 - relevance: three-tier MIDI model (native control surfaces incl. APC40 mkII, device-agnostic learn-mode mappings, MIDI-into-patterns) plus MIDI Beat Clock sync.
 
 ### [S557] hzeller/spixels PR #1 — Schardt's APA102/SK9822 per-pixel 5-bit dimming
@@ -2056,6 +2156,7 @@ is removed.
 - license: no LICENSE file (docs repo; firmware itself closed). Third-party component licenses listed in README.
 - published: last commit 2020-10-26
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260521061924/https://github.com/simap/pixelblaze/tree/v3
 - relevance: canonical pattern-language reference (README.expressions.md) and mapper/world-units doc (README.mapper.md) — same text shipped in the device editor; also indexes all open Pixelblaze-adjacent repos
 
 ### [S681] zranger1/pixelblaze-client — Python WebSocket client library
@@ -2094,6 +2195,7 @@ is removed.
 - author: forum users; key reply by wizard (Ben Hencke)
 - published: 2020-12-18 (wizard reply)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260704010412/https://forum.electromage.com/t/output-expander-that-implements-fadecandy-dithering/840
 - relevance: Hencke's on-record position that Pixelblaze does NOT use temporal dithering (refresh-rate limits; prefers APA102-class global-brightness bits) — pins down what v3.47 "HDR" is and is not
 
 ### [S685] ElectroMage forum — recent-activity snapshot (latest topics, mid-2026)
@@ -2132,3 +2234,36 @@ is removed.
 - published: 2020 (last commit 2020-07-07; dormant since)
 - accessed: 2026-07-03
 - relevance: Fadecandy-style interpolation + temporal dithering on ATtiny-class AVR (5 B RAM/channel, 64 cycles/channel, zero frame buffer via CCL hardware waveform) — existence proof for pewpew's wearable-tier quality layer. Deep dive: code-reading/modern-engines.md §B. Excerpts: excerpts/S716-smoothled-inner-loop/.
+
+### [S750] Pixelblaze firmware release announcements V3.66 & V3.67 (ElectroMage forum)
+- type: forum
+- url: https://forum.electromage.com/c/news-and-announcements/10
+- author: Ben Hencke (wizard)
+- published: 2024-12-13 (V3.66), 2025-11-28 (V3.67)
+- accessed: 2026-07-03
+- archive: TBD — archive.org snapshot of the category page pending (Discourse JSON verified live 2026-07-03)
+- relevance: corrects the "firmware stalled at v3.47" finding — V3.66 (Community Patterns overhaul, more LED types; finalized beta v3.60) and V3.67 (bugfixes, pb32 + pico32 binaries) shipped after v3.47; verified via category JSON and search.json cross-check on 2026-07-03
+
+### [S751] Adafruit: "The Raspberry Pi RP2350 Speeds Up CircuitPython and MicroPython Projects!" (Python on Microcontrollers newsletter, 2024-08-26)
+- type: article
+- url: https://www.adafruitdaily.com/2024/08/26/python-on-microcontrollers-newsletter-the-raspberry-pi-rp2350-speeds-up-circuitpython-and-micropython-projects-circuitpython-python-micropython-thepsf-raspberry_pi/
+- author: Adafruit
+- published: 2024-08-26
+- accessed: 2026-07-03
+- relevance: vendor-measured corroboration for the RP2350 ~2x claim used by W-1/W-2 and ADR-008/ADR-013: "real world" MicroPython tests up to 2x faster vs RP2040; "The M33 has an FPU, and is 'basically' 2x as fast as the M0+ of the RP2040 when we speed-tested it"; C/C++ float up to 20x
+
+### [S752] CircuitPython Zephyr port: Nordic nRF54L15 DK board page + XIAO nRF54L15 feature request (#10647)
+- type: docs
+- url: https://circuitpython.org/board/nordic_nrf54l15dk/
+- author: CircuitPython project / Adafruit
+- published: 2025-2026 (issue #10647 opened 2025-09; Arduino-core-for-nRF54L15 blog post 2026-02-17)
+- accessed: 2026-07-03
+- relevance: pins the nRF54-in-hobby-ecosystem status for RA-09/ADR-013: a Zephyr-port CircuitPython build exists for the nRF54L15 DK, but no mainstream hobby boards ship it (Seeed XIAO support still an open request) — nRF52840 not displaced as of 2026-07-03
+
+### [S753] WLED releases/tags (wled/WLED) — v16.0.1, v0.15.5
+- type: code
+- url: https://github.com/wled/WLED/releases
+- author: WLED project
+- published: 2026-05-03 (v16.0.0), 2026-06-30 (v16.0.1 tag), 2026-04-11 (v0.15.5 tag)
+- accessed: 2026-07-03
+- relevance: freshness update for RA-01/RA-11: v16.0.1 bugfix release shipped 2026-06-30 (was "in progress" at research time); 0.15.x maintenance continued to 0.15.5 (2026-04-11); nightlies through 2026-07-02

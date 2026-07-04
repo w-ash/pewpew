@@ -28,7 +28,7 @@ S-ID block: S300–S349 (new IDs from S303)
 - Format: plain JSON array-of-arrays, one entry per pixel, `[x,y]` or `[x,y,z]`, in any physical unit (inches, mm, pixels) [S304]. Alternatively a JavaScript **map generator function** run in the browser editor, taking `pixelCount` and returning the coordinate array [S304].
 - Normalization: "The system automatically scales pixel map coordinates to 0.0 to 1.0 values. This represents the position within the mapped world" — patterns are written in dimensionless **world units** so one pattern works on any installation [S304]. Two scaling modes: **Fill** (stretch each axis independently to 0..1) and **Contain** (preserve aspect ratio, fit largest dimension) [S304].
 - Render model: with a map installed, patterns implement `render2D(index, x, y)` or `render3D(index, x, y, z)`; coordinates arrive in (0,1) world units per pixel per frame [S304][S200]. This coordinate-callback-per-pixel model is the single most influential mapping design in the hobby space and is the pattern-portability benchmark.
-- Firmware is closed-source; the mapper README lives in the public simap/pixelblaze repo [S304]. Product actively maintained (v3.47 HDR drivers release, 2025) [S014].
+- Firmware is closed-source; the mapper README lives in the public simap/pixelblaze repo [S304]. Product actively maintained (v3.47 HDR drivers 2023-07; V3.66 2024-12; V3.67 2025-11) [S014][S750] (dates corrected 2026-07-03).
 - Assessment: true coordinate map (2D/3D, arbitrary units, normalized at load). Gaps are simply absent pixels — every entry corresponds to a real LED, so no mask concept is needed. No explicit documented axis convention beyond x/y/z names [S304].
 - Form factors: designed exactly for wearables through mid-size art; per-pixel callback costs CPU at room scale.
 
@@ -53,7 +53,7 @@ S-ID block: S300–S349 (new IDs from S303)
 
 - FPP (Falcon Player, active [S022]) defines **Pixel Overlay Models** by channel arithmetic: model name, start channel, channel count, orientation, nodes-per-string, strands-per-string — mapping a linear channel range into a 2D grid [S308]. No physical coordinates; geometry is implicit in the string/strand fold description.
 - Overlay states (Enabled / Transparent / TransparentRGB / Disabled) let external apps composite content over running sequences per model — a channel-range **masking/compositing** concept rather than a mapping one [S308].
-- FPP also has a `VirtualDisplay` channel output that renders channel data onto a preview image using per-pixel screen coordinates (src/channeloutput/VirtualDisplay.cpp) — coordinates exist only for preview, not for effects [S308][NEEDS-VERIFICATION].
+- FPP also has a `VirtualDisplay` channel output that renders channel data onto a preview image using per-pixel screen coordinates — coordinates exist only for preview, not for effects [S308] (re-checked 2026-07-03: confirmed the files live under the *output* tree — `src/channeloutput/VirtualDisplay.cpp`, `VirtualDisplayBase.cpp`, `HTTPVirtualDisplay.cpp`, `HTTPVirtualDisplay3D.cpp` — i.e. a preview sink, not an effect-input coordinate model).
 - Assessment: like WLED, an index/channel-space model. Confirms the pattern: player/output layers think in channels; only pattern engines (Pixelblaze, Chromatik/LX) think in coordinates.
 
 ### Coordinate conventions
@@ -121,7 +121,7 @@ What systems express beyond raw coordinates, and who has each concept:
 
 ### Verdicts
 
-- **Pixelblaze world-unit render model** — ascendant as a *convention*; product active (v3.47, 2025) [S014][S304]. Adopt the model.
+- **Pixelblaze world-unit render model** — ascendant as a *convention*; product active (firmware through V3.67, 2025-11) [S014][S304][S750]. Adopt the model.
 - **Chromatik/LX .lxf fixture format** — ascendant; the most expressive open declarative map format; active [S034][S309]. Adopt the shape.
 - **WLED ledmap** — stable; huge installed base, but index-only and 2D-grid-bound [S303][S002]. Import only.
 - **LedFx virtuals** — stable/ascendant within Python; routing not geometry [S305][S011]. Copy the compiled-gather runtime idea.

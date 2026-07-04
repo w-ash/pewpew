@@ -17,7 +17,7 @@ S-ID block: S001–S049 (new IDs from S024; S030–S049 reserved for Python-engi
 
 **Architecture:** monolithic C++ Arduino-framework firmware for ESP8266/ESP32 driving addressable strips; core loop of segments (per-strip regions) running one effect function each over a shared pixel buffer, with a self-hosted web UI, JSON/HTTP API, MQTT, and network ingest via E1.31/Art-Net/DDP/Hyperion; extensibility via compiled-in "usermods" [S001].
 
-**0.16 status resolved:** the "0.16" release shipped as **v16.0.0 on 2026-05-03** (versioning scheme changed from 0.x to whole numbers), ~18 months of work, 59 contributors; a 16.0.1 bugfix milestone was in progress as of mid-2026, and "Audioreactive off-tree, and WLED/WLED-MM code harmonization" was "pushed to 16.1.x" [S002]. Headline 16.0 features: segment layering (stacked effects), a particle system, GIF playback on matrices, the PixelForge image/painting editor, custom fonts + UTF-8 scrolling text, 800+ palette editor, HUB75 matrix support, DMX serial input, dynamic button config [S002][S003]. Latest 0.15.x maintenance release was 0.15.4 (2026-03-14) [S002].
+**0.16 status resolved:** the "0.16" release shipped as **v16.0.0 on 2026-05-03** (versioning scheme changed from 0.x to whole numbers), ~18 months of work, 59 contributors; the **16.0.1 bugfix release shipped 2026-06-30** (tag v16.0.1; nightlies continue through 2026-07-02), and "Audioreactive off-tree, and WLED/WLED-MM code harmonization" was "pushed to 16.1.x" [S002][S753] (re-checked 2026-07-03). Headline 16.0 features: segment layering (stacked effects), a particle system, GIF playback on matrices, the PixelForge image/painting editor, custom fonts + UTF-8 scrolling text, 800+ palette editor, HUB75 matrix support, DMX serial input, dynamic button config [S002][S003]. Latest 0.15.x maintenance release is 0.15.5 (tagged 2026-04-11; 0.15.4 was 2026-03-14) [S002][S753].
 
 **What pewpew should steal:** the segment model (independently addressable sub-regions with per-segment effect/palette/brightness) and 16.0's segment layering; the ubiquity-through-simplicity lesson — one flashable binary, config entirely at runtime through the web UI; DDP/E1.31 receiver role so any host engine can drive it [S001][S003].
 
@@ -71,7 +71,7 @@ S-ID block: S001–S049 (new IDs from S024; S030–S049 reserved for Python-engi
 
 **What it does best / pewpew should steal:** the authoring experience — sub-second edit-to-glow loop, normalized coordinate render model that makes patterns portable across layouts, and the pattern-as-tiny-program abstraction; plus HDR output drivers (48-bit color on WS2816/NS108) done on closed firmware in 2023, before most open projects [S013][S014][S200].
 
-**Vendor health:** effectively a one-person company (Ben Hencke / Hencke Technologies, Portland OR). The last major firmware release remains v3.47 (2023-07-13, total LED-driver rewrite with HDR support) [S014]; asked directly in Feb 2025 about a roadmap, Hencke replied "I don't have a roadmap shared," while remaining active in support threads through June 2026 [S025]. Community stays lively (third-party pattern IDE "PXLBLZ" June 2026; a "Pixelblaze Pico Plus" thread June 2026) [S025][NEEDS-VERIFICATION on Pico Plus being an official new SKU].
+**Vendor health:** effectively a one-person company (Ben Hencke / Hencke Technologies, Portland OR). [VERIFIED-FALSE 2026-07-03: earlier drafts said firmware stalled at v3.47 — in fact releases continued: **V3.66 on 2024-12-13** (Community Patterns overhaul, more LED types; finalized beta v3.60) and **V3.67 on 2025-11-28** (bugfixes, pb32 + pico32) [S750].] The last *major* driver rewrite remains v3.47 (2023-07-13, total LED-driver rewrite with HDR support) [S014]; asked directly in Feb 2025 about a roadmap, Hencke replied "I don't have a roadmap shared," while remaining active in support threads through June 2026 [S025]. Community stays lively (third-party pattern IDE "PXLBLZ" June 2026; a "Pixelblaze Pico Plus" thread June 2026) [S025][NEEDS-VERIFICATION on Pico Plus being an official new SKU].
 
 - License: proprietary firmware; hardware sold via ElectroMage/Tindie/Crowd Supply [S013].
 - Maintenance: hardware in production and forum support active (June 2026), but firmware stagnant ~3 years [S014][S025].
@@ -106,7 +106,7 @@ S-ID block: S001–S049 (new IDs from S024; S030–S049 reserved for Python-engi
 
 **What it does best / pewpew should steal:** MultiSync's approach to fleet-level frame sync, and the FSEQ compiled-sequence format (compact pre-rendered frames decoupling authoring from playback) [S022].
 
-- License: mixed GPL/CC (GitHub reports NOASSERTION; components GPL-2.0-and-later per repo docs) [S022][NEEDS-VERIFICATION].
+- License: mixed — repo ships LICENSE.GPL, LICENSE.GPLv3, LICENSE.LGPL, LICENSE.CC-BY-ND, LICENSE.exception and LICENSE.external; GitHub sidebar lists GPL-3.0 + LGPL-2.1 + others [S022] (re-verified 2026-07-03).
 - Maintenance: very active — v9.5 on 2026-01-08, v9.4 2025-12-09, nightlies through 2026-07-03 [S022].
 - Form factor: room-scale/installation; Pi-based so technically portable, not wearable [S022].
 - Verdict: **stable** — mature, steady major-version cadence, entrenched as xLights' playback counterpart [S022].
@@ -217,7 +217,7 @@ Ranked by architecture-shaping value to pewpew:
 ## Open questions
 
 - Is "Pixelblaze Pico Plus" (forum topic, 2026-06-28) an official new ElectroMage SKU or a community board? A read of the actual thread would settle it [S025][NEEDS-VERIFICATION].
-- Was there any Pixelblaze firmware release between v3.47 (2023-07-13) and mid-2026? Forum search suggests no, but the releases category wasn't fully enumerable via fetch; browse forum.electromage.com/c/news-and-announcements/10 directly [S014][NEEDS-VERIFICATION].
+- Was there any Pixelblaze firmware release between v3.47 (2023-07-13) and mid-2026? **Resolved 2026-07-03: yes.** The news-and-announcements category (Discourse JSON, cross-checked via forum search) shows V3.66 (2024-12-13) and V3.67 (2025-11-28) [S750]; earlier fetch-based sweeps missed them. "Stalled at v3.47" claims elsewhere in this tree have been corrected.
 - FPP's exact license composition (GitHub reports NOASSERTION); read the repo LICENSE files before any code reuse [S022].
 - ProjectMM's v1→v2 jump within weeks of release: what broke, and how stable is the module API? Watch releases; ask on MoonModules Discord.
 - WLED-MM's formal position on ProjectMM (will WLED-MM continue after 16.1.x harmonization?) — no explicit maintainer statement found [S005].

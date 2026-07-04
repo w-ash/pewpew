@@ -29,7 +29,7 @@ S-ID block: S100–S149
 - 12 V supply, WS2812-compatible one-wire protocol at 800 kbps; each pixel remains individually addressable (unlike 12 V WS2811, which groups 3 LEDs per IC) [S111][S112].
 - **Backup data input (BI):** each pixel receives data on both DIN and BIN; if DIN sees no signal (e.g. a dead upstream pixel), the pixel switches to BIN, so one failed IC does not kill the rest of the chain [S111][S112]. Wiring gotcha: BI must be tied to GND at the strip head, not left floating [S113].
 - Constant-current drive of ~15 mA per pixel at full white regardless of supply sag; 12 V + constant current means far less color shift down long runs and roughly 1/3 the injection current of 5 V strips for the same pixel count [S111][S112].
-- Trade-off: at 12 V each pixel burns the full voltage across its regulator, so per-LED efficiency is lower than 5 V WS2812B; power dissipation is in the chip, not the wire [S112][NEEDS-VERIFICATION].
+- Trade-off: at 12 V each pixel burns the full voltage across its regulator, so per-LED efficiency is lower than 5 V WS2812B; power dissipation is in the chip, not the wire [S112][NEEDS-VERIFICATION] (re-checked 2026-07-03: still unsettled — consistent with the constant-current/linear-regulator design in [S112], but needs WS2815 datasheet dissipation figures or a bench measurement to close).
 - Timing is WS2812-family; NeoPixelBus unified its ESP32 RMT timing to cover WS2815 [S110].
 - Form factor: strips (30/60/144 LED/m) — the de-facto choice for room-scale/architectural runs; not offered in tiny packages, so irrelevant to wearables [S112].
 
@@ -58,7 +58,7 @@ S-ID block: S100–S149
 - WorldSemi's 16-bit-per-channel one-wire RGB part: 48 bits/pixel GRB high-bit-first, 65,536 grayscale levels per color, with **built-in 4-bit gamma correction** and ~**10 kHz refresh** [S122][S123].
 - Same one-wire electrical scheme as WS2812 family, so it reuses existing pin/driver hardware, but doubles the data per pixel (halves max pixels per frame at 800 kbps) [S122].
 - Driver support: FastLED added WS2816 support with a dedicated controller (from v3.9.x; FastLED applies no software gamma since the chip does it in hardware); NeoPixelBus tracked support in issue #357 [S122][S124].
-- Availability is strip/2020-package level (e.g. WS2816B-2020); far less commodity than WS2812B as of 2026 — worth watching, not yet the safe default [S123][NEEDS-VERIFICATION].
+- Availability is strip/2020-package level (e.g. WS2816B-2020); far less commodity than WS2812B as of 2026 — worth watching, not yet the safe default [S123] (re-checked 2026-07-03: confirmed specialty-level — WS2816 strips on AliExpress, NLED driver modules shipping with more "coming soon" as of 2026-02, World Semi lists the WS2816 family; nowhere near WS2812B ubiquity).
 
 #### Other 2024–2026 currents
 
@@ -92,7 +92,7 @@ cpldcpu's photodiode measurements are the authoritative numbers [S128]:
 - **SK9822: 4.7 kHz color PWM** (4× slower than APA102), but **global brightness is a programmable current source, not PWM** — dimming via the 5-bit field is flicker-free and preserves full 8-bit PWM resolution. This is the mechanism FastLED's "pseudo-13-bit" HD gamma mode exploits [S128].
 - Update semantics differ: APA102 updates each pixel's registers immediately as data arrives (staggered along the strip); SK9822 latches all pixels simultaneously on a 32-zero-bit reset frame. A unified driver sends: 32×0 start frame, LED frames, 32×0 reset frame, then n/2 clock-bits end frame — compatible with both [S128].
 - APA102's clock is regenerated through each pixel with a half-cycle delay, which is why the end frame must supply n/2 extra clocks and why very long strips self-limit the usable clock rate; short strips run at 10–20 MHz+ SPI [S129].
-- Genuine APA102 supply has been eclipsed by clones; most "APA102" strips sold since ~2020 are SK9822 or HD107s silicon [S101][NEEDS-VERIFICATION].
+- Genuine APA102 supply has been eclipsed by clones; most "APA102" strips sold since ~2020 are SK9822 or HD107s silicon [S101][NEEDS-VERIFICATION] (re-checked 2026-07-03: still unsettled — remains the FastLED-community consensus and matches vendor listings marketing HD107s as "fast APA102", but no primary supply-chain source found; treat as strong community knowledge).
 
 #### HD107s (Hida/Shenzhen) — the modern APA102 replacement
 
@@ -103,13 +103,13 @@ cpldcpu's photodiode measurements are the authoritative numbers [S128]:
 
 - Same footprint as APA102C/HD107s; protocol is APA102-style but with 16 bits per color channel (64-bit pixel frames: 16-bit brightness/marker field + 3×16-bit color), 27 kHz PWM; logic HIGH threshold 3.0 V, so 3.3 V MCUs drive it at 5 V supply without a level shifter [S102][S100].
 - **Driver support matured in 2025:** FastLED merged native HD108 support on 2025-10-30 (PR #2119), ending years of "roll your own SPI" (issue #1045 dates to 2021) [S130][S100].
-- Availability: strips from Hida (e.g. 48 px/m 16-bit strips) and Newstar; still a specialty item next to WS281x/HD107s — pricing runs well above 8-bit clocked strips and stock is vendor-direct (Hida, Newstar, iPixel/AliExpress) rather than commodity [S131][S132][NEEDS-VERIFICATION].
+- Availability: strips from Hida (e.g. 48 px/m 16-bit strips) and Newstar; still a specialty item next to WS281x/HD107s — pricing runs well above 8-bit clocked strips and stock is vendor-direct (Hida, Newstar, iPixel/AliExpress) rather than commodity [S131][S132] (re-checked 2026-07-03: confirmed — Hida's hd108-led.com lists 30/48/60/72/84/96/144 px/m HD108 strips and Newstar lists NS108/HD108 strips, all vendor-direct; still no commodity channel).
 - Why it matters: native 16-bit kills the need for temporal dithering entirely — the low-brightness fidelity problem WS281x solves in software is solved in silicon [S100][S102].
 
 #### NS108 (Newstar) — second source for 16-bit
 
 - Newstar's NS108 is marketed as HD108-compatible: 16-bit/channel, 27 kHz PWM, same APA102-style clocked protocol; sold as chips and strips [S103][S132].
-- FastLED's HD108 discussion treats NS108/HD108 as one chip type; a driver targeting HD108 covers NS108 [S100][NEEDS-VERIFICATION].
+- FastLED's HD108 discussion treats NS108/HD108 as one chip type; a driver targeting HD108 covers NS108 [S100] (re-checked 2026-07-03: corroborated — Newstar markets itself as the original NS108/HD108 IC developer and vendors list "HD108 NS108" strips as one product family; Hida sells "16bit 65536 HD108 NS108" strips [S131][S132]).
 
 ### Electrical practice
 
@@ -124,13 +124,13 @@ cpldcpu's photodiode measurements are the authoritative numbers [S128]:
 
 - Single-ended WS281x data is good for only a few meters of wire between controller and first pixel (community practice: ≤2–3 m shifted, less unshifted); each pixel reshapes/regenerates the signal, so pixel-to-pixel distance is the spec, not total strip length [S138][NEEDS-VERIFICATION].
 - Ethernet cable is a poor power carrier and mediocre for single-ended pixel data; QuinLED documents why Cat5e/6 should not be used for LED power runs [S139].
-- For long controller-to-strip runs the field-standard answer is a **differential (RS485-style) extender pair** — "pixel amplifier"/F-amp style transmit/receive boards over twisted pair — turning the one-wire signal into differential for tens of meters, then back [S135][NEEDS-VERIFICATION]. Clocked chips (APA102 family) tolerate long runs better by slowing the clock, at refresh cost [S129].
+- For long controller-to-strip runs the field-standard answer is a **differential (RS485-style) extender pair** — "pixel amplifier"/F-amp style transmit/receive boards over twisted pair — turning the one-wire signal into differential for tens of meters, then back [S135][NEEDS-VERIFICATION] (re-checked 2026-07-03: still unsettled — practice is ubiquitous in vendor stores (F-amp/"pixel amplifier" boards) but needs a citable vendor doc or datasheet; grab QuinLED or Falcon differential-board docs next pass). Clocked chips (APA102 family) tolerate long runs better by slowing the clock, at refresh cost [S129].
 
 #### Power injection and 5 V vs 12 V vs 24 V
 
 - Planning numbers: 5 V WS2812B draws up to ~60 mA/pixel at full white (18 W/m at 60 LED/m theoretical); QuinLED's measured tables show real full-white draw is somewhat lower, but budgets should use measured-per-strip numbers rather than folklore [S136].
 - **Voltage-drop rule of thumb: keep drop ≤10% (0.5 V on 5 V)**; on 5 V strips this forces injection roughly every 2.5–5 m (e.g. a 15 m/900-LED run needs front, middle and end injection), with 20 AWG acceptable only for short feeds and 13–14 AWG for long ones [S135].
-- 12 V (WS2815/WS2814) cuts current ~3× for the same wattage and the constant-current pixels mask residual droop — injection intervals stretch to roughly 5–10 m [S112][S135][NEEDS-VERIFICATION]. The 2026 market is drifting further to 24 V/48 V for architectural runs [S126].
+- 12 V (WS2815/WS2814) cuts current ~3× for the same wattage and the constant-current pixels mask residual droop — injection intervals stretch to roughly 5–10 m [S112][S135][NEEDS-VERIFICATION] (re-checked 2026-07-03: still unsettled — the ~3× current arithmetic is sound, the 5–10 m interval remains community practice without a measured source). The 2026 market is drifting further to 24 V/48 V for architectural runs [S126].
 - A hybrid pattern for big 5 V installs: distribute 24 V and buck-convert to 5 V locally at each injection point [S137].
 - **Per form factor:** wearables → 5 V (single-cell Li-ion + boost, small packages: SK6812 3535/1515, WS2812B-2020); portable props → 5 V short runs, level-shifted, one or two injection points; room-scale → 12 V WS2815/WS2814 (or 24 V FCOB/WS2814-24V) with fused multi-point injection [S112][S119][S135].
 
