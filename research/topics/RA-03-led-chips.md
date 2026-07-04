@@ -83,7 +83,7 @@ One-wire chips all run a fixed ~800 kbps, 1.25 µs/bit [S108]. Per-pixel wire ti
 
 ### Clocked (SPI-style) family
 
-Two-wire (data+clock) SPI-style chips have no fixed bit rate: the controller sets the clock, so refresh scales with achievable SPI speed, and there is no reset-time tax. The trade is 4 wires and roughly double the strip cost.
+Two-wire (data+clock) SPI-style chips have no fixed bit rate: the controller sets the clock, so refresh scales with achievable SPI speed, and there is no reset-time tax. The trade is 4 wires and roughly double the strip cost (typical retail delta as observed while sourcing; no priced source captured) [NEEDS-VERIFICATION].
 
 #### APA102 vs SK9822 — same protocol family, different silicon (measured, not marketing)
 
@@ -118,7 +118,7 @@ cpldcpu's photodiode measurements are the authoritative numbers [S128]:
 - WS281x on a 5 V supply wants VIH ≈ 0.7 × VDD = 3.5 V; a 3.3 V ESP32/RP2040 output is marginal and works only by luck/short wires. The standard fix is a **74AHCT125 / SN74AHCT125N** buffer (5 V-supplied, TTL 3.3 V-friendly input threshold, fast enough for 800 kbps): GPIO → 1A, 1Y → series resistor → DIN, OE tied low [S133][S138].
 - Alternatives with trade-offs: the **"sacrificial pixel"** (first LED fed ~4.3 V via a diode drop so its regenerated output swings full 5 V for the rest of the strip) is a $0.20 fix [S134]; generic bidirectional MOSFET I2C shifters are too slow and a known failure source at 800 kHz [S133].
 - A series resistor of roughly 62–470 Ω at the strip's data input damps reflections/ringing; built into most commercial controllers [S138][S133].
-- Chips with a **3.0 V logic threshold (HD107s/HD108/NS108)** sidestep shifting entirely for 3.3 V hosts [S102].
+- Chips with a **3.0 V logic threshold** sidestep shifting entirely for 3.3 V hosts — documented for HD108 [S102]; HD107s/NS108 are vendor-described as 3.3 V-friendly but no explicit threshold figure was captured for them [S101].
 
 #### Data integrity over distance
 
@@ -169,3 +169,4 @@ cpldcpu's photodiode measurements are the authoritative numbers [S128]:
 - WS2815 per-pixel efficiency penalty vs 5 V parts (regulator dissipation) — needs a measured W-vs-lumen comparison [S112].
 - WS2816 availability breadth in 2026 (packages beyond 2020? major strip vendors?) [S123].
 - Verified maximum single-ended data run lengths (shifted vs unshifted, by cable type) — community numbers are anecdotal; a bench test would settle it [S138].
+- **Thermal practice is uncovered** (flagged by the 2026-07-03 completeness pass): no source in this tree addresses strip derating at sustained full white, PSU thermal headroom, or heat buildup in enclosed channels/diffusers. The software power limiter (req Q-8) bounds the worst case electrically, but derating guidance needs sources — vendor strip datasheets and QuinLED/community practice are the likely places to look next touch.

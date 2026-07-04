@@ -32,6 +32,13 @@ pipeline (ADR-001) needs a transport that can carry it (R-3, R-5, R-6).
   future sinks share one contract.
 - WLED ignores the DDP timecode flag, so latch timing rides on Push arrival
   — acceptable on a LAN, revisit if timecode support lands upstream.
+- Broadcast DDP Push shares the unacknowledged-frame physics of the
+  rejected multicast option on WiFi segments (~5% loss [S150]): a lost
+  broadcast latch means that receiver latches on its own unicast Push
+  instead, preserving per-receiver timing but defeating the cross-receiver
+  alignment the broadcast exists for. The Push bench (prototype item #3,
+  architecture §12) gates this — it must measure broadcast-Push loss as
+  well as skew; wired backbone receivers (R-5) are unaffected.
 
 ## Evidence
 

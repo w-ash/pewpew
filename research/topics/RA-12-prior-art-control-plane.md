@@ -128,6 +128,10 @@ Synthesis of the three proven designs (WLED, Pixelblaze, LX):
 
 Net: HTTP+WS JSON core (WLED-shaped), Pixelblaze-style pattern variables and save-flag, LX-style full parameter tree with OSC/MIDI bindings layered on top. MQTT can be a thin optional bridge, not the core.
 
+### Addendum (2026-07-03, verification pass): why Matter/Thread is excluded
+
+Matter is deliberately absent from this survey's recommendation: Matter's light device model carries on/off, level, and color — it cannot express addressable per-pixel effects, pattern parameters, or streaming control, i.e. none of pewpew's actual control surface. The field agrees: WLED has no native Matter support (open discussion, not landed [S757]), and what exists is bridging — wled-matter-bridge exposes WLED to Matter controllers as a plain color light [S758], and TLED implements a Matter-over-Thread addressable controller whose Matter surface is likewise basic light control [S759]. pewpew's HA-first mDNS/push stance (recommendation #5 [S553]) already delivers the smart-home value Matter would. Revisit only if native WLED Matter lands ([S757]) or the Matter light model grows an addressable-effect cluster.
+
 ## Verdicts
 
 - **WLED JSON+WS API model** — ascendant/stable: active 0.16 cycle, the de-facto target for third-party apps and HA "Local Push" integration [S002][S550][S553].

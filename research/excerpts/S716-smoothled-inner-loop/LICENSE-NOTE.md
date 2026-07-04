@@ -15,6 +15,11 @@
   - `SmoothLedUpdate.S` — the `SmoothLedUpdate8cpb` routine (lines 1–96): the
     cycle-annotated 64-cycles-per-channel (8-cycles-per-bit) streaming loop,
     the primary evidence for the cycles-per-LED claim.
+  - `SmoothLed.h` — complete file (168 lines, original upstream path
+    `src/SmoothLed.h`, fetched at the pinned sha 2026-07-03): carries the two
+    line ranges cited by ADR-002 (#L13-L15, `DitherBits`/`ditherMask` depth
+    knob) and ADR-008 + requirements W-3/W-4 (#L63-L79, the `Interpolator`
+    struct — int16 step + int16 value + uint8 dither = 5 bytes/channel).
 - why excerpted: this is the existence proof for pewpew's wearable-tier quality
   layer — Fadecandy-class interpolation + gamma + temporal dithering in 5 bytes
   of RAM per channel and 64 cycles per channel on an ATtiny. Cited in

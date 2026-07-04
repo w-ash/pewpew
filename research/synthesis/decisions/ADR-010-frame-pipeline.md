@@ -42,7 +42,10 @@ scheduler jitter.
 ## Evidence
 
 - [S264] LX's fixed-rate engine executor (60 fps default) — the clean
-  pacing reference.
+  pacing reference. License posture: LX is source-available under a custom
+  non-OSI license; this was a design-pattern read only (recorded per
+  ADR-012 rule 3) — pewpew's clock is implemented from this documented
+  finding, with no LX code copied or ported.
 - [S630:ledfx/virtuals.py#L864-L877] LedFx's per-virtual thread loop with
   compensated sleep that drifts under scheduler jitter — the anti-pattern.
 - [S630:ledfx/virtuals.py#L746-L779]

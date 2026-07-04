@@ -37,6 +37,14 @@ Precision is spent at the **last hop that can afford it**:
   firmware changes; the full win waits for the Phase-4 receiver.
 - The engine must know each sink's achievable output rate — sinks carry a
   rate capability in their config.
+- Documented direct-view risk for tier 3: HyperHDR's recipe is proven
+  behind a TV, where neighboring-LED correlation doesn't matter — for
+  direct-view pewpew fixtures, purely temporal per-LED dithering at
+  25–60 Hz may be visibly flickering, and the recipe does not close the
+  blue-noise/spatial-distribution question
+  (code-reading/hyperhdr.md "What to avoid" [S700]). Prototype item #5
+  must therefore test direct-view visibility of the tier-3 recipe, not
+  just bit gain vs Hz.
 - The exact bits-gained-vs-Hz curve is unmeasured anywhere; prototype item
   #5 (architecture §12) settles the depth-degradation constants.
 

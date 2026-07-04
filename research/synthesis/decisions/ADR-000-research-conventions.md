@@ -21,10 +21,18 @@ Adopt the conventions specified in [`research/README.md`](../../README.md):
 3. **Code cited against pinned SHAs**, with the SHA recorded once per source
    entry and inline cites of the form `[S###:path#Lx-Ly]`.
 4. **Load-bearing sources get archived**: archive.org snapshots for web
-   pages, verbatim excerpts + license notes for code. "Load-bearing" =
-   cited by any ADR.
+   pages; for code, verbatim excerpts + license notes are required where an
+   ADR cites the code with line anchors (`[S###:path#Lx-Ly]`) — repo-level
+   citations (existence, license, maintenance, verdicts) need a `pinned:`
+   field but no excerpt (scoped 2026-07-03, Phase 4 verification).
+   "Load-bearing" = cited by any ADR.
 5. **ADRs carry an Evidence section** mapping S-IDs to what each proves;
    ≥2 independent sources per ADR or an explicit caveat.
+6. **ADR Context exemption** (amended 2026-07-03, Phase 4 verification):
+   ADR Context sections may restate findings without inline cites ONLY
+   where the ADR's own Evidence section carries the citation; all other
+   docs cite inline. A Context claim not covered by that ADR's Evidence
+   still requires an inline cite.
 
 ## Consequences
 

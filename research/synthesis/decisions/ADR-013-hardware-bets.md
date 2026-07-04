@@ -56,8 +56,10 @@ wearables.
 - [S111][S112][S119] WS2815 (backup data line, per-pixel 12 V) and WS2814
   (ascendant commodity 12/24 V RGBW) — the room-tier parts (R-7).
 - [S128][S101][S102] Measured: APA102's global brightness is ~440 Hz PWM
-  (flicker) while SK9822's is a current source; HD107s does 27 kHz PWM at
-  3.0 V logic — the clocked-family ranking.
+  (flicker) while SK9822's is a current source; HD107s does 27 kHz PWM.
+  The 3.0 V logic-HIGH threshold is documented for HD108, not HD107s
+  (HD107s is vendor-described as 3.3 V-friendly without a stated threshold
+  figure — RA-03) — the clocked-family ranking.
 - [S130][S100][S122] FastLED merged HD108 support 2025-10-30; WS2816 is
   16-bit on the one-wire ecosystem — the 16-bit bet has driver momentum
   (Q-6).
@@ -77,7 +79,9 @@ wearables.
 - [S411] ESP32 SoftAP ~100–130 mA with no AP-mode power save — the
   all-day-wearable disqualifier.
 - [S133][S135][S369][S370] AHCT125 shifting, ≤10%-drop injection, fusing,
-  and xConnect — the fixed electrical practice (P-5, R-7).
+  and xConnect — the fixed electrical practice (P-5, R-7). (Note: S135 and
+  S369 are the same QuinLED guide — three independent sources here, not
+  four.)
 
 ## Rejected alternatives
 

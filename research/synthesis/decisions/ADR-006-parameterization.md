@@ -40,12 +40,22 @@ OSC/MIDI, and Home Assistant to hang off one mechanism, not five.
   compatibility promise from v1.
 - Modulation routing makes parameters signal endpoints, so the frame
   pipeline must resolve modulated values once per frame (ADR-010).
+- What a pewpew *project* is on disk (directory layout for patterns +
+  fixtures + calibration CSVs + presets, with a schema-version field for
+  migration across engine versions) is deliberately undefined here — to be
+  defined at build Phase 3, when presets/playlists are implemented.
+- The palette model is deferred to build Phase 1: palettes enter as gradient
+  assets addressable in this parameter tree (every surveyed system treats
+  palettes as a first-class creative primitive — RA-12 carries the taste
+  evidence); no separate ADR is needed unless Phase 1 proves otherwise.
 
 ## Evidence
 
 - [S216] LX `CompoundParameter`: registered parameters get UI, OSC/MIDI
-  mapping, and runtime modulation "patched onto any knob" — the semantics
-  adopted.
+  mapping, and runtime modulation patchable onto any knob (paraphrase of
+  S216's "easily mapped to UI components, MIDI controllers, or OSC
+  messages" / "opens up interesting modulation possibilities") — the
+  semantics adopted.
 - [S203] Pixelblaze's naming-convention controls: zero ceremony but no
   range/default metadata — the ergonomic bar and the gap we close.
 - [S214] ISF's typed INPUTS manifest adjacent to code — the portable

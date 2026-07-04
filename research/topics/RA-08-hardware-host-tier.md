@@ -121,5 +121,6 @@ Approximate 2026 street prices, per usable WS281x output port (data only, exclud
 - **MoonLight on P4 over hosted WiFi**: does MoonLight's ESP-Hosted integration (if any) work reliably, or is P4 Ethernet-only in practice? Settle by reading MoonLight's platformio env for P4 and testing on an ESP32-P4-Nano [S352][S355].
 - **Kulp/BeagleBone supply in 2026**: BeagleBone Black availability and whether Kulp has moved to newer SoCs; settle via kulplights.com stock check / forum ask.
 - **WLED 0.16 final ESP8266 stance**: 0.16 still ships 8266 binaries; whether 0.17 drops them is unconfirmed. Watch wled/WLED release notes [S002][S356].
+- **ESP32-C5 (dual-band 2.4/5 GHz WiFi 6) as a receiver** — in mass production and requested for WLED since 2025-10 (issue #5020, open, no support landed as of 2026-07-03) [S760]. Not a buy today (no firmware runs on it), but 5 GHz receivers would directly relieve the AP-capacity ceiling (architecture §12 item 10) and RA-04's 2.4 GHz jitter findings — watch item.
 - **Exact 2026 prices** for Dig-Next-2, Kulp K16A-B, and mini-PC render hosts — spot-check at purchase time; per-port figures above are directional.
 - **Per-port limits at 40 fps for Advatek Mk3** — datasheet PDF not fetched; the 4,080-px A4-S figure's fps assumption is unstated [S362].

@@ -302,9 +302,13 @@ direction), then quantize (analysis grounded in [S008][S069]).
 
 ### White-point calibration across LED batches
 
-Addressable LEDs ship uncalibrated; different chip generations, vendors and
-bins have visibly different primaries and white points, so serious installs
-need a per-strip (ideally per-batch) correction. Shipped mechanisms:
+Addressable LEDs ship uncalibrated — the ecosystem's correction mechanisms
+exist precisely because typical strips deviate visibly from a calibrated
+white (FastLED's canonical `TypicalLEDStrip` correction scales green to ~69%
+[S008:src/color.h#L11-L26]). That different chip generations, vendors and
+bins have visibly different primaries and white points is community
+experience not traced to a measured source [NEEDS-VERIFICATION]; serious
+installs need a per-strip (ideally per-batch) correction. Shipped mechanisms:
 
 - **FastLED `setCorrection()`**: a per-controller RGB scale; canonical value
   `TypicalSMD5050`/`TypicalLEDStrip` = (255, 176, 240) — i.e. typical 5050

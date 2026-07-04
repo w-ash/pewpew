@@ -74,8 +74,12 @@ Resolution: ID → `pinned: owner/repo@sha` → GitHub permalink
 A source is **load-bearing** once any ADR cites it as evidence. Load-bearing
 sources MUST have:
 - web pages → an `archive:` field with an archive.org snapshot
-- code → a verbatim excerpt in `excerpts/S###-name/` alongside a
+- code cited with line anchors (`[S###:path#Lx-Ly]`) in an ADR → a verbatim
+  excerpt of the cited code in `excerpts/S###-name/` alongside a
   `LICENSE-NOTE.md` recording the original license and attribution
+- code cited only at repo level (existence, license, maintenance status,
+  verdicts) → a `pinned:` field in SOURCES.md; no excerpt required
+  (scoped 2026-07-03, Phase 4 verification)
 
 ### S-ID block allocation
 
@@ -119,3 +123,7 @@ alternatives. The Evidence section lists S-IDs, each with a one-line statement
 of what that source proves. Rejected alternatives are cited too. An ADR needs
 ≥2 independent evidence sources, or an explicit single-source caveat.
 `synthesis/architecture.md` contains no decision that lacks an ADR.
+
+ADR Context sections may restate findings without inline cites ONLY where the
+ADR's own Evidence section carries the citation; all other docs cite inline
+(ADR-000 rule 6).

@@ -211,6 +211,23 @@ and modulatable.**
   stream (WLED peek `{"lv":true}` / Pixelblaze binary previewFrame), never an
   always-on broadcast [S551][S552].
 
+### Trust model (explicit decision)
+
+- **Unauthenticated trusted LAN, by design** — the field norm pewpew's
+  entire control-plane precedent set ships (WLED exposes HTTP/WS/UDP with no
+  auth by default [S550]); the deployment context is a private LAN/AP the
+  operator controls. This is a decision, not an omission: adding day-one
+  auth would break the third-party-ecosystem property §5 is built on.
+  An opt-in PIN/token gate (WLED-style settings PIN) is the planned later
+  hardening for shared-network deployments; anything stronger (TLS,
+  per-user accounts) is out of scope for a LAN art tool.
+- **Concurrent writers: last-write-wins with server-push merge.** Multiple
+  controllers/editors may mutate the tree simultaneously; the server merges
+  partial updates in arrival order and pushes merged state to all clients
+  [S550][S551], so every client converges on what won. No locking, no CRDTs
+  — matching the WLED/LedFx field norm where concurrent control is rare and
+  a lost knob-turn is recoverable by turning the knob again.
+
 ## 6. Mapping & calibration
 
 Decision ([ADR-007](decisions/ADR-007-mapping-calibration.md)): **a
@@ -293,8 +310,9 @@ samples — distributed to patterns and nodes.**
   drags in PyTorch and is lightly maintained [S457]). madmom rejected
   (unmaintained, PyPI 2018, install pain [S454]); librosa rejected for the
   live path (batch-oriented by design [S456]).
-- **Latency & sync**: budget ≤45 ms audio-to-photon (ITU-R BT.1359-1
-  detectability edge when audio leads [S459], req P-4/R-4); signed delay
+- **Latency & sync**: ≤45 ms audio-to-photon engine design budget inside
+  the ≤50 ms hard ceiling (ITU-R BT.1359-1 detectability edge when audio
+  leads [S459], req P-4/R-4); signed delay
   knob for Bluetooth-delayed speakers, as LedFx ships (0–5000 ms)
   [S630:ledfx/effects/audio.py#L459-L463]. Loudness: fast AGC on band
   energies for reactivity + slow LUFS-style gain riding so quiet tracks fill
@@ -349,7 +367,8 @@ targets and idea sources only — algorithms are reimplemented from the
 documented findings in this research tree; their code is never copied or
 linked in-process.** This applies to LedFx (GPL-3.0 [S011]), marimapper
 (GPL-3.0 [S670:LICENSE#L1-L5]), aubio-ledfx (GPL-3.0 [S451]), WLED
-(EUPL-1.2 [S001]), xLights (GPL-3.0 [S026]), and Chromatik/LX (custom
+(EUPL-1.2 [S001]), WLED-MM (EUPL-1.2 [S646]), xLights (GPL-3.0 [S026]),
+projectMM (GPL-3.0 [S715]), and Chromatik/LX (custom
 non-commercial-capped license [S035]). MIT sources (Fadecandy
 [S600:LICENSE#L1-L3], FastLED [S008], led-control [S017], pixelblaze-client
 [S552], UPXL expander firmware [S682]) could legally be ported with
@@ -410,8 +429,10 @@ Decision ([ADR-013](decisions/ADR-013-hardware-bets.md)). Verdicts as of
 - WS2815 (12 V RGB room default: per-pixel, backup data line, relaxed
   injection) [S111][S112]; WS2814 (ascendant commodity 12/24 V RGBW — mind
   its color-order trap [S121]) [S119].
-- HD107s (27 kHz PWM, 40 MHz clock, 3.0 V logic — the de-facto APA102 of
-  2026) [S101][S102]; SK9822 as the budget clocked part (current-source
+- HD107s (vendor-claimed 27 kHz PWM / 40 MHz clock — community measurement
+  still pending per RA-03 open questions; 3.3 V-friendly, though the
+  documented 3.0 V threshold figure belongs to HD108 — the de-facto APA102
+  of 2026) [S101][S102]; SK9822 as the budget clocked part (current-source
   global brightness → flicker-free pseudo-13-bit) [S128].
 - HD108/NS108 (16-bit in silicon — ends dithering; FastLED support merged
   2025-10-30; specialty supply) [S130][S100][S131] and WS2816 (16-bit
@@ -447,7 +468,9 @@ only, 512 MB [S368]).
 **Wearable MCUs — buy:** RP2350 boards for the non-radio core (PIO output +
 best interpreted-Python throughput [S410][S403]); nRF52840 (LED Glasses
 Driver-class) for the BLE tier — measured best-in-class BLE current
-[S412][S416]. 1200–2000 mAh LiPo + JST-PH, software current cap per W-6
+([S412] is a single hobbyist's careful measurement, pending
+Nordic/Espressif datasheet corroboration; the direction of the conclusion
+is not in doubt) [S412][S416]. 1200–2000 mAh LiPo + JST-PH, software current cap per W-6
 [S418][S417]. **Avoid** for all-day on-body: any ESP32 that must keep
 SoftAP up (~100–130 mA radio floor [S411]); SAMD21-class legacy wearables
 (too slow for the engine [S416]).
@@ -520,6 +543,9 @@ to [requirements.md](requirements.md).
 | 10 | One AP sustains enough 60 fps unicast streams for a room (R-1, R-5) | Community guidance qualitative only [S165][RA-04] | Airtime math + incremental-receiver soak test |
 | 11 | Device-side keyframe interpolation is invisible at host rates ≥30 fps (Phase 4 receiver) | No primary source on the threshold [RA-06] | Vary keyframe rate on the interp+dither receiver; observe fades |
 | 12 | OKLab blending is affordable on the wearable tier (§2 stage 1) | No fixed-point MCU OKLab implementation found [RA-02] | ulab OKLab µbenchmark on RP2350 |
+| 13 | CPython paces a 16.7 ms tick with low jitter under real load (ADR-010's silent dependency: GC pauses, GIL contention with the capture thread, sleep quantization) | Item 1 benches throughput, not pacing jitter; cadence consistency is what device interpolation is hostage to [RA-06] | 10-min soak of the paced loop on Pi 5, tick-error histogram (p99 vs 16.7 ms) with GC active + audio thread running |
+| 14 | One stock WLED node sustains 60 fps unicast DDP ingest at its assigned pixel count (ADR-004's day-one Phase 1 path) | Item 3 benches Push skew, item 10 AP capacity — nothing benches per-receiver sustained ingest on real firmware [RA-04] | One ESP32 + one S3 WLED node, 60 fps unicast DDP at 300/800/2000 px, measure delivered fps/drops |
 
-Items 1–2 gate Phase 1; 3–6 gate Phase 2/3 defaults (they can only *retune*
-constants, not change structure); 7–12 gate Phase 3/4 details.
+Items 1–2 and 13 gate Phase 1 (13 gates ADR-010); 3–6 and 14 gate Phase 2/3
+defaults (14 gates ADR-004; they can only *retune* constants, not change
+structure); 7–12 gate Phase 3/4 details.

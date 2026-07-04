@@ -248,7 +248,8 @@ Three-phase estimate-then-clamp, excerpted in
    The residual scale is stored in `_NPBbri` so `getPixelColor` can undo it.
 
 Honest caveats are in the comments: "It is NOT a measurement and NOT guaranteed
-to stay within the ablMilliampsMax margin." The estimate ignores gamma already
+to stay within the ablMilliampsMax margin."
+[S645:wled00/bus_manager.cpp#L183-L186] The estimate ignores gamma already
 applied, voltage drop, and per-chip datasheet variance; it is a linear model
 with a user-set mA/LED (default 55 mA for WS2812 class).
 

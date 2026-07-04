@@ -48,10 +48,12 @@ calibration path for irregular 3D geometry.
   normalized coords per point, tags/views as masks, per-component outputs.
 - [S304][S680:README.mapper.md#L12-L36] Pixelblaze's load-time
   normalization to 0–1 world units with Fill/Contain — the most influential
-  portability convention in the hobby space.
+  portability convention in the hobby space. (Both IDs resolve to the same
+  Pixelblaze mapper document — seed URL vs pinned repo copy.)
 - [S305][S630:ledfx/virtuals.py#L409-L495] LedFx's precompiled
-  segment→device gathers ("up to 13× faster") — evidence for the compiled
-  NumPy runtime representation.
+  segment→device gathers — claimed "up to 13× faster" in a code comment
+  only, unbenchmarked in-repo (ledfx.md open questions) — evidence for the
+  compiled NumPy runtime representation direction, not for the constant.
 - [S303] WLED ledmap: index permutation + width/height + `-1` gaps —
   expressive enough only for import.
 - [S300] marimapper: actively maintained (v3.4.2, 2026-03), sequential

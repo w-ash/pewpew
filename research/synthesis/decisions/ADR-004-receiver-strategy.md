@@ -35,6 +35,14 @@ whole embedded project; the engine must not block on it.
 - Local-effect fallback behavior (hold last frame, revert after timeout)
   is inherited from WLED's realtime-lock contract and becomes the spec for
   the custom receiver too.
+- **OTA/field-update story.** Stock-WLED receivers already carry their own
+  update path (browser install via install.wled.me, integrated OTA from the
+  device web UI [S754]). The Phase-4 pewpew receiver must not regress this:
+  it adopts esp-idf's dual OTA app partitions with rollback for safe field
+  updates and bad-flash recovery [S756], and esp-web-tools (Web Serial +
+  Improv provisioning — the path WLED/Tasmota installers use) for initial
+  flash and recovery [S755]. This is well-trodden ecosystem practice, not
+  new research; it becomes a Phase-4 work item.
 
 ## Evidence
 
@@ -42,8 +50,11 @@ whole embedded project; the engine must not block on it.
   ingest honors offset+Push and re-arms a realtime timeout on every packet,
   then falls back to local state — the exact preempt/hold/revert contract
   (P-6).
-- [S253][S162] The realtime-lock/hold-then-revert policy is the documented
-  field standard for stream loss.
+- [S253][S162] The realtime-lock/hold-then-revert policy is WLED's
+  documented contract for stream loss. Caveat: both IDs are the same WLED
+  doc page — a single source, not two. The policy is independently
+  corroborated as field practice by sACN's normative 2.5 s data-loss
+  timeout [S157] and ArtSync's 4 s fallback semantics [S159].
 - [S645:wled00/wled.h#L453-L454] WLED still applies master brightness to
   realtime data (gamma off by default) — the sender-side caveat.
 - [S682:README.md#L13-L78][S365] UPXL protocol is open (MIT), CRC-framed,

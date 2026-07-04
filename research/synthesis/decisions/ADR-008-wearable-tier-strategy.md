@@ -38,6 +38,14 @@ shape.
   RP2350 2× claim and BLE push throughput are prototype items #8–9.
 - The nRF52840 branch has the least compute headroom — it leans on the
   dither/interpolate loop being cheap (5 B/channel) and on baked frames.
+- **OTA/field-update story.** CircuitPython makes wearable updates a file
+  copy, not a flash: patterns and runtime code update via the CIRCUITPY
+  USB drive or over BLE FileTransferService [S407][S409] — the same push
+  path the phone-control workflow already uses. The CircuitPython core
+  itself updates via UF2 bootloader drag-and-drop (the shipped Adafruit
+  workflow); a bad pattern file cannot brick the device — worst case is
+  factory-reset by re-copying files. Formalizing this (versioned pattern
+  bundles, rollback of the last-known-good bundle) is a Phase-3 work item.
 
 ## Evidence
 

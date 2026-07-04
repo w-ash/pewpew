@@ -5,8 +5,8 @@ Status: Proposed (2026-07-03)
 ## Context
 
 Audio reactivity needs a capture→features pipeline on the host and a way to
-get features to patterns and remote nodes within a ≤45 ms audio-to-photon
-budget (P-4, R-4). LedFx is the production-proven Python reference but is
+get features to patterns and remote nodes within the audio-to-photon
+budget — ≤50 ms hard ceiling (P-4), ≤45 ms engine design budget (R-4). LedFx is the production-proven Python reference but is
 GPL-3.0 and runs its DSP inside the audio callback; aubio (its DSP core) is
 GPL and upstream-dormant. Compute is not the constraint — FFT+mel measured
 <0.2 ms/hop in NumPy.
@@ -27,7 +27,8 @@ GPL and upstream-dormant. Compute is not the constraint — FFT+mel measured
   the WLED audio-sync V2 packet (44 bytes, port 11988) for LAN interop.
 - **Beats**: causal tempo + energy-beat default; BeatNet as an optional
   extra (downbeat/meter, PyTorch dependency).
-- **Latency**: ≤45 ms budget; signed delay knob (±ms, up to seconds) for
+- **Latency**: ≤45 ms engine design budget within the ≤50 ms hard ceiling
+  (P-4/R-4); signed delay knob (±ms, up to seconds) for
   Bluetooth-delayed speakers. Fast AGC on band energies + slow LUFS-style
   gain riding. Live song-structure detection is out of scope.
 

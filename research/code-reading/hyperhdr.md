@@ -144,7 +144,9 @@ units), `flow_control` (int8 sign of last dominant change),
    (`std::exchange(state.flow_control, newFlow) == newFlow`) — i.e. the value
    is moving monotonically, not oscillating — AND (b) |diff| of the dominant
    channel ≥ a motion threshold (0.01/255, scaled down proportionally when
-   the output interval is < 17 ms) [#L63-L65, #L97-L101]. Direction reversals
+   the output interval is < 17 ms)
+   [S700:sources/led-drivers/InfiniteColorEngineRgbw.cpp#L63-L65]
+   [S700:sources/led-drivers/InfiniteColorEngineRgbw.cpp#L97-L101]. Direction reversals
    (which is what noisy oscillating inputs look like) get NO error carry,
    killing feedback shimmer.
 4. **Error feedback:** `input255 = rgb*255 + error` (only if dithering
@@ -152,7 +154,8 @@ units), `flow_control` (int8 sign of last dominant change),
    `target_rounded = clamp(round(target4), 0, 255)`.
 5. **Leaky error accumulator:** the new error is
    `(target - rounded) * leak`, where
-   `leak = lerp(0.96, 0.80, clamp(|diff|² * 50, 0, 1))` [#L121-L127] —
+   `leak = lerp(0.96, 0.80, clamp(|diff|² * 50, 0, 1))`
+   [S700:sources/led-drivers/InfiniteColorEngineRgbw.cpp#L121-L127] —
    slow fades keep 96% of the quantization error (high effective depth
    where it matters), fast motion keeps only 80% (error is pointless and
    riskier during motion). This is a **temporal error-diffusion per LED**
@@ -170,7 +173,8 @@ custom white temperature); a soft threshold ramp
 `w_factor = clamp((common - thr255)/(255 - thr255), 0, 1)` decides how much
 of the common grey goes to W; `w = round(common*w_factor / whiteIntensity)`;
 the RGB channels get `w*whiteIntensity` (times white point) subtracted
-[#L104-L117]. The rounding error of both W and RGB flows into the same
+[S700:sources/led-drivers/InfiniteColorEngineRgbw.cpp#L104-L117]. The
+rounding error of both W and RGB flows into the same
 temporal dither accumulator (via target4 vs target_rounded), so W-channel
 quantization is also temporally smoothed indirectly through RGB.
 
@@ -182,7 +186,8 @@ smoothing config's update frequency — default 25 Hz, floor 20 Hz, cap
 temporal dithering happens once per output frame. The interval-aware motion
 threshold (`currentInterval < 17 ms` ⇒ scale threshold by interval/17)
 exists precisely so behavior stays consistent between ~60 Hz and ~25 Hz
-output [#L63-L65]. Practical implication: effective extra bit depth is
+output [S700:sources/led-drivers/InfiniteColorEngineRgbw.cpp#L63-L65].
+Practical implication: effective extra bit depth is
 bounded by output Hz vs. eye integration; HyperHDR accepts this and uses
 dithering mainly to smooth slow fades (where 8-bit steps are visible), not
 to fake 12-bit static color.
@@ -230,7 +235,8 @@ by config [S700:sources/infinite-color-engine/InfiniteSmoothing.cpp#L111-L147].
 Data flow: capture frame → `applyyAllProcessingSteps` → `incomingColors`
 sets the interpolator's *target* (mutex-protected) → the master clock tick
 calls `updateLeds()` which advances the interpolator by wall-clock dt and
-emits the current colors [#L220-L283].
+emits the current colors
+[S700:sources/infinite-color-engine/InfiniteSmoothing.cpp#L220-L283].
 
 The flagship `InfiniteHybridInterpolator` is a **critically-tunable
 spring-damper in BT.709 YUV space**, per LED
@@ -243,11 +249,15 @@ spring-damper in BT.709 YUV space**, per LED
 - Optional **per-frame luminance rate limit** (`y_limit`): if the Y component
   of the step exceeds it, the whole step AND velocity are scaled down — this
   is a flicker/strobe guard that limits brightness slew without distorting
-  chroma trajectory [#L151-L157].
+  chroma trajectory
+  [S700:sources/infinite-color-engine/InfiniteHybridInterpolator.cpp#L151-L157].
 - Completion test: max |diff| < ~0.000137 AND max |vel| < 0.0005 ⇒ snap to
-  target exactly and stop [#L133-L142]. When complete, `getCurrentColors`
+  target exactly and stop
+  [S700:sources/infinite-color-engine/InfiniteHybridInterpolator.cpp#L133-L142].
+  When complete, `getCurrentColors`
   returns the exact RGB targets (not the YUV round-trip), avoiding
-  steady-state conversion error [#L187-L208].
+  steady-state conversion error
+  [S700:sources/infinite-color-engine/InfiniteHybridInterpolator.cpp#L187-L208].
 - Once the animation completes and `continuousOutput` is off, output pauses
   after a 3-tick cooldown — static scenes stop producing frames entirely
   [S700:sources/infinite-color-engine/InfiniteSmoothing.cpp#L265-L282].

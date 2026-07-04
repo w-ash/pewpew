@@ -49,7 +49,8 @@ vectorized execution (comparison-matrix gap #4).
 - [S207] ARTI-FX: WLED's own community reimplemented the Pixelblaze model
   to escape compiled-in effects — second independent reimplementation.
 - [S400][S211] Vectorization buys ~10× even on an RP2040 (40 ms → 4 ms per
-  256-px frame) — the execution-side justification.
+  256-px frame) — the execution-side justification. Caveat: both IDs are
+  the same todbot article — one author, one measurement, not two sources.
 - [S630:ledfx/effects/__init__.py#L479-L547] LedFx's persistent
   `self.pixels` convention; [S715:docs/history/decisions.md#L540-L549]
   projectMM learned auto-clearing breaks every trail effect.
@@ -57,7 +58,8 @@ vectorized execution (comparison-matrix gap #4).
   pulsing-red error frame and Pixelblaze's crash-proof editor — the error
   containment precedents.
 - [S304][S680:README.mapper.md#L12-L36] Normalized world units with
-  Fill/Contain policy — the portability mechanism.
+  Fill/Contain policy — the portability mechanism. (Both IDs resolve to
+  the same Pixelblaze mapper document — seed URL vs pinned repo copy.)
 
 ## Rejected alternatives
 

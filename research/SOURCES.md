@@ -63,6 +63,7 @@ is removed.
 ### [S008] FastLED (repository)
 - type: code
 - url: https://github.com/FastLED/FastLED
+- pinned: FastLED/FastLED@8df8258c86200112b2c9e917b4b3fec5d19a946e
 - author: Zach Vorhies (maintainer), Daniel Garcia & Mark Kriegsman (original)
 - license: MIT
 - accessed: 2026-07-03
@@ -83,6 +84,7 @@ is removed.
 ### [S011] LedFx (repository)
 - type: code
 - url: https://github.com/LedFx/LedFx
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
 - license: GPL-3.0 (verified 2026-07-03)
 - accessed: 2026-07-03
 - relevance: the most complete Python LED engine in existence; audio-reactive; active (2.1.x, May 2026); key architecture study
@@ -328,6 +330,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260704005414/https://github.com/FastLED/FastLED/wiki/FastLED-Temporal-Dithering  # captured 2026-07-03
 - relevance: binary dithering design: preserves color/light output at low master brightness; needs >400 Hz refresh
+- note: same underlying source as [S127] — do not co-cite the pair as independent corroboration
 
 ### [S051] FastLED PR #1546 — APA102HD gamma correction
 - type: code
@@ -664,6 +667,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260704005414/https://github.com/FastLED/FastLED/wiki/FastLED-Temporal-Dithering  # snapshot 2026-07-04
 - relevance: dithering quality proportional to refresh rate; the mechanism behind the strip-length dithering ceiling
+- note: same underlying source as [S050] — do not co-cite the pair as independent corroboration
 
 ### [S128] cpldcpu — SK9822: a clone of the APA102?
 - type: article
@@ -727,6 +731,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26
 - relevance: voltage-drop budgets, wire gauge tables, injection-point spacing practice
+- note: same underlying source as [S369] — do not co-cite the pair as independent corroboration
 
 ### [S136] QuinLED — How much power do addressable LEDs use?
 - type: docs
@@ -860,6 +865,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21
 - relevance: byte layouts, per-packet LED limits, timeout semantics of WLED-native realtime UDP
+- note: same underlying source as [S253] — do not co-cite the pair as independent corroboration
 
 ### [S163] FPP ControlProtocol.txt — MultiSync wire protocol
 - type: docs
@@ -1011,6 +1017,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19
 - relevance: measured vectorization gain: fire effect, 256 LEDs, RP2040 — ~40 ms/frame Python loop vs ~4 ms/frame ulab; working-copy idiom (code: github.com/todbot/circuitpython_led_effects)
+- note: same underlying source as [S400] — do not co-cite the pair as independent corroboration
 
 ### [S212] scottlawsonbc/audio-reactive-led-strip
 - type: code
@@ -1082,6 +1089,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21
 - relevance: WLED's loss handling for realtime pixel streams — timeout byte, hold-then-revert semantics, per-protocol LED-count limits, no smoothing/interpolation
+- note: same underlying source as [S162] — do not co-cite the pair as independent corroboration
 
 ### [S254] LedFx — virtuals.py frame loop (code)
 - type: code
@@ -1207,6 +1215,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260420032034/https://github.com/simap/pixelblaze/blob/master/README.mapper.md  # snapshot 2026-04-20
 - relevance: spec of Pixelblaze pixel-map JSON, map generator functions, 0..1 world-unit normalization, Fill/Contain scaling, render2D/render3D
+- note: same underlying document as [S680]'s README.mapper.md (seed URL vs pinned repo copy) — do not co-cite the pair as independent corroboration
 
 ### [S305] LedFx docs — "How to: Create and Edit Virtuals"
 - type: docs
@@ -1451,6 +1460,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26
 - relevance: injection sizing (≤10% Vdrop), 5V-vs-12V injection cadence, 18AWG strip-feed guidance, edge-vs-mid injection fusing
+- note: same underlying source as [S135] — do not co-cite the pair as independent corroboration
 
 ### [S370] AusChristmasLighting — pigtail connector plug type comparisons (Ray Wu vs xConnect)
 - type: forum
@@ -1470,6 +1480,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19
 - relevance: establishes realistic CircuitPython frame-rate ceilings and the ulab escape hatch — central to the wearable-tier Python question
+- note: same underlying source as [S211] — do not co-cite the pair as independent corroboration
 
 ### [S401] Adafruit CircuitPython LED Animation library
 - type: code
@@ -2158,6 +2169,7 @@ is removed.
 - accessed: 2026-07-03
 - archive: https://web.archive.org/web/20260521061924/https://github.com/simap/pixelblaze/tree/v3
 - relevance: canonical pattern-language reference (README.expressions.md) and mapper/world-units doc (README.mapper.md) — same text shipped in the device editor; also indexes all open Pixelblaze-adjacent repos
+- note: README.mapper.md is the same underlying document as [S304] (pinned repo copy vs seed URL) — do not co-cite the pair as independent corroboration
 
 ### [S681] zranger1/pixelblaze-client — Python WebSocket client library
 - type: code
@@ -2235,6 +2247,8 @@ is removed.
 - accessed: 2026-07-03
 - relevance: Fadecandy-style interpolation + temporal dithering on ATtiny-class AVR (5 B RAM/channel, 64 cycles/channel, zero frame buffer via CCL hardware waveform) — existence proof for pewpew's wearable-tier quality layer. Deep dive: code-reading/modern-engines.md §B. Excerpts: excerpts/S716-smoothled-inner-loop/.
 
+## Block S750+ — Synthesis & later additions
+
 ### [S750] Pixelblaze firmware release announcements V3.66 & V3.67 (ElectroMage forum)
 - type: forum
 - url: https://forum.electromage.com/c/news-and-announcements/10
@@ -2267,3 +2281,56 @@ is removed.
 - published: 2026-05-03 (v16.0.0), 2026-06-30 (v16.0.1 tag), 2026-04-11 (v0.15.5 tag)
 - accessed: 2026-07-03
 - relevance: freshness update for RA-01/RA-11: v16.0.1 bugfix release shipped 2026-06-30 (was "in progress" at research time); 0.15.x maintenance continued to 0.15.5 (2026-04-11); nightlies through 2026-07-02
+
+### [S754] WLED docs — Getting Started (browser install & OTA updates)
+- type: docs
+- url: https://kno.wled.ge/basics/getting-started/
+- author: WLED project
+- accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260624190621/https://kno.wled.ge/basics/getting-started/  # snapshot 2026-06-24
+- relevance: WLED's standard field-update paths — browser-based initial flash (install.wled.me) and integrated OTA update from the device web UI — the update precedent pewpew's receiver firmware inherits (completeness-critique sweep 3)
+
+### [S755] ESP Web Tools (ESPHome project)
+- type: docs
+- url: https://esphome.github.io/esp-web-tools/
+- author: ESPHome / Open Home Foundation
+- accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260622052935/https://esphome.github.io/esp-web-tools/  # snapshot 2026-06-22
+- relevance: ecosystem-standard browser flashing (Web Serial) with Improv WiFi provisioning; powers the WLED/Tasmota one-click installers — the install/recovery path for pewpew receiver firmware (completeness-critique sweep 3)
+
+### [S756] ESP-IDF documentation — Over The Air Updates (OTA), ESP32-S3
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/ota.html
+- author: Espressif Systems
+- accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260304210916/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/ota.html  # snapshot 2026-03-04
+- relevance: esp-idf dual OTA app partitions with rollback/anti-rollback — the safe field-update and bad-flash-recovery mechanism for the Phase-4 ESP32-S3 pewpew receiver (completeness-critique sweep 3)
+
+### [S757] WLED issue #4252 — Matter support discussion
+- type: forum
+- url: https://github.com/wled/WLED/issues/4252
+- author: WLED community
+- accessed: 2026-07-03
+- relevance: native Matter support in WLED is an open discussion, not landed — the watch item for RA-12's Matter exclusion (completeness-critique sweep 2)
+
+### [S758] zackelia/wled-matter-bridge
+- type: code
+- url: https://github.com/zackelia/wled-matter-bridge
+- author: Zack Elia
+- accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260511093720/https://github.com/zackelia/wled-matter-bridge  # snapshot 2026-05-11
+- relevance: existence proof that Matter reaches WLED devices via a bridge process (on/off/brightness/color only) — bridging, not native, is the current Matter/LED state of the art (completeness-critique sweep 2)
+
+### [S759] maui1911/TLED — Matter-over-Thread addressable LED controller
+- type: code
+- url: https://github.com/maui1911/TLED
+- author: maui1911
+- accessed: 2026-07-03
+- relevance: ESP32-C6 Matter-over-Thread addressable controller — shows Matter's light model carries basic color/level control, not addressable effect surfaces (completeness-critique sweep 2)
+
+### [S760] WLED issue #5020 — ESP32-C5 support request
+- type: forum
+- url: https://github.com/wled/WLED/issues/5020
+- author: WLED community
+- accessed: 2026-07-03
+- relevance: ESP32-C5 (dual-band 2.4/5 GHz WiFi 6) in mass production and requested for WLED since 2025-10; no support landed as of 2026-07-03 — the RA-08 watch item; 5 GHz receivers would relieve the AP-capacity ceiling (completeness-critique sweep 1)

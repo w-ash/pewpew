@@ -20,14 +20,20 @@ The license choice also determines which upstream code pewpew may touch.
   patent grant; the boundary rules below are identical.)
 - **GPL/EUPL/LX boundary rules** (already applied throughout this research
   tree):
-  1. GPL/EUPL code (LedFx, marimapper, aubio-ledfx, WLED, xLights) is
+  1. GPL/EUPL code (LedFx, marimapper, aubio-ledfx, WLED, xLights,
+     projectMM [S715] (GPL-3.0), WLED-MM [S646] (EUPL-1.2)) is
      never copied, vendored, or imported in-process. Algorithms are
      reimplemented from the documented findings in `research/`.
   2. GPL tools run as **separate processes** whose data output pewpew
      consumes (marimapper CSVs); protocols and file formats are freely
      implemented (DDP, WLED JSON, audio-sync V2, FSEQ, ledmap.json).
-  3. LX-licensed code is not read for implementation; formats are
-     clean-roomed from public docs (ADR-007).
+  3. LX-licensed code: this research DID make a recorded, line-level
+     design read of `LXEngine.java` [S264] (frame-clock pacing, used by
+     ADR-010) — the earlier wording "not read" was inaccurate. The binding
+     rule going forward: read-for-understanding is permitted and must be
+     recorded in `research/`; LX code is never copied or ported
+     line-by-line, and implementations are written from our documented
+     findings. File formats are clean-roomed from public docs (ADR-007).
   4. MIT sources (Fadecandy, FastLED, led-control, pixelblaze-client,
      UPXL firmware) may legally be ported with attribution, but the
      default remains reimplementation; `research/excerpts/` exists for
