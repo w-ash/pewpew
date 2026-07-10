@@ -831,6 +831,7 @@ is removed.
 - url: https://kno.wled.ge/interfaces/e1.31-dmx/
 - author: WLED contributors
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20260621120941/https://kno.wled.ge/interfaces/e1.31-dmx/
 - relevance: WLED receiver behavior for sACN/Art-Net/DDP; unicast-over-multicast guidance on WiFi
 
 ### [S159] Art-Net 4 Protocol Release V1.4 (rev 1.4dp, 2025-10-23)
@@ -873,6 +874,7 @@ is removed.
 - author: Falcon Christmas / FPP contributors
 - license: GPL-2.0 (FPP repo)
 - accessed: 2026-07-03
+- archive: https://web.archive.org/web/20250628110943/https://github.com/FalconChristmas/fpp/blob/master/docs/ControlProtocol.txt
 - relevance: MultiSync packet format — port 32320, multicast 239.70.80.80, frame-number sync of pre-stored sequences
 
 ### [S164] xLights Manual — Controllers Settings / lighting networks (protocol support matrix)
@@ -2342,6 +2344,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_now.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260710143137/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_now.html
 - relevance: Authoritative API reference: v1 (250 B) vs v2 (1470 B) payload limits and mixing rules, 20-peer table / 7-default-encrypted-peer limits (CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM up to 17), PMK/LMK CCMP encryption model, vendor-specific action-frame layout (category 127, OUI 0x18fe34, 4-byte random field), default 1 Mbps rate, esp_now_set_peer_rate_config, send-callback semantics ("received successfully on the MAC layer" — no app-layer guarantee), "encrypting multicast vendor-specific action frame is not supported", ESP_ERR_ESPNOW_NO_MEM back-pressure guidance, wake-window power save.
 
 ### [S801] Espressif ESP-NOW solution overview page
@@ -2356,6 +2359,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260319154338/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
 - relevance: Official FAQ: 20 unicast peers max; ~6 simultaneously controllable encrypted peers; broadcast "theoretically there is no limitation in the number of devices"; ESP-NOW+WiFi STA must share the AP's channel; measured one-to-one throughput 214 kbps (open) / 555 kbps (shielded); default 1 Mbps changeable via esp_wifi_config_espnow_rate; 250 B v1 limit "does not support configuration" (IE-field constraint).
 
 ### [S803] arduino-esp32 issue #11261 — "Support ESP-Now Version 2 packet size"
@@ -2372,6 +2376,7 @@ is removed.
 - author: B. Becker, C. Oberli, J. Zobel, R. Steinmetz, T. Meuser (TU Darmstadt / PUC Chile)
 - published: 2025
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251009212258/https://dl.ifip.org/db/conf/wons/wons2025/1571077625.pdf
 - relevance: Best sniffer-verified low-level study found. ESP-NOW (IDF 4.4.6 defaults, ESP32-S3 Heltec boards) transmits 802.11b MPDUs at 1 Mbit/s / 20 MHz; unicast performs up to 31 retransmissions with p-persistent geometric backoff (~481 µs average slot, first retransmission at ~3.4 ms); driver-to-first-transmission latency 2673–2780 µs for 250 B payloads; farmland PDR 99.97 % below 55 m (0.95 m antenna height) collapsing non-monotonically beyond; forest 133/205 positions usable; validated delay model (t_tx = 2800 µs, t_rtx = 3350 µs, n_max = 31). Also confirms CSMA carrier sensing and cites prior latency measurements (1059 µs for 1 B, 1869 µs for 100 B payloads).
 
 ### [S805] Espressif Developer Portal — "Data transmission reliability over ESP-NOW protocol in indoor environment"
@@ -2388,6 +2393,7 @@ is removed.
 - author: Y. Magzym, A. Eduard, D. Urazayev, X. Fafoutis, D. Zorbas (Nazarbayev University / DTU)
 - published: 2023
 - accessed: 2026-07-09
+- archive: pending
 - relevance: Documents the full ESP-NOW frame layout with byte counts (24 B MAC header + 1 B category + 3 B OUI + 4 B random + 7 B vendor-IE header + 0–250 B body + 4 B FCS = 43 B protocol overhead); "No acknowledgment is required for broadcast transmissions"; "The default IEEE802.11 CSMA mechanism is used to avoid collisions"; broadcast not encryptable, app-layer pre-shared keys suggested; LR mode = proprietary modulation at 250/500 kbps requiring all devices set to LR. Measured broadcast PRR at 20 dBm/LR-250kbps indoors: 98.4–100 % at RSS ≥ −72 dBm, 79.8 % at −80.5 dBm, 29.8 % at −92 dBm (always-on receivers); 40 Mbit/s co-channel WiFi interference cost <1 percentage point PRR at −65 dBm.
 
 ### [S807] ESP-IDF Programming Guide v5.2 — Wi-Fi Driver (ESP32), Long Range section
@@ -2395,6 +2401,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32/api-guides/wifi.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20240720014143/https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32/api-guides/wifi.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: LR mode specifics: Espressif-proprietary PHY at "1/2 Mbps and 1/4 Mbps"; "reception sensitivity gain of LR is about 4 dB larger than that of the traditional 802.11b mode"; "theoretically, the transmission distance is about 2 to 2.5 times the distance of 11B"; LR works only between Espressif devices ("ESP32 chip series devices (except ESP32-C2)"); recommended when both ends are Espressif and throughput needs are small.
 
 ### [S808] WLED docs — ESP-NOW remote (WiZmote) support
@@ -2473,6 +2480,7 @@ is removed.
 - author: IEEE
 - published: 2021-02-26
 - accessed: 2026-07-09
+- archive: pending
 - relevance: Source of the airtime constants used in the fleet-scaling arithmetic: 1 Mbit/s DSSS long PLCP preamble+header = 192 µs; 2.4 GHz DSSS slot time 20 µs, DIFS 50 µs, CWmin 31; group-addressed (broadcast/multicast) frames are never ACKed or retransmitted under DCF. (Standard consulted at parameter level; full text via IEEE Get-802 program.)
 
 ### [S818] WLED CHANGELOG — ESP-NOW feature timeline
@@ -2503,6 +2511,7 @@ is removed.
 - url: https://gitlab.com/painlessMesh/painlessMesh/-/work_items/217
 - author: painlessMesh issue reporter (72-node NodeMCU experiment)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: best available field data on painlessMesh scaling: 36 nodes OK,
   26/50 visible at 50 nodes, 0/72 at 72 nodes, with free heap remaining —
   failure at exactly pewpew's target fleet size.
@@ -2512,6 +2521,7 @@ is removed.
 - url: https://gitlab.com/painlessMesh/painlessMesh/-/issues/490
 - author: painlessMesh issue reporter (60-node build targeting 200)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: corroborating scaling report: 40–44 of 60 nodes stable, older
   nodes drop as new ones join; ~1200-byte subConnectionJson topology payload;
   200-node question unanswered by maintainers.
@@ -2521,6 +2531,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/esp-wifi-mesh.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251118072742/https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/esp-wifi-mesh.html
 - relevance: authoritative description of tree topology, softAP+STA node
   roles, router-RSSI root election (90% vote threshold), fixed-root/no-router
   mode, and vendor performance figures (100-device test, 6 layers × 6
@@ -2531,6 +2542,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/wifi-mesh-development-framework.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260601145155/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/wifi-mesh-development-framework.html
 - relevance: Espressif's own steering: "recommended to use our newly released
   ESP-Mesh-Lite solution, instead of Wi-Fi Mesh" for new designs; no-router
   caveat that a designated root that crashes cannot be recovered from; claims
@@ -2594,6 +2606,7 @@ is removed.
 - url: https://docs.silabs.com/btmesh/latest/btmesh-11-network-performance/05-summary
 - author: Silicon Labs
 - accessed: 2026-07-09
+- archive: pending
 - relevance: largest published physical BLE-mesh measurement: 256 nodes on a
   38 m × 19 m floor; "latency … below 200 milliseconds, even out to 6 hops if
   the payload is less than 16 bytes", reliability >99% — but at dispatch
@@ -2606,6 +2619,7 @@ is removed.
 - author: R. Rondón, A. Mahmood, S. Grimaldi, M. Gidlund (Mid Sweden Univ.)
 - published: 2019-10-08
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260103131441/https://arxiv.org/abs/1910.03345
 - relevance: peer-reviewed scalability analysis: BLE mesh "is prone to
   broadcast storm"; in 52–106-device grids, density beyond ~86 devices
   increases loss and delay; 10% side-traffic pushes loss >10%; avg delay
@@ -2617,6 +2631,7 @@ is removed.
 - url: https://www.bluetooth.com/blog/mesh-in-large-scale-networks/
 - author: Martin Woolley, Bluetooth SIG
 - accessed: 2026-07-09
+- archive: pending
 - relevance: official SIG capacity framing: 32,767-node theoretical max;
   spec origination bound "less than 100 Lower Transport PDUs in a moving
   10-second window" (≤10 msg/s/node — pewpew's rate is at the cap); "ten
@@ -2647,6 +2662,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/openthread.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260502090443/https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/openthread.html
 - relevance: which Espressif chips have native 802.15.4 (H2/C6/C5); RCP
   architecture that adds Thread to Wi-Fi chips (incl. ESP32-S3) over
   UART/SPI, SPI recommended for latency — defines the hardware cost of a
@@ -2668,6 +2684,7 @@ is removed.
 - url: https://www.silabs.com/documents/public/application-notes/an1142-mesh-network-performance-comparison.pdf
 - author: Silicon Labs
 - accessed: 2026-07-09
+- archive: pending
 - relevance: only published like-for-like measurement of the three meshes at
   24–192 nodes: small-payload multicast latency "well under 200 ms" for all,
   Thread degrades least with payload, reliability ≥99.9% — but at 1 multicast
@@ -2681,6 +2698,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/v4.4.4/esp32/api-guides/wifi.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20240810125422/https://docs.espressif.com/projects/esp-idf/en/v4.4.4/esp32/api-guides/wifi.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: primary source for Espressif Long Range mode ("Espressif-
   patented", "only ESP32 devices can transmit and receive the LR data", PHY
   rates 1/4 and 1/2 Mbps, ~4 dB sensitivity gain, 2–2.5× 11B distance,
@@ -2692,6 +2710,7 @@ is removed.
 - url: https://documentation.meraki.com/MR/Wi-Fi_Basics_and_Best_Practices/Approximating_Maximum_Clients_per_Access_Point
 - author: Cisco Meraki
 - accessed: 2026-07-09
+- archive: pending
 - relevance: theoretical association limits per radio (128 for Wi-Fi 5 W1,
   512 for Wi-Fi 6) with explicit vendor caveat that real-world limits are
   "far lower" and theoretical maxima are not design targets — grounds the
@@ -2702,6 +2721,7 @@ is removed.
 - url: https://www.7signal.com/news/blog/how-to-determine-clients-per-ap
 - author: 7SIGNAL
 - accessed: 2026-07-09
+- archive: pending
 - relevance: enterprise Wi-Fi practice recommendation of ~30 active clients
   per AP in most environments — the practical ceiling figure used against
   the ~150-node design ceiling.
@@ -2733,6 +2753,7 @@ is removed.
 - url: https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
 - author: The Things Network / The Things Industries
 - accessed: 2026-07-09
+- archive: pending
 - relevance: ETSI EN 300 220 sub-band duty-cycle table (0.1%/1%/10% at
   868 MHz) and TTN fair-use policy (30 s uplink airtime/day) — the
   regulatory arithmetic that disqualifies LoRa at 10 Hz.
@@ -2742,6 +2763,7 @@ is removed.
 - url: https://www.thethingsnetwork.org/docs/lorawan/limitations/index.html
 - author: The Things Network / The Things Industries
 - accessed: 2026-07-09
+- archive: pending
 - relevance: "Low bandwidth - between 250bit/s and 11kbit/s in Europe";
   LoRaWAN unsuitable for "Realtime data - you can only send small packets
   every couple of minutes" — established-project statement of the rate
@@ -2755,6 +2777,7 @@ is removed.
 - author: Renato E. Mirollo, Steven H. Strogatz
 - published: 1990 (SIAM Journal on Applied Mathematics, vol. 50 no. 6, pp. 1645–1662)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: the foundational firefly-sync model — proves all-to-all pulse-coupled integrate-and-fire oscillators converge to synchrony from almost all initial conditions; basis of every timestamp-free phase-sync scheme considered for pewpew's mesh tier. Author PDF: https://www.stevenstrogatz.com/articles/synchronization-of-pulse-coupled-biological-oscillators
 
 ### [S901] Werner-Allen et al. — Firefly-Inspired Sensor Network Synchronicity with Realistic Radio Effects (RFA)
@@ -2763,6 +2786,7 @@ is removed.
 - author: Geoffrey Werner-Allen, Geetika Tewari, Ankit Patel, Matt Welsh, Radhika Nagpal
 - published: 2005 (ACM SenSys '05)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20250318100936/https://mdw.la/papers/firefly-sensys05.pdf
 - relevance: the canonical "firefly sync on real lossy radios" paper — Reachback Firefly Algorithm on 24 MicaZ motes; ~100–150 µs group spread, 1/ε convergence, MAC timestamping, reachback response, 25 ms pre-emptive message staggering. Directly informs pewpew's beat-phase layer design.
 
 ### [S902] Tyrrell, Auer & Bettstetter — Fireflies as Role Models for Synchronization in Ad Hoc Networks
@@ -2779,6 +2803,7 @@ is removed.
 - author: Johannes Klinglmayr, Christoph Kirst, Christian Bettstetter, Marc Timme
 - published: 2012 (New Journal of Physics 14, 073031)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20220201173235/https://iopscience.iop.org/article/10.1088/1367-2630/14/7/073031 (snapshot predates accessed date; refresh next verification pass)
 - relevance: proves PCO convergence to synchrony on arbitrary connected topologies with variable delays, where *stochastic/unreliable* pulse delivery is part of the convergence mechanism — the theoretical basis for claiming ESP-NOW-class packet loss does not break firefly sync.
 
 ### [S904] Bettstetter research group — Self-Organizing Synchronization (project summary)
@@ -2794,6 +2819,7 @@ is removed.
 - author: Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, Doug Terry (Xerox PARC)
 - published: 1987 (ACM PODC '87; Xerox PARC CSL-89-1)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20250426184746/http://bitsavers.trailing-edge.com/pdf/xerox/parc/techReports/CSL-89-1_Epidemic_Algorithms_for_Replicated_Database_Maintenance.pdf
 - relevance: origin of the anti-entropy / rumor-mongering / direct-mail taxonomy and the exponential-spread convergence argument underlying pewpew's parameter-gossip layer.
 
 ### [S906] Karp, Schindelhauer, Shenker & Vöcking — Randomized Rumor Spreading
@@ -2802,6 +2828,7 @@ is removed.
 - author: Richard Karp, Christian Schindelhauer, Scott Shenker, Berthold Vöcking
 - published: 2000 (IEEE FOCS 2000)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20180517132001/http://zoo.cs.yale.edu:80/classes/cs426/2013/bib/karp00randomized.pdf (snapshot predates accessed date; refresh next verification pass)
 - relevance: rigorous O(log N) round bounds and Ω(n ln ln n) message lower bound for push-pull gossip — the convergence-bound baseline against which pewpew's broadcast-domain gossip is strictly easier.
 
 ### [S907] Shapiro, Preguiça, Baquero & Zawirski — Conflict-free Replicated Data Types
@@ -2810,6 +2837,7 @@ is removed.
 - author: Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski
 - published: 2011 (SSS 2011; INRIA RR-7687)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: defines Strong Eventual Consistency and proves state-based CRDT convergence given a monotonic-semilattice merge — the formal justification that pewpew's max-epoch LWW parameter register converges under loss/reorder/duplication with no coordination.
 
 ### [S908] Lamport — Time, Clocks, and the Ordering of Events in a Distributed System
@@ -2826,6 +2854,7 @@ is removed.
 - author: D. Stott Parker Jr., Gerald Popek, Gerard Rudisin, Allen Stoughton, Bruce Walker, Evelyn Walton, Johanna Chow, David Edwards, Stephen Kiser, Charles Kline
 - published: 1983 (IEEE Transactions on Software Engineering SE-9(3))
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20250527141518/https://dl.acm.org/doi/10.1109/TSE.1983.236733
 - relevance: version vectors — per-writer counters that detect (rather than arbitrate) concurrent updates; cited to show why they are overkill/oversized for pewpew's 11-byte single-writer state.
 
 ### [S910] RFC 6206 — The Trickle Algorithm
@@ -2834,6 +2863,7 @@ is removed.
 - author: P. Levis, T. Clausen, J. Hui, O. Gnawali, J. Ko (IETF ROLL WG)
 - published: 2011-03
 - accessed: 2026-07-09
+- archive: pending
 - relevance: the standardized "gossip a version number over a lossy shared medium" algorithm (Imin/Imax/k, suppression, reset-on-inconsistency); production-proven in RPL. Pewpew borrows its suppression and reset semantics for the parameter-epoch layer.
 
 ### [S911] Levis, Patel, Culler & Shenker — Trickle: A Self-Regulating Algorithm for Code Propagation and Maintenance in Wireless Sensor Networks
@@ -2842,6 +2872,7 @@ is removed.
 - author: Philip Levis, Neil Patel, David Culler, Scott Shenker
 - published: 2004 (USENIX/ACM NSDI 2004)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: original Trickle paper — empirical propagation-vs-maintenance-cost results in lossy multi-hop sensor networks that RFC 6206 later standardized.
 
 ### [S912] RFC 1982 — Serial Number Arithmetic
@@ -2850,6 +2881,7 @@ is removed.
 - author: R. Elz, R. Bush (IETF)
 - published: 1996-08
 - accessed: 2026-07-09
+- archive: pending
 - relevance: defines wraparound-safe comparison of fixed-width monotonic counters (half-range window) — the correct comparison rule for pewpew's 1–2-byte parameter epoch field.
 
 ### [S913] Fatès — A Guided Tour of Asynchronous Cellular Automata
@@ -2858,6 +2890,7 @@ is removed.
 - author: Nazim Fatès
 - published: 2014 (Journal of Cellular Automata; arXiv:1406.0792)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251211075327/https://arxiv.org/pdf/1406.0792
 - relevance: survey establishing that update policy (synchronous vs α-asynchronous vs random-order) is a first-class determinant of CA behavior — evidence that pewpew cannot naively port synchronous CA rules onto lossy asynchronous broadcast.
 
 ### [S914] Blok & Bergersen — Synchronous versus asynchronous updating in the "game of Life"
@@ -2866,6 +2899,7 @@ is removed.
 - author: Hendrik J. Blok, Birger Bergersen
 - published: 1999 (Physical Review E 59, 3876)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: quantifies α-asynchronism in Life — a critical phase transition (directed-percolation class) below which synchronous-tuned structures dissolve; the concrete warning that loss/async can kill emergent CA patterns.
 
 ### [S915] Abelson et al. — Amorphous Computing
@@ -2874,6 +2908,7 @@ is removed.
 - author: Harold Abelson, Don Allen, Daniel Coore, Chris Hanson, George Homsy, Thomas F. Knight Jr., Radhika Nagpal, Erik Rauch, Gerald Jay Sussman, Ron Weiss
 - published: 2000 (Communications of the ACM 43(5), 74–82)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: foundational treatment of computing over "vast numbers of unreliable, locally communicating simple devices" with no global clock; the gradient/diffusion-wave primitive is pewpew's robust alternative to literal CA rules for neighbor-propagated waves.
 
 ### [S916] Wertheimer / Korte — apparent motion (beta movement) timing
@@ -2882,6 +2917,7 @@ is removed.
 - author: Max Wertheimer (1912); Adolf Korte (1915); summarized via secondary references
 - published: 1912/1915 (historical); accessed via encyclopedic summary 2026-07-09
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251205094841/https://en.wikipedia.org/wiki/Korte%27s_third_law_of_apparent_motion
 - relevance: bounds the perceptual window for smooth apparent motion between discrete lights (~30–400 ms inter-element interval, optimal ~60 ms) — the basis for the claim that 10 Hz (100 ms/step) inter-group wave propagation reads as coherent motion. Primary-source figures flagged where derived from secondary summaries.
 
 ### [S917] Maróti, Kusy, Simon & Lédeczi — The Flooding Time Synchronization Protocol (FTSP)
@@ -2890,6 +2926,7 @@ is removed.
 - author: Miklós Maróti, Branislav Kusy, Gyula Simon, Ákos Lédeczi
 - published: 2004 (ACM SenSys '04)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: canonical flooding time-sync with MAC-layer timestamping + skew estimation; ~1.48 µs single-hop, ~1 µs average per-hop, robust to node/link failure — the reference for "cheap flooding absolute clock", and the illustration of why ESP-NOW (no app-level MAC TX timestamp) cannot reach µs-class this way.
 
 ### [S918] u-blox — Precision Timing / 1PPS accuracy specifications
@@ -2897,6 +2934,7 @@ is removed.
 - url: https://content.u-blox.com/sites/default/files/products/documents/Timing_AppNote_(GPS.G6-X-11007).pdf
 - author: u-blox AG
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260320101858/https://content.u-blox.com/sites/default/files/products/documents/Timing_AppNote_%28GPS.G6-X-11007%29.pdf
 - relevance: GPS/PPS timing spec — timing modules deliver ~15–30 ns RMS 1PPS, giving every equipped node a drift-free fleet-wide absolute second boundary with zero radio coordination; the cheapest route to sub-µs absolute time outdoors at art scale.
 
 ## Block S950–S999 — RA-16 ESP32-S3 render+radio coexistence
@@ -3111,6 +3149,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260319154338/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
 - relevance: Official FAQ stating the gateway-critical constraints: ESP-NOW channel must equal the connected AP's channel, no channel switching after WiFi connect, modem-sleep breaks ESP-NOW receive, connectionless-power-save wake-interval APIs, peer-count limits under coexistence.
 
 ### [S1001] espressif/esp-now — application-layer ESP-NOW component (pairing, control, provisioning, OTA, debug, security)
@@ -3128,6 +3167,7 @@ is removed.
 - author: rajneeshsinha et al.; Espressif staff Xiehanxin, zhangyanjiaoesp
 - published: 2022-12
 - accessed: 2026-07-09
+- archive: pending
 - relevance: Documented ESP-NOW+STA coexistence pitfalls: broken before IDF 5.0 (staff: "this issue is fixed in IDF 5.0 and later version"; workaround on 4.x: init ESP-NOW before AP connect); staff claim that a STA-connected node "will only receive the broadcast packet whose bssid is equal to the associated AP bssid" (disputed in-thread by reporter).
 
 ### [S1003] ESP-IDF Programming Guide — Over The Air Updates (OTA), ESP32-S3, latest/v5.x
@@ -3135,6 +3175,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/ota.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260312072212/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/ota.html
 - relevance: Authoritative OTA model: two OTA app slots (ota_0/ota_1) + otadata partition; app rollback via esp_ota_mark_app_valid_cancel_rollback()/ESP_OTA_IMG_PENDING_VERIFY with automatic rollback on unconfirmed reboot; eFuse anti-rollback ("the version in the bootable firmware must be greater than or equal to the version in the chip"); signed OTA images verifiable "even without enabling hardware secure boot" (CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT).
 
 ### [S1004] ESP-IDF Programming Guide — Wi-Fi performance and power save
@@ -3158,6 +3199,7 @@ is removed.
 - url: https://gitlab.com/painlessMesh/painlessMesh/-/work_items/387
 - author: painlessMesh users/maintainers
 - accessed: 2026-07-09
+- archive: pending
 - relevance: Documented mesh-OTA pain: the OTA API "does not allow tracking of the OTA update process across the network", nodes are rebooted "without any chance for the gateway to know what is going on", and per-node chunk requests "can in some cases create a lot of additional network traffic". Direct evidence for avoiding gossiped OTA.
 
 ### [S1007] painlessMesh — self-forming ESP mesh (GitLab upstream)
@@ -3188,6 +3230,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260213110244/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
 - relevance: Key-value config store in its own flash partition: namespaces, power-fail safety ("one should be able to power off the device at any point"), built-in wear levelling, optional NVS encryption. Basis for config-vs-firmware separation.
 
 ### [S1011] ESP-IDF Programming Guide — Miscellaneous System APIs: MAC addresses (ESP32-S3)
@@ -3195,6 +3238,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260303122027/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
 - relevance: Base MAC is "pre-programmed into the ESP32-S3 eFuse in the factory during production"; esp_read_mac()/esp_efuse_mac_get_default(); per-interface MACs derived from base MAC; custom base MAC possible via esp_base_mac_addr_set(). Basis for zero-touch MAC-derived node identity.
 
 ### [S1012] Random Nerd Tutorials — "ESP32: ESP-NOW Web Server Sensor Dashboard (ESP-NOW + Wi-Fi)"
@@ -3202,6 +3246,7 @@ is removed.
 - url: https://randomnerdtutorials.com/esp32-esp-now-wi-fi-web-server/
 - author: Rui Santos / Random Nerd Tutorials
 - accessed: 2026-07-09
+- archive: pending
 - relevance: The widely-cited single-chip gateway recipe: receiver in WIFI_AP_STA runs ESP-NOW + web server; "The ESP32 sender boards must use the same Wi-Fi channel of the receiver board"; senders scan for the gateway's SSID channel and apply it with esp_wifi_set_channel(). Documents the channel-pinning pattern and its ordering pitfall (connect WiFi before registering peers).
 
 ### [S1013] ESP-IDF Programming Guide — App Image Format / esp_app_desc_t (ESP32-S3)
@@ -3209,6 +3254,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/app_image_format.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260513185641/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/app_image_format.html
 - relevance: Every app image embeds esp_app_desc_t (version string ≤32 chars, project name, compile date/time, IDF version, ELF SHA-256) at a fixed offset, readable via esp_app_get_description(); "useful for identification of images uploaded via Over-the-Air (OTA) updates". Basis for version self-reporting telemetry.
 
 ### [S1014] ESPHome 2025.11.0 changelog — ESP-NOW packet transport
@@ -3224,6 +3270,7 @@ is removed.
 - url: https://www.home-assistant.io/integrations/zha/
 - author: Home Assistant / Open Home Foundation
 - accessed: 2026-07-09
+- archive: pending
 - relevance: The serial-attached radio-coordinator convention pewpew's dongle gateway mirrors: "A hardware radio adapter (typically a USB dongle) that plugs directly into the same computer" — host software speaks a serial protocol to a dedicated radio SoC (EmberZNet EZSP, TI Z-Stack ZNP, deCONZ, XBee families).
 
 ## Block S1050–S1099 — RA-18 Wearable bridging
@@ -3233,6 +3280,7 @@ is removed.
 - url: https://novelbits.io/maximum-data-bluetooth-advertising-packet-ble/
 - author: Novel Bits (Mohammad Afaneh)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251006021903/https://novelbits.io/maximum-data-bluetooth-advertising-packet-ble/
 - relevance: payload math for legacy (31 B AD, 29 B after LTV overhead, 27 B custom via Manufacturer Specific Data) and extended advertising (254 B per AUX PDU, 250 B custom via MSD); notes extended advertising is optional and not universally supported by scanners
 
 ### [S1051] Nordic DevZone — "reducing power consumption during BLE scan"
@@ -3240,6 +3288,7 @@ is removed.
 - url: https://devzone.nordicsemi.com/f/nordic-q-a/57352/reducing-power-consumption-during-ble-scan
 - author: Nordic Semiconductor support (Simon R.)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: Nordic engineer confirms continuous-scanning RX current on nRF52 is ~6.5 mA with DCDC enabled (~10 mA without); duty-cycling scan window/interval is the only lever — "the radio does consume quite a bit of power when it is running"
 
 ### [S1052] nRF52840 Product Specification — Radio current consumption (RADIO chapter)
@@ -3247,6 +3296,7 @@ is removed.
 - url: https://docs.nordicsemi.com/bundle/ps_nrf52840/page/_tmp/nrf52840/autodita/current/parameters.i_radio.html
 - author: Nordic Semiconductor
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260510231003/https://docs.nordicsemi.com/bundle/ps_nrf52840/page/_tmp/nrf52840/autodita/CURRENT/parameters.i_radio.html
 - relevance: official radio currents — IRADIO_RX0 (RX @1 Mbps BLE, HFXO, DCDC) = 6.26 mA typ; IRADIO_TX1 (0 dBm, DCDC) = 6.40 mA typ; anchors the observer-role duty-cycle power math
 
 ### [S1053] ESP-IDF Programming Guide — RF Coexistence (ESP32-S3)
@@ -3254,6 +3304,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/coexist.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260228151623/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/coexist.html
 - relevance: S3 has one 2.4 GHz RF module time-sliced between WiFi and BLE; coexistence table marks WiFi-STA + BLE advertising stable ("Y") but ESP-NOW RX only "supported and the performance is stable in STA mode, otherwise not supported"; SoftAP + BLE marked unstable ("C1") — decides the bridge's WiFi mode
 
 ### [S1054] ESP-IDF Programming Guide — ESP-NOW API reference (ESP32-S3)
@@ -3261,6 +3312,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/network/esp_now.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: pending
 - relevance: ESP-NOW v1 250 B / v2 1470 B payloads; connectionless power save via esp_now_set_wake_window() + esp_wifi_connectionless_module_set_wake_interval(); "Sleep is supported only when ESP32-S3 is configured as station"
 
 ### [S1055] CircuitPython core docs — `_bleio` shared bindings
@@ -3268,6 +3320,7 @@ is removed.
 - url: https://docs.circuitpython.org/en/latest/shared-bindings/_bleio/index.html
 - author: Adafruit / CircuitPython project
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260527030025/https://docs.circuitpython.org/en/latest/shared-bindings/_bleio/index.html
 - relevance: `Adapter.start_scan(prefixes, *, buffer_size=512, extended=False, timeout=None, interval=0.1, window=0.1, minimum_rssi=-80, active=True)` — observer role with hardware prefix filtering and a scan window/interval duty-cycle lever (interval 0.0025–40.96 s, window ≤ interval); passive scanning via active=False
 
 ### [S1056] adafruit/Adafruit_CircuitPython_BLE
@@ -3284,6 +3337,7 @@ is removed.
 - url: https://devzone.nordicsemi.com/f/nordic-q-a/85629/nature-of-pseudo-random-delay-advdelay-0-10-ms-added-to-the-advertising-interval
 - author: Nordic Semiconductor support
 - accessed: 2026-07-09
+- archive: pending
 - relevance: per Core spec, T_advEvent = advInterval + advDelay with advDelay pseudo-random 0–10 ms per event, generated by the link layer and not modifiable — the floor on BLE-advertising timing jitter
 
 ### [S1058] ESP-IDF Programming Guide — Introduction to Low Power Mode in Wi-Fi Scenarios (ESP32-S3)
@@ -3291,6 +3345,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/low-power-mode/low-power-mode-wifi.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260319185803/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/low-power-mode/low-power-mode-wifi.html
 - relevance: measured (shielded-box) modem-sleep averages on ESP32-S3: ~19.5–20.7 mA with DFS on (DTIM 10–1), ~38–40 mA without DFS, peaks ~113 mA during radio activity — the realistic floor for any duty-cycled WiFi/ESP-NOW receiver on S3
 
 ### [S1059] Nordic DevZone — "nRF52 DK — 20 ms non connectable advertising interval"
@@ -3298,6 +3353,7 @@ is removed.
 - url: https://devzone.nordicsemi.com/f/nordic-q-a/15372/nrf52-dk---20ms-non-connectable-advertising-interval
 - author: Nordic Semiconductor support / community
 - accessed: 2026-07-09
+- archive: pending
 - relevance: BT 4.x mandated "the advInterval shall not be less than 100 ms" for non-connectable advertising, enforced by the SoftDevice; the Bluetooth 5.0 spec (Vol 6, Part B, 4.4.2.2.1) removed the restriction, allowing 20 ms non-connectable intervals
 
 ### [S1060] adafruit/Adafruit_CircuitPython_BLE_BroadcastNet
@@ -3321,6 +3377,7 @@ is removed.
 - url: https://github.com/adafruit/circuitpython/issues/3119
 - author: CircuitPython community (reported 2020-07-04, closed 2023-10-28)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251121042516/https://github.com/adafruit/circuitpython/issues/3119
 - relevance: historical evidence that unfiltered long-running scans put large allocations (64 KB-class) on the CircuitPython heap; motivates prefix-filtered, bounded-buffer, short-burst scanning in a render loop
 
 ### [S1063] Nordic Semiconductor — Enhanced ShockBurst (ESB), nRF Connect SDK protocol docs
@@ -3328,6 +3385,7 @@ is removed.
 - url: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/esb/index.html
 - author: Nordic Semiconductor
 - accessed: 2026-07-09
+- archive: pending
 - relevance: ESB is Nordic-proprietary 2.4 GHz (interop limited to nRF5/nRF52/nRF53/nRF24 devices), delivered as an nRF Connect SDK library requiring exclusive radio-resource access — no ESP32 interop and no CircuitPython exposure; disqualifies it as pewpew's wearable link
 
 ### [S1064] The Things Network docs — "Duty Cycle" (EU868 regulatory limits)
@@ -3335,6 +3393,7 @@ is removed.
 - url: https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
 - author: The Things Network
 - accessed: 2026-07-09
+- archive: pending
 - relevance: EU 868 MHz ISM band imposes ~1% transmit duty cycle (864 s airtime/day) on LoRa devices — a continuous ~10 Hz state broadcast is regulatorily impossible; kills LoRa for group-state distribution
 
 ### [S1065] ESP-IDF Programming Guide — RF Coexistence (ESP32-C6)
@@ -3342,6 +3401,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/coexist.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260410144209/https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/coexist.html
 - relevance: ESP32-C6 likewise has a single time-sliced 2.4 GHz RF module (WiFi/BLE/802.15.4); same coexistence matrix shape as S3 (STA+BLE-adv "Y", ESP-NOW RX stable only in STA mode) — C6 offers no coexistence advantage over S3 for the bridge role
 
 ### [S1066] Adafruit Learn — "Circuit Playground Bluefruit NeoPixel Animation and Color Remote Control"
@@ -3358,6 +3418,7 @@ is removed.
 - url: https://docs.wokwi.com/guides/esp32
 - author: Wokwi (CodeMagic LTD)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260710040009/https://docs.wokwi.com/guides/esp32
 - relevance: authoritative peripheral matrix — S3 sim covers GPIO/SPI/ADC/LEDC/USB-CDC + WiFi, RMT partial "transmit-only, use to control WS2812 LED strips", I2S and BLE not implemented; default simulated CPU clock capped (~8 MHz equiv, `cpuFrequency` attr) so timing is not real-time
 
 ### [S1101] Wokwi docs — ESP32 WiFi Networking guide
@@ -3365,6 +3426,7 @@ is removed.
 - url: https://docs.wokwi.com/guides/esp32-wifi
 - author: Wokwi (CodeMagic LTD)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260620122714/https://docs.wokwi.com/guides/esp32-wifi
 - relevance: WiFi simulated "from the 802.11 MAC layer" via virtual open AP "Wokwi-GUEST" (BSSID 42:13:37:55:aa:01, ch 6) + IoT gateway carrying TCP and UDP (no ICMP) — enough for DDP-over-UDP receiver testing, STA/infrastructure mode only
 
 ### [S1102] Wokwi docs — Wokwi for CI, getting started
@@ -3396,6 +3458,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/tools/qemu.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260214045143/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/tools/qemu.html
 - relevance: QEMU is a first-class IDF tool — `idf.py qemu monitor` / `idf.py qemu gdb`, prebuilt binaries for Linux/macOS/Windows; S3 emulation of "CPU, memory, and several peripherals"; virtual framebuffer, eFuse/secure-boot emulation
 
 ### [S1106] espressif/esp-toolchain-docs — QEMU README (chip/peripheral coverage)
@@ -3403,6 +3466,7 @@ is removed.
 - url: https://github.com/espressif/esp-toolchain-docs/blob/main/qemu/README.md
 - author: Espressif
 - accessed: 2026-07-09
+- archive: pending
 - relevance: definitive coverage table — chips ESP32/S3/C3; WiFi NOT emulated on any ("The Ethernet controller can be used for networking instead"); also missing: Bluetooth, USB, RMT, GP-SPI, I2C, I2S, ULP, GPIO matrix; "Espressif does not provide support for QEMU"
 
 ### [S1107] espressif/qemu
@@ -3429,6 +3493,7 @@ is removed.
 - url: https://renode.readthedocs.io/en/latest/tutorials/ble-simulation.html
 - author: Antmicro
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251011204153/https://renode.readthedocs.io/en/latest/tutorials/ble-simulation.html
 - relevance: shared wireless-medium model (`BLEMedium`), multi-machine radio linking, Python packet-interception hooks; canonical demo = two nRF52840s running Zephyr BLE — Renode's multi-node radio sim is real but nRF-centric
 
 ### [S1110] Renode docs — supported boards
@@ -3436,6 +3501,7 @@ is removed.
 - url: https://renode.readthedocs.io/en/latest/introduction/supported-boards.html
 - author: Antmicro
 - accessed: 2026-07-09
+- archive: pending
 - relevance: no ESP32/Espressif platform in the supported list; only Xtensa entry is `xtensa-sample-controller` — ESP32-in-Renode would be a platform-porting project, not configuration
 
 ### [S1111] renode/renode
@@ -3462,6 +3528,7 @@ is removed.
 - author: Wokwi community / maintainers
 - published: 2022-11-11
 - accessed: 2026-07-09
+- archive: pending
 - relevance: ESP-NOW in Wokwi is an open, "open for vote" feature request since 2022; 2025 duplicate (#1015, incl. multi-MCU projects) closed against it; no implementation as of 2026-07 — the mesh tier cannot be simulated
 
 ### [S1114] Wokwi FAQ — AVR8js open-source engine
@@ -3476,6 +3543,7 @@ is removed.
 - url: https://docs.espressif.com/projects/pytest-embedded/en/latest/
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260701130032/https://docs.espressif.com/projects/pytest-embedded/en/latest/
 - relevance: the plugin family — services `serial`/`esp`/`idf`/`qemu`/`wokwi`/`arduino`/`nuttx` behind one `dut.expect()` API; same test body runs on simulator or devkit by swapping `--embedded-services`; per-DUT log capture built in
 
 ### [S1116] espressif/pytest-embedded
@@ -3493,6 +3561,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/esp-idf-tests-with-pytest.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260702205830/https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/esp-idf-tests-with-pytest.html
 - relevance: how Espressif runs its own hardware CI — pytest-embedded(esp,idf) + pytest-rerunfailures; `target` + `env` markers route tests to CI runners with matching tags; multi-DUT via `count`/`'esp32|esp32s2'` parameterization and per-DUT `app_path`; flake vocabulary `flaky(reruns=3)`, `xfail`, `temp_skip_ci`
 
 ### [S1118] ESP-IDF Programming Guide — Unit Testing in ESP32 (Unity on target)
@@ -3500,6 +3569,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/unit-tests.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260710120644/https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/unit-tests.html
 - relevance: Unity `TEST_CASE` in component `test/` dirs, central test app with serial menu; `TEST_CASE_MULTIPLE_DEVICES` synchronizes up to 5 DUTs via UART signals — the native shape for two-board radio/protocol tests; `TEST_CASE_MULTIPLE_STAGES` for reset-spanning tests
 
 ### [S1119] labgrid-project/labgrid
@@ -3517,6 +3587,7 @@ is removed.
 - url: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners
 - author: GitHub
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20250615070344/https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners
 - relevance: self-hosted runners give hardware/OS control and USB access, route via labels, poll GitHub over HTTPS; GitHub recommends them only for private repos (fork PRs can execute arbitrary code on the runner)
 
 ### [S1121] Ferrous Systems — "Running hardware-in-the-loop tests on GitHub Actions"
@@ -3525,6 +3596,7 @@ is removed.
 - author: Ferrous Systems
 - published: 2021-03-17
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260317053019/https://ferrous-systems.com/blog/gha-hil-tests/
 - relevance: canonical HIL-on-GHA writeup — nRF52840-DK on a Pi 4 self-hosted runner, probe-run/defmt-test `cargo test` on target; two-repo public-proxy→private-runner pattern + merge-queue approval to keep untrusted PRs off hardware
 
 ### [S1122] The Good Penguin — "Automated Testing with GitHub Actions, pytest and a Board Farm"
@@ -3533,6 +3605,7 @@ is removed.
 - author: The Good Penguin (consultancy blog)
 - published: 2023-03-17
 - accessed: 2026-07-09
+- archive: pending
 - relevance: working board-farm CI: exclusive board arbitration per runner, USB relays power-cycling around every flash, SD-mux image handoff, pytest+pexpect serial validation, upload-artifact for images/logs
 
 ### [S1123] GitHub Docs — Actions usage limits
@@ -3540,6 +3613,7 @@ is removed.
 - url: https://docs.github.com/en/actions/reference/limits
 - author: GitHub
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260625171148/https://docs.github.com/en/actions/reference/limits
 - relevance: job limits — 6 h GitHub-hosted vs 5 days self-hosted, 35-day workflow runs — which is what makes multi-day soak-as-CI-job feasible on own hardware; artifact storage plan-limited (500 MB Free)
 
 ### [S1124] pytest-dev/pytest-rerunfailures
@@ -3557,6 +3631,7 @@ is removed.
 - url: https://sigrok.org/wiki/Sigrok-cli
 - author: sigrok project
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260623070520/http://sigrok.org/wiki/Sigrok-cli
 - relevance: fully headless capture + decode: `--driver fx2lafw --time 3s`, stacked protocol decoders via `-P`, binary/CSV outputs — explicitly aimed at scripts and CI pipelines
 
 ### [S1126] sigrokproject/libsigrokdecode
@@ -3573,6 +3648,7 @@ is removed.
 - url: https://sigrok.org/wiki/Fx2lafw
 - author: sigrok project
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260704001351/http://sigrok.org/wiki/Fx2lafw
 - relevance: open firmware (GPLv2+) for $10–25 Cypress FX2 logic-analyzer clones (Saleae Logic/USBee clones); 24 MHz crystal, 8 probes (PB0–7) or 16 — 24 MS/s is ~30 samples/bit for 800 kHz WS2812, adequate for decode and skew timestamps
 
 ### [S1128] Saleae Logic 2 Automation API documentation
@@ -3580,6 +3656,7 @@ is removed.
 - url: https://saleae.github.io/logic2-automation/
 - author: Saleae
 - accessed: 2026-07-09
+- archive: pending
 - relevance: official automation: gRPC socket + Python wrapper; start captures, add analyzers, export data; requires the Logic 2 app running (documented headless-on-Linux mode exists)
 
 ### [S1129] saleae/logic2-automation
@@ -3597,6 +3674,7 @@ is removed.
 - url: https://www.saleae.com/products/logic-8
 - author: Saleae
 - accessed: 2026-07-09
+- archive: pending
 - relevance: Logic 8 = 8 digital channels at 100 MS/s + analog recording 10 MS/s/10-bit on the same probes, "Python automation API" first-party — one instrument covers protocol decode AND photodiode digitization; price not published on page
 
 ### [S1131] Nordic Semiconductor — Power Profiler Kit II product page
@@ -3604,6 +3682,7 @@ is removed.
 - url: https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2
 - author: Nordic Semiconductor
 - accessed: 2026-07-09
+- archive: pending
 - relevance: official specs: 200 nA–1 A range, 100 nA resolution, 100 kS/s; SMU mode sources 0.8–5 V up to 1 A (needs two USB cables for full current); ampere-meter mode for external supplies; UI is nRF Connect Power Profiler
 
 ### [S1132] IRNAS/ppk2-api-python
@@ -3630,6 +3709,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_wifi.html
 - author: Espressif
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251207093313/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_wifi.html
 - relevance: esp_wifi_set_promiscuous() + esp_wifi_set_promiscuous_filter() deliver management frames (incl. ESP-NOW's action frames) to a callback with wifi_pkt_rx_ctrl_t metadata (RSSI etc.) — a spare ESP32 becomes a channel sniffer with ESP32-radio-eye RSSI
 
 ### [S1135] morrownr/USB-WiFi — Linux USB WiFi adapter reference
@@ -3646,6 +3726,7 @@ is removed.
 - url: https://scapy.readthedocs.io/en/latest/usage.html
 - author: Scapy project
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260624121923/https://scapy.readthedocs.io/en/latest/usage.html
 - relevance: `sniff(monitor=True)` on monitor-mode interfaces, Dot11 dissection, BPF filters at OS level, `wrpcap`/`rdpcap` for pcap artifacts — the Python half of the ESP-NOW PDR-counting pipeline
 
 ### [S1137] Power Electronic Tips — "How to gauge LED flicker" (+ IEEE 1789-2015 context)
@@ -3653,6 +3734,7 @@ is removed.
 - url: https://www.powerelectronictips.com/how-to-gauge-led-flicker-faq/
 - author: Power Electronic Tips (WTWH Media engineering site)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: the established low-cost flicker rig — integrated photodiode+transimpedance chip (TSL257 light-to-voltage converter) into a scope; percent flicker (Lmax−Lmin)/(Lmax+Lmin) and flicker index per IEEE 1789-2015 (~8 % limit at 100 Hz); lab gear samples light at up to 200 kHz — sets the ADC bar for pewpew's dither bench (site blocks fetch with 403; claims from search excerpt + cross-search 2026-07-09)
 
 ### [S1138] Hypothesis documentation — Stateful testing
@@ -3660,6 +3742,7 @@ is removed.
 - url: https://hypothesis.readthedocs.io/en/latest/stateful.html
 - author: Hypothesis project (David R. MacIver et al.)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260518144923/https://hypothesis.readthedocs.io/en/latest/stateful.html
 - relevance: RuleBasedStateMachine — @rule methods chained into generated sequences, Bundles pass values between steps, @invariant checked after every step, failures shrink to a minimal reproducible program — the exact shape for gossip/epoch protocol model testing
 
 ### [S1139] HypothesisWorks/hypothesis
@@ -3677,6 +3760,7 @@ is removed.
 - url: https://llvm.org/docs/LibFuzzer.html
 - author: LLVM project
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260707105930/https://llvm.org/docs/LibFuzzer.html
 - relevance: in-process coverage-guided fuzzing via -fsanitize=fuzzer; status quote: "The original authors of libFuzzer have stopped active work on it and switched to working on another fuzzing engine, Centipede. LibFuzzer is still fully supported in that important bugs will get fixed" — maintenance-only
 
 ### [S1141] AFLplusplus/AFLplusplus
@@ -3703,6 +3787,7 @@ is removed.
 - url: https://docs.github.com/en/actions/reference/events-that-trigger-workflows
 - author: GitHub
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20250718094418/https://docs.github.com/en/actions/reference/events-that-trigger-workflows
 - relevance: `schedule` cron (min 5-minute interval; runs may be delayed or dropped under load; default branch only; auto-disabled after 60 days inactivity on public repos) + `workflow_dispatch` manual runs — the constraints that shape soak-as-background-CI-job design
 
 ## Block S1150–S1199 — RA-20 Agentic feedback loops
@@ -3713,6 +3798,7 @@ is removed.
 - author: Anthropic
 - published: continuously updated; content current as of access (documents 2026-era features: `/goal` conditions, auto permission mode, agent teams, `/code-review` skill)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260709165558/https://code.claude.com/docs/en/best-practices
 - relevance: the canonical vendor statement of verification-first agent workflow — "Give Claude a way to verify its work" is the first practice listed; also CLAUDE.md authoring rules, hook/skill/subagent selection, fan-out patterns, adversarial review
 
 ### [S1151] Claude Code docs — Hooks reference
@@ -3745,6 +3831,7 @@ is removed.
 - author: Anthropic
 - published: 2026-01-09
 - accessed: 2026-07-09
+- archive: pending
 - relevance: current statistical discipline for noisy agent/system tests — pass@k vs pass^k, clean-environment trials, capability evals graduating into continuously-run regression suites, "read the transcripts" verification
 
 ### [S1155] Anthropic engineering — How we built Claude Code auto mode
@@ -3753,6 +3840,7 @@ is removed.
 - author: Anthropic
 - published: 2026-03-25
 - accessed: 2026-07-09
+- archive: pending
 - relevance: permission tiering for autonomous agents: 93% prompt-approval habituation data, three-tier allowlist→file-ops→transcript-classifier design, five blocked categories, 0.4% FP / 17% FN rates — the template for pewpew's bench-actuation gating
 
 ### [S1156] Anthropic engineering — Making Claude Code more secure and autonomous with sandboxing
@@ -3761,6 +3849,7 @@ is removed.
 - author: Anthropic
 - published: 2025-11 (covered by InfoQ 2025-11)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: OS-level filesystem + network (proxy-enforced domain allowlist) isolation as the replacement for permission-prompt-per-command; 84% prompt reduction internally; runtime open-sourced (see S1157)
 
 ### [S1157] anthropic-experimental/sandbox-runtime — open-source agent sandbox
@@ -3787,6 +3876,7 @@ is removed.
 - author: Model Context Protocol maintainers
 - published: 2026-05-21
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260629215216/https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
 - relevance: where MCP is going as of mid-2026: stateless core (no initialize handshake/session header), Tasks extension for long-running tool calls (tools/call returns a task handle; tasks/get / tasks/update / tasks/cancel), extensions framework, Sampling/Roots/Logging deprecated
 
 ### [S1160] MCP specification 2025-11-25 — Server tools
@@ -3795,6 +3885,7 @@ is removed.
 - author: Model Context Protocol project
 - published: 2025-11-25
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260704182228/https://modelcontextprotocol.io/specification/2025-11-25/server/tools
 - relevance: current-ratified norms for tool safety: human-in-the-loop SHOULD with ability to deny invocations, tool annotations treated as untrusted unless server is trusted, outputSchema/structuredContent for machine-parseable results, isError execution errors designed for agent self-correction, "log tool usage for audit purposes"
 
 ### [S1161] beriberikix/awesome-mcp-hardware — curated hardware MCP server list
@@ -3865,6 +3956,7 @@ is removed.
 - author: Justin Poehnelt, Senior Software Engineer at Google (built the Google Workspace CLI agent-first)
 - published: 2026-03-04
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260706195226/https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/
 - relevance: concrete 2026 statement of agent-first CLI design from a practitioner who shipped one: deterministic JSON output, runtime schema introspection, --dry-run on mutating operations, adversarial input validation, skill files over --help
 
 ### [S1169] Espressif Developer Portal — Developing a Zephyr IoT app with AI
@@ -3873,6 +3965,7 @@ is removed.
 - author: Ricardo F. Tafas Jr., Senior Software Manager, Espressif
 - published: 2026-06-15
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260710100456/https://developer.espressif.com/blog/2026/06/zephyr-coding-with-ai/
 - relevance: the ESP32 vendor's own mid-2026 account of agent-assisted firmware development: Plan→Execute→Commit→Test loop, "UART as ground truth", journal of failed attempts, component-before-product; notable for testing on real hardware only (no simulator in the loop)
 
 ### [S1170] Scrolltest — Flaky Tests: Detection, Quarantine, and Prevention in 2026
@@ -3881,6 +3974,7 @@ is removed.
 - author: Scrolltest
 - published: 2026-03-19
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260411172428/https://scrolltest.com/flaky-tests-detection-quarantine-prevention-guide-2026/
 - relevance: 2026 flake discipline: run new/changed tests 5–10× pre-merge, flakiness scores per test, quarantine lanes with owner + two-week deadline, blind retries explicitly deprecated ("a test that needs retries to pass consistently is still broken")
 
 ### [S1171] Sentry docs — Seer (AI debugging agent)
@@ -3889,6 +3983,7 @@ is removed.
 - author: Sentry
 - published: continuously updated; current as of access
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260519071048/https://docs.sentry.io/product/ai-in-sentry/seer/
 - relevance: production example of a telemetry-watching background agent: auto-scans incoming issues, background root-cause analysis over traces/logs/profiles, hands fixes off to Claude Code / Cursor cloud agents / Copilot; PR creation gated on explicit human prompt with org-level disable controls
 
 ### [S1172] Sentry press release — Sentry Launches Seer Agent
@@ -3897,6 +3992,7 @@ is removed.
 - author: Sentry
 - published: 2026-04-28
 - accessed: 2026-07-09
+- archive: pending
 - relevance: dates the telemetry-agent pattern going mainstream (natural-language investigation over errors, spans, logs, traces); companion 2026-01-27 release extended Seer to local dev and code review
 
 ### [S1173] PPC Land — llms.txt adoption rises 8.8x but 97% of files get zero AI requests
@@ -3914,6 +4010,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260113062456/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html
 - relevance: first-party reference for IWDT/TWDT/XTWDT config, defaults, and the subscribe/reset API a render loop must use
 
 ### [S1201] ESP-IDF Fatal Errors guide (ESP32-S3)
@@ -3921,6 +4018,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/fatal-errors.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260310155012/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/fatal-errors.html
 - relevance: panic-handler behaviors (CONFIG_ESP_SYSTEM_PANIC), Guru Meditation classes, brownout reset behavior, RTC-watchdog-as-final-failsafe
 
 ### [S1202] ESP-IDF Core Dump guide (ESP32-S3)
@@ -3928,6 +4026,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/core_dump.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260710133500/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/core_dump.html
 - relevance: core-dump-to-flash config, ELF format, SHA256 integrity, partition sizing formula — the black-box recorder for crashed nodes
 
 ### [S1203] esp-idf espcoredump runtime API (esp_core_dump.h)
@@ -3944,6 +4043,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260303122027/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
 - relevance: full esp_reset_reason_t enum (PANIC, INT_WDT, TASK_WDT, BROWNOUT, PWR_GLITCH, CPU_LOCKUP…), shutdown handlers, esp_get_minimum_free_heap_size
 
 ### [S1205] ESP-IDF Non-Volatile Storage (NVS) docs
@@ -3951,6 +4051,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
 - author: Espressif Systems
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260213110244/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
 - relevance: log-structured append semantics (÷126 erase amortization), power-loss guarantees, CONFIG_NVS_FLASH_VERIFY_ERASE for weak supplies — the write-frequency discipline evidence
 
 ### [S1206] ESP32-S3 brownout Kconfig (Kconfig.power)
@@ -3974,6 +4075,7 @@ is removed.
 - url: https://esp32.com/viewtopic.php?t=16659
 - author: esp32.com community (Espressif-hosted forum)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: RTC_NOINIT_ATTR survives SW/WDT/panic resets but not power loss or brownout; caller must gate re-init on reset reason — the crash-counter mechanism
 
 ### [S1209] esp-idf issue #9400: WiFi stuck while connecting, watchdog not triggered
@@ -3982,6 +4084,7 @@ is removed.
 - author: espressif/esp-idf issue tracker
 - published: 2022-07
 - accessed: 2026-07-09
+- archive: pending
 - relevance: first-party tracker evidence that the WiFi stack can wedge in states the default watchdogs do not catch — motivates application-level radio liveness supervision
 
 ### [S1210] ESPHome Safe Mode component docs
@@ -3989,6 +4092,7 @@ is removed.
 - url: https://esphome.io/components/safe_mode/
 - author: ESPHome project (Open Home Foundation)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260622152128/https://esphome.io/components/safe_mode/
 - relevance: production boot-loop-detection pattern: N consecutive failed boots (default 10) → minimal firmware with only network+OTA; boot "good" after 1 min; the safe-mode design pewpew should copy
 
 ### [S1211] esphome issue #15796: safe-mode counter misses setup-phase crashes
@@ -3997,6 +4101,7 @@ is removed.
 - author: esphome issue tracker
 - published: 2024
 - accessed: 2026-07-09
+- archive: pending
 - relevance: documented gap in the counter-in-app pattern — a crash before the counter increments defeats boot-loop detection; argues for bootloader-side or earliest-init counting
 
 ### [S1212] Memfault MCU coredump docs
@@ -4004,6 +4109,7 @@ is removed.
 - url: https://docs.memfault.com/docs/mcu/coredumps
 - author: Memfault
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260601155918/https://docs.memfault.com/docs/mcu/coredumps
 - relevance: what a commercial device-observability pipeline captures on fault (registers, tasks, selected RAM regions), store-then-upload-on-next-boot, fallback to minimal trace if storage fails
 
 ### [S1213] Memfault MCU reboot reason tracking docs
@@ -4011,6 +4117,7 @@ is removed.
 - url: https://docs.memfault.com/docs/mcu/reboot-reason-tracking
 - author: Memfault
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260321104846/https://docs.memfault.com/docs/mcu/reboot-reason-tracking
 - relevance: two-source reboot attribution (hardware register + software-marked imminent reason), noinit-RAM tracking, expected-vs-unexpected classification, bootloop metric — the forensics-minimum reference design
 
 ### [S1214] Memfault OTA & release management docs
@@ -4018,6 +4125,7 @@ is removed.
 - url: https://docs.memfault.com/docs/platform/ota
 - author: Memfault
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260321104825/https://docs.memfault.com/docs/platform/ota
 - relevance: cohorts + percentage staged rollout + fleet-health comparison charts as the abort signal — vendor-practice reference for rollout rings
 
 ### [S1215] Interrupt (Memfault) — watchdog timer best practices guide
@@ -4025,6 +4133,7 @@ is removed.
 - url: https://interrupt.memfault.com/blog/firmware-watchdog-best-practices
 - author: Interrupt / Memfault engineering blog
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260408021818/https://interrupt.memfault.com/blog/firmware-watchdog-best-practices
 - relevance: hardware WDT as last resort + software WDT for state capture; feed from a low-priority task, never a timer ISR; all-tasks-check-in pattern; always-reboot-never-wedge stance
 
 ### [S1216] Google SRE Workbook ch. 16 — Canarying Releases
@@ -4033,6 +4142,7 @@ is removed.
 - author: Google (Site Reliability Workbook)
 - published: 2018
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260627024041/https://sre.google/workbook/canarying-releases/
 - relevance: canary definition, population sizing vs blast radius, metric selection, small-population caveats — the discipline to shrink to 50 nodes
 
 ### [S1217] AWS IoT Device Management — job rollout, abort, timeout, retry configurations
@@ -4040,6 +4150,7 @@ is removed.
 - url: https://docs.aws.amazon.com/iot/latest/developerguide/jobs-configurations-details.html
 - author: Amazon Web Services
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260703211645/https://docs.aws.amazon.com/iot/latest/developerguide/jobs-configurations-details.html
 - relevance: production fleet-OTA machinery: exponential rollout rates gated on success counts, abort on failure-percentage thresholds, maintenance windows — "avoid a bad update from being sent to an entire fleet"
 
 ### [S1218] balena docs — release policies (fleet default vs device pinning)
@@ -4047,6 +4158,7 @@ is removed.
 - url: https://docs.balena.io/learn/deploy/release-strategy/release-policy/
 - author: balena
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20251202153028/https://docs.balena.io/learn/deploy/release-strategy/release-policy/
 - relevance: per-device release pinning "when performing a canary deployment" — the small-fleet adaptation of rollout rings
 
 ### [S1219] Golioth OTA docs — cohorts, packages, rollout
@@ -4062,6 +4174,7 @@ is removed.
 - author: Chaos community (originating at Netflix)
 - published: 2019 (last revision)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: canonical definition, steady-state hypothesis, vary-real-world-events, minimize blast radius — the principles RA-21 adapts to a 50-node bench
 
 ### [S1221] Kalka & Szydlo — µChaos: Moving Chaos Engineering To IoT Devices (ICCS 2024)
@@ -4070,6 +4183,7 @@ is removed.
 - author: Wojciech Kalka, Tomasz Szydlo (AGH Krakow / Newcastle University)
 - published: 2024
 - accessed: 2026-07-09
+- archive: pending
 - relevance: the state of embedded chaos engineering — open-source Zephyr-OS fault-injection component (CPU, memory, network, sensor, application faults via serial API); documents that end-device chaos tooling barely exists
 
 ### [S1222] Candea & Fox — Crash-Only Software (HotOS IX, 2003)
@@ -4078,6 +4192,7 @@ is removed.
 - author: George Candea, Armando Fox (Stanford)
 - published: 2003-05
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260115050447/https://www.usenix.org/legacy/events/hotos03/tech/full_papers/candea/candea_html/index.html
 - relevance: the academic case for reboot-as-recovery: one way to stop (crash) and one way to start (recover) yields simpler, more reliable systems — grounds the self-reboot-on-anomaly stance
 
 ### [S1223] Doug Fleenor Design — DMX512 to 0-10 V Analog Converter owner's manual
@@ -4086,6 +4201,7 @@ is removed.
 - author: Doug Fleenor Design
 - published: 2019-07 (manual revision)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: stage-lighting hold-last-look convention in writing: holds last levels on DMX loss until control restored or power removed; levels reset to zero on power-up; optional jumper for blackout ~1 s after loss
 
 ### [S1224] ANSI E1.11-assoc. ANSI E1.31-2016 — sACN (Streaming ACN)
@@ -4094,6 +4210,7 @@ is removed.
 - author: ESTA Technical Standards Program
 - published: 2016
 - accessed: 2026-07-09
+- archive: pending
 - relevance: codified loss-of-data machinery: E131_NETWORK_DATA_LOSS_TIMEOUT (2.5 s of silence) and the stream-terminated option bit (sent 3×) — receiver-local timers decide degradation, no consensus
 
 ### [S1225] Battery University BU-502 — Discharging at High and Low Temperatures
@@ -4101,6 +4218,7 @@ is removed.
 - url: https://batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures
 - author: Battery University (Cadex Electronics)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260622174801/https://www.batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures
 - relevance: capacity ≈50 % at –18 °C, internal-resistance rise in cold, cycle-life loss above 30 °C — battery-vs-temperature priors for outdoor fleet planning
 
 ### [S1226] MacroFab — Conformal Coating vs. Potting/Encapsulation
@@ -4108,6 +4226,7 @@ is removed.
 - url: https://www.macrofab.com/blog/conformal-coating-vs-potting-encapsulation
 - author: MacroFab (electronics manufacturer engineering blog)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: protection-vs-serviceability tradeoff: thin coatings (~25–75 µm) rework-friendly and thermally benign; potting seals to IP67/68 but kills rework and stresses solder joints in thermal cycling
 
 ### [S1227] PCBCart — Burn-In Testing: Filtering Out Infant Mortality
@@ -4115,6 +4234,7 @@ is removed.
 - url: https://www.pcbcart.com/article/content/burn-in-testing-electronics-reliability.html
 - author: PCBCart (electronics manufacturer)
 - accessed: 2026-07-09
+- archive: pending
 - relevance: bathtub-curve rationale for pre-deployment soak; typical durations (8–48 h consumer, up to 168 h high-reliability) under elevated temperature/voltage/load
 
 ### [S1228] Reliability Analytics Toolkit — Poisson spares analysis
@@ -4122,6 +4242,7 @@ is removed.
 - url: https://reliabilityanalyticstoolkit.appspot.com/poisson_spares_analysis
 - author: Reliability Analytics (method per USAF Rome Laboratory Reliability Engineer's Toolkit, 1993)
 - accessed: 2026-07-09
+- archive: https://web.archive.org/web/20260119174046/https://reliabilityanalyticstoolkit.appspot.com/poisson_spares_analysis
 - relevance: the standard spares formula: Poisson on population × failure rate × resupply interval at a chosen confidence — the method RA-21 applies to a 50-node fleet
 
 ### [S1229] Advatek PixLite 16 Plug & Play Mk2 user manual
@@ -4130,4 +4251,5 @@ is removed.
 - author: Advatek Lighting
 - published: 2023-08-23
 - accessed: 2026-07-09
+- archive: pending
 - relevance: professional outdoor-pixel install practice: IP67 screw-lock connectors with gold pins, warning that poor waterproofing lets rain short supply onto data lines, ≤15 m controller-to-first-pixel rule

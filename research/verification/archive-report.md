@@ -112,3 +112,29 @@ All edits were to research/SOURCES.md only.
 - Marked `- archive: pending (...)` with failure details on 2 entries: S027, S123.
 
 Total: 101 SOURCES.md entries edited (99 snapshot URLs + 2 pending markers).
+
+## Addendum — mesh + test/feedback synthesis pass
+
+- date: 2026-07-10
+- scope: every [S###] cited in ADR-014..019 (mesh tier + test/feedback/resilience)
+- status: PARTIAL — archive.org Save-Page-Now was timing out during the pass; existing
+  snapshots were applied, fresh captures deferred
+
+Method: identical to the Phase 4 pass above (availability API, accept snapshots >=
+2025-01-01, else SPN with polite spacing). SPN was largely unavailable (repeated read
+timeouts on web.archive.org/save), so only 2 fresh captures landed.
+
+Result: 149 unique S-IDs cited by ADR-014..019; 23 pinned code sources exempt; 2 already
+archived. Of the 124 needing archives: **71 now carry real snapshot URLs** (65 existing
+2025+ snapshots, 4 older snapshots annotated "predates accessed date", 2 fresh SPN
+captures), **51 are marked `archive: pending`** (S806, S817, S851, S852, S860, S862, S867, S869, S870, S873,
+… full list greppable via `grep -B6 'archive: pending' SOURCES.md`).
+
+Special cases:
+- S516/S517 (LedFx and FastLED tests directories) are repo-level code cites that entered
+  SOURCES.md without `pinned:` fields — they need pins (per the archival rule), not
+  archives. Left unmarked; resolve by pinning to the SHAs current at their 2026-07-03
+  read date (git log of the RA-11 pass) or re-reading.
+
+Next verification pass: re-run SPN for the 51 pending (the fetch script resumes from its
+results file), refresh the 4 predates-accessed snapshots, and pin S516/S517.
