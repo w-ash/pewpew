@@ -3350,3 +3350,784 @@ is removed.
 - author: Adafruit (published 2019-12-16, still current in Learn system)
 - accessed: 2026-07-09
 - relevance: official guide running CircuitPython BLE radio activity concurrently with NeoPixel animation on nRF52840-class boards — ecosystem existence proof for radio+render, albeit at low pixel counts, not a 60 fps benchmark
+
+## Block S1100–S1149 — RA-19 Embedded test loops (sim/emulation/HIL)
+
+### [S1100] Wokwi docs — ESP32 Simulation guide (chips + peripheral table)
+- type: docs
+- url: https://docs.wokwi.com/guides/esp32
+- author: Wokwi (CodeMagic LTD)
+- accessed: 2026-07-09
+- relevance: authoritative peripheral matrix — S3 sim covers GPIO/SPI/ADC/LEDC/USB-CDC + WiFi, RMT partial "transmit-only, use to control WS2812 LED strips", I2S and BLE not implemented; default simulated CPU clock capped (~8 MHz equiv, `cpuFrequency` attr) so timing is not real-time
+
+### [S1101] Wokwi docs — ESP32 WiFi Networking guide
+- type: docs
+- url: https://docs.wokwi.com/guides/esp32-wifi
+- author: Wokwi (CodeMagic LTD)
+- accessed: 2026-07-09
+- relevance: WiFi simulated "from the 802.11 MAC layer" via virtual open AP "Wokwi-GUEST" (BSSID 42:13:37:55:aa:01, ch 6) + IoT gateway carrying TCP and UDP (no ICMP) — enough for DDP-over-UDP receiver testing, STA/infrastructure mode only
+
+### [S1102] Wokwi docs — Wokwi for CI, getting started
+- type: docs
+- url: https://docs.wokwi.com/wokwi-ci/getting-started
+- author: Wokwi (CodeMagic LTD)
+- accessed: 2026-07-09
+- relevance: wokwi-cli uploads firmware to Wokwi's cloud, streams serial back; scenario YAML (expect-serial, set controls, timeouts); GitHub Actions/GitLab CI integrations; WOKWI_CLI_TOKEN auth; experimental MCP server for AI agents; CI minutes plan-gated (Free 50/mo, Hobby 200, Pro 2000)
+
+### [S1103] Wokwi pricing page
+- type: product
+- url: https://wokwi.com/pricing
+- author: Wokwi (CodeMagic LTD)
+- accessed: 2026-07-09
+- relevance: 2026 tiers — Free (unlimited public sims), Hobby $5.6/mo, Hobby+ $8.1/mo, Pro $20/seat/mo with 2000 CI min/mo; quantifies the cost of leaning on Wokwi CI
+
+### [S1104] wokwi/wokwi-cli
+- type: code
+- url: https://github.com/wokwi/wokwi-cli
+- pinned: wokwi/wokwi-cli@7a208779ef6579463626a24f898ab08495ee247e
+- author: Wokwi (Uri Shaked et al.)
+- license: MIT
+- published: latest release v0.26.1, 2026-02-23
+- accessed: 2026-07-09
+- relevance: the CI client — MIT and active (pushed 2026-06), but it is a thin client; the ESP32 simulation engine itself has no public source repo and runs in Wokwi's cloud
+
+### [S1105] ESP-IDF Programming Guide — QEMU Emulator (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/tools/qemu.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: QEMU is a first-class IDF tool — `idf.py qemu monitor` / `idf.py qemu gdb`, prebuilt binaries for Linux/macOS/Windows; S3 emulation of "CPU, memory, and several peripherals"; virtual framebuffer, eFuse/secure-boot emulation
+
+### [S1106] espressif/esp-toolchain-docs — QEMU README (chip/peripheral coverage)
+- type: docs
+- url: https://github.com/espressif/esp-toolchain-docs/blob/main/qemu/README.md
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: definitive coverage table — chips ESP32/S3/C3; WiFi NOT emulated on any ("The Ethernet controller can be used for networking instead"); also missing: Bluetooth, USB, RMT, GP-SPI, I2C, I2S, ULP, GPIO matrix; "Espressif does not provide support for QEMU"
+
+### [S1107] espressif/qemu
+- type: code
+- url: https://github.com/espressif/qemu
+- pinned: espressif/qemu@febae182e132e4055529be423a818225ebddaa3a
+- author: Espressif (QEMU fork)
+- license: GPL-2.0 (QEMU base; per-file mix incl. LGPL-2.1)
+- published: release esp-develop-9.2.2-20260417, 2026-04-17
+- accessed: 2026-07-09
+- relevance: the emulator behind `idf.py qemu`; active (pushed 2026-06-09), 334 stars
+
+### [S1108] emb-team/esp-idf-qemu — QEMU WiFi/BLE emulation proof-of-concept
+- type: code
+- url: https://github.com/emb-team/esp-idf-qemu
+- pinned: emb-team/esp-idf-qemu@c2046e152d72abb58b556ee000466b866aaba05c
+- author: emb-team
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: the only known WiFi/BLE-in-QEMU attempt for ESP32 — STA/softAP redirected over emulated Ethernet; pinned to IDF v3.2.2, last push 2020-06-11, 8 stars — dead PoC, evidence that radio emulation was tried and abandoned
+
+### [S1109] Renode docs — Bluetooth Low Energy simulation tutorial
+- type: docs
+- url: https://renode.readthedocs.io/en/latest/tutorials/ble-simulation.html
+- author: Antmicro
+- accessed: 2026-07-09
+- relevance: shared wireless-medium model (`BLEMedium`), multi-machine radio linking, Python packet-interception hooks; canonical demo = two nRF52840s running Zephyr BLE — Renode's multi-node radio sim is real but nRF-centric
+
+### [S1110] Renode docs — supported boards
+- type: docs
+- url: https://renode.readthedocs.io/en/latest/introduction/supported-boards.html
+- author: Antmicro
+- accessed: 2026-07-09
+- relevance: no ESP32/Espressif platform in the supported list; only Xtensa entry is `xtensa-sample-controller` — ESP32-in-Renode would be a platform-porting project, not configuration
+
+### [S1111] renode/renode
+- type: code
+- url: https://github.com/renode/renode
+- pinned: renode/renode@40c62fbd070fa617ee01899433ad5623ab839d59
+- author: Antmicro
+- license: MIT
+- published: latest release v1.16.1, 2026-02-16
+- accessed: 2026-07-09
+- relevance: very active (pushed 2026-07-09, 2.6k stars); MIT per LICENSE ("distributed under the terms of the MIT license", copyright Antmicro)
+
+### [S1112] Antmicro blog — "Simulating low-power mesh IoT systems in Renode with Silicon Labs Wireless Gecko Series 2"
+- type: article
+- url: https://antmicro.com/blog/2025/08/silabs-series-2-in-renode
+- author: Antmicro
+- published: 2025-08
+- accessed: 2026-07-09
+- relevance: 2025 state of Renode multi-node radio: SiLabs Series 2 2.4 GHz multiprotocol (BLE/Zigbee/Thread/Matter) mesh networks simulated — proves the medium model scales to mesh, and that vendor buy-in (not community patches) is what gets a chip there
+
+### [S1113] wokwi/wokwi-features issue #446 — "ESP-NOW support (direct communication between two ESP chips)"
+- type: forum
+- url: https://github.com/wokwi/wokwi-features/issues/446
+- author: Wokwi community / maintainers
+- published: 2022-11-11
+- accessed: 2026-07-09
+- relevance: ESP-NOW in Wokwi is an open, "open for vote" feature request since 2022; 2025 duplicate (#1015, incl. multi-MCU projects) closed against it; no implementation as of 2026-07 — the mesh tier cannot be simulated
+
+### [S1114] Wokwi FAQ — AVR8js open-source engine
+- type: docs
+- url: https://docs.wokwi.com/faq
+- author: Wokwi (CodeMagic LTD)
+- accessed: 2026-07-09
+- relevance: only the AVR8js AVR engine is called out as open source; the ESP32 engine has no public repo — Wokwi's ESP32 simulation is a proprietary cloud dependency
+
+### [S1115] pytest-embedded documentation
+- type: docs
+- url: https://docs.espressif.com/projects/pytest-embedded/en/latest/
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: the plugin family — services `serial`/`esp`/`idf`/`qemu`/`wokwi`/`arduino`/`nuttx` behind one `dut.expect()` API; same test body runs on simulator or devkit by swapping `--embedded-services`; per-DUT log capture built in
+
+### [S1116] espressif/pytest-embedded
+- type: code
+- url: https://github.com/espressif/pytest-embedded
+- pinned: espressif/pytest-embedded@eebeb04b19b0a4aba864f09dcb6a831cef86e4a9
+- author: Espressif
+- license: MIT (repo default; per-package LICENSE files; examples CC0-1.0)
+- published: v2.8.1 current on PyPI
+- accessed: 2026-07-09
+- relevance: active (pushed 2026-06-30, 145 stars); what Espressif itself maintains for on-target + emulator testing
+
+### [S1117] ESP-IDF Programming Guide — "ESP-IDF Tests with Pytest" contributor guide
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/esp-idf-tests-with-pytest.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: how Espressif runs its own hardware CI — pytest-embedded(esp,idf) + pytest-rerunfailures; `target` + `env` markers route tests to CI runners with matching tags; multi-DUT via `count`/`'esp32|esp32s2'` parameterization and per-DUT `app_path`; flake vocabulary `flaky(reruns=3)`, `xfail`, `temp_skip_ci`
+
+### [S1118] ESP-IDF Programming Guide — Unit Testing in ESP32 (Unity on target)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/unit-tests.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: Unity `TEST_CASE` in component `test/` dirs, central test app with serial menu; `TEST_CASE_MULTIPLE_DEVICES` synchronizes up to 5 DUTs via UART signals — the native shape for two-board radio/protocol tests; `TEST_CASE_MULTIPLE_STAGES` for reset-spanning tests
+
+### [S1119] labgrid-project/labgrid
+- type: code
+- url: https://github.com/labgrid-project/labgrid
+- pinned: labgrid-project/labgrid@0e8d23341a34cb1742059a699f8b71aff31db901
+- author: Pengutronix / labgrid project
+- license: LGPL-2.1
+- published: v26.0, 2026-06-22
+- accessed: 2026-07-09
+- relevance: the established open-source embedded-lab framework since 2016 — coordinator/exporter/client board farm, power/reset/serial/SD-mux/USB drivers, pytest plugin; active (pushed 2026-07-08, 490 stars); Linux-SBC-flavored but the reference resource-model for a bench
+
+### [S1120] GitHub Docs — About self-hosted runners
+- type: docs
+- url: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners
+- author: GitHub
+- accessed: 2026-07-09
+- relevance: self-hosted runners give hardware/OS control and USB access, route via labels, poll GitHub over HTTPS; GitHub recommends them only for private repos (fork PRs can execute arbitrary code on the runner)
+
+### [S1121] Ferrous Systems — "Running hardware-in-the-loop tests on GitHub Actions"
+- type: article
+- url: https://ferrous-systems.com/blog/gha-hil-tests/
+- author: Ferrous Systems
+- published: 2021-03-17
+- accessed: 2026-07-09
+- relevance: canonical HIL-on-GHA writeup — nRF52840-DK on a Pi 4 self-hosted runner, probe-run/defmt-test `cargo test` on target; two-repo public-proxy→private-runner pattern + merge-queue approval to keep untrusted PRs off hardware
+
+### [S1122] The Good Penguin — "Automated Testing with GitHub Actions, pytest and a Board Farm"
+- type: article
+- url: https://www.thegoodpenguin.co.uk/blog/automated-testing-with-github-actions-pytest-and-a-board-farm/
+- author: The Good Penguin (consultancy blog)
+- published: 2023-03-17
+- accessed: 2026-07-09
+- relevance: working board-farm CI: exclusive board arbitration per runner, USB relays power-cycling around every flash, SD-mux image handoff, pytest+pexpect serial validation, upload-artifact for images/logs
+
+### [S1123] GitHub Docs — Actions usage limits
+- type: docs
+- url: https://docs.github.com/en/actions/reference/limits
+- author: GitHub
+- accessed: 2026-07-09
+- relevance: job limits — 6 h GitHub-hosted vs 5 days self-hosted, 35-day workflow runs — which is what makes multi-day soak-as-CI-job feasible on own hardware; artifact storage plan-limited (500 MB Free)
+
+### [S1124] pytest-dev/pytest-rerunfailures
+- type: code
+- url: https://github.com/pytest-dev/pytest-rerunfailures
+- pinned: pytest-dev/pytest-rerunfailures@1087cc27aeb477d179ed244843c2e5428d8a1e28
+- author: pytest-dev
+- license: MPL-2.0
+- published: v16.4 current on PyPI
+- accessed: 2026-07-09
+- relevance: the retry/flake plugin Espressif's own CI uses (`@pytest.mark.flaky(reruns=3, reruns_delay=5)`); active (pushed 2026-07-01)
+
+### [S1125] sigrok wiki — sigrok-cli
+- type: docs
+- url: https://sigrok.org/wiki/Sigrok-cli
+- author: sigrok project
+- accessed: 2026-07-09
+- relevance: fully headless capture + decode: `--driver fx2lafw --time 3s`, stacked protocol decoders via `-P`, binary/CSV outputs — explicitly aimed at scripts and CI pipelines
+
+### [S1126] sigrokproject/libsigrokdecode
+- type: code
+- url: https://github.com/sigrokproject/libsigrokdecode
+- pinned: sigrokproject/libsigrokdecode@71f451443029322d57376214c330b518efd84f88
+- author: sigrok project
+- license: GPL-3.0
+- accessed: 2026-07-09
+- relevance: mainline decoder set includes `decoders/rgb_led_ws281x` (WS281x one-wire → RGB values) and `rgb_led_spi` — LED protocol decode in CI with zero custom code; slow-moving (pushed 2024-10-13) but stable
+
+### [S1127] sigrok wiki — fx2lafw
+- type: docs
+- url: https://sigrok.org/wiki/Fx2lafw
+- author: sigrok project
+- accessed: 2026-07-09
+- relevance: open firmware (GPLv2+) for $10–25 Cypress FX2 logic-analyzer clones (Saleae Logic/USBee clones); 24 MHz crystal, 8 probes (PB0–7) or 16 — 24 MS/s is ~30 samples/bit for 800 kHz WS2812, adequate for decode and skew timestamps
+
+### [S1128] Saleae Logic 2 Automation API documentation
+- type: docs
+- url: https://saleae.github.io/logic2-automation/
+- author: Saleae
+- accessed: 2026-07-09
+- relevance: official automation: gRPC socket + Python wrapper; start captures, add analyzers, export data; requires the Logic 2 app running (documented headless-on-Linux mode exists)
+
+### [S1129] saleae/logic2-automation
+- type: code
+- url: https://github.com/saleae/logic2-automation
+- pinned: saleae/logic2-automation@ee5e1ceebfb63c285828eb337f597f133f7125e4
+- author: Saleae
+- license: Apache-2.0
+- published: v1.0.2, 2022-10-12
+- accessed: 2026-07-09
+- relevance: the Python package behind the automation API; maintained (pushed 2026-05-04) though release-quiet since 2022
+
+### [S1130] Saleae — Logic 8 product page
+- type: product
+- url: https://www.saleae.com/products/logic-8
+- author: Saleae
+- accessed: 2026-07-09
+- relevance: Logic 8 = 8 digital channels at 100 MS/s + analog recording 10 MS/s/10-bit on the same probes, "Python automation API" first-party — one instrument covers protocol decode AND photodiode digitization; price not published on page
+
+### [S1131] Nordic Semiconductor — Power Profiler Kit II product page
+- type: product
+- url: https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2
+- author: Nordic Semiconductor
+- accessed: 2026-07-09
+- relevance: official specs: 200 nA–1 A range, 100 nA resolution, 100 kS/s; SMU mode sources 0.8–5 V up to 1 A (needs two USB cables for full current); ampere-meter mode for external supplies; UI is nRF Connect Power Profiler
+
+### [S1132] IRNAS/ppk2-api-python
+- type: code
+- url: https://github.com/IRNAS/ppk2-api-python
+- pinned: IRNAS/ppk2-api-python@6f5cdcc444643f18182022cb2550928aa92854aa
+- author: IRNAS (engineering company)
+- license: GPL-2.0
+- accessed: 2026-07-09
+- relevance: the de-facto Python automation for PPK2 (unofficial — Nordic doesn't document the serial protocol): use_source_meter()/set_source_voltage()/start_measuring()/get_samples(), multiprocessing sampler for the 100 kS/s stream; active (pushed 2026-05-19, 239 stars)
+
+### [S1133] mvp/uhubctl
+- type: code
+- url: https://github.com/mvp/uhubctl
+- pinned: mvp/uhubctl@2985dfcfc3dfb5e574e50d4ec6b2578cdcccc9b0
+- author: Vadim Mikhailov
+- license: GPL-2.0 (custom LICENSE text, GPLv2 terms; copyright Vadim Mikhailov 2009-2025)
+- published: v2.6.0, 2024-08-31
+- accessed: 2026-07-09
+- relevance: per-port VBUS switching on hubs that truly support USB per-port power switching; README warns most hubs gang ports or never cut VBUS and maintains the verified-hub list (Rosonway RSH-A13/RSH-A37S, Inateck HB2025A among 2026 picks); repo pushed 2026-06-07
+
+### [S1134] ESP-IDF Programming Guide — esp_wifi API (promiscuous mode, ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_wifi.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: esp_wifi_set_promiscuous() + esp_wifi_set_promiscuous_filter() deliver management frames (incl. ESP-NOW's action frames) to a callback with wifi_pkt_rx_ctrl_t metadata (RSSI etc.) — a spare ESP32 becomes a channel sniffer with ESP32-radio-eye RSSI
+
+### [S1135] morrownr/USB-WiFi — Linux USB WiFi adapter reference
+- type: docs
+- url: https://github.com/morrownr/USB-WiFi
+- pinned: morrownr/USB-WiFi@8e6997ddaf27b303ee8745b1ce0e9bbde1385aac
+- author: morrownr (community-maintained reference; 4.4k stars)
+- license: none declared
+- accessed: 2026-07-09
+- relevance: the widely-cited monitor-mode adapter compatibility list — mainlined chipsets to buy: AR9271 (ath9k_htc, kernel ≥3.2, 2.4 GHz-only) and MT7612U (mt76x2u, kernel ≥4.19, dual-band); pushed 2026-07-07
+
+### [S1136] Scapy documentation — Usage (sniffing, 802.11, pcap)
+- type: docs
+- url: https://scapy.readthedocs.io/en/latest/usage.html
+- author: Scapy project
+- accessed: 2026-07-09
+- relevance: `sniff(monitor=True)` on monitor-mode interfaces, Dot11 dissection, BPF filters at OS level, `wrpcap`/`rdpcap` for pcap artifacts — the Python half of the ESP-NOW PDR-counting pipeline
+
+### [S1137] Power Electronic Tips — "How to gauge LED flicker" (+ IEEE 1789-2015 context)
+- type: article
+- url: https://www.powerelectronictips.com/how-to-gauge-led-flicker-faq/
+- author: Power Electronic Tips (WTWH Media engineering site)
+- accessed: 2026-07-09
+- relevance: the established low-cost flicker rig — integrated photodiode+transimpedance chip (TSL257 light-to-voltage converter) into a scope; percent flicker (Lmax−Lmin)/(Lmax+Lmin) and flicker index per IEEE 1789-2015 (~8 % limit at 100 Hz); lab gear samples light at up to 200 kHz — sets the ADC bar for pewpew's dither bench (site blocks fetch with 403; claims from search excerpt + cross-search 2026-07-09)
+
+### [S1138] Hypothesis documentation — Stateful testing
+- type: docs
+- url: https://hypothesis.readthedocs.io/en/latest/stateful.html
+- author: Hypothesis project (David R. MacIver et al.)
+- accessed: 2026-07-09
+- relevance: RuleBasedStateMachine — @rule methods chained into generated sequences, Bundles pass values between steps, @invariant checked after every step, failures shrink to a minimal reproducible program — the exact shape for gossip/epoch protocol model testing
+
+### [S1139] HypothesisWorks/hypothesis
+- type: code
+- url: https://github.com/HypothesisWorks/hypothesis
+- pinned: HypothesisWorks/hypothesis@8683661fb051b5e541e317c844aa3ad5e907e0dc
+- author: Hypothesis project
+- license: MPL-2.0
+- published: v6.156.4 current on PyPI
+- accessed: 2026-07-09
+- relevance: the standard Python property-testing library; very active (pushed 2026-07-08, 8.8k stars) — codec round-trip + CRDT-law properties build on it
+
+### [S1140] LLVM documentation — libFuzzer
+- type: docs
+- url: https://llvm.org/docs/LibFuzzer.html
+- author: LLVM project
+- accessed: 2026-07-09
+- relevance: in-process coverage-guided fuzzing via -fsanitize=fuzzer; status quote: "The original authors of libFuzzer have stopped active work on it and switched to working on another fuzzing engine, Centipede. LibFuzzer is still fully supported in that important bugs will get fixed" — maintenance-only
+
+### [S1141] AFLplusplus/AFLplusplus
+- type: code
+- url: https://github.com/AFLplusplus/AFLplusplus
+- pinned: AFLplusplus/AFLplusplus@011cd189801830253c66ecd3cd6919ec01b46c34
+- author: AFL++ project
+- license: AGPL-3.0 (relicensed at v5.00c, 2026-06-03: "AFL++ is now an AGPL 3.0 project"; pre-v5 files that could not be switched remain Apache-2.0)
+- published: v5.02c, 2026-06-29
+- accessed: 2026-07-09
+- relevance: the actively developed general-purpose fuzzer (pushed 2026-07-09, 6.6k stars); AGPL is irrelevant for fuzzing pewpew's own parsers (tool use, no linking) but must be recorded
+
+### [S1142] espressif/esp-protocols — mDNS host unit tests + AFL++ fuzzing harness
+- type: code
+- url: https://github.com/espressif/esp-protocols/tree/master/components/mdns/tests/host_unit_test
+- pinned: espressif/esp-protocols@8f1ecbe6cff5fd9a05498bfa1af3fabf9318e760
+- author: Espressif
+- license: Apache-2.0 (esp-protocols repo)
+- accessed: 2026-07-09
+- relevance: Espressif's own host-fuzzing pattern — "builds the mDNS component as a Linux host binary with stubs for ESP-IDF networking"; Unity/CMock tests under ASan/UBSan + "AFL++ harness that feeds random packets into the receive path" — the template for host-fuzzing pewpew's 11-byte frame parser
+
+### [S1143] GitHub Docs — Events that trigger workflows (schedule, workflow_dispatch)
+- type: docs
+- url: https://docs.github.com/en/actions/reference/events-that-trigger-workflows
+- author: GitHub
+- accessed: 2026-07-09
+- relevance: `schedule` cron (min 5-minute interval; runs may be delayed or dropped under load; default branch only; auto-disabled after 60 days inactivity on public repos) + `workflow_dispatch` manual runs — the constraints that shape soak-as-background-CI-job design
+
+## Block S1150–S1199 — RA-20 Agentic feedback loops
+
+### [S1150] Claude Code docs — Best practices for Claude Code
+- type: docs
+- url: https://code.claude.com/docs/en/best-practices
+- author: Anthropic
+- published: continuously updated; content current as of access (documents 2026-era features: `/goal` conditions, auto permission mode, agent teams, `/code-review` skill)
+- accessed: 2026-07-09
+- relevance: the canonical vendor statement of verification-first agent workflow — "Give Claude a way to verify its work" is the first practice listed; also CLAUDE.md authoring rules, hook/skill/subagent selection, fan-out patterns, adversarial review
+
+### [S1151] Claude Code docs — Hooks reference
+- type: docs
+- url: https://code.claude.com/docs/en/hooks
+- author: Anthropic
+- published: continuously updated; describes behavior as of Claude Code v2.1.139+
+- accessed: 2026-07-09
+- relevance: the deterministic-enforcement mechanism: PreToolUse allow/deny/ask/defer decisions, Stop hooks that block completion until a check passes, TaskCompleted/TeammateIdle quality gates
+
+### [S1152] Claude Code docs — Orchestrate teams of Claude Code sessions (agent teams)
+- type: docs
+- url: https://code.claude.com/docs/en/agent-teams
+- author: Anthropic
+- published: continuously updated; describes v2.1.178+ behavior, feature marked experimental
+- accessed: 2026-07-09
+- relevance: 2026 shape of multi-agent coordination — shared task list, inter-agent messaging, adversarial hypothesis debate, hook-enforced quality gates; documents that teammate messages are never treated as user consent
+
+### [S1153] Anthropic engineering — Writing effective tools for agents — with agents
+- type: article
+- url: https://www.anthropic.com/engineering/writing-tools-for-agents
+- author: Anthropic Applied AI team
+- published: 2025-09-11
+- accessed: 2026-07-09
+- relevance: tool-design principles (high-leverage tools, namespacing, semantic identifiers over UUIDs, token-efficient responses, eval-driven tool iteration) still the reference cited by 2026 material; carried-forward baseline for pewpew's MCP/CLI surfaces
+
+### [S1154] Anthropic engineering — Demystifying evals for AI agents
+- type: article
+- url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+- author: Anthropic
+- published: 2026-01-09
+- accessed: 2026-07-09
+- relevance: current statistical discipline for noisy agent/system tests — pass@k vs pass^k, clean-environment trials, capability evals graduating into continuously-run regression suites, "read the transcripts" verification
+
+### [S1155] Anthropic engineering — How we built Claude Code auto mode
+- type: article
+- url: https://www.anthropic.com/engineering/claude-code-auto-mode
+- author: Anthropic
+- published: 2026-03-25
+- accessed: 2026-07-09
+- relevance: permission tiering for autonomous agents: 93% prompt-approval habituation data, three-tier allowlist→file-ops→transcript-classifier design, five blocked categories, 0.4% FP / 17% FN rates — the template for pewpew's bench-actuation gating
+
+### [S1156] Anthropic engineering — Making Claude Code more secure and autonomous with sandboxing
+- type: article
+- url: https://www.anthropic.com/engineering/claude-code-sandboxing
+- author: Anthropic
+- published: 2025-11 (covered by InfoQ 2025-11)
+- accessed: 2026-07-09
+- relevance: OS-level filesystem + network (proxy-enforced domain allowlist) isolation as the replacement for permission-prompt-per-command; 84% prompt reduction internally; runtime open-sourced (see S1157)
+
+### [S1157] anthropic-experimental/sandbox-runtime — open-source agent sandbox
+- type: code
+- url: https://github.com/anthropic-experimental/sandbox-runtime
+- pinned: anthropic-experimental/sandbox-runtime@00da2a8da0d86751abf6dfd4a8286434d95701e1
+- author: Anthropic
+- license: Apache-2.0
+- published: created 2025-10-20; last push 2026-07-10; 4,617 stars at access
+- accessed: 2026-07-09
+- relevance: the reference implementation of OS-level sandboxing (filesystem + proxy-based network isolation) for coding agents; candidate substrate for confining pewpew bench-driving sessions
+
+### [S1158] AGENTS.md — open format for guiding coding agents
+- type: spec
+- url: https://agents.md/
+- author: originated by OpenAI Codex, Amp, Google Jules, Cursor, Factory; stewarded by the Agentic AI Foundation under the Linux Foundation (donated 2025-12)
+- published: 2025-08 (format announcement); site current as of access
+- accessed: 2026-07-09
+- relevance: the cross-vendor repo-conventions standard — "a README for agents"; 60k+ open-source projects, 25+ agent products consume it; nearest-file-wins proximity rule for monorepos
+
+### [S1159] MCP blog — The 2026-07-28 MCP Specification Release Candidate
+- type: article
+- url: https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
+- author: Model Context Protocol maintainers
+- published: 2026-05-21
+- accessed: 2026-07-09
+- relevance: where MCP is going as of mid-2026: stateless core (no initialize handshake/session header), Tasks extension for long-running tool calls (tools/call returns a task handle; tasks/get / tasks/update / tasks/cancel), extensions framework, Sampling/Roots/Logging deprecated
+
+### [S1160] MCP specification 2025-11-25 — Server tools
+- type: spec
+- url: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
+- author: Model Context Protocol project
+- published: 2025-11-25
+- accessed: 2026-07-09
+- relevance: current-ratified norms for tool safety: human-in-the-loop SHOULD with ability to deny invocations, tool annotations treated as untrusted unless server is trusted, outputSchema/structuredContent for machine-parseable results, isError execution errors designed for agent self-correction, "log tool usage for audit purposes"
+
+### [S1161] beriberikix/awesome-mcp-hardware — curated hardware MCP server list
+- type: code
+- url: https://github.com/beriberikix/awesome-mcp-hardware
+- pinned: beriberikix/awesome-mcp-hardware@50e72818ac70be677fe9c982abba2d77bb97925c
+- author: Jonathan Beri
+- license: Apache-2.0
+- published: created 2025-11-07; last push 2026-04-17; 47 stars at access
+- accessed: 2026-07-09
+- relevance: the best available census of hardware-facing MCP servers (serial, probe-rs debuggers, Saleae logic analyzers, oscilloscopes, STM32/ESP32 build-flash, Modbus/OPC UA); its small size and star count are themselves evidence the space is nascent
+
+### [S1162] Adancurusul/embedded-debugger-mcp — probe-rs debug MCP server
+- type: code
+- url: https://github.com/Adancurusul/embedded-debugger-mcp
+- pinned: Adancurusul/embedded-debugger-mcp@128703b13d3c402a8da2fdbf2f0052cd9c19dbe3
+- author: Adancurusul
+- license: MIT
+- published: created 2025-08-05; last push 2026-06-24; 123 stars at access
+- accessed: 2026-07-09
+- relevance: the most-starred embedded-debug MCP server found — ARM Cortex-M/RISC-V debugging via J-Link/ST-Link/DAPLink through probe-rs; a concrete template for exposing pewpew's bench probes to agents
+
+### [S1163] Adancurusul/serial-mcp-server — serial-port MCP server
+- type: code
+- url: https://github.com/Adancurusul/serial-mcp-server
+- pinned: Adancurusul/serial-mcp-server@6c05e3808dac7f797a574d3f4a2e38f940d7ee4b
+- author: Adancurusul
+- license: MIT
+- published: created 2025-08-06; last push 2026-07-07; 74 stars at access
+- accessed: 2026-07-09
+- relevance: actively maintained (pushed 2 days before access) serial-console MCP surface — read/monitor/write tool split relevant to pewpew's read-vs-actuate tiering for device consoles
+
+### [S1164] Parker Dorris — MCP For Debug Instruments (Switching Context)
+- type: article
+- url: https://www.switchingcontext.com/p/mcp-for-debug-instruments
+- author: Parker Dorris (embedded systems developer)
+- published: 2025-08-16
+- accessed: 2026-07-09
+- relevance: earliest coherent argument for exposing bench instruments to agents via MCP to close the code→observe→debug loop; author's own proof-of-concept "not really" working is honest evidence of 2025 immaturity
+
+### [S1165] GitHub Docs — About Copilot cloud agent (coding agent)
+- type: docs
+- url: https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent
+- author: GitHub
+- published: continuously updated; current as of access
+- accessed: 2026-07-09
+- relevance: the mainstream background-agent shape: issue-in/PR-out, ephemeral GitHub-Actions dev environment where the agent runs tests and linters, copilot-setup-steps.yml, firewall, MCP servers (GitHub + Playwright default), branch-protection containment, 59-minute session cap
+
+### [S1166] Cursor docs — Cloud agents
+- type: docs
+- url: https://cursor.com/docs/cloud-agent
+- author: Cursor (Anysphere)
+- published: continuously updated; current as of access
+- accessed: 2026-07-09
+- relevance: second mainstream background-agent shape: isolated VMs configured via .cursor/environment.json (install/start commands, snapshots, Dockerfiles), "cloud agents can build, test, and interact with the changed software", evidence artifacts (screenshots, videos, logs), hooks for policy checks
+
+### [S1167] OpenAI Codex docs — Cloud tasks
+- type: docs
+- url: https://developers.openai.com/codex/cloud
+- author: OpenAI
+- published: continuously updated; current as of access (redirects to learn.chatgpt.com/docs/cloud)
+- accessed: 2026-07-09
+- relevance: third mainstream background-agent shape: parallel cloud environments with per-repo setup scripts and configurable (default-restricted) internet access; confirms the cross-vendor convergence on sandboxed run-and-verify environments
+
+### [S1168] Justin Poehnelt — You Need to Rewrite Your CLI for AI Agents
+- type: article
+- url: https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/
+- author: Justin Poehnelt, Senior Software Engineer at Google (built the Google Workspace CLI agent-first)
+- published: 2026-03-04
+- accessed: 2026-07-09
+- relevance: concrete 2026 statement of agent-first CLI design from a practitioner who shipped one: deterministic JSON output, runtime schema introspection, --dry-run on mutating operations, adversarial input validation, skill files over --help
+
+### [S1169] Espressif Developer Portal — Developing a Zephyr IoT app with AI
+- type: article
+- url: https://developer.espressif.com/blog/2026/06/zephyr-coding-with-ai/
+- author: Ricardo F. Tafas Jr., Senior Software Manager, Espressif
+- published: 2026-06-15
+- accessed: 2026-07-09
+- relevance: the ESP32 vendor's own mid-2026 account of agent-assisted firmware development: Plan→Execute→Commit→Test loop, "UART as ground truth", journal of failed attempts, component-before-product; notable for testing on real hardware only (no simulator in the loop)
+
+### [S1170] Scrolltest — Flaky Tests: Detection, Quarantine, and Prevention in 2026
+- type: article
+- url: https://scrolltest.com/flaky-tests-detection-quarantine-prevention-guide-2026/
+- author: Scrolltest
+- published: 2026-03-19
+- accessed: 2026-07-09
+- relevance: 2026 flake discipline: run new/changed tests 5–10× pre-merge, flakiness scores per test, quarantine lanes with owner + two-week deadline, blind retries explicitly deprecated ("a test that needs retries to pass consistently is still broken")
+
+### [S1171] Sentry docs — Seer (AI debugging agent)
+- type: docs
+- url: https://docs.sentry.io/product/ai-in-sentry/seer/
+- author: Sentry
+- published: continuously updated; current as of access
+- accessed: 2026-07-09
+- relevance: production example of a telemetry-watching background agent: auto-scans incoming issues, background root-cause analysis over traces/logs/profiles, hands fixes off to Claude Code / Cursor cloud agents / Copilot; PR creation gated on explicit human prompt with org-level disable controls
+
+### [S1172] Sentry press release — Sentry Launches Seer Agent
+- type: article
+- url: https://sentry.io/about/press-releases/sentry-launches-seer-agent/
+- author: Sentry
+- published: 2026-04-28
+- accessed: 2026-07-09
+- relevance: dates the telemetry-agent pattern going mainstream (natural-language investigation over errors, spans, logs, traces); companion 2026-01-27 release extended Seer to local dev and code review
+
+### [S1173] PPC Land — llms.txt adoption rises 8.8x but 97% of files get zero AI requests
+- type: article
+- url: https://ppc.land/llms-txt-adoption-rises-8-8x-but-97-of-files-get-zero-ai-requests/
+- author: PPC Land
+- published: 2026 (May–June; reports OtterlyAI 90-day measurement: 84 of 62,100 AI bot requests hit llms.txt)
+- accessed: 2026-07-09
+- relevance: evidence that llms.txt failed as a machine-readable context standard (no major LLM provider crawler supports it), in contrast to AGENTS.md's adoption — calibrates which "machine-readable project map" conventions actually won
+
+## Block S1200–S1249 — RA-21 Fleet resilience
+
+### [S1200] ESP-IDF Watchdogs guide (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: first-party reference for IWDT/TWDT/XTWDT config, defaults, and the subscribe/reset API a render loop must use
+
+### [S1201] ESP-IDF Fatal Errors guide (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/fatal-errors.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: panic-handler behaviors (CONFIG_ESP_SYSTEM_PANIC), Guru Meditation classes, brownout reset behavior, RTC-watchdog-as-final-failsafe
+
+### [S1202] ESP-IDF Core Dump guide (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/core_dump.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: core-dump-to-flash config, ELF format, SHA256 integrity, partition sizing formula — the black-box recorder for crashed nodes
+
+### [S1203] esp-idf espcoredump runtime API (esp_core_dump.h)
+- type: code
+- url: https://github.com/espressif/esp-idf/blob/master/components/espcoredump/include/esp_core_dump.h
+- pinned: espressif/esp-idf@f0887bcf8763266effe3fa0b358340df226a04b5
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: proves programmatic on-device retrieval: esp_core_dump_image_check/image_get/image_erase, esp_core_dump_get_summary, esp_core_dump_get_panic_reason
+
+### [S1204] ESP-IDF Miscellaneous System API (esp_reset_reason)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: full esp_reset_reason_t enum (PANIC, INT_WDT, TASK_WDT, BROWNOUT, PWR_GLITCH, CPU_LOCKUP…), shutdown handlers, esp_get_minimum_free_heap_size
+
+### [S1205] ESP-IDF Non-Volatile Storage (NVS) docs
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: log-structured append semantics (÷126 erase amortization), power-loss guarantees, CONFIG_NVS_FLASH_VERIFY_ERASE for weak supplies — the write-frequency discipline evidence
+
+### [S1206] ESP32-S3 brownout Kconfig (Kconfig.power)
+- type: code
+- url: https://github.com/espressif/esp-idf/blob/master/components/esp_hw_support/power_supply/port/esp32s3/Kconfig.power
+- pinned: espressif/esp-idf@f0887bcf8763266effe3fa0b358340df226a04b5
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: exact S3 brownout levels — default LVL_SEL_7 ≈ 2.44 V up to 3.30 V — with Espressif's own in-file caveat that the voltages are estimates
+
+### [S1207] ESP32-S3-MINI-1/1U module datasheet
+- type: datasheet
+- url: https://documentation.espressif.com/esp32-s3-mini-1_mini-1u_datasheet_en.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: –40 to 85 °C operating ambient, flash endurance 100,000 P/E cycles / 20-year retention — thermal-derating and NVS-wear anchors
+
+### [S1208] esp32.com: preserving error info between reboots with RTC_NOINIT_ATTR
+- type: forum
+- url: https://esp32.com/viewtopic.php?t=16659
+- author: esp32.com community (Espressif-hosted forum)
+- accessed: 2026-07-09
+- relevance: RTC_NOINIT_ATTR survives SW/WDT/panic resets but not power loss or brownout; caller must gate re-init on reset reason — the crash-counter mechanism
+
+### [S1209] esp-idf issue #9400: WiFi stuck while connecting, watchdog not triggered
+- type: forum
+- url: https://github.com/espressif/esp-idf/issues/9400
+- author: espressif/esp-idf issue tracker
+- published: 2022-07
+- accessed: 2026-07-09
+- relevance: first-party tracker evidence that the WiFi stack can wedge in states the default watchdogs do not catch — motivates application-level radio liveness supervision
+
+### [S1210] ESPHome Safe Mode component docs
+- type: docs
+- url: https://esphome.io/components/safe_mode/
+- author: ESPHome project (Open Home Foundation)
+- accessed: 2026-07-09
+- relevance: production boot-loop-detection pattern: N consecutive failed boots (default 10) → minimal firmware with only network+OTA; boot "good" after 1 min; the safe-mode design pewpew should copy
+
+### [S1211] esphome issue #15796: safe-mode counter misses setup-phase crashes
+- type: forum
+- url: https://github.com/esphome/esphome/issues/15796
+- author: esphome issue tracker
+- published: 2024
+- accessed: 2026-07-09
+- relevance: documented gap in the counter-in-app pattern — a crash before the counter increments defeats boot-loop detection; argues for bootloader-side or earliest-init counting
+
+### [S1212] Memfault MCU coredump docs
+- type: docs
+- url: https://docs.memfault.com/docs/mcu/coredumps
+- author: Memfault
+- accessed: 2026-07-09
+- relevance: what a commercial device-observability pipeline captures on fault (registers, tasks, selected RAM regions), store-then-upload-on-next-boot, fallback to minimal trace if storage fails
+
+### [S1213] Memfault MCU reboot reason tracking docs
+- type: docs
+- url: https://docs.memfault.com/docs/mcu/reboot-reason-tracking
+- author: Memfault
+- accessed: 2026-07-09
+- relevance: two-source reboot attribution (hardware register + software-marked imminent reason), noinit-RAM tracking, expected-vs-unexpected classification, bootloop metric — the forensics-minimum reference design
+
+### [S1214] Memfault OTA & release management docs
+- type: docs
+- url: https://docs.memfault.com/docs/platform/ota
+- author: Memfault
+- accessed: 2026-07-09
+- relevance: cohorts + percentage staged rollout + fleet-health comparison charts as the abort signal — vendor-practice reference for rollout rings
+
+### [S1215] Interrupt (Memfault) — watchdog timer best practices guide
+- type: article
+- url: https://interrupt.memfault.com/blog/firmware-watchdog-best-practices
+- author: Interrupt / Memfault engineering blog
+- accessed: 2026-07-09
+- relevance: hardware WDT as last resort + software WDT for state capture; feed from a low-priority task, never a timer ISR; all-tasks-check-in pattern; always-reboot-never-wedge stance
+
+### [S1216] Google SRE Workbook ch. 16 — Canarying Releases
+- type: article
+- url: https://sre.google/workbook/canarying-releases/
+- author: Google (Site Reliability Workbook)
+- published: 2018
+- accessed: 2026-07-09
+- relevance: canary definition, population sizing vs blast radius, metric selection, small-population caveats — the discipline to shrink to 50 nodes
+
+### [S1217] AWS IoT Device Management — job rollout, abort, timeout, retry configurations
+- type: docs
+- url: https://docs.aws.amazon.com/iot/latest/developerguide/jobs-configurations-details.html
+- author: Amazon Web Services
+- accessed: 2026-07-09
+- relevance: production fleet-OTA machinery: exponential rollout rates gated on success counts, abort on failure-percentage thresholds, maintenance windows — "avoid a bad update from being sent to an entire fleet"
+
+### [S1218] balena docs — release policies (fleet default vs device pinning)
+- type: docs
+- url: https://docs.balena.io/learn/deploy/release-strategy/release-policy/
+- author: balena
+- accessed: 2026-07-09
+- relevance: per-device release pinning "when performing a canary deployment" — the small-fleet adaptation of rollout rings
+
+### [S1219] Golioth OTA docs — cohorts, packages, rollout
+- type: docs
+- url: https://docs.golioth.io/device-management/ota/
+- author: Golioth
+- accessed: 2026-07-09
+- relevance: cohort-based targeting and a rollout toggle (stage a release, notify on enable, unselect to roll back) sized for small/mid IoT fleets
+
+### [S1220] Principles of Chaos Engineering
+- type: article
+- url: https://principlesofchaos.org/
+- author: Chaos community (originating at Netflix)
+- published: 2019 (last revision)
+- accessed: 2026-07-09
+- relevance: canonical definition, steady-state hypothesis, vary-real-world-events, minimize blast radius — the principles RA-21 adapts to a 50-node bench
+
+### [S1221] Kalka & Szydlo — µChaos: Moving Chaos Engineering To IoT Devices (ICCS 2024)
+- type: article
+- url: https://www.iccs-meeting.org/archive/iccs2024/papers/148380231.pdf
+- author: Wojciech Kalka, Tomasz Szydlo (AGH Krakow / Newcastle University)
+- published: 2024
+- accessed: 2026-07-09
+- relevance: the state of embedded chaos engineering — open-source Zephyr-OS fault-injection component (CPU, memory, network, sensor, application faults via serial API); documents that end-device chaos tooling barely exists
+
+### [S1222] Candea & Fox — Crash-Only Software (HotOS IX, 2003)
+- type: article
+- url: https://www.usenix.org/legacy/events/hotos03/tech/full_papers/candea/candea_html/index.html
+- author: George Candea, Armando Fox (Stanford)
+- published: 2003-05
+- accessed: 2026-07-09
+- relevance: the academic case for reboot-as-recovery: one way to stop (crash) and one way to start (recover) yields simpler, more reliable systems — grounds the self-reboot-on-anomaly stance
+
+### [S1223] Doug Fleenor Design — DMX512 to 0-10 V Analog Converter owner's manual
+- type: docs
+- url: https://www.dfd.com/pdf/24anl-man.pdf
+- author: Doug Fleenor Design
+- published: 2019-07 (manual revision)
+- accessed: 2026-07-09
+- relevance: stage-lighting hold-last-look convention in writing: holds last levels on DMX loss until control restored or power removed; levels reset to zero on power-up; optional jumper for blackout ~1 s after loss
+
+### [S1224] ANSI E1.11-assoc. ANSI E1.31-2016 — sACN (Streaming ACN)
+- type: spec
+- url: https://tsp.esta.org/tsp/documents/docs/E1-31-2016.pdf
+- author: ESTA Technical Standards Program
+- published: 2016
+- accessed: 2026-07-09
+- relevance: codified loss-of-data machinery: E131_NETWORK_DATA_LOSS_TIMEOUT (2.5 s of silence) and the stream-terminated option bit (sent 3×) — receiver-local timers decide degradation, no consensus
+
+### [S1225] Battery University BU-502 — Discharging at High and Low Temperatures
+- type: article
+- url: https://batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures
+- author: Battery University (Cadex Electronics)
+- accessed: 2026-07-09
+- relevance: capacity ≈50 % at –18 °C, internal-resistance rise in cold, cycle-life loss above 30 °C — battery-vs-temperature priors for outdoor fleet planning
+
+### [S1226] MacroFab — Conformal Coating vs. Potting/Encapsulation
+- type: article
+- url: https://www.macrofab.com/blog/conformal-coating-vs-potting-encapsulation
+- author: MacroFab (electronics manufacturer engineering blog)
+- accessed: 2026-07-09
+- relevance: protection-vs-serviceability tradeoff: thin coatings (~25–75 µm) rework-friendly and thermally benign; potting seals to IP67/68 but kills rework and stresses solder joints in thermal cycling
+
+### [S1227] PCBCart — Burn-In Testing: Filtering Out Infant Mortality
+- type: article
+- url: https://www.pcbcart.com/article/content/burn-in-testing-electronics-reliability.html
+- author: PCBCart (electronics manufacturer)
+- accessed: 2026-07-09
+- relevance: bathtub-curve rationale for pre-deployment soak; typical durations (8–48 h consumer, up to 168 h high-reliability) under elevated temperature/voltage/load
+
+### [S1228] Reliability Analytics Toolkit — Poisson spares analysis
+- type: docs
+- url: https://reliabilityanalyticstoolkit.appspot.com/poisson_spares_analysis
+- author: Reliability Analytics (method per USAF Rome Laboratory Reliability Engineer's Toolkit, 1993)
+- accessed: 2026-07-09
+- relevance: the standard spares formula: Poisson on population × failure rate × resupply interval at a chosen confidence — the method RA-21 applies to a 50-node fleet
+
+### [S1229] Advatek PixLite 16 Plug & Play Mk2 user manual
+- type: docs
+- url: https://cdn.prod.website-files.com/6526c8266f9d6acac8ef145f/661d4804085c9f0866d03279_PixLite%2016%20Plug%20And%20Play%20Mk2%20User%20Manual_20230823.pdf
+- author: Advatek Lighting
+- published: 2023-08-23
+- accessed: 2026-07-09
+- relevance: professional outdoor-pixel install practice: IP67 screw-lock connectors with gold pins, warning that poor waterproofing lets rain short supply onto data lines, ≤15 m controller-to-first-pixel rule
