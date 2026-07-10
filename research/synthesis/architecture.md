@@ -6,8 +6,10 @@ Status: Proposed (Phase 3 synthesis). Every major decision links to an ADR in
 in [`requirements.md`](requirements.md).
 
 pewpew is a **Python-first addressable-LED engine** with one pattern contract
-spanning three tiers: a host engine (room-scale), dumb network receivers
-(portable/room), and an on-device ulab runtime (wearable). Its differentiator
+spanning four tiers: a host engine (room-scale), dumb network receivers
+(portable/room), an on-device ulab runtime (wearable), and an autonomous
+mesh-group tier (independent fixtures coordinating leaderlessly over
+ESP-NOW, §4d). Its differentiator
 is the union no existing system has (see
 [comparison-matrix.md](comparison-matrix.md#what-no-single-system-has--what-pewpew-uniquely-combines)):
 live Python pattern authoring, a float-linear quantize-once pipeline, 16-bit
@@ -42,6 +44,10 @@ transport, and vectorized execution of a per-pixel authoring surface.
   WEARABLE TIER (standalone, no host): CircuitPython + ulab on RP2350 / nRF52840
     same pattern contract (ulab mirrors NumPy) ──► on-device pipeline (16-bit) ──► PIO/SPI output
     phone tweaks over BLE GATT; baked-frames fallback for patterns outside the ulab subset
+
+  MESH GROUP TIER (autonomous fixtures, host optional): ESP32-S3 nodes, local render + 16-bit/dither
+    ~11 B state broadcasts (ESP-NOW, 10 Hz) ──► epoch gossip + optional firefly beat ──► coordinated autonomy
+    host joins via USB serial-dongle gateway ◄──► fleet; wearables listen via a BLE bridge node
 ```
 
 Tier responsibilities (details in §4):
@@ -51,6 +57,7 @@ Tier responsibilities (details in §4):
 | Host engine | Everything for portable/room | Host: float pipeline; receiver: dither where firmware allows | [ADR-001](decisions/ADR-001-internal-color-pipeline.md), [ADR-002](decisions/ADR-002-dithering-strategy.md) |
 | Network receivers | Nothing (dumb sinks) — local effects only as fallback | Stock WLED: none (8-bit); pewpew receiver (phase 4): interpolate+dither | [ADR-004](decisions/ADR-004-receiver-strategy.md) |
 | Wearable | On-device (ulab) | On-device: 16-bit pipeline + dither at ≥400 Hz | [ADR-008](decisions/ADR-008-wearable-tier-strategy.md) |
+| Mesh group | On-device (S3 firmware), autonomous | On-device: 16-bit + dither, DMA-only output under radio (M-6) | [ADR-014](decisions/ADR-014-mesh-transport.md), [ADR-015](decisions/ADR-015-mesh-coordination.md), [ADR-016](decisions/ADR-016-mesh-gateway-and-bridges.md) |
 
 ## 2. Render pipeline, stage by stage (host tier)
 
@@ -174,6 +181,54 @@ idle on nRF52840 [S411][S412] (req W-5). Compile-to-VM (Pixelblaze's model
 [S681:pixelblaze/pixelblaze.py#L1490-L1512]) is explicitly deferred: highest
 performance-per-flexibility but a compiler+VM maintenance burden the evidence
 doesn't yet justify.
+
+### 4d. Mesh group tier
+
+Decisions ([ADR-014](decisions/ADR-014-mesh-transport.md),
+[ADR-015](decisions/ADR-015-mesh-coordination.md),
+[ADR-016](decisions/ADR-016-mesh-gateway-and-bridges.md)): **25–50 autonomous
+ESP32-S3 fixtures, each rendering locally at ~60 fps with the full quality
+pipeline, coordinating leaderlessly over ESP-NOW broadcast — ~11-byte
+fixed-layout state frames at ~10 Hz, no ACKs, no membership, no central
+clock.** This tier inverts the host-engine relationship: nodes are
+self-sufficient by default and the host is an optional guest.
+
+- **Transport**: unencrypted ESP-NOW broadcast on one fixed fleet channel;
+  default 1 Mbps carries 50 nodes at ~31 % airtime; the ~150-node ceiling
+  requires raising the broadcast TX rate to 6–11 Mbps (still decodable by
+  default-config peers) [S806][S817][S811]. Every mesh alternative surveyed
+  fails structurally at this workload — softAP+STA trees on root-SPOF and
+  scaling collapse, flooding meshes on spec-capped origination rates, LoRa
+  on duty-cycle law [S851][S854][S855][S862][S867][S873] (RA-14).
+- **Coordination** (ADR-015): parameter state rides every beacon as a
+  `(session_id, epoch, params)` LWW register — a state-based CRDT, so every
+  node relays without knowing it [S907][S912]; a host edit converges
+  fleet-wide in ~200–400 ms at 50 nodes even at 20 % loss [S905][S906],
+  which is what makes the §8 live-editing loop reach this tier (M-4). Beat
+  phase, when wanted, is a pulse-coupled (firefly) oscillator with reachback
+  and stagger — timestamp-free, ms-class, proven convergent under loss
+  [S900][S901][S903]. Inter-group waves are gradient/activation fields, not
+  literal CA rules (which dissolve under asynchrony [S914][S915]).
+- **Node firmware** (RA-16): ESP-IDF 5.5.x; WiFi/ESP-NOW callbacks
+  copy-and-enqueue on core 0, render + quantize-once + dither + DMA on
+  core 1 [S957][S800]. LED output is DMA-only under active radio — SPI-DMA
+  for clocked chips (≥400 Hz with margin at 500 px), LCD_CAM parallel or the
+  single RMT-DMA lane for one-wire; interrupt-refilled RMT is disqualified
+  by a decade of WiFi-glitch evidence [S963][S964][S955][S951].
+- **Host access** (ADR-016): a USB serial-dongle gateway (ESP32-S3 on the
+  host, Zigbee-coordinator pattern) bridges the Python control plane into
+  the broadcast domain without chaining the fleet to any AP's channel
+  [S1001][S1015][S1000]; telemetry returns as slow phase-offset status
+  beacons. Fleet OTA is standard dual-slot + rollback in maintenance
+  windows — never mesh-gossiped [S1003][S1006].
+- **Wearables** (ADR-016): a dedicated non-rendering S3 bridge re-emits
+  group state as BLE manufacturer-data advertisements; nRF52840 wearables
+  duty-cycle-scan it for ~0.04–0.2 mA — scene/palette/tempo within 1–2 s,
+  beat-phase deliberately excluded [S1050][S1051][S1057].
+
+The P-6 hold-and-revert contract generalizes here to the tier itself: with
+no host and no gateway, nothing degrades — the fleet keeps coordinating on
+the last-set epoch (M-5) [S907][S903].
 
 ## 5. Parameterization & control plane
 
@@ -460,6 +515,18 @@ since 2023, niche lost to WLED [S364]); HinksPix (Windows/holiday-show
 ecosystem mismatch [S363]). Advatek is fine gear priced for paid installs —
 not for this project [S362].
 
+**Mesh-tier nodes & bridges — buy:** ESP32-S3 with PSRAM for every
+mesh-tier role — group node, gateway dongle, BLE bridge — one SKU, three
+firmwares (fleet fungibility per ADR-016); S3 specifically because it is
+"the only chip with RMT DMA" and carries LCD_CAM parallel + a free core for
+rendering under radio [S963][S955]. On mesh nodes prefer clocked chips
+(HD107s/SK9822) or ≤74 px/line one-wire runs so the ≥400 Hz dither budget
+survives (M-6) [S971][S106]. **Avoid** for mesh nodes: ESP32-C3/C6
+(single-core, no RMT-DMA/LCD advantage [S1065][S963]); any one-wire run
+>300 px/line on a dithered node (≈108 Hz ceiling) [S106][S105]. Toolchain
+note: official PlatformIO is waning for Arduino-ESP32 3.x — use ESP-IDF
+5.5.x directly or pioarduino [S959][S960][S961].
+
 **Hosts — buy:** Pi 5 or N100-class mini-PC, wired gigabit (req R-8); the
 Pi 5's broken native WS2812 output is irrelevant when receivers do the pixel
 wiggling [S367][S368]. Pi Zero 2 W only as a per-prop portable host (WiFi-
@@ -523,6 +590,15 @@ FSEQ-style baked-frames fallback ([ADR-008]). pewpew receiver firmware
 dithering — the field's biggest unclaimed quality lever [S600][S054][S251]
 ([ADR-004]).
 
+**Phase 5 — the mesh group tier.** Builds on the Phase-4 receiver firmware
+(same S3 render/dither core): ESP-NOW state radio + epoch gossip
+([ADR-014], [ADR-015]), gateway dongle firmware + host-side serial driver
+([ADR-016]), the coordination simulator in the §8 preview harness (the CA/
+gradient-field aesthetics sweep is a preview-side deliverable, not
+firmware), then the optional firefly beat layer and the wearable BLE
+bridge. Mesh benches (§12 items 15–20) gate the fleet buy, not the design —
+25–50 nodes at defaults is already inside the evidence.
+
 ## 12. Prototype-to-verify
 
 Claims the research could not settle from sources — only a bench settles
@@ -545,7 +621,16 @@ to [requirements.md](requirements.md).
 | 12 | OKLab blending is affordable on the wearable tier (§2 stage 1) | No fixed-point MCU OKLab implementation found [RA-02] | ulab OKLab µbenchmark on RP2350 |
 | 13 | CPython paces a 16.7 ms tick with low jitter under real load (ADR-010's silent dependency: GC pauses, GIL contention with the capture thread, sleep quantization) | Item 1 benches throughput, not pacing jitter; cadence consistency is what device interpolation is hostage to [RA-06] | 10-min soak of the paced loop on Pi 5, tick-error histogram (p99 vs 16.7 ms) with GC active + audio thread running |
 | 14 | One stock WLED node sustains 60 fps unicast DDP ingest at its assigned pixel count (ADR-004's day-one Phase 1 path) | Item 3 benches Push skew, item 10 AP capacity — nothing benches per-receiver sustained ingest on real firmware [RA-04] | One ESP32 + one S3 WLED node, 60 fps unicast DDP at 300/800/2000 px, measure delivered fps/drops |
+| 15 | ESP-NOW broadcast delivery holds at fleet load (M-1): the 31 %-@50-nodes airtime figure is computed, not sniffed; hidden-node and beacon-phase-alignment behavior unknown [RA-13] | Only published fleet datapoint is a bot-walled 13-node/~20 %-loss report [S816][NEEDS-VERIFICATION] | 10–20 S3 senders × 11 B × 10 Hz, monitor-mode sniffer counting per-sender PDR at 1/6/11 Mbps; three-cluster hidden-node variant; fixed vs ±10 % jittered timers |
+| 16 | Timestamp-free firefly beat phase reaches tens-of-ms spread and converges in tens of periods at 25+ nodes (ADR-015 Layer 2) | µs-class literature results all use MAC timestamps [S901]; the ms-class claim is reasoned from RA-13 latency, not measured [RA-15] | N nodes running staggered-reachback PCO, GPIO toggled at each local downbeat, logic analyzer measures group spread vs node count and load; also settles whether the tx-done callback yields a usable timestamp |
+| 17 | S3 LED output is glitch-free under mesh radio for weeks, and LCD X8 cadence fits SK6812 timing (M-6) | RMT-DMA has open board-specific bugs [S965][S966]; LCD T0H ≈417 ns is marginal for some one-wire variants [S956][RA-16] | 2-week soak: RMT-DMA + LCD X8 + SPI-DMA outputs with ESP-NOW 10 Hz + STA traffic, logic analyzer on data lines; SK6812 datasheet-window check |
+| 18 | 16-bit pipeline + dither costs ~13 % of one S3 core at 500 px/400 Hz (M-6) | No published benchmark of HD-gamma/dither cost on any ESP32 exists (searched 2026-07-09) — the figure is arithmetic [RA-16] | Cycle-count the quantize+dither loop on S3 (FastLED five_bit_hd_gamma as reference), with radio active |
+| 19 | Gateway command path is low-single-digit ms, and the fallback STA gateway actually receives broadcasts (ADR-016) | No published S3 USB-CDC round-trip figure; the STA BSSID broadcast-filter claim is disputed and would silently break the fallback's RX path [S1002][RA-17] | 30-min bench: host→dongle echo timestamps; two-board test of broadcast RX while STA-associated on IDF 5.x |
+| 20 | The BLE bridge misses <~20 % of mesh broadcasts while advertising, and a wearable scan-while-render holds 60 fps at ~0.2 mA (M-9) | Coexistence matrix says "stable" but publishes no loss numbers [S1053]; no data on CircuitPython scan-under-render jitter [S1062][RA-18] | Two-node bridge bench with counters both sides (escalate to two-chip UART bridge if worse); fire benchmark + 30 ms/1 s scan on Feather nRF52840 with PPK2 on the rail |
 
 Items 1–2 and 13 gate Phase 1 (13 gates ADR-010); 3–6 and 14 gate Phase 2/3
 defaults (14 gates ADR-004; they can only *retune* constants, not change
-structure); 7–12 gate Phase 3/4 details.
+structure); 7–12 gate Phase 3/4 details; 15–20 gate Phase 5 (the mesh tier:
+15–16 gate ADR-014/015 constants at the ceiling, 17–18 gate M-6 output-driver
+choices, 19–20 gate ADR-016's fallback gateway and bridge dispositions — none
+change the tier's structure at the 25–50 node design target).

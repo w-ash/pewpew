@@ -1,13 +1,14 @@
 # pewpew requirements — per form factor, with cited rationale
 
-Date: 2026-07-03
+Date: 2026-07-03 (M tier added 2026-07-09)
 Status: Proposed (Phase 3 synthesis; numbers marked *prototype* must be
 confirmed by the benchmarks listed in
 [`architecture.md`](architecture.md#prototype-to-verify)).
 
 Every numeric requirement cites the evidence that motivates it. Requirement
-IDs (`Q-*` common, `W-*` wearable, `P-*` portable, `R-*` room) are stable and
-referenced from [`architecture.md`](architecture.md) and the ADRs.
+IDs (`Q-*` common, `W-*` wearable, `P-*` portable, `R-*` room, `M-*` mesh
+group) are stable and referenced from [`architecture.md`](architecture.md)
+and the ADRs.
 
 ## Q. Common quality bar ("better than clown mode")
 
@@ -67,6 +68,24 @@ and [ADR-002](decisions/ADR-002-dithering-strategy.md).
 | R-9 | Engine throughput | ≥20k px × 60 fps (1.2 M px·frames/s) of pattern evaluation + pipeline on a Pi 5-class host — *prototype: no published NumPy benchmark exists at this scale* | Vectorization buys 1–2 orders of magnitude over per-pixel Python (10× measured even on RP2040 [S400][S211]); per-pixel CPython caps at ~22.5k px/s (led-control) [S660:README.md#L17-L24][S210]; the 5k–50k px NumPy figure is the known measurement gap [RA-05 open questions]. |
 | R-10 | Multi-receiver sync | All receivers of one canvas latch the same frame within ≤1 frame period of each other | DDP broadcast-Push / E1.31 sync / ArtSync all exist for this [S150][S157][S159]; no source measures actual skew on WiFi — prototype item. FPP MultiSync's position-sync model is the fallback for pre-rendered content [S256][S163]. |
 
+## M. Mesh group tier (independent light groups, coordinated autonomy)
+
+Justified in [ADR-014](decisions/ADR-014-mesh-transport.md),
+[ADR-015](decisions/ADR-015-mesh-coordination.md),
+[ADR-016](decisions/ADR-016-mesh-gateway-and-bridges.md).
+
+| ID | Requirement | Value | Rationale |
+|---|---|---|---|
+| M-1 | Group count | 25–50 groups design target; ~150 engineering ceiling only with a raised broadcast TX rate (6–11 Mbps) | Computed airtime at 11 B × 10 Hz × 1 Mbps: ~31 % channel utilization at 50 nodes (stable CSMA regime), ~94 % at 150 (saturated); 6 Mbps drops 150 nodes to ~15 % and stays decodable by default-config receivers [S806][S817][S811]. Measured broadcast PRR ≥99 % at healthy RSS even under co-channel load [S806]. |
+| M-2 | Radio traffic is **state-only** | ~11-byte fixed-layout broadcast at ~10 Hz per node; never streamed pixels between nodes; payloads stay ≤250 B (v1 envelope) | Frame overhead dominates tiny payloads (43 B + preamble = 86 % of airtime at 1 Mbps — shrinking or modestly growing the payload changes little) [S806][S817]; v1/v2 mixing is safe ≤250 B [S800]. 10 Hz inter-group stepping sits inside the apparent-motion window (~30–400 ms ISI) for propagating waves [S916]. |
+| M-3 | Leaderless, no central clock | Coordination = epoch'd LWW gossip + optional pulse-coupled beat phase; any node may join/fail/partition at any time; partitions stay internally coordinated and merge deterministically | LWW max-epoch register is a state-based CRDT — converges under loss/reorder/duplication with zero coordination [S907][S912]; PCO convergence is proven with stochastic pulse delivery as part of the proof [S903][S900]. |
+| M-4 | Live-parameter propagation (the playground) | Host edit visible fleet-wide ≤500 ms; expected ~200–400 ms at 50 nodes even at ~20 % loss | Gossip-over-physical-broadcast converges in ~2–3 beacon intervals; a straggler misses a round w.p. p^(informed neighbors) — vanishing after round one [S905][S906]; +1 beacon interval per radio hop beyond gateway range [S905]. |
+| M-5 | Host-optional operation | Fleet fully functional with no host (extends P-6's contract to the tier level); gateway removal is graceful by construction | Membership-free broadcast has no join/quorum to lose [S905][S903]; the serial-dongle gateway is exactly as removable as the host itself [S1001][S1015]. |
+| M-6 | Node quality pipeline unchanged | Q-1…Q-8 apply per node: 16-bit + temporal dithering on-device; **DMA-only LED output paths under active radio** (SPI-DMA clocked / LCD_CAM parallel / single RMT-DMA lane); one-wire dither rate is length-bound (400 Hz at ~74 px/line RGB) — prefer clocked chips or parallel splits on large nodes | Interrupt-refilled RMT glitches under WiFi (Espressif's own docs; S3 is "the only chip with RMT DMA") [S963][S964][S951]; SPI-DMA and LCD parallel are radio-immune [S954][S955]; 500 px HD107s needs only ≥6.6 MHz SPI for 400 Hz [S101][S971]; one-wire per-length ceilings per Q-4 [S106][S105]. |
+| M-7 | Interop framing | Fixed fleet-wide RF channel (firmware constant; change = OTA); unencrypted broadcast + app-layer integrity (magic/version byte); compatible with peer fleets' compact fixed-layout state broadcasts | ESP-NOW channel is locked to the WiFi interface's channel [S802][S815][S1000]; broadcast cannot be encrypted and encrypted peers cap at 17 — unencrypted + app-layer integrity is forced at fleet scale [S800][S806]; runtime channel mutation strands nodes that miss the command [S1000]. |
+| M-8 | Fleet OTA | Standard dual-slot OTA + rollback + signed images, in deliberate maintenance windows; **no mesh-gossiped firmware**; nodes self-report running version via telemetry | IDF dual-slot/rollback/signing is the boring core [S1003]; mesh OTA's observability failure is documented by its own practitioners [S1006][S1005]; `esp_app_desc_t` gives version introspection [S1013]; ESP-NOW OTA ("50 devices in 3 min") recorded as escape hatch [S1001]. |
+| M-9 | Wearable participation | Via BLE bridge only: scene/palette/tempo with ≤1–2 s freshness at ≤0.2 mA average scan cost; **beat-phase excluded** (wearables free-run a tempo-disciplined local beat clock) | ~27 usable MSD bytes ≥ 2× the payload [S1050]; duty-cycled nRF52840 observer ≈ 0.04–0.2 mA — ADR-008's budget preserved [S1051][S1052]; advDelay + scan aliasing + GC cap phase at tens of ms [S1057][S1062]. |
+
 ## Cross-cutting: standalone-vs-hosted expectations summary
 
 | Tier | Default mode | Host present | Host lost |
@@ -74,3 +93,4 @@ and [ADR-002](decisions/ADR-002-dithering-strategy.md).
 | Wearable | Standalone render on device (W-7) | Phone/laptop over BLE tweaks parameters, pushes patterns [S407][S409] | N/A — device is self-contained |
 | Portable | Receiver local effects (WLED) | Host streams DDP, preempts local [S253] | Hold last frame → revert to local after timeout [S645:wled00/udp.cpp#L410-L456] |
 | Room | Hosted; receivers are dumb sinks | Host streams DDP at 60 fps (R-2) | Same hold/revert contract per receiver; show degrades to per-node local effects [S253][S162] |
+| Mesh group | Autonomous render per node; coordination via 10 Hz state gossip (M-3) | Host joins via gateway dongle, edits parameters live (M-4), collects telemetry [S1001] | Non-event: gossip and beat layers continue leaderless; last host-set epoch persists fleet-wide [S907][S903] |
