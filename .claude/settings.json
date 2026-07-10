@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run pytest:*)",
+      "Bash(uv sync:*)",
+      "Bash(python3 research/tools/merge_sources.py)"
+    ]
+  }
+}
