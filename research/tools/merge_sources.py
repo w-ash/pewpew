@@ -36,6 +36,9 @@ BLOCKS = [
     (950, 999, "Block S950–S999 — RA-16 ESP32-S3 render+radio coexistence"),
     (1000, 1049, "Block S1000–S1049 — RA-17 Fleet ops & mesh gateway"),
     (1050, 1099, "Block S1050–S1099 — RA-18 Wearable bridging"),
+    (1100, 1149, "Block S1100–S1149 — RA-19 Embedded test loops (sim/emulation/HIL)"),
+    (1150, 1199, "Block S1150–S1199 — RA-20 Agentic feedback loops"),
+    (1200, 1249, "Block S1200–S1249 — RA-21 Fleet resilience"),
 ]
 
 ENTRY_RE = re.compile(r"^### \[S(\d+)\]")

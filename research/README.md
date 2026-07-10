@@ -110,6 +110,9 @@ another block.
 | S950–S999 | RA-16 ESP32-S3 render+radio coexistence |
 | S1000–S1049 | RA-17 Fleet ops & mesh gateway |
 | S1050–S1099 | RA-18 Wearable bridging |
+| S1100–S1149 | RA-19 Embedded test loops (sim/emulation/HIL) |
+| S1150–S1199 | RA-20 Agentic feedback loops |
+| S1200–S1249 | RA-21 Fleet resilience |
 
 ## Topic docs
 
