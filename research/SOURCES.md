@@ -2334,3 +2334,1019 @@ is removed.
 - author: WLED community
 - accessed: 2026-07-03
 - relevance: ESP32-C5 (dual-band 2.4/5 GHz WiFi 6) in mass production and requested for WLED since 2025-10; no support landed as of 2026-07-03 — the RA-08 watch item; 5 GHz receivers would relieve the AP-capacity ceiling (completeness-critique sweep 1)
+
+## Block S800–S849 — RA-13 ESP-NOW & fleet scaling
+
+### [S800] ESP-IDF Programming Guide — ESP-NOW (ESP32-S3, latest/v5.x)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_now.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Authoritative API reference: v1 (250 B) vs v2 (1470 B) payload limits and mixing rules, 20-peer table / 7-default-encrypted-peer limits (CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM up to 17), PMK/LMK CCMP encryption model, vendor-specific action-frame layout (category 127, OUI 0x18fe34, 4-byte random field), default 1 Mbps rate, esp_now_set_peer_rate_config, send-callback semantics ("received successfully on the MAC layer" — no app-layer guarantee), "encrypting multicast vendor-specific action frame is not supported", ESP_ERR_ESPNOW_NO_MEM back-pressure guidance, wake-window power save.
+
+### [S801] Espressif ESP-NOW solution overview page
+- type: product
+- url: https://www.espressif.com/en/solutions/low-power-solutions/esp-now
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Vendor positioning: one-to-many and many-to-many topologies, "millisecond-level delay", 200 m open-space range, +21 dBm TX, supported chip families (ESP8266/ESP32/S-series/C-series — Espressif-only, no third-party silicon), coexistence with WiFi and BLE.
+
+### [S802] ESP-FAQ — ESP-NOW section
+- type: docs
+- url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Official FAQ: 20 unicast peers max; ~6 simultaneously controllable encrypted peers; broadcast "theoretically there is no limitation in the number of devices"; ESP-NOW+WiFi STA must share the AP's channel; measured one-to-one throughput 214 kbps (open) / 555 kbps (shielded); default 1 Mbps changeable via esp_wifi_config_espnow_rate; 250 B v1 limit "does not support configuration" (IE-field constraint).
+
+### [S803] arduino-esp32 issue #11261 — "Support ESP-Now Version 2 packet size"
+- type: forum
+- url: https://github.com/espressif/arduino-esp32/issues/11261
+- author: arduino-esp32 community / Espressif maintainers
+- published: 2025-04-19
+- accessed: 2026-07-09
+- relevance: Shows the Arduino-ESP32 ESP_NOW wrapper still capped payloads at ESP_NOW_MAX_DATA_LEN (250 B) as of April 2025 even where the underlying IDF supports v2; 1000-byte v2 frames tested working on ESP32-S3 once the cap is lifted (PR #11524). Evidence that wrapper support lags IDF and that v2 capability is IDF-version-, not hardware-, dependent.
+
+### [S804] Becker et al., "ESP-NOW Performance in Outdoor Environments: Field Experiments and Analysis" (WONS 2025)
+- type: article
+- url: https://dl.ifip.org/db/conf/wons/wons2025/1571077625.pdf
+- author: B. Becker, C. Oberli, J. Zobel, R. Steinmetz, T. Meuser (TU Darmstadt / PUC Chile)
+- published: 2025
+- accessed: 2026-07-09
+- relevance: Best sniffer-verified low-level study found. ESP-NOW (IDF 4.4.6 defaults, ESP32-S3 Heltec boards) transmits 802.11b MPDUs at 1 Mbit/s / 20 MHz; unicast performs up to 31 retransmissions with p-persistent geometric backoff (~481 µs average slot, first retransmission at ~3.4 ms); driver-to-first-transmission latency 2673–2780 µs for 250 B payloads; farmland PDR 99.97 % below 55 m (0.95 m antenna height) collapsing non-monotonically beyond; forest 133/205 positions usable; validated delay model (t_tx = 2800 µs, t_rtx = 3350 µs, n_max = 31). Also confirms CSMA carrier sensing and cites prior latency measurements (1059 µs for 1 B, 1869 µs for 100 B payloads).
+
+### [S805] Espressif Developer Portal — "Data transmission reliability over ESP-NOW protocol in indoor environment"
+- type: article
+- url: https://developer.espressif.com/blog/reliability-esp-now/
+- author: Michal Kubaščík (Espressif developer portal)
+- published: 2024-12-19
+- accessed: 2026-07-09
+- relevance: Official-portal measured writeup: 8 ESP32 sensor nodes unicasting at 4 packets/s indoors through walls to an ESP32-S3/C6 hub; only ~half the node placements delivered reliably; packet loss dominated by building structure; recommends segmenting deployments and app-level delivery control. Grounds the claim that RSS/obstruction, not airtime, is the first-order loss factor at small fleet sizes.
+
+### [S806] Magzym et al., "Synchronized ESP-NOW for Improved Energy Efficiency" (IEEE BlackSeaCom 2023)
+- type: article
+- url: https://www2.compute.dtu.dk/~xefa/files/conf/2023-blacksea-eps-now.pdf
+- author: Y. Magzym, A. Eduard, D. Urazayev, X. Fafoutis, D. Zorbas (Nazarbayev University / DTU)
+- published: 2023
+- accessed: 2026-07-09
+- relevance: Documents the full ESP-NOW frame layout with byte counts (24 B MAC header + 1 B category + 3 B OUI + 4 B random + 7 B vendor-IE header + 0–250 B body + 4 B FCS = 43 B protocol overhead); "No acknowledgment is required for broadcast transmissions"; "The default IEEE802.11 CSMA mechanism is used to avoid collisions"; broadcast not encryptable, app-layer pre-shared keys suggested; LR mode = proprietary modulation at 250/500 kbps requiring all devices set to LR. Measured broadcast PRR at 20 dBm/LR-250kbps indoors: 98.4–100 % at RSS ≥ −72 dBm, 79.8 % at −80.5 dBm, 29.8 % at −92 dBm (always-on receivers); 40 Mbit/s co-channel WiFi interference cost <1 percentage point PRR at −65 dBm.
+
+### [S807] ESP-IDF Programming Guide v5.2 — Wi-Fi Driver (ESP32), Long Range section
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32/api-guides/wifi.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: LR mode specifics: Espressif-proprietary PHY at "1/2 Mbps and 1/4 Mbps"; "reception sensitivity gain of LR is about 4 dB larger than that of the traditional 802.11b mode"; "theoretically, the transmission distance is about 2 to 2.5 times the distance of 11B"; LR works only between Espressif devices ("ESP32 chip series devices (except ESP32-C2)"); recommended when both ends are Espressif and throughput needs are small.
+
+### [S808] WLED docs — ESP-NOW remote (WiZmote) support
+- type: docs
+- url: https://kno.wled.ge/interfaces/infrared/
+- author: WLED project (EUPL-1.2 project; docs page)
+- accessed: 2026-07-09
+- relevance: Established-project ESP-NOW deployment: "Since version WLED 0.14.0-beta3: An ESP-NOW compatible remote control is supported" (WiZmote); remote is identified by MAC address; DIY remotes on ESP32-C3 supported. Shows the fixed-layout small-payload broadcast pattern in a mainstream LED firmware.
+
+### [S809] Arduino-ESP32 documentation — ESP-NOW library (3.x API)
+- type: docs
+- url: https://docs.espressif.com/projects/arduino-esp32/en/latest/api/espnow.html
+- author: Espressif Systems (arduino-esp32, LGPL-2.1)
+- accessed: 2026-07-09
+- relevance: Current Arduino wrapper: ESP_NOW class + ESP_NOW_Peer abstract class, broadcast via dedicated broadcast address, ESP_NOW.getMaxDataLen(); broadcast-slave example receives frames from unregistered senders and registers them on the fly — evidence that reception does not require prior peer registration; same-channel requirement stated.
+
+### [S810] espressif/esp-now application-layer component (User_Guide.md)
+- type: code
+- url: https://github.com/espressif/esp-now
+- pinned: espressif/esp-now@4432294ef6a6cb274b441c0678414455a4055cff
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: Espressif's app layer above raw ESP-NOW: provisioning, bind/control, ESP-NOW OTA ("50 devices can be upgraded in 3 minutes"), debug/log, ECDH + AES128-CCM app-layer security ("16 devices can be configured in 5 seconds"); one-to-many/many-to-many control. User Guide targets IDF release/v4.4–v5.2 — lags current IDF. Last commit 2026-02-04; 766 stars. Reference for app-layer reliability/security patterns over unencrypted broadcast.
+
+### [S811] esp-idf `esp_now.h` header (constants across v5.3/v5.4/v5.5/master)
+- type: code
+- url: https://github.com/espressif/esp-idf/blob/master/components/esp_wifi/include/esp_now.h
+- pinned: espressif/esp-idf@f0887bcf8763266effe3fa0b358340df226a04b5
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: Primary evidence for API evolution, compared across git tags at read time: v5.3 has only ESP_NOW_MAX_DATA_LEN=250; v5.4 introduces ESP_NOW_MAX_DATA_LEN_V2=1490; v5.5 and master correct it to 1470. ESP_NOW_MAX_TOTAL_PEER_NUM=20, ESP_NOW_MAX_ENCRYPT_PEER_NUM=6 at pinned master L32–L37; v1/v2 truncate-or-discard mixing rule L150–L151; esp_now_set_peer_rate_config(peer_addr, wifi_tx_rate_config_t) L283. esp_wifi_config_espnow_rate is marked deprecated in the v5.5 tag ("please use esp_now_set_peer_rate_config() instead", "only work when not use Wi-Fi 6") and is removed entirely at pinned master.
+
+### [S812] ESP-IDF Programming Guide — RF Coexistence (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/coexist.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: WiFi/BLE share one 2.4 GHz RF chain by time-division: "a module cannot receive or transmit data while another module is engaged in data transmission or reception"; dynamic priority arbitration by WiFi state; coexistence table marks ESP-NOW TX stable ("Y") alongside BLE but ESP-NOW RX only "stable in STA mode, otherwise not supported"; recommends CONFIG_ESP_COEX_SW_COEXIST_ENABLE and pinning WiFi/BT tasks to separate cores.
+
+### [S813] "Field Testing and QoS Analysis of ESP-NOW Communication on ESP32" (IEEE, 2024)
+- type: article
+- url: https://ieeexplore.ieee.org/document/10824617/
+- author: IEEE conference publication
+- published: 2024
+- accessed: 2026-07-09
+- relevance: Field QoS measurements: ESP-NOW latency 5.13–46 ms across tested distances; packet loss becomes substantial beyond 180 m; up to 99 % packet error rate at 300 m. (Read via abstract; full text paywalled.)
+
+### [S814] espressif/esp-now issue #115 — "esp_now latency (AEGHB-603)"
+- type: forum
+- url: https://github.com/espressif/esp-now/issues/115
+- author: espressif/esp-now issue tracker
+- published: 2024-03-30
+- accessed: 2026-07-09
+- relevance: User measurement: broadcast latency normally 5–7 ms; when successive sends were spaced <20 ms apart the send queue backed up and latency ballooned to 50–200 ms — concrete evidence of the send-queue congestion failure mode at high offered rates.
+
+### [S815] WLED issue #4063 — "Implement ESP-NOW broadcast on selected channel"
+- type: forum
+- url: https://github.com/Aircoookie/WLED/issues/4063
+- author: WLED community
+- published: 2024-07-19
+- accessed: 2026-07-09
+- relevance: Practitioner statement of the channel constraint: "ESP-NOW sync message is currently transmitted on the same channel as connected WiFi", so nodes not on the AP's channel never hear broadcasts; the only workaround discussed is disconnect-send-reconnect with websocket-client fallout. Real-world consequence of the coexistence channel rule for mixed WiFi/ESP-NOW fleets.
+
+### [S816] esp32.com thread — "ESPNOW messages being dropped" (t=35066)
+- type: forum
+- url: https://esp32.com/viewtopic.php?f=13&t=35066
+- author: esp32.com community
+- accessed: 2026-07-09
+- relevance: Reported fleet-congestion data point: 13 ESP32-C3 nodes each sending up to 10 msg/s (~130 msg/s aggregate on one channel) saw ~20 % packet drop, attributed in-thread to channel congestion; guidance to pace sends on the send callback. NOTE: thread body is behind a bot-challenge wall at access time; figures taken from search-index excerpts — [NEEDS-VERIFICATION].
+
+### [S817] IEEE 802.11-2020 — DSSS/HR-DSSS PHY and DCF MAC timing parameters
+- type: spec
+- url: https://standards.ieee.org/ieee/802.11/7028/
+- author: IEEE
+- published: 2021-02-26
+- accessed: 2026-07-09
+- relevance: Source of the airtime constants used in the fleet-scaling arithmetic: 1 Mbit/s DSSS long PLCP preamble+header = 192 µs; 2.4 GHz DSSS slot time 20 µs, DIFS 50 µs, CWmin 31; group-addressed (broadcast/multicast) frames are never ACKed or retransmitted under DCF. (Standard consulted at parameter level; full text via IEEE Get-802 program.)
+
+### [S818] WLED CHANGELOG — ESP-NOW feature timeline
+- type: docs
+- url: https://github.com/wled/WLED/blob/main/CHANGELOG.md
+- author: WLED project (EUPL-1.2)
+- accessed: 2026-07-09
+- relevance: Dates WLED's ESP-NOW adoption: remote support build 2306270 (2023-06-27, #3237), WiZmote JSON overrides build 2306020, ESP-NOW packet modification build 2402090 (2024-02-09), WiZmote byte-format cleanup build 2409100 (#4114). Confirms stock WLED uses ESP-NOW for remote control only — pixel/effect sync remains UDP-over-WiFi.
+
+## Block S850–S899 — RA-14 Mesh transport alternatives
+
+### [S850] painlessMesh — canonical GitLab repository
+- type: code
+- url: https://gitlab.com/painlessMesh/painlessMesh
+- pinned: painlessMesh/painlessMesh@1b2a02be2603b8a3e418338811326a81642bd46f
+  (GitLab, branch `develop`, HEAD at access time; resolve via
+  https://gitlab.com/painlessMesh/painlessMesh/-/blob/<sha>/<path>)
+- author: painlessMesh contributors (orig. forked from Coopdis/easyMesh)
+- license: GPL-3.0
+- accessed: 2026-07-09
+- relevance: ad-hoc softAP+STA WiFi mesh candidate for the autonomous-group
+  tier; README documents architecture, JSON messaging, heap-bound size limit,
+  and message-loss caveats. Last release v1.5.7 (2025-10-01); last repo
+  activity 2026-06-14; not archived.
+
+### [S851] painlessMesh issue #217 — "mesh is not working on 72 nodes (ESP8266)"
+- type: forum
+- url: https://gitlab.com/painlessMesh/painlessMesh/-/work_items/217
+- author: painlessMesh issue reporter (72-node NodeMCU experiment)
+- accessed: 2026-07-09
+- relevance: best available field data on painlessMesh scaling: 36 nodes OK,
+  26/50 visible at 50 nodes, 0/72 at 72 nodes, with free heap remaining —
+  failure at exactly pewpew's target fleet size.
+
+### [S852] painlessMesh issue #490 — "Maximum number of nodes"
+- type: forum
+- url: https://gitlab.com/painlessMesh/painlessMesh/-/issues/490
+- author: painlessMesh issue reporter (60-node build targeting 200)
+- accessed: 2026-07-09
+- relevance: corroborating scaling report: 40–44 of 60 nodes stable, older
+  nodes drop as new ones join; ~1200-byte subConnectionJson topology payload;
+  200-node question unanswered by maintainers.
+
+### [S853] ESP-IDF Programming Guide — ESP-WIFI-MESH API guide
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/esp-wifi-mesh.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: authoritative description of tree topology, softAP+STA node
+  roles, router-RSSI root election (90% vote threshold), fixed-root/no-router
+  mode, and vendor performance figures (100-device test, 6 layers × 6
+  downstream, per-hop delay 10–30 ms, healing <10 s root / <5 s child).
+
+### [S854] ESP-FAQ — ESP-WIFI-MESH Application Framework
+- type: docs
+- url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/wifi-mesh-development-framework.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Espressif's own steering: "recommended to use our newly released
+  ESP-Mesh-Lite solution, instead of Wi-Fi Mesh" for new designs; no-router
+  caveat that a designated root that crashes cannot be recovered from; claims
+  ESP32 Wi-Fi mesh supports 1,000 devices (≤512 recommended).
+
+### [S855] espressif/esp-mesh-lite — repository incl. User Guide
+- type: code
+- url: https://github.com/espressif/esp-mesh-lite
+- pinned: espressif/esp-mesh-lite@88d690d16bcd505270e512f4050b6871b16e5922
+- author: Espressif Systems
+- license: Apache-2.0 (license text), but mesh core distributed only as
+  precompiled static libraries (components/mesh_lite/lib/libesp_mesh_lite_*.a)
+- accessed: 2026-07-09
+- relevance: Espressif's recommended successor Wi-Fi mesh; IP-layer NAT tree
+  (15 layers × 10 downstream max), per-hop delay 8–12 ms, repair <50 s root /
+  <45 s child on a 50-device test; no_router example requires a statically
+  designated root. Branch release/v1.0 pushed 2025-09-30.
+
+### [S856] Alteriom/painlessMesh — active third-party fork
+- type: code
+- url: https://github.com/Alteriom/painlessMesh
+- pinned: TBD (repo-level citation only: maintenance-status evidence)
+- author: Alteriom
+- license: GPL-3.0
+- accessed: 2026-07-09
+- relevance: evidence on painlessMesh ecosystem health: fork releasing
+  through v1.9.20 (2026-03-27) while upstream idles, but with negligible
+  adoption (9 stars) — the community has not consolidated on a successor.
+
+### [S857] gmag11/painlessMesh — GitHub mirror notice
+- type: code
+- url: https://github.com/gmag11/painlessMesh
+- pinned: TBD (repo-level citation only: mirror/migration status)
+- author: gmag11 (Germán Martín)
+- license: GPL-3.0
+- accessed: 2026-07-09
+- relevance: documents the GitHub→GitLab migration: repo describes itself as
+  "a mirror copy of https://gitlab.com/painlessMesh/painlessMesh" with issues
+  and PRs centralized on GitLab.
+
+### [S858] ESP-IDF Programming Guide — ESP-BLE-MESH overview
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/esp-ble-mesh/ble-mesh-index.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: ESP32 BLE-mesh implementation status: built on Zephyr mesh
+  stack, certified to Mesh Profile v1.0.1 with v1.1 protocol examples;
+  fast-provisioning example claims 100 devices provisioned in 60 s.
+
+### [S859] ESP-BLE-MESH FAQ — coexistence and configuration
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/esp-ble-mesh/ble-mesh-faq.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Wi-Fi + BLE-mesh coexistence on one chip: throughput low without
+  PSRAM, ">1 Mbps" with PSRAM — quantifies the single-radio time-slicing cost
+  relevant to running any BLE stack beside rendering + ESP-NOW interop.
+
+### [S860] Silicon Labs — Bluetooth Mesh 1.1 Network Performance
+- type: docs
+- url: https://docs.silabs.com/btmesh/latest/btmesh-11-network-performance/05-summary
+- author: Silicon Labs
+- accessed: 2026-07-09
+- relevance: largest published physical BLE-mesh measurement: 256 nodes on a
+  38 m × 19 m floor; "latency … below 200 milliseconds, even out to 6 hops if
+  the payload is less than 16 bytes", reliability >99% — but at dispatch
+  intervals of 1.5–3 s per sender, ~15–30× below pewpew's 10 Hz per node.
+
+### [S861] Rondón et al. — "Understanding the Performance of Bluetooth Mesh:
+  Reliability, Delay and Scalability Analysis" (2019)
+- type: article
+- url: https://arxiv.org/abs/1910.03345
+- author: R. Rondón, A. Mahmood, S. Grimaldi, M. Gidlund (Mid Sweden Univ.)
+- published: 2019-10-08
+- accessed: 2026-07-09
+- relevance: peer-reviewed scalability analysis: BLE mesh "is prone to
+  broadcast storm"; in 52–106-device grids, density beyond ~86 devices
+  increases loss and delay; 10% side-traffic pushes loss >10%; avg delay
+  ~250 ms over 10+ hops worst-case; vulnerable to WLAN interference.
+
+### [S862] Bluetooth SIG blog — "How Bluetooth Mesh Networking puts the
+  'large' in large-scale wireless networks" (M. Woolley)
+- type: article
+- url: https://www.bluetooth.com/blog/mesh-in-large-scale-networks/
+- author: Martin Woolley, Bluetooth SIG
+- accessed: 2026-07-09
+- relevance: official SIG capacity framing: 32,767-node theoretical max;
+  spec origination bound "less than 100 Lower Transport PDUs in a moving
+  10-second window" (≤10 msg/s/node — pewpew's rate is at the cap); "ten
+  relays will more or less multiply the number of packets … by ten".
+
+### [S863] TI SimpleLink BLE5-Stack User's Guide — Developing a Bluetooth
+  Mesh Application
+- type: docs
+- url: https://software-dl.ti.com/simplelink/esd/simplelink_cc13x2_26x2_sdk/4.40.00.44/exports/docs/ble5stack/ble_user_guide/html/ble-mesh/developing-a-ble-mesh-application.html
+- author: Texas Instruments
+- accessed: 2026-07-09
+- relevance: vendor statement of transport limits ("maximum unsegmented
+  payload of up to 15 bytes"; segmented: 12 bytes × ≤32 segments) and of the
+  provisioning model (network key + address assignment per device).
+
+### [S864] Bluetooth SIG — Mesh Protocol v1.1 specification
+- type: spec
+- url: https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/MshPRT_v1.1/out/en/index-en.html
+- author: Bluetooth SIG
+- published: 2023 (Mesh Protocol 1.1)
+- accessed: 2026-07-09
+- relevance: normative source for managed flooding, TTL, message cache,
+  sequence numbers, provisioning data (NetKey/AppKey/unicast address), and
+  unsegmented access-payload limits cited in RA-14.
+
+### [S865] ESP-IDF Programming Guide — OpenThread (ESP32-C6)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/openthread.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: which Espressif chips have native 802.15.4 (H2/C6/C5); RCP
+  architecture that adds Thread to Wi-Fi chips (incl. ESP32-S3) over
+  UART/SPI, SPI recommended for latency — defines the hardware cost of a
+  Thread coordination radio next to an S3.
+
+### [S866] OpenThread — Thread Primer: Node Roles and Types
+- type: docs
+- url: https://openthread.io/guides/thread-primer/node-roles-and-types
+- author: OpenThread project (Google)
+- accessed: 2026-07-09
+- relevance: router cap ("Thread tries to keep the number of Routers between
+  16 and 23", 32 active router IDs), self-elected Leader, and Border Router
+  defined as bridging to non-Thread networks ("any device may serve") — i.e.
+  egress feature, not a requirement for a closed mesh.
+
+### [S867] Silicon Labs AN1142 — Mesh Network Performance Comparison
+  (Zigbee / Thread / Bluetooth mesh), Rev 0.5
+- type: docs
+- url: https://www.silabs.com/documents/public/application-notes/an1142-mesh-network-performance-comparison.pdf
+- author: Silicon Labs
+- accessed: 2026-07-09
+- relevance: only published like-for-like measurement of the three meshes at
+  24–192 nodes: small-payload multicast latency "well under 200 ms" for all,
+  Thread degrades least with payload, reliability ≥99.9% — but at 1 multicast
+  per 3 s, with the caution that performance "deteriorate[s] further as this
+  multicast load is increased"; also documents Thread all-device multicast as
+  flooding with "three re-broadcasts from each router".
+
+### [S868] ESP-IDF Wi-Fi Driver guide (ESP32, v4.4.4) — LR mode, softAP
+  limits, multicast power-save behavior
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/v4.4.4/esp32/api-guides/wifi.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: primary source for Espressif Long Range mode ("Espressif-
+  patented", "only ESP32 devices can transmit and receive the LR data", PHY
+  rates 1/4 and 1/2 Mbps, ~4 dB sensitivity gain, 2–2.5× 11B distance,
+  1 km LoS claim); ESP32 softAP limit "up to 15 (ESP_WIFI_MAX_CONN_NUM)"
+  (default 10); AP does not cache multicast for power-save stations.
+
+### [S869] Cisco Meraki — Approximating Maximum Clients per Access Point
+- type: docs
+- url: https://documentation.meraki.com/MR/Wi-Fi_Basics_and_Best_Practices/Approximating_Maximum_Clients_per_Access_Point
+- author: Cisco Meraki
+- accessed: 2026-07-09
+- relevance: theoretical association limits per radio (128 for Wi-Fi 5 W1,
+  512 for Wi-Fi 6) with explicit vendor caveat that real-world limits are
+  "far lower" and theoretical maxima are not design targets — grounds the
+  50-vs-150-station judgment for a single portable AP.
+
+### [S870] 7SIGNAL — How to Determine Maximum Clients per Access Point
+- type: article
+- url: https://www.7signal.com/news/blog/how-to-determine-clients-per-ap
+- author: 7SIGNAL
+- accessed: 2026-07-09
+- relevance: enterprise Wi-Fi practice recommendation of ~30 active clients
+  per AP in most environments — the practical ceiling figure used against
+  the ~150-node design ceiling.
+
+### [S871] ESP-IDF API Reference — ESP-NOW (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_now.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: cited here only for rate configurability ("The default ESP-NOW
+  bit rate is 1 Mbps"; per-peer `esp_now_set_peer_rate_config()`), which is
+  how the LR PHY composes with the RA-13 ESP-NOW design. ESP-NOW itself is
+  RA-13's subject.
+
+### [S872] espressif/esp-idf — Wi-Fi types header (LR PHY rates)
+- type: code
+- url: https://github.com/espressif/esp-idf
+- pinned: espressif/esp-idf@f0887bcf8763266effe3fa0b358340df226a04b5
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: `WIFI_PHY_RATE_LORA_250K`/`WIFI_PHY_RATE_LORA_500K` defined as
+  "Espressif-specific Long Range mode rate" in
+  components/esp_wifi/include/esp_wifi_types_generic.h#L1236-L1237 —
+  evidence that LR rates are exposed to ESP-NOW-style traffic in current IDF.
+
+### [S873] The Things Network docs — Duty Cycle
+- type: docs
+- url: https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
+- author: The Things Network / The Things Industries
+- accessed: 2026-07-09
+- relevance: ETSI EN 300 220 sub-band duty-cycle table (0.1%/1%/10% at
+  868 MHz) and TTN fair-use policy (30 s uplink airtime/day) — the
+  regulatory arithmetic that disqualifies LoRa at 10 Hz.
+
+### [S874] The Things Network docs — Limitations
+- type: docs
+- url: https://www.thethingsnetwork.org/docs/lorawan/limitations/index.html
+- author: The Things Network / The Things Industries
+- accessed: 2026-07-09
+- relevance: "Low bandwidth - between 250bit/s and 11kbit/s in Europe";
+  LoRaWAN unsuitable for "Realtime data - you can only send small packets
+  every couple of minutes" — established-project statement of the rate
+  ceiling.
+
+## Block S900–S949 — RA-15 Decentralized coordination & sync
+
+### [S900] Mirollo & Strogatz — Synchronization of pulse-coupled biological oscillators
+- type: article
+- url: https://epubs.siam.org/doi/10.1137/0150098
+- author: Renato E. Mirollo, Steven H. Strogatz
+- published: 1990 (SIAM Journal on Applied Mathematics, vol. 50 no. 6, pp. 1645–1662)
+- accessed: 2026-07-09
+- relevance: the foundational firefly-sync model — proves all-to-all pulse-coupled integrate-and-fire oscillators converge to synchrony from almost all initial conditions; basis of every timestamp-free phase-sync scheme considered for pewpew's mesh tier. Author PDF: https://www.stevenstrogatz.com/articles/synchronization-of-pulse-coupled-biological-oscillators
+
+### [S901] Werner-Allen et al. — Firefly-Inspired Sensor Network Synchronicity with Realistic Radio Effects (RFA)
+- type: article
+- url: https://mdw.la/papers/firefly-sensys05.pdf
+- author: Geoffrey Werner-Allen, Geetika Tewari, Ankit Patel, Matt Welsh, Radhika Nagpal
+- published: 2005 (ACM SenSys '05)
+- accessed: 2026-07-09
+- relevance: the canonical "firefly sync on real lossy radios" paper — Reachback Firefly Algorithm on 24 MicaZ motes; ~100–150 µs group spread, 1/ε convergence, MAC timestamping, reachback response, 25 ms pre-emptive message staggering. Directly informs pewpew's beat-phase layer design.
+
+### [S902] Tyrrell, Auer & Bettstetter — Fireflies as Role Models for Synchronization in Ad Hoc Networks
+- type: article
+- url: https://eudl.eu/doi/10.1145/1315843.1315848
+- author: Alexander Tyrrell, Gunther Auer, Christian Bettstetter
+- published: 2006 (BIONETICS '06, ACM/ICST)
+- accessed: 2026-07-09
+- relevance: adapts Mirollo–Strogatz to wireless ad hoc constraints via delayed pulse emission and refractory periods; accuracy limited only by propagation delay in simulation. Full text not retrieved (403); details beyond abstract flagged NEEDS-VERIFICATION.
+
+### [S903] Klinglmayr, Kirst, Bettstetter & Timme — Guaranteeing global synchronization in networks with stochastic interactions
+- type: article
+- url: https://iopscience.iop.org/article/10.1088/1367-2630/14/7/073031
+- author: Johannes Klinglmayr, Christoph Kirst, Christian Bettstetter, Marc Timme
+- published: 2012 (New Journal of Physics 14, 073031)
+- accessed: 2026-07-09
+- relevance: proves PCO convergence to synchrony on arbitrary connected topologies with variable delays, where *stochastic/unreliable* pulse delivery is part of the convergence mechanism — the theoretical basis for claiming ESP-NOW-class packet loss does not break firefly sync.
+
+### [S904] Bettstetter research group — Self-Organizing Synchronization (project summary)
+- type: docs
+- url: https://bettstetter.com/research/sync/
+- author: Christian Bettstetter (research group page)
+- accessed: 2026-07-09
+- relevance: consolidated claims for the PCO line of work incl. Computer Networks 2016 hardware result — PCO sync with phase-rate correction on six programmable radio boards achieving sub-microsecond precision; first PCO evaluation on real radio hardware.
+
+### [S905] Demers et al. — Epidemic Algorithms for Replicated Database Maintenance
+- type: article
+- url: http://bitsavers.trailing-edge.com/pdf/xerox/parc/techReports/CSL-89-1_Epidemic_Algorithms_for_Replicated_Database_Maintenance.pdf
+- author: Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, Doug Terry (Xerox PARC)
+- published: 1987 (ACM PODC '87; Xerox PARC CSL-89-1)
+- accessed: 2026-07-09
+- relevance: origin of the anti-entropy / rumor-mongering / direct-mail taxonomy and the exponential-spread convergence argument underlying pewpew's parameter-gossip layer.
+
+### [S906] Karp, Schindelhauer, Shenker & Vöcking — Randomized Rumor Spreading
+- type: article
+- url: https://zoo.cs.yale.edu/classes/cs426/2013/bib/karp00randomized.pdf
+- author: Richard Karp, Christian Schindelhauer, Scott Shenker, Berthold Vöcking
+- published: 2000 (IEEE FOCS 2000)
+- accessed: 2026-07-09
+- relevance: rigorous O(log N) round bounds and Ω(n ln ln n) message lower bound for push-pull gossip — the convergence-bound baseline against which pewpew's broadcast-domain gossip is strictly easier.
+
+### [S907] Shapiro, Preguiça, Baquero & Zawirski — Conflict-free Replicated Data Types
+- type: article
+- url: https://inria.hal.science/inria-00609399v1
+- author: Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski
+- published: 2011 (SSS 2011; INRIA RR-7687)
+- accessed: 2026-07-09
+- relevance: defines Strong Eventual Consistency and proves state-based CRDT convergence given a monotonic-semilattice merge — the formal justification that pewpew's max-epoch LWW parameter register converges under loss/reorder/duplication with no coordination.
+
+### [S908] Lamport — Time, Clocks, and the Ordering of Events in a Distributed System
+- type: article
+- url: https://dl.acm.org/doi/10.1145/359545.359563
+- author: Leslie Lamport
+- published: 1978 (Communications of the ACM 21(7), 558–565)
+- accessed: 2026-07-09
+- relevance: logical (Lamport) clocks — the multi-writer generalization of pewpew's single-writer epoch counter; total order via counter + node-ID tiebreak.
+
+### [S909] Parker et al. — Detection of Mutual Inconsistency in Distributed Systems
+- type: article
+- url: https://dl.acm.org/doi/10.1109/TSE.1983.236733
+- author: D. Stott Parker Jr., Gerald Popek, Gerard Rudisin, Allen Stoughton, Bruce Walker, Evelyn Walton, Johanna Chow, David Edwards, Stephen Kiser, Charles Kline
+- published: 1983 (IEEE Transactions on Software Engineering SE-9(3))
+- accessed: 2026-07-09
+- relevance: version vectors — per-writer counters that detect (rather than arbitrate) concurrent updates; cited to show why they are overkill/oversized for pewpew's 11-byte single-writer state.
+
+### [S910] RFC 6206 — The Trickle Algorithm
+- type: spec
+- url: https://www.rfc-editor.org/rfc/rfc6206.html
+- author: P. Levis, T. Clausen, J. Hui, O. Gnawali, J. Ko (IETF ROLL WG)
+- published: 2011-03
+- accessed: 2026-07-09
+- relevance: the standardized "gossip a version number over a lossy shared medium" algorithm (Imin/Imax/k, suppression, reset-on-inconsistency); production-proven in RPL. Pewpew borrows its suppression and reset semantics for the parameter-epoch layer.
+
+### [S911] Levis, Patel, Culler & Shenker — Trickle: A Self-Regulating Algorithm for Code Propagation and Maintenance in Wireless Sensor Networks
+- type: article
+- url: https://www.usenix.org/legacy/event/nsdi04/tech/full_papers/levis/levis.pdf
+- author: Philip Levis, Neil Patel, David Culler, Scott Shenker
+- published: 2004 (USENIX/ACM NSDI 2004)
+- accessed: 2026-07-09
+- relevance: original Trickle paper — empirical propagation-vs-maintenance-cost results in lossy multi-hop sensor networks that RFC 6206 later standardized.
+
+### [S912] RFC 1982 — Serial Number Arithmetic
+- type: spec
+- url: https://www.rfc-editor.org/rfc/rfc1982.html
+- author: R. Elz, R. Bush (IETF)
+- published: 1996-08
+- accessed: 2026-07-09
+- relevance: defines wraparound-safe comparison of fixed-width monotonic counters (half-range window) — the correct comparison rule for pewpew's 1–2-byte parameter epoch field.
+
+### [S913] Fatès — A Guided Tour of Asynchronous Cellular Automata
+- type: article
+- url: https://arxiv.org/pdf/1406.0792
+- author: Nazim Fatès
+- published: 2014 (Journal of Cellular Automata; arXiv:1406.0792)
+- accessed: 2026-07-09
+- relevance: survey establishing that update policy (synchronous vs α-asynchronous vs random-order) is a first-class determinant of CA behavior — evidence that pewpew cannot naively port synchronous CA rules onto lossy asynchronous broadcast.
+
+### [S914] Blok & Bergersen — Synchronous versus asynchronous updating in the "game of Life"
+- type: article
+- url: https://link.aps.org/doi/10.1103/PhysRevE.59.3876
+- author: Hendrik J. Blok, Birger Bergersen
+- published: 1999 (Physical Review E 59, 3876)
+- accessed: 2026-07-09
+- relevance: quantifies α-asynchronism in Life — a critical phase transition (directed-percolation class) below which synchronous-tuned structures dissolve; the concrete warning that loss/async can kill emergent CA patterns.
+
+### [S915] Abelson et al. — Amorphous Computing
+- type: article
+- url: https://cacm.acm.org/research/amorphous-computing/
+- author: Harold Abelson, Don Allen, Daniel Coore, Chris Hanson, George Homsy, Thomas F. Knight Jr., Radhika Nagpal, Erik Rauch, Gerald Jay Sussman, Ron Weiss
+- published: 2000 (Communications of the ACM 43(5), 74–82)
+- accessed: 2026-07-09
+- relevance: foundational treatment of computing over "vast numbers of unreliable, locally communicating simple devices" with no global clock; the gradient/diffusion-wave primitive is pewpew's robust alternative to literal CA rules for neighbor-propagated waves.
+
+### [S916] Wertheimer / Korte — apparent motion (beta movement) timing
+- type: article
+- url: https://en.wikipedia.org/wiki/Korte%27s_third_law_of_apparent_motion
+- author: Max Wertheimer (1912); Adolf Korte (1915); summarized via secondary references
+- published: 1912/1915 (historical); accessed via encyclopedic summary 2026-07-09
+- accessed: 2026-07-09
+- relevance: bounds the perceptual window for smooth apparent motion between discrete lights (~30–400 ms inter-element interval, optimal ~60 ms) — the basis for the claim that 10 Hz (100 ms/step) inter-group wave propagation reads as coherent motion. Primary-source figures flagged where derived from secondary summaries.
+
+### [S917] Maróti, Kusy, Simon & Lédeczi — The Flooding Time Synchronization Protocol (FTSP)
+- type: article
+- url: https://www.math.u-szeged.hu/tagok/mmaroti/okt/2009o/ftsp.pdf
+- author: Miklós Maróti, Branislav Kusy, Gyula Simon, Ákos Lédeczi
+- published: 2004 (ACM SenSys '04)
+- accessed: 2026-07-09
+- relevance: canonical flooding time-sync with MAC-layer timestamping + skew estimation; ~1.48 µs single-hop, ~1 µs average per-hop, robust to node/link failure — the reference for "cheap flooding absolute clock", and the illustration of why ESP-NOW (no app-level MAC TX timestamp) cannot reach µs-class this way.
+
+### [S918] u-blox — Precision Timing / 1PPS accuracy specifications
+- type: docs
+- url: https://content.u-blox.com/sites/default/files/products/documents/Timing_AppNote_(GPS.G6-X-11007).pdf
+- author: u-blox AG
+- accessed: 2026-07-09
+- relevance: GPS/PPS timing spec — timing modules deliver ~15–30 ns RMS 1PPS, giving every equipped node a drift-free fleet-wide absolute second boundary with zero radio coordination; the cheapest route to sub-µs absolute time outdoors at art scale.
+
+## Block S950–S999 — RA-16 ESP32-S3 render+radio coexistence
+
+### [S950] ESP-IDF Programming Guide — Remote Control Transceiver (RMT), ESP32-S3, stable
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/rmt.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: IDF 5/6 RMT driver on S3: `with_dma` TX flag exists on S3; official mitigation list for interrupt-latency transmission glitches (increase mem_block_symbols in steps of 48, IRAM_ATTR encoder, enable DMA, install driver on a core away from WiFi/BT)
+
+### [S951] FastLED issue #2082 — "Feature Request: Improved RMT5 to resist WIFI flickering"
+- type: forum
+- url: https://github.com/FastLED/FastLED/issues/2082
+- author: zackees (FastLED maintainer)
+- published: 2025-09-16
+- accessed: 2026-07-09
+- relevance: engineering analysis of why the IDF5 RMT driver (via led_strip) is more WiFi-jitter-sensitive than FastLED's RMT4 ping-pong refill; measured 40–50 µs ISR jitter under light WiFi vs ~35 µs refill deadline; driver interrupt priority capped at level 3
+
+### [S952] FastLED — ESP32 platform README (driver matrix)
+- type: docs
+- url: https://github.com/FastLED/FastLED/blob/master/src/platforms/esp/32/README.md
+- pinned: FastLED/FastLED@b424d5b687b62b4819561fe8a6b0196e771fa7bb
+- author: FastLED project
+- license: MIT
+- accessed: 2026-07-09
+- relevance: authoritative matrix of FastLED's ESP32 drivers: RMT4 vs RMT5 defaults (RMT5 on IDF≥5), I2S parallel (ESP32/S2/S3, up to 24 lanes, shared timing), multi-lane SPI DMA for APA102/SK9822/HD107S, per-driver WiFi-flicker notes and build flags
+
+### [S953] NeoPixelBus wiki — ESP32 NeoMethods
+- type: docs
+- url: https://github.com/Makuna/NeoPixelBus/wiki/ESP32-NeoMethods
+- author: Michael C. Miller (Makuna)
+- accessed: 2026-07-09
+- relevance: per-variant driver methods: RMT channel counts (ESP32 8, S2/S3 4, C3 2), I2S single/X8/X16 on classic ESP32, "ESP32S3/ESP32C3 ... do not support I2S at this time; RMT method is used by default"; RMT needs a hardware-read buffer equal to the pixel buffer, I2S needs 4x
+
+### [S954] NeoPixelBus (repository)
+- type: code
+- url: https://github.com/Makuna/NeoPixelBus
+- pinned: Makuna/NeoPixelBus@882b804205f537b12788978c1abb7cd50fefffd4
+- author: Michael C. Miller (Makuna)
+- license: LGPL-3.0
+- accessed: 2026-07-09
+- relevance: S3 methods in tree: `NeoEsp32LcdXMethod.h` (LCD_CAM+GDMA x8 parallel, S3-only, 3-step cadence), `DotStarEsp32DmaSpiMethod.h` (SPI-DMA clocked chips), RMT and I2sX methods; latest release 2.8.4 (2025-05-02), master last commit 2026-02-16
+
+### [S955] WLED PR #4484 — WWA support & parallel I2S/LCD for S2/S3 (4→12 outputs)
+- type: forum
+- url: https://github.com/wled/WLED/pull/4484
+- author: blazoncek
+- published: 2025-02-13 (merged)
+- accessed: 2026-07-09
+- relevance: WLED raises ESP32-S3 from 4 (RMT) to 12 outputs by adding parallel LCD/I2S output; backported to 0.15.1 (2025-02-22); production evidence that S3 DMA-parallel output works under WLED's normal WiFi load
+
+### [S956] WLED issue #5266 — "Make I2S optional and use RMT by default"
+- type: forum
+- url: https://github.com/wled/WLED/issues/5266
+- accessed: 2026-07-09
+- relevance: documents WLED 0.15's switch to I2S-first bus allocation and resulting flicker reports; on S3 "the LCD driver has the exact same timings as I2S"; RMT T0H ~320–400 ns vs I2S 3-step ~417 ns — timing-marginal strips flicker on the DMA drivers, motivating per-chip driver choice
+
+### [S957] ESP-IDF Programming Guide — Speed Optimization (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/performance/speed.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: built-in task priorities: WiFi driver task priority 23 pinned to core 0 by default, lwIP 18 unpinned, app_main priority 1 on core 0; advice to place latency-sensitive interrupts/tasks on core 1; non-yielding tasks starve lower-priority tasks and trip the task watchdog
+
+### [S958] arduino-esp32 releases (espressif/arduino-esp32)
+- type: docs
+- url: https://github.com/espressif/arduino-esp32/releases
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Arduino core ↔ IDF mapping and cadence: 3.0.0 = IDF 5.1.4 (2024-05-27), 3.1.0 = IDF 5.3.2 (2024-12-16), 3.2.0 = IDF 5.4.1 (2025-03-28), 3.3.0 = IDF 5.5.0 (2025-07-23), 3.3.10 = IDF 5.5.4 (2026-06-05, latest)
+
+### [S959] arduino-esp32 discussion #10039 — "Community Platformio support for Arduino core 3.x.x"
+- type: forum
+- url: https://github.com/espressif/arduino-esp32/discussions/10039
+- author: Jason2866 et al.
+- accessed: 2026-07-09
+- relevance: records that PlatformIO declined official Arduino-core-3.x support (platform-espressif32 #1225) and that the pioarduino fork was created (2024) to carry Arduino 3.x on PlatformIO
+
+### [S960] pioarduino/platform-espressif32 releases
+- type: code
+- url: https://github.com/pioarduino/platform-espressif32/releases
+- author: pioarduino (Jason2866 et al.)
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: fork actively tracking Arduino cores: release 55.03.39 (2026-06-04) ships Arduino 3.3.9 / IDF 5.5.4 — days behind upstream Arduino releases
+
+### [S961] platformio/platform-espressif32 releases (official)
+- type: code
+- url: https://github.com/platformio/platform-espressif32/releases
+- author: PlatformIO
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: official platform still actively updated for **ESP-IDF** (v7.0.1, 2026-05-12, adds IDF 6.0.1) but ships no Arduino 3.x framework — Arduino-on-PlatformIO requires the pioarduino fork
+
+### [S962] ESP-IDF Programming Guide — Support for External RAM (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/external-ram.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: PSRAM constraints for hot paths: DMA descriptors cannot live in PSRAM, DMA bandwidth to external RAM is very limited (worse under concurrent core access), PSRAM inaccessible while flash cache is disabled (flash writes/OTA), internal-memory pool reserved for DMA allocations
+
+### [S963] ESP-FAQ — Remote Control Transceiver (RMT) peripheral
+- type: docs
+- url: https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/peripherals/rmt.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Espressif's own answer to "RMT + WS2812 + WiFi/BT = data frame exceptions": raise mem blocks, pin RMT interrupt away from WiFi core, switch to SPI-DMA, or "ESP32-S3 is recommended because it is currently the only chip with RMT DMA support. This ensures RMT is not interfered by interrupts caused by Wi-Fi, Bluetooth, and other peripherals."
+
+### [S964] espressif/led_strip component (ESP Component Registry, v3.0.3)
+- type: docs
+- url: https://components.espressif.com/components/espressif/led_strip/
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: official led_strip driver docs: without DMA "the driver will going into interrupt very frequently, thus result in a high CPU usage"; if a WiFi interrupt lands on the same core "the RMT transaction will be corrupted and the LEDs will display incorrect colors"; "you'd better to enable the DMA feature if possible"; SPI backend exists but monopolizes the SPI bus (no chip select)
+
+### [S965] idf-extra-components issue #466 — led_strip DMA broken on some ESP32-S3 boards
+- type: forum
+- url: https://github.com/espressif/idf-extra-components/issues/466
+- accessed: 2026-07-09
+- relevance: open bug report (2025) that led_strip with RMT DMA fails on the Xiao ESP32-S3 variant and possibly others — RMT-DMA on S3 is the right architecture but not yet friction-free in practice
+
+### [S966] FastLED issue #2156 — RMT DMA mem_block_symbols validation on ESP32-S3
+- type: forum
+- url: https://github.com/FastLED/FastLED/issues/2156
+- accessed: 2026-07-09
+- relevance: FastLED's computed DMA mem_block_symbols failed ESP-IDF validation on S3; fixed value of 1024 lets the DMA channel be created — documents current-day rough edges of the S3 RMT-DMA path
+
+### [S967] ESP32-S3 Series Datasheet (Espressif, v2.x)
+- type: datasheet
+- url: https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: dual Xtensa LX7 up to 240 MHz, single-precision FPU, 512 KB internal SRAM, Processor Instruction Extensions (PIE) with 128-bit SIMD (8/16/32-bit vector ops), 4× RMT TX + 4× RX channels, LCD interface, GDMA
+
+### [S968] Espressif Developer Portal — "Explore the PIE capabilities" (PIE/SIMD introduction)
+- type: article
+- url: https://developer.espressif.com/blog/2024/12/pie-introduction/
+- author: Espressif Systems
+- published: 2024-12
+- accessed: 2026-07-09
+- relevance: programmer's view of the PIE SIMD extension shared by S3/P4: 8×128-bit q registers, vector MAC — the acceleration path esp-dsp uses; relevant to fixed-point 16-bit pixel math
+
+### [S969] espressif/esp-dsp (repository)
+- type: code
+- url: https://github.com/espressif/esp-dsp
+- pinned: espressif/esp-dsp@3c8ac0fdfec83740b783e200862c8d0c056de0ad
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: official DSP library with assembly-optimized (PIE/SIMD) dot products, matrix math, FFT for S3; active (last commit 2026-05-11); the ready-made route to vectorized 16-bit pixel arithmetic
+
+### [S970] hpwit/I2SClockLessLedDriveresp32s3 (Yves's S3 I2S/LCD parallel driver)
+- type: code
+- url: https://github.com/hpwit/I2SClockLessLedDriveresp32s3
+- pinned: hpwit/I2SClockLessLedDriveresp32s3@48e9cb6d3db0e902703b0325bfaa153074f071d8
+- author: Yves Bazin (hpwit)
+- license: none declared (no LICENSE file at pin)
+- accessed: 2026-07-09
+- relevance: the S3 parallel driver FastLED vendored in 3.9.9 (third_party/yves): 16-way parallel via LCD/I2S DMA; README requires PSRAM ("buffers are declared in PSRAM"); last commit 2024-11-15 — upstream dormant, FastLED maintains its vendored copy
+
+### [S971] FastLED issue #1609 — inefficient SPI transmission for APA102/SK9822 on ESP32
+- type: forum
+- url: https://github.com/FastLED/FastLED/issues/1609
+- accessed: 2026-07-09
+- relevance: measured 30-px APA102 update = ~422 µs at 5 MHz and ~244 µs at 20 MHz with ~1.7 µs gaps between bytes — FastLED's ESP32 SPI path wastes most of the clock headroom; issue still open (stale) — clocked-chip refresh ceilings are driver-bound, not protocol-bound
+
+### [S972] ESP-IDF Programming Guide — Watchdogs (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/wdts.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: task watchdog (TWDT) subscribes both CPUs' idle tasks by default (CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0/CPU1); a never-yielding render loop pinned to core 1 starves idle1 and trips the TWDT — loops must block (DMA-done, queue) or idle1 must be unsubscribed
+
+### [S973] esp-idf (repository — RMT TX driver source)
+- type: code
+- url: https://github.com/espressif/esp-idf
+- pinned: espressif/esp-idf@f0887bcf8763266effe3fa0b358340df226a04b5
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: driver-source ground truth: rmt_tx.c "Only the last channel has the DMA capability" — exactly ONE RMT TX channel per group can use DMA on S3; DMA mode forces mem_block_num=1 and requires GDMA IRAM options for cache-safe ISR
+
+### [S974] arduino-esp32 (repository — default partition table)
+- type: code
+- url: https://github.com/espressif/arduino-esp32
+- pinned: espressif/arduino-esp32@b1208ef0293c363dd93fa2aa704fc05791433317
+- author: Espressif Systems
+- license: LGPL-2.1
+- accessed: 2026-07-09
+- relevance: tools/partitions/default.csv: stock 4 MB layout = 2 OTA app slots of 0x140000 (1.25 MiB) each + 1.4 MiB SPIFFS — the size box a dual-partition OTA receiver firmware must fit on 4 MB flash
+
+### [S975] FastLED issue #1835 — RMT5 issues on ESP32 and ESP32-S3
+- type: forum
+- url: https://github.com/FastLED/FastLED/issues/1835
+- published: 2025-01-08
+- accessed: 2026-07-09
+- relevance: measured that RMT5 pins do not transmit in parallel (per-pin time grows linearly) and single-pin S3 show() was slower than classic ESP32 (378 µs vs 238 µs) in early 3.9.x — RMT5 growing pains; closed since
+
+### [S976] arduino-esp32 docs — Arduino as an ESP-IDF component
+- type: docs
+- url: https://docs.espressif.com/projects/arduino-esp32/en/latest/esp-idf_component.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: official path to mix stacks: "You can use the Arduino framework as an ESP-IDF component ... with the full flexibility of the ESP-IDF"; page states Arduino core 3.3.10 is compatible with ESP-IDF v5.5 — lets a pewpew receiver use IDF task/peripheral control plus Arduino-ecosystem LED libraries
+
+## Block S1000–S1049 — RA-17 Fleet ops & mesh gateway
+
+### [S1000] ESP-FAQ — ESP-NOW application solution page
+- type: docs
+- url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Official FAQ stating the gateway-critical constraints: ESP-NOW channel must equal the connected AP's channel, no channel switching after WiFi connect, modem-sleep breaks ESP-NOW receive, connectionless-power-save wake-interval APIs, peer-count limits under coexistence.
+
+### [S1001] espressif/esp-now — application-layer ESP-NOW component (pairing, control, provisioning, OTA, debug, security)
+- type: code
+- url: https://github.com/espressif/esp-now
+- pinned: espressif/esp-now@4432294ef6a6cb274b441c0678414455a4055cff
+- author: Espressif Systems
+- license: Apache-2.0
+- accessed: 2026-07-09
+- relevance: Espressif's first-party ESP-NOW application component. Its get-started example is a UART↔ESP-NOW-broadcast bridge (the serial-dongle gateway pattern); its OTA feature claims "50 devices can be upgraded in 3 minutes" over ESP-NOW with resume; provisioning claims "16 devices can be configured in 5 seconds". 766 stars, last push 2026-02-04.
+
+### [S1002] esp-idf issue #10341 — "ESP-NOW does not working with WiFi (STA) mode"
+- type: forum
+- url: https://github.com/espressif/esp-idf/issues/10341
+- author: rajneeshsinha et al.; Espressif staff Xiehanxin, zhangyanjiaoesp
+- published: 2022-12
+- accessed: 2026-07-09
+- relevance: Documented ESP-NOW+STA coexistence pitfalls: broken before IDF 5.0 (staff: "this issue is fixed in IDF 5.0 and later version"; workaround on 4.x: init ESP-NOW before AP connect); staff claim that a STA-connected node "will only receive the broadcast packet whose bssid is equal to the associated AP bssid" (disputed in-thread by reporter).
+
+### [S1003] ESP-IDF Programming Guide — Over The Air Updates (OTA), ESP32-S3, latest/v5.x
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/ota.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Authoritative OTA model: two OTA app slots (ota_0/ota_1) + otadata partition; app rollback via esp_ota_mark_app_valid_cancel_rollback()/ESP_OTA_IMG_PENDING_VERIFY with automatic rollback on unconfirmed reboot; eFuse anti-rollback ("the version in the bootable firmware must be greater than or equal to the version in the chip"); signed OTA images verifiable "even without enabling hardware secure boot" (CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT).
+
+### [S1004] ESP-IDF Programming Guide — Wi-Fi performance and power save
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/wifi-driver/wifi-performance-and-power-save.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Default power-save is WIFI_PS_MIN_MODEM (wake at DTIM); "Disabling it increases power consumption, but minimizes the delay in receiving Wi-Fi data in real time" (WIFI_PS_NONE); ESP-NOW-at-STA sleep support and esp_wifi_set_connectionless_interval(); lab UDP throughput 75–85 Mbit/s. Grounds the gateway's WiFi-hop latency behavior.
+
+### [S1005] espressif/esp-mesh-lite — mesh solution with root-distributed OTA
+- type: code
+- url: https://github.com/espressif/esp-mesh-lite
+- pinned: espressif/esp-mesh-lite@da20046fb3b0421881b0143d4dc130915d3bc952
+- author: Espressif Systems
+- license: Apache-2.0 (components/mesh_lite/license.txt; no repo-level license auto-detected by GitHub)
+- accessed: 2026-07-09
+- relevance: Espressif's supported WiFi-mesh with in-mesh OTA: root node downloads firmware then disseminates to child nodes; OTA tuning knobs (CONFIG_OTA_DATA_LEN vs RAM, max node number, max level vs latency) illustrate the configuration complexity mesh OTA brings. 207 stars, last push 2025-09-30.
+
+### [S1006] painlessMesh work item #387 — "OTA API lacking feedback features"
+- type: forum
+- url: https://gitlab.com/painlessMesh/painlessMesh/-/work_items/387
+- author: painlessMesh users/maintainers
+- accessed: 2026-07-09
+- relevance: Documented mesh-OTA pain: the OTA API "does not allow tracking of the OTA update process across the network", nodes are rebooted "without any chance for the gateway to know what is going on", and per-node chunk requests "can in some cases create a lot of additional network traffic". Direct evidence for avoiding gossiped OTA.
+
+### [S1007] painlessMesh — self-forming ESP mesh (GitLab upstream)
+- type: code
+- url: https://gitlab.com/painlessMesh/painlessMesh
+- pinned: painlessMesh/painlessMesh@1b2a02be2603b8a3e418338811326a81642bd46f (develop, committed 2025-10-01)
+- author: painlessMesh contributors
+- license: GPL-3.0-only (GitLab-detected)
+- accessed: 2026-07-09
+- relevance: The canonical hobby ESP mesh with built-in OTA plugin (ota::Announce/DataRequest/Data chunk protocol). Maintenance: last repository activity 2026-06-14, last code commit on develop 2025-10-01, 271 GitLab stars — low-intensity maintenance.
+
+### [S1008] ESPHome — ESP-NOW component documentation
+- type: docs
+- url: https://esphome.io/components/espnow/
+- author: ESPHome (Open Home Foundation)
+- accessed: 2026-07-09
+- relevance: ESPHome's first-party ESP-NOW support (unicast/broadcast, auto_add_peer, on_broadcast triggers). States the gateway constraint plainly: channel "Cannot be set when Wi-Fi is used, as ESP-NOW will use the same channel as the Wi-Fi network"; notes 250 B payload cap and unacknowledged broadcast.
+
+### [S1009] ESP-IDF Programming Guide — USB Serial/JTAG Controller Console (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/usb-serial-jtag-console.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Behavior of the S3's built-in USB CDC vs an external USB-UART bridge: host-side flow control ("many PC Terminals wait for the ESP32-S3 to ingest the bytes"), 50 ms one-time wait when no terminal drains the TX buffer, dies in light/deep sleep, device disappears if pins are reconfigured. Grounds serial-dongle gateway design constraints.
+
+### [S1010] ESP-IDF Programming Guide — Non-Volatile Storage (NVS) library (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Key-value config store in its own flash partition: namespaces, power-fail safety ("one should be able to power off the device at any point"), built-in wear levelling, optional NVS encryption. Basis for config-vs-firmware separation.
+
+### [S1011] ESP-IDF Programming Guide — Miscellaneous System APIs: MAC addresses (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Base MAC is "pre-programmed into the ESP32-S3 eFuse in the factory during production"; esp_read_mac()/esp_efuse_mac_get_default(); per-interface MACs derived from base MAC; custom base MAC possible via esp_base_mac_addr_set(). Basis for zero-touch MAC-derived node identity.
+
+### [S1012] Random Nerd Tutorials — "ESP32: ESP-NOW Web Server Sensor Dashboard (ESP-NOW + Wi-Fi)"
+- type: article
+- url: https://randomnerdtutorials.com/esp32-esp-now-wi-fi-web-server/
+- author: Rui Santos / Random Nerd Tutorials
+- accessed: 2026-07-09
+- relevance: The widely-cited single-chip gateway recipe: receiver in WIFI_AP_STA runs ESP-NOW + web server; "The ESP32 sender boards must use the same Wi-Fi channel of the receiver board"; senders scan for the gateway's SSID channel and apply it with esp_wifi_set_channel(). Documents the channel-pinning pattern and its ordering pitfall (connect WiFi before registering peers).
+
+### [S1013] ESP-IDF Programming Guide — App Image Format / esp_app_desc_t (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/app_image_format.html
+- author: Espressif Systems
+- accessed: 2026-07-09
+- relevance: Every app image embeds esp_app_desc_t (version string ≤32 chars, project name, compile date/time, IDF version, ELF SHA-256) at a fixed offset, readable via esp_app_get_description(); "useful for identification of images uploaded via Over-the-Air (OTA) updates". Basis for version self-reporting telemetry.
+
+### [S1014] ESPHome 2025.11.0 changelog — ESP-NOW packet transport
+- type: docs
+- url: https://esphome.io/changelog/2025.11.0/
+- author: ESPHome (Open Home Foundation)
+- published: 2025-11
+- accessed: 2026-07-09
+- relevance: "ESP-NOW now available as transport platform for packet_transport component, enabling direct ESP32-to-ESP32 wireless sensor data transmission"; ESP-NOW RX/TX-completion event processing moved to a ~12 µs in-ISR-adjacent path. Dates ESPHome's ESP-NOW investment (component landed 2025.8, transport 2025.11).
+
+### [S1015] Home Assistant — ZHA integration documentation
+- type: docs
+- url: https://www.home-assistant.io/integrations/zha/
+- author: Home Assistant / Open Home Foundation
+- accessed: 2026-07-09
+- relevance: The serial-attached radio-coordinator convention pewpew's dongle gateway mirrors: "A hardware radio adapter (typically a USB dongle) that plugs directly into the same computer" — host software speaks a serial protocol to a dedicated radio SoC (EmberZNet EZSP, TI Z-Stack ZNP, deCONZ, XBee families).
+
+## Block S1050–S1099 — RA-18 Wearable bridging
+
+### [S1050] Novel Bits — "Maximum Data Size in a Bluetooth LE Advertising Packet"
+- type: article
+- url: https://novelbits.io/maximum-data-bluetooth-advertising-packet-ble/
+- author: Novel Bits (Mohammad Afaneh)
+- accessed: 2026-07-09
+- relevance: payload math for legacy (31 B AD, 29 B after LTV overhead, 27 B custom via Manufacturer Specific Data) and extended advertising (254 B per AUX PDU, 250 B custom via MSD); notes extended advertising is optional and not universally supported by scanners
+
+### [S1051] Nordic DevZone — "reducing power consumption during BLE scan"
+- type: forum
+- url: https://devzone.nordicsemi.com/f/nordic-q-a/57352/reducing-power-consumption-during-ble-scan
+- author: Nordic Semiconductor support (Simon R.)
+- accessed: 2026-07-09
+- relevance: Nordic engineer confirms continuous-scanning RX current on nRF52 is ~6.5 mA with DCDC enabled (~10 mA without); duty-cycling scan window/interval is the only lever — "the radio does consume quite a bit of power when it is running"
+
+### [S1052] nRF52840 Product Specification — Radio current consumption (RADIO chapter)
+- type: datasheet
+- url: https://docs.nordicsemi.com/bundle/ps_nrf52840/page/_tmp/nrf52840/autodita/current/parameters.i_radio.html
+- author: Nordic Semiconductor
+- accessed: 2026-07-09
+- relevance: official radio currents — IRADIO_RX0 (RX @1 Mbps BLE, HFXO, DCDC) = 6.26 mA typ; IRADIO_TX1 (0 dBm, DCDC) = 6.40 mA typ; anchors the observer-role duty-cycle power math
+
+### [S1053] ESP-IDF Programming Guide — RF Coexistence (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/coexist.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: S3 has one 2.4 GHz RF module time-sliced between WiFi and BLE; coexistence table marks WiFi-STA + BLE advertising stable ("Y") but ESP-NOW RX only "supported and the performance is stable in STA mode, otherwise not supported"; SoftAP + BLE marked unstable ("C1") — decides the bridge's WiFi mode
+
+### [S1054] ESP-IDF Programming Guide — ESP-NOW API reference (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/network/esp_now.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: ESP-NOW v1 250 B / v2 1470 B payloads; connectionless power save via esp_now_set_wake_window() + esp_wifi_connectionless_module_set_wake_interval(); "Sleep is supported only when ESP32-S3 is configured as station"
+
+### [S1055] CircuitPython core docs — `_bleio` shared bindings
+- type: docs
+- url: https://docs.circuitpython.org/en/latest/shared-bindings/_bleio/index.html
+- author: Adafruit / CircuitPython project
+- accessed: 2026-07-09
+- relevance: `Adapter.start_scan(prefixes, *, buffer_size=512, extended=False, timeout=None, interval=0.1, window=0.1, minimum_rssi=-80, active=True)` — observer role with hardware prefix filtering and a scan window/interval duty-cycle lever (interval 0.0025–40.96 s, window ≤ interval); passive scanning via active=False
+
+### [S1056] adafruit/Adafruit_CircuitPython_BLE
+- type: code
+- url: https://github.com/adafruit/Adafruit_CircuitPython_BLE
+- pinned: adafruit/Adafruit_CircuitPython_BLE@82ada04a0f4019de00d103256621f73b80151a0d
+- author: Adafruit
+- license: MIT
+- accessed: 2026-07-09
+- relevance: the high-level BLE library over _bleio (BLERadio.start_scan yields Advertisement objects incl. ManufacturerData); actively maintained — release 10.1.3 on 2026-04-23
+
+### [S1057] Nordic DevZone — "Nature of pseudo-random delay advDelay (0–10 ms) added to the advertising interval"
+- type: forum
+- url: https://devzone.nordicsemi.com/f/nordic-q-a/85629/nature-of-pseudo-random-delay-advdelay-0-10-ms-added-to-the-advertising-interval
+- author: Nordic Semiconductor support
+- accessed: 2026-07-09
+- relevance: per Core spec, T_advEvent = advInterval + advDelay with advDelay pseudo-random 0–10 ms per event, generated by the link layer and not modifiable — the floor on BLE-advertising timing jitter
+
+### [S1058] ESP-IDF Programming Guide — Introduction to Low Power Mode in Wi-Fi Scenarios (ESP32-S3)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/low-power-mode/low-power-mode-wifi.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: measured (shielded-box) modem-sleep averages on ESP32-S3: ~19.5–20.7 mA with DFS on (DTIM 10–1), ~38–40 mA without DFS, peaks ~113 mA during radio activity — the realistic floor for any duty-cycled WiFi/ESP-NOW receiver on S3
+
+### [S1059] Nordic DevZone — "nRF52 DK — 20 ms non connectable advertising interval"
+- type: forum
+- url: https://devzone.nordicsemi.com/f/nordic-q-a/15372/nrf52-dk---20ms-non-connectable-advertising-interval
+- author: Nordic Semiconductor support / community
+- accessed: 2026-07-09
+- relevance: BT 4.x mandated "the advInterval shall not be less than 100 ms" for non-connectable advertising, enforced by the SoftDevice; the Bluetooth 5.0 spec (Vol 6, Part B, 4.4.2.2.1) removed the restriction, allowing 20 ms non-connectable intervals
+
+### [S1060] adafruit/Adafruit_CircuitPython_BLE_BroadcastNet
+- type: code
+- url: https://github.com/adafruit/Adafruit_CircuitPython_BLE_BroadcastNet
+- pinned: adafruit/Adafruit_CircuitPython_BLE_BroadcastNet@020fa28503b3580bd7bb3a37c7cc416eea35d286
+- author: Adafruit
+- license: MIT
+- accessed: 2026-07-09
+- relevance: official Adafruit library implementing exactly pewpew's wearable pattern in reverse: compact fixed-layout sensor state packed into Manufacturer Specific Data and broadcast connectionlessly ("think of this system as 'broadcasting' in the truest sense of the word"); template for the group-state advertisement format
+
+### [S1061] Adafruit Learn — "Bluetooth LE Sensor Nodes to Raspberry Pi WiFi Bridge"
+- type: docs
+- url: https://learn.adafruit.com/bluetooth-le-broadcastnet-sensor-node-raspberry-pi-wifi-bridge
+- author: Adafruit
+- accessed: 2026-07-09
+- relevance: official worked example of a BLE-advertisement↔WiFi bridge node plus connectionless CircuitPython broadcasters — the mirror image of pewpew's ESP-NOW→BLE bridge, proving the pattern at the ecosystem level
+
+### [S1062] adafruit/circuitpython issue #3119 — "BLE start_scan dies with MemoryError"
+- type: forum
+- url: https://github.com/adafruit/circuitpython/issues/3119
+- author: CircuitPython community (reported 2020-07-04, closed 2023-10-28)
+- accessed: 2026-07-09
+- relevance: historical evidence that unfiltered long-running scans put large allocations (64 KB-class) on the CircuitPython heap; motivates prefix-filtered, bounded-buffer, short-burst scanning in a render loop
+
+### [S1063] Nordic Semiconductor — Enhanced ShockBurst (ESB), nRF Connect SDK protocol docs
+- type: docs
+- url: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/esb/index.html
+- author: Nordic Semiconductor
+- accessed: 2026-07-09
+- relevance: ESB is Nordic-proprietary 2.4 GHz (interop limited to nRF5/nRF52/nRF53/nRF24 devices), delivered as an nRF Connect SDK library requiring exclusive radio-resource access — no ESP32 interop and no CircuitPython exposure; disqualifies it as pewpew's wearable link
+
+### [S1064] The Things Network docs — "Duty Cycle" (EU868 regulatory limits)
+- type: docs
+- url: https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
+- author: The Things Network
+- accessed: 2026-07-09
+- relevance: EU 868 MHz ISM band imposes ~1% transmit duty cycle (864 s airtime/day) on LoRa devices — a continuous ~10 Hz state broadcast is regulatorily impossible; kills LoRa for group-state distribution
+
+### [S1065] ESP-IDF Programming Guide — RF Coexistence (ESP32-C6)
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/coexist.html
+- author: Espressif
+- accessed: 2026-07-09
+- relevance: ESP32-C6 likewise has a single time-sliced 2.4 GHz RF module (WiFi/BLE/802.15.4); same coexistence matrix shape as S3 (STA+BLE-adv "Y", ESP-NOW RX stable only in STA mode) — C6 offers no coexistence advantage over S3 for the bridge role
+
+### [S1066] Adafruit Learn — "Circuit Playground Bluefruit NeoPixel Animation and Color Remote Control"
+- type: docs
+- url: https://learn.adafruit.com/circuit-playground-bluefruit-neopixel-animation-and-color-remote-control
+- author: Adafruit (published 2019-12-16, still current in Learn system)
+- accessed: 2026-07-09
+- relevance: official guide running CircuitPython BLE radio activity concurrently with NeoPixel animation on nRF52840-class boards — ecosystem existence proof for radio+render, albeit at low pixel counts, not a 60 fps benchmark
