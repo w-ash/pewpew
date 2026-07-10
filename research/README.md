@@ -103,7 +103,13 @@ another block.
 | S550–S599 | RA-12 Prior art & control plane |
 | S600–S699 | Code-reading deep dives |
 | S700–S749 | Code-reading deep dives (added from Phase 1 queues) |
-| S750–     | Synthesis & later additions |
+| S750–S799 | Synthesis & later additions |
+| S800–S849 | RA-13 ESP-NOW & fleet scaling |
+| S850–S899 | RA-14 Mesh transport alternatives |
+| S900–S949 | RA-15 Decentralized coordination & sync |
+| S950–S999 | RA-16 ESP32-S3 render+radio coexistence |
+| S1000–S1049 | RA-17 Fleet ops & mesh gateway |
+| S1050–S1099 | RA-18 Wearable bridging |
 
 ## Topic docs
 

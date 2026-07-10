@@ -2247,7 +2247,7 @@ is removed.
 - accessed: 2026-07-03
 - relevance: Fadecandy-style interpolation + temporal dithering on ATtiny-class AVR (5 B RAM/channel, 64 cycles/channel, zero frame buffer via CCL hardware waveform) — existence proof for pewpew's wearable-tier quality layer. Deep dive: code-reading/modern-engines.md §B. Excerpts: excerpts/S716-smoothled-inner-loop/.
 
-## Block S750+ — Synthesis & later additions
+## Block S750–S799 — Synthesis & later additions
 
 ### [S750] Pixelblaze firmware release announcements V3.66 & V3.67 (ElectroMage forum)
 - type: forum

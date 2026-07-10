@@ -29,7 +29,13 @@ BLOCKS = [
     (550, 599, "Block S550–S599 — RA-12 Prior art & control plane"),
     (600, 699, "Block S600–S699 — Code-reading deep dives"),
     (700, 749, "Block S700–S749 — Code-reading deep dives (Phase 1 additions)"),
-    (750, 9999, "Block S750+ — Synthesis & later additions"),
+    (750, 799, "Block S750–S799 — Synthesis & later additions"),
+    (800, 849, "Block S800–S849 — RA-13 ESP-NOW & fleet scaling"),
+    (850, 899, "Block S850–S899 — RA-14 Mesh transport alternatives"),
+    (900, 949, "Block S900–S949 — RA-15 Decentralized coordination & sync"),
+    (950, 999, "Block S950–S999 — RA-16 ESP32-S3 render+radio coexistence"),
+    (1000, 1049, "Block S1000–S1049 — RA-17 Fleet ops & mesh gateway"),
+    (1050, 1099, "Block S1050–S1099 — RA-18 Wearable bridging"),
 ]
 
 ENTRY_RE = re.compile(r"^### \[S(\d+)\]")
