@@ -1,14 +1,14 @@
 # pewpew requirements — per form factor, with cited rationale
 
-Date: 2026-07-03 (M tier added 2026-07-09)
+Date: 2026-07-03 (M tier added 2026-07-09; T tier added 2026-07-10)
 Status: Proposed (Phase 3 synthesis; numbers marked *prototype* must be
 confirmed by the benchmarks listed in
 [`architecture.md`](architecture.md#prototype-to-verify)).
 
 Every numeric requirement cites the evidence that motivates it. Requirement
 IDs (`Q-*` common, `W-*` wearable, `P-*` portable, `R-*` room, `M-*` mesh
-group) are stable and referenced from [`architecture.md`](architecture.md)
-and the ADRs.
+group, `T-*` testability & feedback) are stable and referenced from
+[`architecture.md`](architecture.md) and the ADRs.
 
 ## Q. Common quality bar ("better than clown mode")
 
@@ -85,6 +85,26 @@ Justified in [ADR-014](decisions/ADR-014-mesh-transport.md),
 | M-7 | Interop framing | Fixed fleet-wide RF channel (firmware constant; change = OTA); unencrypted broadcast + app-layer integrity (magic/version byte); compatible with peer fleets' compact fixed-layout state broadcasts | ESP-NOW channel is locked to the WiFi interface's channel [S802][S815][S1000]; broadcast cannot be encrypted and encrypted peers cap at 17 — unencrypted + app-layer integrity is forced at fleet scale [S800][S806]; runtime channel mutation strands nodes that miss the command [S1000]. |
 | M-8 | Fleet OTA | Standard dual-slot OTA + rollback + signed images, in deliberate maintenance windows; **no mesh-gossiped firmware**; nodes self-report running version via telemetry | IDF dual-slot/rollback/signing is the boring core [S1003]; mesh OTA's observability failure is documented by its own practitioners [S1006][S1005]; `esp_app_desc_t` gives version introspection [S1013]; ESP-NOW OTA ("50 devices in 3 min") recorded as escape hatch [S1001]. |
 | M-9 | Wearable participation | Via BLE bridge only: scene/palette/tempo with ≤1–2 s freshness at ≤0.2 mA average scan cost; **beat-phase excluded** (wearables free-run a tempo-disciplined local beat clock) | ~27 usable MSD bytes ≥ 2× the payload [S1050]; duty-cycled nRF52840 observer ≈ 0.04–0.2 mA — ADR-008's budget preserved [S1051][S1052]; advDelay + scan aliasing + GC cap phase at tens of ms [S1057][S1062]. |
+
+## T. Testability & feedback (humans and coding agents)
+
+Justified in [ADR-017](decisions/ADR-017-simulation-first-testing.md),
+[ADR-018](decisions/ADR-018-agent-driveable-bench.md),
+[ADR-019](decisions/ADR-019-resilience-policy.md); design in
+[test-and-feedback.md](test-and-feedback.md).
+
+| ID | Requirement | Value | Rationale |
+|---|---|---|---|
+| T-1 | Inner-loop latency (L1) | Full golden-frame + property suite <30 s; a single pattern test <1 s | Agents iterate at the cheapest verifiable level; verification-first is the 2026 doctrine [S1150]; the pure core makes ms-scale render tests possible [S518][S516] |
+| T-2 | Fleet-twin determinism (L2) | Same (nodes, schedule, seed) → byte-identical trace; all fault injection (loss/partition/churn) seed-derived | Golden fleet-traces and reproducible coordination bugs require it [ADR-017]; same discipline as Q-5/golden frames; no wall clock or unseeded RNG in coordination code |
+| T-3 | Verify verbs | Every pyramid level exposed as an allowlisted CLI verb with `--json`, meaningful exit codes, and machine-readable failure artifacts | CLI-first structured output is explicit 2026 vendor+practitioner doctrine [S1150][S1168]; interactive-only feedback is the named anti-pattern [S1168] |
+| T-4 | Bench automation (L4) | Every permanent §12 rig item is a pytest invocation; DUTs power-cycled to known state before every run; instruments scripted (sigrok/Saleae, scapy, PPK2, uhubctl) | pytest-embedded multi-DUT is Espressif's own CI shape [S1115][S1117]; board-farm convergent lesson: power-cycle first [S1122][S1133] |
+| T-5 | Gating discipline | Hard gates (hooks) only on deterministic L1/L2 checks; L4 results reported as pass^k over k isolated trials, transcripts kept — never a session-blocking gate | Open-air RF results are distributions [RA-19]; pass^k + transcript review is the 2026 eval discipline [S1154]; blind retries deprecated [S1170] |
+| T-6 | Soak tests | Daemon-owned on the bench host, appending newline-JSON health snapshots; CI (scheduled) and agents poll the artifact; capture-on-trip forensics windows | Hosted CI caps at 6 h — self-hosted/daemon is the only soak substrate [S1123][S1143]; artifact norms per [ADR-018] |
+| T-7 | Agent hardware tiers | Tier 0 read-only (serial/captures/telemetry) unrestricted; Tier 1 bench actuation allowlisted + `--dry-run` + audit log; Tier 2 deployed fleet **read-only to agents, always** | No worked bench-safety framework exists in the 2026 literature — this boundary is ours [RA-20]; permission layer, not prompt text, enforces it [S1155]; Seer model for fleet tier [S1171] |
+| T-8 | Failure artifacts | Every failure — test, soak trip, node crash — leaves a machine-readable artifact (structured log, pcap/capture window, coredump + reset reason) | Evidence-artifact review is the 2026 norm [S1150]; node forensics minimum per [ADR-019] [S1202][S1213] |
+| T-9 | Chaos drills | ADR-015's convergence claims run as falsifiable steady-state hypotheses: loss in twin (every CI), node-kill/partition/brownout/boot-loop on bench (pre-show soak); never mid-show | Chaos principles adapted to fleets [S1220]; embedded chaos tooling is thin — drills ride the ADR-017/018 loops [S1221] |
+| T-10 | Canary-before-fleet | No image reaches R2 without R1: ~5 pinned canaries, one full duty cycle, zero unexpected resets; frames schema-versioned for standing version skew | Small fleets substitute time for population [S1216]; pinning not percentages [S1218]; unexpected-reset count is THE health metric [S1213] |
 
 ## Cross-cutting: standalone-vs-hosted expectations summary
 

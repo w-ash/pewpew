@@ -563,7 +563,11 @@ scale [RA-05 open questions]) and a ~5-pattern prototype of the
 scalar-looking-over-arrays authoring surface, including the `if` vs
 `np.where` branching question ([ADR-005], [ADR-011]). Failure here changes
 ADR-011 (Numba/compiled tier promoted from optional to required), not the
-product shape.
+product shape. **Feedback before features**: the test-harness skeleton
+(golden-frame loop, fake clock, fleet-twin interfaces) is already landed in
+`harness/`; Phase 0 also assembles the ~$200 bench core
+([ADR-018](decisions/ADR-018-agent-driveable-bench.md)) so every later
+phase's §12 items run as scripted rigs, not lab afternoons (§13).
 
 **Phase 1 — host engine core, end-to-end on real LEDs.** Pure render core
 (`render(t, mapping, params, seed)`), pattern contract (§3), typed params
@@ -634,3 +638,33 @@ structure); 7–12 gate Phase 3/4 details; 15–20 gate Phase 5 (the mesh tier:
 15–16 gate ADR-014/015 constants at the ceiling, 17–18 gate M-6 output-driver
 choices, 19–20 gate ADR-016's fallback gateway and bridge dispositions — none
 change the tier's structure at the 25–50 node design target).
+
+Every item is mapped to a feedback-pyramid level and marked one-off vs
+permanent rig in [test-and-feedback.md §4](test-and-feedback.md); the
+permanent rigs are the bench's standing capabilities ([ADR-018]).
+
+## 13. Test, feedback & resilience architecture
+
+Decisions ([ADR-017](decisions/ADR-017-simulation-first-testing.md),
+[ADR-018](decisions/ADR-018-agent-driveable-bench.md),
+[ADR-019](decisions/ADR-019-resilience-policy.md)); full design with
+requirements (T-1…T-10) in **[test-and-feedback.md](test-and-feedback.md)**.
+The one-paragraph version:
+
+Development feedback runs on a five-level pyramid — pure-Python golden
+frames and property tests (ms; already landed in `harness/`), the
+deterministic **fleet digital twin** (the mesh tier simulated with
+seed-derived fault injection; same seed → same trace), a thin emulation
+tier (QEMU-S3/Wokwi for firmware logic; **no emulator exercises ESP-NOW**
+[S1113][S1106], so the radio is the sim/HIL boundary), the **agent- and
+CI-driveable bench** (pytest-embedded + scripted instruments; pass^k
+statistical gating, never session-blocking [S1154]), and read-only fleet
+telemetry. Coding agents get one allowlisted verify verb per level with
+`--json` output and machine-readable failure artifacts [S1150][S1168];
+hardware actuation is tiered (bench allowlisted + dry-run + audit; deployed
+fleet read-only, always). Resilience over perfection is policy ([ADR-019]):
+a four-rung local-decision degradation ladder, reboot-don't-wedge watchdog
+discipline, black-box forensics on every node, pinned-canary rollout rings
+with zero-unexpected-reset promotion gates, chaos drills that test
+ADR-015's convergence claims as falsifiable hypotheses, and burn-in +
+Poisson-sized spares (swap-don't-debug).
