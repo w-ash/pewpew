@@ -40,6 +40,36 @@ values kept in the JSON (results are distributions, T-5).
       recorded (promote-or-not the compiled tier) and R-9's
       "no published benchmark" caveat cleared in requirements.md.
 
+## bench_authoring.py — §12 item 2 (gates ADR-005)
+
+Authoring-surface study: the five canonical patterns (plasma, comet, geq,
+fire, sdf3d in `bench/authoring/`) written against a minimal prototype of
+the ADR-005 contract (`before_render(dt, features)` + `render(x, y, z,
+index)` + persistent `self.pixels` + Pixelblaze-style idiom kit, all in
+`bench/authoring/surface.py` — throwaway, superseded by the Phase-1 engine).
+Each pattern file is the artifact: author-facing code plus `# STUMBLE-N`
+annotations at the exact line of every scalar→array friction point.
+
+```sh
+uv run python bench/bench_authoring.py           # validate + JSON artifact
+uv run python bench/bench_authoring.py --show    # ANSI eyeball
+```
+
+The runner validates output (shape/dtype/finite/[0,1]), gates on
+determinism (full 120-frame sequence twice from fresh instances must hash
+identically), and emits the mechanical census (np.where + STUMBLE tags per
+file). The deliverable is the hand-written inventory, not the runner
+output.
+
+### Status
+
+- [x] Study complete: `results/authoring-2026-07-16.md` (inventory +
+      verdict) and `results/authoring-2026-07-16.json`. Zero blockers,
+      17 stumbles (4 hit / 13 shielded) — **GO conditional on idiom-kit
+      additions**, listed in the report.
+- [ ] ADR-005 status flip (Proposed → Accepted) — proposed note text is in
+      the report, pending human sign-off.
+
 ### Caveats on reading the numbers
 
 - The per-pixel loop here is a tight, locals-bound inline loop over Python

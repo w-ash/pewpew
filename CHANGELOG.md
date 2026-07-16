@@ -22,6 +22,11 @@ series (batch mode).
 - Land the test-harness skeleton: golden-frame regression loop
   (`uv run pytest`, `--regen-goldens`), deterministic `FakeClock`, pattern
   contract, and fleet-sim interfaces.
+- Add the Phase-0 authoring-surface prototype (`bench/authoring/` +
+  `bench/bench_authoring.py`): five canonical patterns (plasma, comet, geq,
+  fire, 3D SDF) written against the ADR-005 contract with a per-line stumble
+  inventory in `bench/results/authoring-2026-07-16.md` — zero blockers,
+  verdict GO conditional on idiom-kit additions.
 - Add the Phase-0 throughput microbenchmark (`bench/bench_throughput.py`):
   per-pixel loop vs NumPy vs Numba at 300/3k/30k px with agreement gate and
   committed JSON artifacts; desktop datapoint clears the R-9 target 52× on

@@ -10,7 +10,7 @@ The Phase 1–5 entries mirror the build plan (`research/synthesis/architecture.
     - Why: First end-to-end light on real LEDs; everything later builds on it.
     - Dependencies: v0.1.x Phase 0 gates (throughput, authoring surface, pacing jitter)
     - Status: Not Started
-    - Notes: Break into a v0.2.x series when promoted — XL must be decomposed before scheduling.
+    - Notes: Break into a v0.2.x series when promoted — XL must be decomposed before scheduling. Idiom-kit additions mandated by the §12 item 2 verdict (`bench/results/authoring-2026-07-16.md`): `fade(dt, tau)`, `bins(x, n)`, `sample2d(field, x, y)`, `hash01(x, salt)`; docs for the internal-field idiom, np.where-evaluates-both-branches, and RNG placement; decide whether private per-pixel state buffers become sanctioned alongside `self.pixels` (stumble #17).
 
 - [ ] **Phase 2 — quality pipeline**
     - Effort: XL
