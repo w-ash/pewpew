@@ -116,3 +116,16 @@ whether private per-pixel state buffers become sanctioned (#17).
 uv run python bench/bench_authoring.py           # validate + JSON artifact
 uv run python bench/bench_authoring.py --show    # ANSI eyeball
 ```
+
+## Addendum (2026-07-16, post-study)
+
+Building the live preview exposed a latent flaw in `sdf3d.py` that the study
+missed: the `spin` parameter is a mathematical no-op — the torus is centered
+on the y-axis and `render` rotates about that same axis, which the SDF
+(`√(rx²+rz²)`) is invariant under. The pattern animated convincingly anyway
+(beat pulse + hue shimmer + the viewer's own camera motion), so nothing
+caught it. Worth logging as a stumble-adjacent observation: the vectorized
+surface can't flag *semantically* dead parameters, and golden-frame tests
+wouldn't either when other motion masks them. The preview's JS port fixes it
+with a fixed axis tilt (precession); the Python pattern is left as committed
+study evidence.
