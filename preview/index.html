@@ -484,7 +484,13 @@ function setupCanvas(canvas, W, H) {
   return ctx;
 }
 
-function glowDot(ctx, x, y, r, R, G, B) {
+// display gamma — pattern output is linear-light; the artifact viewer applied
+// v^(1/2.2) at export time and the low-end glow (comet trails, SDF shell)
+// disappears without it
+const disp = v => Math.pow(clamp(v, 0, 1), 1 / 2.2);
+
+function glowDot(ctx, x, y, r, Rl, Gl, Bl) {
+  const R = disp(Rl), G = disp(Gl), B = disp(Bl);
   const lum = (R + G + B) / 3;
   if (lum > 0.02) {
     ctx.shadowColor = `rgb(${R * 255 | 0},${G * 255 | 0},${B * 255 | 0})`;
@@ -556,8 +562,8 @@ function fireRenderer(canvas, sim, cell) {
     const d = cell * 2.1;
     for (let r = 0; r < gh; r++) for (let c = 0; c < gw; c++) {
       const k = (r * gw + c) * 3;
-      const R = out[k], G = out[k + 1], B = out[k + 2];
-      if (R + G + B < 0.03) continue;
+      if (out[k] + out[k + 1] + out[k + 2] < 0.03) continue;
+      const R = disp(out[k]), G = disp(out[k + 1]), B = disp(out[k + 2]);
       ctx.drawImage(sprite(R, G, B), cell * (c + 0.5) - d / 2, H - cell * (r + 0.5) - d / 2, d, d);
     }
     for (const e of sim.embers) {
@@ -599,6 +605,7 @@ function latticeRenderer(canvas, fix) {
       const rx = cy * px + sy * pz, rz = cy * pz - sy * px;
       const ry = cp * py - sp * rz, rd = cp * rz + sp * py;
       const o = order[i];
+      o.i = i;   // sort() permutes the reused objects — re-pair index with slot
       o.sx = W / 2 + rx * S; o.sy = H / 2 - ry * S; o.depth = rd;
     }
     order.sort((a, b) => a.depth - b.depth);
