@@ -334,17 +334,16 @@ class Sdf3d {
   render(fix, out) {
     const { n, x, y, z } = fix;
     const ca = Math.cos(this.angle), sa = Math.sin(this.angle);
-    // Fixed tilt off the y-axis: a torus spun about its own symmetry axis is
-    // mathematically invariant (the study pattern's spin is a no-op!) — the
-    // tilt breaks the symmetry so spin reads as a precessing wobble.
-    const ct = Math.cos(0.5), st = Math.sin(0.5);
+    // Tumble about x — the ring flips end-over-end. A torus spun about its
+    // own (vertical) symmetry axis is mathematically invariant (the study
+    // pattern's spin is a no-op), and even a tilted precession barely reads
+    // at 10³ cells; the end-over-end flip is unmistakable.
     const shim = 0.1 * wave(this.shimmer / 0.65536);  // time(0.01) equivalent
     for (let i = 0; i < n; i++) {
       const px = x[i] - 0.5, py = y[i] - 0.5, pz = z[i] - 0.5;
-      const rx = ca * px + sa * pz, rz = ca * pz - sa * px;
-      const py2 = ct * py - st * rz, rz2 = st * py + ct * rz;
-      const ring = Math.sqrt(rx * rx + rz2 * rz2) - this.R;
-      const d = Math.sqrt(ring * ring + py2 * py2) - this.r;
+      const py1 = ca * py - sa * pz, pz1 = sa * py + ca * pz;
+      const ring = Math.sqrt(px * px + pz1 * pz1) - this.R;
+      const d = Math.sqrt(ring * ring + py1 * py1) - this.r;
       const v = d < 0 ? 1 : 0.6 * Math.exp(-Math.abs(d) * 18);
       hsvPut(out, i * 3, 0.55 + d * 1.5 + shim, 0.8, v);
     }
@@ -657,9 +656,9 @@ const CARDS = [
   {
     cls: Sdf3d, title: 'sdf3d', fixture: lattice(10), make: (canvas, fix) =>
       latticeRenderer(canvas, fix),
-    note: 'Torus distance field over a 10³ lattice, tilted so the spin lever ' +
-      'reads as precession (spinning an axisymmetric torus about its own axis ' +
-      'is invisible — the study pattern\'s spin param is a genuine no-op). ' +
+    note: 'Torus distance field over a 10³ lattice. Spin tumbles the ring ' +
+      'end-over-end — spinning a torus about its own symmetry axis is ' +
+      'invisible (the study pattern\'s spin param is a genuine no-op). ' +
       'Minor radius pulses on the beat. Drag to orbit.',
   },
 ];
