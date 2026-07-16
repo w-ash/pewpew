@@ -44,6 +44,14 @@ The Phase 1–5 entries mirror the build plan (`research/synthesis/architecture.
     - Status: Not Started
     - Notes: 25–50 nodes at defaults is already inside the evidence; benches gate the buy, not the design.
 
+- [ ] **Keep preview ports honest**
+    - Effort: XS
+    - What: `preview/index.html` carries hand-ported JS mirrors of the `bench/authoring/` patterns; re-port (or retire the page) when the Phase-1 engine or idiom kit changes the contract.
+    - Why: Unmaintained mirrors drift silently; the page is a playground, not evidence, and must not masquerade as either.
+    - Dependencies: None
+    - Status: Not Started
+    - Notes: The page's fire deliberately diverges (Doom advection + embers, sourced in the CHANGELOG entry); the five study patterns should stay faithful.
+
 - [ ] **Retry 51 pending archive snapshots**
     - Effort: S
     - What: Re-run the archive pass for the SOURCES.md entries marked `archive: pending` (Save Page Now outage during the ADR-014..019 pass).

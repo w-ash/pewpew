@@ -22,6 +22,11 @@ series (batch mode).
 - Land the test-harness skeleton: golden-frame regression loop
   (`uv run pytest`, `--regen-goldens`), deterministic `FakeClock`, pattern
   contract, and fleet-sim interfaces.
+- Add a live pattern playground (`preview/index.html`): browser-rendered JS
+  ports of the five authoring patterns with parameter levers, tempo-driven
+  fake audio, and a particle-upgraded fire (Doom-style advection, wind and
+  gusts, noise cooling, wandering tongues, additive embers). Dark-mode-only,
+  single file, opens locally.
 - Add the Phase-0 authoring-surface prototype (`bench/authoring/` +
   `bench/bench_authoring.py`): five canonical patterns (plasma, comet, geq,
   fire, 3D SDF) written against the ADR-005 contract with a per-line stumble
