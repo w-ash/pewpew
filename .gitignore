@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+node_modules/
 
 # research working files that must never be committed
 research/clones/

@@ -14,7 +14,8 @@ Changes to visual surfaces are verified BOTH ways before committing:
 - **Statistics on the actual pixel/state data** — eyes have missed what
   stats caught (comet sparkle ratcheting to permanent white).
 
-Two gotchas from the standing Playwright harness: scroll a card into view
-before sampling (IntersectionObserver culling freezes off-screen canvases),
-and exclude the brightest stochastic elements (embers, wandering tongues)
-from any centroid-based assertion.
+The standing harness is committed: `cd preview && npm install &&
+node verify.js` (screenshots land in the OS tmpdir — Read them). Its
+header documents the measurement rules (scroll cards into view before
+sampling; exclude stochastic bright elements from centroid assertions);
+extend it rather than writing throwaway probes.

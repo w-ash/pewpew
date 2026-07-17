@@ -22,6 +22,9 @@ series (batch mode).
 - Land the test-harness skeleton: golden-frame regression loop
   (`uv run pytest`, `--regen-goldens`), deterministic `FakeClock`, pattern
   contract, and fleet-sim interfaces.
+- Add a committed verification harness for the playground (`preview/verify.js`,
+  Playwright): animation, lever-effect, pause, and spin checks with the
+  measurement rules that keep them deterministic.
 - Add a live pattern playground (`preview/index.html`): browser-rendered JS
   ports of the five authoring patterns with parameter levers, tempo-driven
   fake audio, and a particle-upgraded fire (Doom-style advection, wind and

@@ -10,7 +10,7 @@ The Phase 1–5 entries mirror the build plan (`research/synthesis/architecture.
     - Why: First end-to-end light on real LEDs; everything later builds on it.
     - Dependencies: v0.1.x Phase 0 gates (throughput, authoring surface, pacing jitter)
     - Status: Not Started
-    - Notes: Break into a v0.2.x series when promoted — XL must be decomposed before scheduling. Idiom-kit additions mandated by the §12 item 2 verdict (`bench/results/authoring-2026-07-16.md`): `fade(dt, tau)`, `bins(x, n)`, `sample2d(field, x, y)`, `hash01(x, salt)`; docs for the internal-field idiom, np.where-evaluates-both-branches, and RNG placement; decide whether private per-pixel state buffers become sanctioned alongside `self.pixels` (stumble #17).
+    - Notes: Break into a v0.2.x series when promoted — XL must be decomposed before scheduling. Idiom-kit additions mandated by the §12 item 2 verdict (`bench/results/authoring-2026-07-16.md`): `fade(dt, tau)`, `bins(x, n)`, `sample2d(field, x, y)`, `hash01(x, salt)`; docs for the internal-field idiom, np.where-evaluates-both-branches, and RNG placement; decide whether private per-pixel state buffers become sanctioned alongside `self.pixels` (stumble #17). Add a param-liveness check to the L1 harness: wiggle each declared `Param` across its range and assert the frame sequence changes — motivated by the sdf3d dead-spin discovery (report addendum): neither the authoring surface nor goldens catch a semantically dead parameter when other motion masks it.
 
 - [ ] **Phase 2 — quality pipeline**
     - Effort: XL
@@ -50,7 +50,15 @@ The Phase 1–5 entries mirror the build plan (`research/synthesis/architecture.
     - Why: Unmaintained mirrors drift silently; the page is a playground, not evidence, and must not masquerade as either.
     - Dependencies: None
     - Status: Not Started
-    - Notes: The page's fire deliberately diverges (Doom advection + embers, sourced in the CHANGELOG entry); the five study patterns should stay faithful.
+    - Notes: Sanctioned divergences from the study patterns: fire (Doom advection + embers, sourced in the CHANGELOG entry) and sdf3d spin (end-over-end tumble — the study pattern's spin is a proven no-op, see the report addendum). Port-introduced bugs to date were both renderer-side (lattice color/position desync after sort; missing display gamma crushing low-end glow) — any future preview sink inherits the display-gamma requirement. Verify changes with `cd preview && npm install && node verify.js` (the committed Playwright harness).
+
+- [ ] **Port the upgraded fire to Python**
+    - Effort: S
+    - What: Bring the preview's FireSim recipe (Doom-style randomized advection with wind/gusts, scrolling-noise cooling, wandering hot-spot tongues, additive ember particles) into a Python pattern once the Phase-1 engine and idiom kit exist.
+    - Why: It's a far better fire than the study's Fire2012 and it stress-tests exactly the contract questions Phase 1 must settle: internal fields, per-particle state, the stumble-17 private-buffer decision.
+    - Dependencies: Phase 1 engine + idiom-kit additions
+    - Status: Not Started
+    - Notes: Reference implementation: `FireSim` in `preview/index.html`; technique sources in the CHANGELOG playground entry (Sanglard PSX-Doom fire, FastLED Fire2012WithPalette, 29a.ch, Petrick Fire2018, MatrixFireFast, Pagurek).
 
 - [ ] **Retry 51 pending archive snapshots**
     - Effort: S
