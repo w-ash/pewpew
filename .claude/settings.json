@@ -5,5 +5,22 @@
       "Bash(uv sync:*)",
       "Bash(python3 research/tools/merge_sources.py)"
     ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate_mask_check.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
