@@ -39,3 +39,26 @@ series (batch mode).
   per-pixel loop vs NumPy vs Numba at 300/3k/30k px with agreement gate and
   committed JSON artifacts; desktop datapoint clears the R-9 target 52× on
   Apple M5 Pro (Pi 5 rerun pending).
+- Add `research/tools/retry_archives.py`: resumable archive.org snapshot
+  retries for `SOURCES.md` entries left marked pending by earlier passes —
+  availability API first, Save-Page-Now fallback, journalled per entry.
+- Decompose Phase 1 into a scheduled `docs/backlog/v0.2.x.md` series, with
+  the Phase-0 study's conditional obligations as first-class stories.
+
+### Changed
+
+- Accept ADR-005 (pattern authoring model) — the Phase-0 item-2 study
+  confirmed the vectorized-authoring bet, conditional on idiom-kit additions.
+- Pin every ADR-cited code source to the commit that was actually read, so
+  ADR evidence resolves to a fixed tree rather than a moving branch.
+- Snapshot 47 of the 53 sources left unarchived by earlier passes; the
+  remaining 6 are refused by Save Page Now at the domain level.
+
+### Fixed
+
+- Keep preview lattice cell colors attached to their cells through the depth
+  sort — colors were being read from pre-sort indices.
+- Restore display gamma in the preview, which was crushing low-end glow to
+  black.
+- Make the preview's sdf3d `spin` parameter visible as an end-over-end
+  tumble — spinning about the torus symmetry axis is a mathematical no-op.
