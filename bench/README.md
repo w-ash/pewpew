@@ -40,6 +40,59 @@ values kept in the JSON (results are distributions, T-5).
       recorded (promote-or-not the compiled tier) and R-9's
       "no published benchmark" caveat cleared in requirements.md.
 
+## bench_pacing.py — §12 item 13 (gates ADR-010)
+
+Pacing-jitter soak. Item 1 benched *throughput* — how long a frame takes.
+This benches *pacing* — whether the next frame starts when it should. They
+fail independently: a host with 50× throughput margin can still miss
+deadlines, and device-side keyframe interpolation (Phase 4) is hostage to
+cadence consistency, not to average speed.
+
+```sh
+uv run python bench/bench_pacing.py --label <host>
+uv run python bench/bench_pacing.py --quick     # ~40 s smoke run
+```
+
+Three pacers run head to head over a 16.67 ms tick:
+
+| Pacer | What it is |
+|---|---|
+| `deadline` | ADR-010's — absolute schedule, accumulated error corrected |
+| `deadline_spin` | same, but sleeps ~6 ms short of the deadline and busy-waits the rest |
+| `naive` | LedFx / led-control's compensated sleep, no accumulated-error term — ADR-010's rejected alternative [S630][S660] |
+
+All three are scored against the **same** ideal schedule (`t_start + k·period`).
+That matters: measured against its own re-based deadline the naive pacer is
+never late — it just silently runs slow, which only a fixed external reference
+exposes.
+
+Load conditions: `idle`, `render` (plasma NumPy at 20k px, the count R-9
+names), and `render+audio` — the last adds a thread waking every 11.6 ms
+(44.1 kHz / 512-frame blocks) doing an rfft, standing in for the capture
+thread's GIL contention. GC stays enabled and every collection is timed via
+`gc.callbacks`; the run also probes bare `time.sleep()` overshoot at 1 ms and
+at the frame period, which is the floor no pacer can beat.
+
+Headline run is what item 13 specifies: `deadline` + `render+audio`, 10 min.
+The sweep cells are 60 s each. Results are a distribution — percentiles,
+late-tick counts, cumulative drift and a histogram go to the JSON (T-5).
+
+### Status
+
+- [x] Desktop datapoint: `results/pacing-2026-07-26-mac-m5pro.{md,json}`
+      (Apple M5 Pro). p99 cadence error 6.98 ms over a 10-min soak, 2 of
+      35 991 intervals off by a full frame, 59.98 fps — **PASS on this host**.
+      The residual jitter is the OS sleep timer (3.70 ms median overshoot at
+      this period), not CPython. The `naive` pacer ADR-010 rejects measures
+      51.49 fps and 8.5 s of drift per minute.
+- [ ] **Pi 5 (or whichever host is chosen) rerun** (`--label pi5`) — R-8 names
+      a Pi 5 / N100-class machine; a desktop only bounds it. ADR-010 stays
+      Proposed until then: the mechanism is confirmed, the host is not.
+- [ ] Re-run once Phase 1 adds the parameter tree, sinks and hot reload. The
+      soak saw **zero** GC collections because a pure-NumPy render loop
+      allocates arrays, not gc-tracked containers — so ADR-010's GC worry is
+      untested, not cleared.
+
 ## bench_authoring.py — §12 item 2 (gates ADR-005)
 
 Authoring-surface study: the five canonical patterns (plasma, comet, geq,

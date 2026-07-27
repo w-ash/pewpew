@@ -39,6 +39,11 @@ series (batch mode).
   per-pixel loop vs NumPy vs Numba at 300/3k/30k px with agreement gate and
   committed JSON artifacts; desktop datapoint clears the R-9 target 52× on
   Apple M5 Pro (Pi 5 rerun pending).
+- Add the Phase-0 pacing-jitter soak (`bench/bench_pacing.py`): three pacers
+  over a 16.67 ms tick under render + capture-thread load, reporting cadence
+  distribution, drift and GC pauses. Desktop datapoint passes — p99 cadence
+  error 6.98 ms over 10 minutes, 2 of 35 991 intervals off by a frame — and
+  measures ADR-010's rejected compensated-sleep pacer at 51.49 fps.
 - Add `research/tools/retry_archives.py`: resumable archive.org snapshot
   retries for `SOURCES.md` entries left marked pending by earlier passes —
   availability API first, Save-Page-Now fallback, journalled per entry.

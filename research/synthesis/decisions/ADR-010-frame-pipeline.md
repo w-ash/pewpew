@@ -39,6 +39,27 @@ scheduler jitter.
 - The single clock is the natural place to resolve modulated parameters
   (ADR-006) and audio features (ADR-009) exactly once per frame.
 
+## Verification (Phase-0 item 13, 2026-07-26 — desktop only)
+
+Benched the paced clock against its own rejected alternative on an Apple M5
+Pro (`bench/bench_pacing.py`; report `bench/results/pacing-2026-07-26-mac-m5pro.md`).
+10-min soak at 60 fps, 20k px NumPy render, capture-thread stand-in running:
+p99 cadence error **6.98 ms**, 2 of 35 991 intervals off by a full frame,
+59.98 fps, signed interval error **+0.004 ± 2.66 ms**. The residual is the OS
+sleep timer (3.70 ms median overshoot at this period), not CPython — the pacer
+lands on the floor.
+
+The compensated-sleep alternative below, rejected on a code read, measures
+**+2.75 ms of error on every frame → 51.49 fps and 8.5 s of drift per minute**,
+invisible in its own error signal. The accumulated-error term is the whole
+difference.
+
+Two caveats keep this **Proposed**, not Accepted: the datapoint is a desktop,
+not the Pi 5/N100 host R-8 names; and the soak saw *zero* GC collections
+because a pure-NumPy loop allocates arrays rather than gc-tracked containers,
+so this ADR's GC concern is untested rather than cleared — retest once Phase 1
+adds the parameter tree, sinks and hot reload.
+
 ## Evidence
 
 - [S264] LX's fixed-rate engine executor (60 fps default) — the clean
