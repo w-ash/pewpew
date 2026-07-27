@@ -16,6 +16,7 @@ is removed.
 ### [S001] WLED (upstream repository)
 - type: code
 - url: https://github.com/wled/WLED
+- pinned: wled/WLED@26f032ef4976f76470d7603fdd17766f5e8a93f2
 - author: Aircoookie & wled org contributors
 - license: EUPL-1.2 (verified 2026-07-03)
 - accessed: 2026-07-03
@@ -145,6 +146,7 @@ is removed.
 ### [S019] SmoothLed (mattshepcar)
 - type: code
 - url: https://github.com/mattshepcar/SmoothLed
+- pinned: mattshepcar/SmoothLed@e09236cfc63a96c565d97ef316073452a38cf86d
 - accessed: 2026-07-03
 - relevance: modern reimplementation of Fadecandy-style interpolation+dithering on ATtiny — proof the technique fits tiny MCUs (wearable tier)
 
@@ -164,6 +166,7 @@ is removed.
 ### [S022] Falcon Player / FPP (repository)
 - type: code
 - url: https://github.com/FalconChristmas/fpp
+- pinned: FalconChristmas/fpp@05d9dfa914a2b259cf09ee9f0315083f7dd78e7b
 - accessed: 2026-07-03
 - relevance: show player + MultiSync protocol; multi-device sync prior art (seed)
 
@@ -194,6 +197,7 @@ is removed.
 ### [S026] xLights repository (current location)
 - type: code
 - url: https://github.com/xLightsSequencer/xLights
+- pinned: xLightsSequencer/xLights@47edb093528fb1d0e8a67712b2941fcf509f5f19
 - author: xLights contributors
 - license: GPL-3.0
 - accessed: 2026-07-03
@@ -273,6 +277,7 @@ is removed.
 ### [S035] LX core library (heronarts/LX)
 - type: code
 - url: https://github.com/heronarts/LX
+- pinned: heronarts/LX@b7c10b3cf5d588de6bd95fb9200eb649b77f366c
 - author: Mark C. Slee / heronarts
 - license: LX Studio Software License (custom: free non-commercial; commercial use capped at $25K total annual revenue)
 - published: 2018-01-08 (repo created); v1.2.1 2025-11-19; pushed 2026-06-19
@@ -638,7 +643,7 @@ is removed.
 - url: https://www.tme.eu/Document/6e37dbd0c854ce14f428cca7891158c6/WS2816B-2020.pdf
 - author: WorldSemi
 - accessed: 2026-07-03
-- archive: pending (archive.org save returned 520 on 2026-07-03, twice; origin 403s non-browser clients — likely anti-bot, not dead; no prior wayback snapshot exists)
+- archive: https://web.archive.org/web/20260727054006/https://www.tme.eu/Document/6e37dbd0c854ce14f428cca7891158c6/WS2816B-2020.pdf
 - relevance: 16-bit/channel, 65536 grayscale, built-in 4-bit gamma, 2020 package
 
 ### [S124] NeoPixelBus issue #357 — WS2816 support
@@ -689,6 +694,7 @@ is removed.
 ### [S130] FastLED PR #2119 — hd108: initial working state (merged)
 - type: code
 - url: https://github.com/FastLED/FastLED/pull/2119
+- pinned: FastLED/FastLED@11de483f4244041f14efe55e73bcea7ccea1c8f6
 - author: arfoll / FastLED
 - license: MIT
 - accessed: 2026-07-03
@@ -1186,6 +1192,7 @@ is removed.
 ### [S300] marimapper (TheMariday)
 - type: code
 - url: https://github.com/TheMariday/marimapper
+- pinned: TheMariday/marimapper@7dc5f799a1b7c180573c2632f6d12a3be0cbf4fa
 - license: GPL-3.0 (seed — verify)
 - accessed: 2026-07-03
 - relevance: current active camera-based 3D LED mapper
@@ -1193,6 +1200,7 @@ is removed.
 ### [S301] Lightwork (PWRFLcreative)
 - type: code
 - url: https://github.com/PWRFLcreative/Lightwork
+- pinned: PWRFLcreative/Lightwork@48fa902b006dbc9a981e6c61218422cba5700c3c
 - accessed: 2026-07-03
 - relevance: earlier camera-mapping pipeline; prior art
 
@@ -1419,6 +1427,7 @@ is removed.
 ### [S364] forkineye/ESPixelStick — repository and releases
 - type: code
 - url: https://github.com/forkineye/ESPixelStick
+- pinned: forkineye/ESPixelStick@255736f9a134d0d4e9553dabda95b5ab76c3931b
 - author: Shelby Merrick (forkineye)
 - license: MIT
 - accessed: 2026-07-03
@@ -1427,6 +1436,7 @@ is removed.
 ### [S365] simap/pixelblaze_output_expander — firmware + serial protocol
 - type: code
 - url: https://github.com/simap/pixelblaze_output_expander
+- pinned: simap/pixelblaze_output_expander@3e7390bd469d449cc5f85146929d644567e83201
 - author: Ben Hencke (simap)
 - license: MIT
 - accessed: 2026-07-03
@@ -1442,6 +1452,7 @@ is removed.
 ### [S367] jgarff/rpi_ws281x — Raspberry Pi 5 support (wiki + repo)
 - type: code
 - url: https://github.com/jgarff/rpi_ws281x/wiki/Raspberry-Pi-5-Support
+- pinned: jgarff/rpi_ws281x@22f2e35012704845d82e06d2fa2e10fbc810ecaa
 - author: Jeremy Garff et al.
 - license: BSD-2-Clause
 - accessed: 2026-07-03
@@ -1450,6 +1461,7 @@ is removed.
 ### [S368] FalconChristmas/fpp — releases (FPP 9.x Pi 5 support)
 - type: code
 - url: https://github.com/FalconChristmas/fpp/releases
+- pinned: FalconChristmas/fpp@05d9dfa914a2b259cf09ee9f0315083f7dd78e7b
 - author: FalconChristmas
 - license: GPL-2.0/GPL-3.0 mixed (FPP)
 - accessed: 2026-07-03
@@ -1525,6 +1537,7 @@ is removed.
 ### [S406] wled/WLED PR #4570 — "added support for fseq files"
 - type: code
 - url: https://github.com/wled/WLED/pull/4570
+- pinned: wled/WLED@40d8e0ed8f4f2d0bc577e8a087a3117e8d4eca34
 - author: Andrejchrcek
 - license: EUPL-1.2 (WLED)
 - accessed: 2026-07-03
@@ -1533,6 +1546,7 @@ is removed.
 ### [S407] Adafruit CircuitPython BLE_File_Transfer library
 - type: code
 - url: https://github.com/adafruit/Adafruit_CircuitPython_BLE_File_Transfer
+- pinned: adafruit/Adafruit_CircuitPython_BLE_File_Transfer@14c0870bc915aba90cf6e8a4002adeb563bc95fe
 - author: Adafruit
 - license: MIT
 - accessed: 2026-07-03
@@ -1672,6 +1686,7 @@ is removed.
 ### [S452] aubio (upstream repository)
 - type: code
 - url: https://github.com/aubio/aubio
+- pinned: aubio/aubio@ad5cf975aed08cc4562dd008cf9f83b12b82ffb8
 - author: Paul Brossier
 - license: GPL-3.0 (verified 2026-07-03)
 - accessed: 2026-07-03
@@ -1689,6 +1704,7 @@ is removed.
 ### [S454] madmom (CPJKU)
 - type: code
 - url: https://github.com/CPJKU/madmom
+- pinned: CPJKU/madmom@27f032e8947204902c675e5e341a3faf5dc86dae
 - author: Sebastian Böck et al., JKU Linz CP group
 - license: BSD-2-Clause with non-commercial clause on models (custom; GitHub shows NOASSERTION) (checked 2026-07-03)
 - accessed: 2026-07-03
@@ -1713,6 +1729,7 @@ is removed.
 ### [S457] BeatNet (mjhydri)
 - type: code
 - url: https://github.com/mjhydri/BeatNet
+- pinned: mjhydri/BeatNet@81cedd4beeb7235262db80969a0c9ce9a48a0ed4
 - author: Mojtaba Heydari et al. (ISMIR 2021)
 - license: CC-BY-4.0 (verified 2026-07-03)
 - accessed: 2026-07-03
@@ -1889,6 +1906,7 @@ is removed.
 ### [S516] LedFx test suite (tests/ directory, inspected via GitHub API)
 - type: code
 - url: https://github.com/LedFx/LedFx/tree/main/tests
+- pinned: LedFx/LedFx@566de0fb6d32231022d7efa7684298f3af615792
 - author: LedFx project
 - license: GPL-3.0
 - accessed: 2026-07-03
@@ -1897,6 +1915,7 @@ is removed.
 ### [S517] FastLED test suite (tests/ directory, inspected via GitHub API)
 - type: code
 - url: https://github.com/FastLED/FastLED/tree/master/tests
+- pinned: FastLED/FastLED@8df8258c86200112b2c9e917b4b3fec5d19a946e
 - author: FastLED project
 - license: MIT
 - accessed: 2026-07-03
@@ -2393,7 +2412,7 @@ is removed.
 - author: Y. Magzym, A. Eduard, D. Urazayev, X. Fafoutis, D. Zorbas (Nazarbayev University / DTU)
 - published: 2023
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054030/https://www2.compute.dtu.dk/~xefa/files/conf/2023-blacksea-eps-now.pdf
 - relevance: Documents the full ESP-NOW frame layout with byte counts (24 B MAC header + 1 B category + 3 B OUI + 4 B random + 7 B vendor-IE header + 0–250 B body + 4 B FCS = 43 B protocol overhead); "No acknowledgment is required for broadcast transmissions"; "The default IEEE802.11 CSMA mechanism is used to avoid collisions"; broadcast not encryptable, app-layer pre-shared keys suggested; LR mode = proprietary modulation at 250/500 kbps requiring all devices set to LR. Measured broadcast PRR at 20 dBm/LR-250kbps indoors: 98.4–100 % at RSS ≥ −72 dBm, 79.8 % at −80.5 dBm, 29.8 % at −92 dBm (always-on receivers); 40 Mbit/s co-channel WiFi interference cost <1 percentage point PRR at −65 dBm.
 
 ### [S807] ESP-IDF Programming Guide v5.2 — Wi-Fi Driver (ESP32), Long Range section
@@ -2480,7 +2499,7 @@ is removed.
 - author: IEEE
 - published: 2021-02-26
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260724231629/https://standards.ieee.org/ieee/802.11/7028/
 - relevance: Source of the airtime constants used in the fleet-scaling arithmetic: 1 Mbit/s DSSS long PLCP preamble+header = 192 µs; 2.4 GHz DSSS slot time 20 µs, DIFS 50 µs, CWmin 31; group-addressed (broadcast/multicast) frames are never ACKed or retransmitted under DCF. (Standard consulted at parameter level; full text via IEEE Get-802 program.)
 
 ### [S818] WLED CHANGELOG — ESP-NOW feature timeline
@@ -2511,7 +2530,7 @@ is removed.
 - url: https://gitlab.com/painlessMesh/painlessMesh/-/work_items/217
 - author: painlessMesh issue reporter (72-node NodeMCU experiment)
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054048/https://gitlab.com/painlessMesh/painlessMesh/-/work_items/217
 - relevance: best available field data on painlessMesh scaling: 36 nodes OK,
   26/50 visible at 50 nodes, 0/72 at 72 nodes, with free heap remaining —
   failure at exactly pewpew's target fleet size.
@@ -2521,7 +2540,7 @@ is removed.
 - url: https://gitlab.com/painlessMesh/painlessMesh/-/issues/490
 - author: painlessMesh issue reporter (60-node build targeting 200)
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054116/https://gitlab.com/painlessMesh/painlessMesh/-/work_items/490
 - relevance: corroborating scaling report: 40–44 of 60 nodes stable, older
   nodes drop as new ones join; ~1200-byte subConnectionJson topology payload;
   200-node question unanswered by maintainers.
@@ -2606,7 +2625,7 @@ is removed.
 - url: https://docs.silabs.com/btmesh/latest/btmesh-11-network-performance/05-summary
 - author: Silicon Labs
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054147/https://docs.silabs.com/btmesh/latest/btmesh-11-network-performance/05-summary
 - relevance: largest published physical BLE-mesh measurement: 256 nodes on a
   38 m × 19 m floor; "latency … below 200 milliseconds, even out to 6 hops if
   the payload is less than 16 bytes", reliability >99% — but at dispatch
@@ -2631,7 +2650,7 @@ is removed.
 - url: https://www.bluetooth.com/blog/mesh-in-large-scale-networks/
 - author: Martin Woolley, Bluetooth SIG
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260226192136/https://www.bluetooth.com/blog/mesh-in-large-scale-networks/
 - relevance: official SIG capacity framing: 32,767-node theoretical max;
   spec origination bound "less than 100 Lower Transport PDUs in a moving
   10-second window" (≤10 msg/s/node — pewpew's rate is at the cap); "ten
@@ -2684,7 +2703,7 @@ is removed.
 - url: https://www.silabs.com/documents/public/application-notes/an1142-mesh-network-performance-comparison.pdf
 - author: Silicon Labs
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260305085305/https://www.silabs.com/documents/public/application-notes/an1142-mesh-network-performance-comparison.pdf
 - relevance: only published like-for-like measurement of the three meshes at
   24–192 nodes: small-payload multicast latency "well under 200 ms" for all,
   Thread degrades least with payload, reliability ≥99.9% — but at 1 multicast
@@ -2710,7 +2729,7 @@ is removed.
 - url: https://documentation.meraki.com/MR/Wi-Fi_Basics_and_Best_Practices/Approximating_Maximum_Clients_per_Access_Point
 - author: Cisco Meraki
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20250906095410/https://documentation.meraki.com/MR/Wi-Fi_Basics_and_Best_Practices/Approximating_Maximum_Clients_per_Access_Point
 - relevance: theoretical association limits per radio (128 for Wi-Fi 5 W1,
   512 for Wi-Fi 6) with explicit vendor caveat that real-world limits are
   "far lower" and theoretical maxima are not design targets — grounds the
@@ -2721,7 +2740,7 @@ is removed.
 - url: https://www.7signal.com/news/blog/how-to-determine-clients-per-ap
 - author: 7SIGNAL
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20250524183627/https://www.7signal.com/news/blog/how-to-determine-clients-per-ap
 - relevance: enterprise Wi-Fi practice recommendation of ~30 active clients
   per AP in most environments — the practical ceiling figure used against
   the ~150-node design ceiling.
@@ -2753,7 +2772,7 @@ is removed.
 - url: https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
 - author: The Things Network / The Things Industries
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260715150711/https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
 - relevance: ETSI EN 300 220 sub-band duty-cycle table (0.1%/1%/10% at
   868 MHz) and TTN fair-use policy (30 s uplink airtime/day) — the
   regulatory arithmetic that disqualifies LoRa at 10 Hz.
@@ -2763,7 +2782,7 @@ is removed.
 - url: https://www.thethingsnetwork.org/docs/lorawan/limitations/index.html
 - author: The Things Network / The Things Industries
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054220/https://www.thethingsnetwork.org/docs/lorawan/limitations/index.html
 - relevance: "Low bandwidth - between 250bit/s and 11kbit/s in Europe";
   LoRaWAN unsuitable for "Realtime data - you can only send small packets
   every couple of minutes" — established-project statement of the rate
@@ -2777,7 +2796,7 @@ is removed.
 - author: Renato E. Mirollo, Steven H. Strogatz
 - published: 1990 (SIAM Journal on Applied Mathematics, vol. 50 no. 6, pp. 1645–1662)
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054251/https://epubs.siam.org/doi/10.1137/0150098
 - relevance: the foundational firefly-sync model — proves all-to-all pulse-coupled integrate-and-fire oscillators converge to synchrony from almost all initial conditions; basis of every timestamp-free phase-sync scheme considered for pewpew's mesh tier. Author PDF: https://www.stevenstrogatz.com/articles/synchronization-of-pulse-coupled-biological-oscillators
 
 ### [S901] Werner-Allen et al. — Firefly-Inspired Sensor Network Synchronicity with Realistic Radio Effects (RFA)
@@ -2837,7 +2856,7 @@ is removed.
 - author: Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski
 - published: 2011 (SSS 2011; INRIA RR-7687)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260331154401/https://inria.hal.science/inria-00609399v1
 - relevance: defines Strong Eventual Consistency and proves state-based CRDT convergence given a monotonic-semilattice merge — the formal justification that pewpew's max-epoch LWW parameter register converges under loss/reorder/duplication with no coordination.
 
 ### [S908] Lamport — Time, Clocks, and the Ordering of Events in a Distributed System
@@ -2863,7 +2882,7 @@ is removed.
 - author: P. Levis, T. Clausen, J. Hui, O. Gnawali, J. Ko (IETF ROLL WG)
 - published: 2011-03
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260510200225/https://www.rfc-editor.org/rfc/rfc6206.html
 - relevance: the standardized "gossip a version number over a lossy shared medium" algorithm (Imin/Imax/k, suppression, reset-on-inconsistency); production-proven in RPL. Pewpew borrows its suppression and reset semantics for the parameter-epoch layer.
 
 ### [S911] Levis, Patel, Culler & Shenker — Trickle: A Self-Regulating Algorithm for Code Propagation and Maintenance in Wireless Sensor Networks
@@ -2881,7 +2900,7 @@ is removed.
 - author: R. Elz, R. Bush (IETF)
 - published: 1996-08
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260503211215/https://www.rfc-editor.org/rfc/rfc1982.html
 - relevance: defines wraparound-safe comparison of fixed-width monotonic counters (half-range window) — the correct comparison rule for pewpew's 1–2-byte parameter epoch field.
 
 ### [S913] Fatès — A Guided Tour of Asynchronous Cellular Automata
@@ -2908,7 +2927,7 @@ is removed.
 - author: Harold Abelson, Don Allen, Daniel Coore, Chris Hanson, George Homsy, Thomas F. Knight Jr., Radhika Nagpal, Erik Rauch, Gerald Jay Sussman, Ron Weiss
 - published: 2000 (Communications of the ACM 43(5), 74–82)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20250914150754/https://cacm.acm.org/research/amorphous-computing/
 - relevance: foundational treatment of computing over "vast numbers of unreliable, locally communicating simple devices" with no global clock; the gradient/diffusion-wave primitive is pewpew's robust alternative to literal CA rules for neighbor-propagated waves.
 
 ### [S916] Wertheimer / Korte — apparent motion (beta movement) timing
@@ -2926,7 +2945,7 @@ is removed.
 - author: Miklós Maróti, Branislav Kusy, Gyula Simon, Ákos Lédeczi
 - published: 2004 (ACM SenSys '04)
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727054359/https://www.math.u-szeged.hu/tagok/mmaroti/okt/2009o/ftsp.pdf
 - relevance: canonical flooding time-sync with MAC-layer timestamping + skew estimation; ~1.48 µs single-hop, ~1 µs average per-hop, robust to node/link failure — the reference for "cheap flooding absolute clock", and the illustration of why ESP-NOW (no app-level MAC TX timestamp) cannot reach µs-class this way.
 
 ### [S918] u-blox — Precision Timing / 1PPS accuracy specifications
@@ -3167,7 +3186,7 @@ is removed.
 - author: rajneeshsinha et al.; Espressif staff Xiehanxin, zhangyanjiaoesp
 - published: 2022-12
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053503/https://github.com/espressif/esp-idf/issues/10341
 - relevance: Documented ESP-NOW+STA coexistence pitfalls: broken before IDF 5.0 (staff: "this issue is fixed in IDF 5.0 and later version"; workaround on 4.x: init ESP-NOW before AP connect); staff claim that a STA-connected node "will only receive the broadcast packet whose bssid is equal to the associated AP bssid" (disputed in-thread by reporter).
 
 ### [S1003] ESP-IDF Programming Guide — Over The Air Updates (OTA), ESP32-S3, latest/v5.x
@@ -3199,7 +3218,7 @@ is removed.
 - url: https://gitlab.com/painlessMesh/painlessMesh/-/work_items/387
 - author: painlessMesh users/maintainers
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053534/https://gitlab.com/painlessMesh/painlessMesh/-/work_items/387
 - relevance: Documented mesh-OTA pain: the OTA API "does not allow tracking of the OTA update process across the network", nodes are rebooted "without any chance for the gateway to know what is going on", and per-node chunk requests "can in some cases create a lot of additional network traffic". Direct evidence for avoiding gossiped OTA.
 
 ### [S1007] painlessMesh — self-forming ESP mesh (GitLab upstream)
@@ -3246,7 +3265,7 @@ is removed.
 - url: https://randomnerdtutorials.com/esp32-esp-now-wi-fi-web-server/
 - author: Rui Santos / Random Nerd Tutorials
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260427174821/https://randomnerdtutorials.com/esp32-esp-now-wi-fi-web-server/
 - relevance: The widely-cited single-chip gateway recipe: receiver in WIFI_AP_STA runs ESP-NOW + web server; "The ESP32 sender boards must use the same Wi-Fi channel of the receiver board"; senders scan for the gateway's SSID channel and apply it with esp_wifi_set_channel(). Documents the channel-pinning pattern and its ordering pitfall (connect WiFi before registering peers).
 
 ### [S1013] ESP-IDF Programming Guide — App Image Format / esp_app_desc_t (ESP32-S3)
@@ -3270,7 +3289,7 @@ is removed.
 - url: https://www.home-assistant.io/integrations/zha/
 - author: Home Assistant / Open Home Foundation
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260725153443/https://www.home-assistant.io/integrations/zha
 - relevance: The serial-attached radio-coordinator convention pewpew's dongle gateway mirrors: "A hardware radio adapter (typically a USB dongle) that plugs directly into the same computer" — host software speaks a serial protocol to a dedicated radio SoC (EmberZNet EZSP, TI Z-Stack ZNP, deCONZ, XBee families).
 
 ## Block S1050–S1099 — RA-18 Wearable bridging
@@ -3312,7 +3331,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/network/esp_now.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260710145255/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/network/esp_now.html
 - relevance: ESP-NOW v1 250 B / v2 1470 B payloads; connectionless power save via esp_now_set_wake_window() + esp_wifi_connectionless_module_set_wake_interval(); "Sleep is supported only when ESP32-S3 is configured as station"
 
 ### [S1055] CircuitPython core docs — `_bleio` shared bindings
@@ -3353,7 +3372,7 @@ is removed.
 - url: https://devzone.nordicsemi.com/f/nordic-q-a/15372/nrf52-dk---20ms-non-connectable-advertising-interval
 - author: Nordic Semiconductor support / community
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053639/https://devzone.nordicsemi.com/f/nordic-q-a/15372/nrf52-dk---20ms-non-connectable-advertising-interval
 - relevance: BT 4.x mandated "the advInterval shall not be less than 100 ms" for non-connectable advertising, enforced by the SoftDevice; the Bluetooth 5.0 spec (Vol 6, Part B, 4.4.2.2.1) removed the restriction, allowing 20 ms non-connectable intervals
 
 ### [S1060] adafruit/Adafruit_CircuitPython_BLE_BroadcastNet
@@ -3385,7 +3404,7 @@ is removed.
 - url: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/esb/index.html
 - author: Nordic Semiconductor
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260526040240/https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/esb/index.html
 - relevance: ESB is Nordic-proprietary 2.4 GHz (interop limited to nRF5/nRF52/nRF53/nRF24 devices), delivered as an nRF Connect SDK library requiring exclusive radio-resource access — no ESP32 interop and no CircuitPython exposure; disqualifies it as pewpew's wearable link
 
 ### [S1064] The Things Network docs — "Duty Cycle" (EU868 regulatory limits)
@@ -3393,7 +3412,7 @@ is removed.
 - url: https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
 - author: The Things Network
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260715150711/https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
 - relevance: EU 868 MHz ISM band imposes ~1% transmit duty cycle (864 s airtime/day) on LoRa devices — a continuous ~10 Hz state broadcast is regulatorily impossible; kills LoRa for group-state distribution
 
 ### [S1065] ESP-IDF Programming Guide — RF Coexistence (ESP32-C6)
@@ -3466,7 +3485,7 @@ is removed.
 - url: https://github.com/espressif/esp-toolchain-docs/blob/main/qemu/README.md
 - author: Espressif
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260511073146/https://github.com/espressif/esp-toolchain-docs/blob/main/qemu/README.md
 - relevance: definitive coverage table — chips ESP32/S3/C3; WiFi NOT emulated on any ("The Ethernet controller can be used for networking instead"); also missing: Bluetooth, USB, RMT, GP-SPI, I2C, I2S, ULP, GPIO matrix; "Espressif does not provide support for QEMU"
 
 ### [S1107] espressif/qemu
@@ -3501,7 +3520,7 @@ is removed.
 - url: https://renode.readthedocs.io/en/latest/introduction/supported-boards.html
 - author: Antmicro
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260724003113/https://renode.readthedocs.io/en/latest/introduction/supported-boards.html
 - relevance: no ESP32/Espressif platform in the supported list; only Xtensa entry is `xtensa-sample-controller` — ESP32-in-Renode would be a platform-porting project, not configuration
 
 ### [S1111] renode/renode
@@ -3528,7 +3547,7 @@ is removed.
 - author: Wokwi community / maintainers
 - published: 2022-11-11
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053716/https://github.com/wokwi/wokwi-features/issues/446
 - relevance: ESP-NOW in Wokwi is an open, "open for vote" feature request since 2022; 2025 duplicate (#1015, incl. multi-MCU projects) closed against it; no implementation as of 2026-07 — the mesh tier cannot be simulated
 
 ### [S1114] Wokwi FAQ — AVR8js open-source engine
@@ -3605,7 +3624,7 @@ is removed.
 - author: The Good Penguin (consultancy blog)
 - published: 2023-03-17
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260414133800/https://www.thegoodpenguin.co.uk/blog/automated-testing-with-github-actions-pytest-and-a-board-farm/
 - relevance: working board-farm CI: exclusive board arbitration per runner, USB relays power-cycling around every flash, SD-mux image handoff, pytest+pexpect serial validation, upload-artifact for images/logs
 
 ### [S1123] GitHub Docs — Actions usage limits
@@ -3656,7 +3675,7 @@ is removed.
 - url: https://saleae.github.io/logic2-automation/
 - author: Saleae
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053745/https://saleae.github.io/logic2-automation/
 - relevance: official automation: gRPC socket + Python wrapper; start captures, add analyzers, export data; requires the Logic 2 app running (documented headless-on-Linux mode exists)
 
 ### [S1129] saleae/logic2-automation
@@ -3674,7 +3693,7 @@ is removed.
 - url: https://www.saleae.com/products/logic-8
 - author: Saleae
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260714205346/https://www.saleae.com/products/logic-8
 - relevance: Logic 8 = 8 digital channels at 100 MS/s + analog recording 10 MS/s/10-bit on the same probes, "Python automation API" first-party — one instrument covers protocol decode AND photodiode digitization; price not published on page
 
 ### [S1131] Nordic Semiconductor — Power Profiler Kit II product page
@@ -3682,7 +3701,7 @@ is removed.
 - url: https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2
 - author: Nordic Semiconductor
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260511185822/https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2
 - relevance: official specs: 200 nA–1 A range, 100 nA resolution, 100 kS/s; SMU mode sources 0.8–5 V up to 1 A (needs two USB cables for full current); ampere-meter mode for external supplies; UI is nRF Connect Power Profiler
 
 ### [S1132] IRNAS/ppk2-api-python
@@ -3734,7 +3753,7 @@ is removed.
 - url: https://www.powerelectronictips.com/how-to-gauge-led-flicker-faq/
 - author: Power Electronic Tips (WTWH Media engineering site)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260310162158/https://www.powerelectronictips.com/how-to-gauge-led-flicker-faq/
 - relevance: the established low-cost flicker rig — integrated photodiode+transimpedance chip (TSL257 light-to-voltage converter) into a scope; percent flicker (Lmax−Lmin)/(Lmax+Lmin) and flicker index per IEEE 1789-2015 (~8 % limit at 100 Hz); lab gear samples light at up to 200 kHz — sets the ADC bar for pewpew's dither bench (site blocks fetch with 403; claims from search excerpt + cross-search 2026-07-09)
 
 ### [S1138] Hypothesis documentation — Stateful testing
@@ -3831,7 +3850,7 @@ is removed.
 - author: Anthropic
 - published: 2026-01-09
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260724004259/https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
 - relevance: current statistical discipline for noisy agent/system tests — pass@k vs pass^k, clean-environment trials, capability evals graduating into continuously-run regression suites, "read the transcripts" verification
 
 ### [S1155] Anthropic engineering — How we built Claude Code auto mode
@@ -3840,7 +3859,7 @@ is removed.
 - author: Anthropic
 - published: 2026-03-25
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260720170404/https://www.anthropic.com/engineering/claude-code-auto-mode
 - relevance: permission tiering for autonomous agents: 93% prompt-approval habituation data, three-tier allowlist→file-ops→transcript-classifier design, five blocked categories, 0.4% FP / 17% FN rates — the template for pewpew's bench-actuation gating
 
 ### [S1156] Anthropic engineering — Making Claude Code more secure and autonomous with sandboxing
@@ -3849,7 +3868,7 @@ is removed.
 - author: Anthropic
 - published: 2025-11 (covered by InfoQ 2025-11)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260714134922/https://www.anthropic.com/engineering/claude-code-sandboxing
 - relevance: OS-level filesystem + network (proxy-enforced domain allowlist) isolation as the replacement for permission-prompt-per-command; 84% prompt reduction internally; runtime open-sourced (see S1157)
 
 ### [S1157] anthropic-experimental/sandbox-runtime — open-source agent sandbox
@@ -4075,7 +4094,7 @@ is removed.
 - url: https://esp32.com/viewtopic.php?t=16659
 - author: esp32.com community (Espressif-hosted forum)
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053827/https://esp32.com/ext/espressif/stupidbots/challenge.php?n=MTc4NTEzMDcwMy4zNDg4NzM1NTM5&c=c53b0e66ef41e6d092d724e051a4514a361bf38fed361e1254b4685b5d88ea59&h=1891a3fd72ea7c07db05445a50935f878a936220cd9018836f153b6930bf6577&from=L3ZpZXd0b3BpYy5waHA%2FdD0xNjY1OQ%3D%3D
 - relevance: RTC_NOINIT_ATTR survives SW/WDT/panic resets but not power loss or brownout; caller must gate re-init on reset reason — the crash-counter mechanism
 
 ### [S1209] esp-idf issue #9400: WiFi stuck while connecting, watchdog not triggered
@@ -4084,7 +4103,7 @@ is removed.
 - author: espressif/esp-idf issue tracker
 - published: 2022-07
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053854/https://github.com/espressif/esp-idf/issues/9400
 - relevance: first-party tracker evidence that the WiFi stack can wedge in states the default watchdogs do not catch — motivates application-level radio liveness supervision
 
 ### [S1210] ESPHome Safe Mode component docs
@@ -4101,7 +4120,7 @@ is removed.
 - author: esphome issue tracker
 - published: 2024
 - accessed: 2026-07-09
-- archive: pending
+- archive: https://web.archive.org/web/20260727053929/https://github.com/esphome/esphome/issues/15796
 - relevance: documented gap in the counter-in-app pattern — a crash before the counter increments defeats boot-loop detection; argues for bootloader-side or earliest-init counting
 
 ### [S1212] Memfault MCU coredump docs
@@ -4174,7 +4193,7 @@ is removed.
 - author: Chaos community (originating at Netflix)
 - published: 2019 (last revision)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260703191006/http://principlesofchaos.org/
 - relevance: canonical definition, steady-state hypothesis, vary-real-world-events, minimize blast radius — the principles RA-21 adapts to a 50-node bench
 
 ### [S1221] Kalka & Szydlo — µChaos: Moving Chaos Engineering To IoT Devices (ICCS 2024)
@@ -4183,7 +4202,7 @@ is removed.
 - author: Wojciech Kalka, Tomasz Szydlo (AGH Krakow / Newcastle University)
 - published: 2024
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260510080930/https://www.iccs-meeting.org/archive/iccs2024/papers/148380231.pdf
 - relevance: the state of embedded chaos engineering — open-source Zephyr-OS fault-injection component (CPU, memory, network, sensor, application faults via serial API); documents that end-device chaos tooling barely exists
 
 ### [S1222] Candea & Fox — Crash-Only Software (HotOS IX, 2003)
@@ -4201,7 +4220,7 @@ is removed.
 - author: Doug Fleenor Design
 - published: 2019-07 (manual revision)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260724153629/http://www.dfd.com/pdf/24anl-man.pdf
 - relevance: stage-lighting hold-last-look convention in writing: holds last levels on DMX loss until control restored or power removed; levels reset to zero on power-up; optional jumper for blackout ~1 s after loss
 
 ### [S1224] ANSI E1.11-assoc. ANSI E1.31-2016 — sACN (Streaming ACN)
@@ -4210,7 +4229,7 @@ is removed.
 - author: ESTA Technical Standards Program
 - published: 2016
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260704005950/https://tsp.esta.org/tsp/documents/docs/E1-31-2016.pdf
 - relevance: codified loss-of-data machinery: E131_NETWORK_DATA_LOSS_TIMEOUT (2.5 s of silence) and the stream-terminated option bit (sent 3×) — receiver-local timers decide degradation, no consensus
 
 ### [S1225] Battery University BU-502 — Discharging at High and Low Temperatures
@@ -4226,7 +4245,7 @@ is removed.
 - url: https://www.macrofab.com/blog/conformal-coating-vs-potting-encapsulation
 - author: MacroFab (electronics manufacturer engineering blog)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260309001756/https://www.macrofab.com/blog/conformal-coating-vs-potting-encapsulation/
 - relevance: protection-vs-serviceability tradeoff: thin coatings (~25–75 µm) rework-friendly and thermally benign; potting seals to IP67/68 but kills rework and stresses solder joints in thermal cycling
 
 ### [S1227] PCBCart — Burn-In Testing: Filtering Out Infant Mortality
@@ -4234,7 +4253,7 @@ is removed.
 - url: https://www.pcbcart.com/article/content/burn-in-testing-electronics-reliability.html
 - author: PCBCart (electronics manufacturer)
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260514101825/https://www.pcbcart.com/article/content/burn-in-testing-electronics-reliability.html
 - relevance: bathtub-curve rationale for pre-deployment soak; typical durations (8–48 h consumer, up to 168 h high-reliability) under elevated temperature/voltage/load
 
 ### [S1228] Reliability Analytics Toolkit — Poisson spares analysis
@@ -4251,5 +4270,5 @@ is removed.
 - author: Advatek Lighting
 - published: 2023-08-23
 - accessed: 2026-07-09
-- archive: pending
+- archive: http://web.archive.org/web/20260710090028/https://cdn.prod.website-files.com/6526c8266f9d6acac8ef145f/661d4804085c9f0866d03279_PixLite%2016%20Plug%20And%20Play%20Mk2%20User%20Manual_20230823.pdf
 - relevance: professional outdoor-pixel install practice: IP67 screw-lock connectors with gold pins, warning that poor waterproofing lets rain short supply onto data lines, ≤15 m controller-to-first-pixel rule

@@ -1,6 +1,6 @@
 # ADR-005: Pattern authoring model — Pixelblaze-shaped, Python-real, NumPy-executed
 
-Status: Proposed (2026-07-03)
+Status: Accepted (2026-07-26)
 
 ## Context
 
@@ -38,6 +38,18 @@ vectorized execution (comparison-matrix gap #4).
   item #2 gates this before the API freezes.
 - Golden-frame testing becomes possible because render is pure
   (architecture §8).
+
+## Verification (Phase-0 item 2, 2026-07-16)
+
+Prototyped the contract (`bench/authoring/`) and authored the five
+canonical patterns against it: zero blockers, 17 recorded stumbles (4 hit
+/ 13 expertise-shielded), all patterns ≤33 author-facing lines,
+deterministic. `np.where` translation proved mechanical; real friction
+is threshold/dtype edges, per-pixel state beyond the output buffer, and
+time/RNG discipline — all mitigable in the idiom kit. Full inventory:
+`bench/results/authoring-2026-07-16.md`. **Status: bet confirmed —
+Accepted**, with the kit additions listed there scheduled before Phase 1
+pattern authoring opens.
 
 ## Evidence
 

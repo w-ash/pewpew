@@ -129,3 +129,15 @@ surface can't flag *semantically* dead parameters, and golden-frame tests
 wouldn't either when other motion masks them. The preview's JS port fixes it
 with a fixed axis tilt (precession); the Python pattern is left as committed
 study evidence.
+
+## Addendum (2026-07-26) — sign-off landed
+
+The proposed verification note above was signed off and applied verbatim as
+`## Verification (Phase-0 item 2, 2026-07-16)` in
+`research/synthesis/decisions/ADR-005-pattern-authoring-model.md`; the ADR is
+now **Accepted (2026-07-26)**. The kit additions the note makes conditional
+are scheduled in the Authoring-surface epic of `docs/backlog/v0.2.x.md`,
+alongside the param-liveness check this report's addendum motivates. The
+"pending sign-off
+— not yet applied" heading above is left as written (frozen evidence); this
+addendum supersedes it.

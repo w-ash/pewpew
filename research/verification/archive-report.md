@@ -138,3 +138,70 @@ Special cases:
 
 Next verification pass: re-run SPN for the 51 pending (the fetch script resumes from its
 results file), refresh the 4 predates-accessed snapshots, and pin S516/S517.
+
+## Addendum — pending-archive retry + excerpt-finding correction
+
+- date: 2026-07-26
+- scope: the 53 `archive: pending` entries, and the "27 lack excerpt dirs" finding above
+- status: PARTIAL (archives), COMPLETE (pins)
+
+### Correction: the excerpt finding above is wrong
+
+The Phase-4 section reports **"38 code sources are cited as ADR evidence; 27 lack excerpt
+dirs (README archival rule violation)"**. That is not a violation. The archival rule
+(research/README.md) requires an excerpt only for code **cited with line anchors**
+(`[S###:path#Lx-Ly]`) in an ADR; code cited at repo level needs a `pinned:` field and "no
+excerpt required" — a scope the *same* Phase-4 pass set.
+
+Checked all 27 against `synthesis/decisions/*.md`: **zero carry a line-anchored ADR cite.**
+No excerpts are owed. The real gap was pins — 19 of the ADR-cited code sources had no
+`pinned:` field, which is also why the original pass concluded the excerpts "cannot be cut
+until these are pinned."
+
+### Pins applied (19)
+
+`pinned: owner/repo@<sha>` added for S001, S019, S022, S026, S035, S130, S300, S301, S364,
+S365, S367, S368, S406, S407, S452, S454, S457, S516, S517 — closing the S516/S517 item the
+mesh addendum left open.
+
+SHAs resolved to each entry's `accessed:` date, not HEAD, via
+`gh api "repos/OWNER/REPO/commits?until=<accessed>T23:59:59Z&per_page=1"`. Method validated:
+it reproduced two pins set by hand in earlier passes (S035, S517) byte-for-byte. The two PR
+entries (S130, S406) are pinned to their merge commits, which is what their "merged into
+master" relevance claims actually rest on.
+
+**Not closed:** ~40 further `type: code` entries still lack pins. None are ADR-cited, so the
+archival rule does not trigger; several (PyPI, pastebin, wokwi) are not git repos and want an
+`archive:` snapshot rather than a SHA. Tracked as a v0.1.x story.
+
+### Archives: 47 of 53 resolved
+
+Tooling: the earlier passes' fetch script was never committed, so this pass built
+`research/tools/retry_archives.py` — availability API first (accepting snapshots ≥ 2025-01-01),
+Save-Page-Now fallback at ≥10 s spacing, journalled after every entry so a rate-limited run
+resumes instead of re-hammering SPN. Only the `- archive:` line of a resolved entry is
+rewritten.
+
+| Outcome | Count |
+|---|---|
+| Existing wayback snapshot reused | 30 |
+| Fresh Save-Page-Now capture | 17 |
+| **Still pending** | **6** |
+
+Notable: **S123** (the WS2816B datasheet, pending since 2026-07-03 as an anti-bot 403)
+captured successfully — the origin blocks non-browser clients, but SPN's fetcher got through.
+
+Still pending after two full SPN passes — same failure code both times, so these are
+domain-level refusals, not the transient outage the earlier addendum hit:
+
+| S-ID | Domain | SPN status |
+|---|---|---|
+| S027 | forums.adafruit.com | 520 (×2) |
+| S911 | usenix.org | 523 (×2) |
+| S914 | link.aps.org | 520 (×2) |
+| S1051 | devzone.nordicsemi.com | 520 (×2) |
+| S1057 | devzone.nordicsemi.com | 520 (×2) |
+| S1172 | sentry.io | 523 (×2) |
+
+Retrying the script will not move these. They need a real-browser capture path; tracked as a
+v0.1.x story. The 4 "predates accessed date" snapshots from the mesh pass were not revisited.

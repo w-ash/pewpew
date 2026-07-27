@@ -67,8 +67,8 @@ output.
       verdict) and `results/authoring-2026-07-16.json`. Zero blockers,
       17 stumbles (4 hit / 13 shielded) — **GO conditional on idiom-kit
       additions**, listed in the report.
-- [ ] ADR-005 status flip (Proposed → Accepted) — proposed note text is in
-      the report, pending human sign-off.
+- [x] ADR-005 status flip (Proposed → Accepted) — signed off 2026-07-26;
+      the report's proposed note is now ADR-005 § Verification.
 
 ### Caveats on reading the numbers
 
