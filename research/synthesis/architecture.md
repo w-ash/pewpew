@@ -609,6 +609,12 @@ Claims the research could not settle from sources — only a bench settles
 them. Drawn from the topic docs' open questions; requirement IDs link back
 to [requirements.md](requirements.md).
 
+This table is the claim list, not a status board — per-item progress lives in
+[`docs/backlog/`](../../docs/backlog/README.md) and the evidence in
+`bench/results/`. As of 2026-07-27 items 1, 2 and 13 have desktop verdicts
+(PASS / GO-conditional / PASS), each pending a rerun on the deployed host; the
+rest are untouched.
+
 | # | Claim to verify | Gap | Bench |
 |---|---|---|---|
 | 1 | A NumPy engine sustains ≥20k px × 60 fps on a Pi 5-class host (R-9) | No published NumPy LED benchmark at 5k–50k px anywhere [RA-05] | Microbenchmark: per-pixel loop vs NumPy vs Numba, N ∈ {300, 3k, 30k}, desktop + Pi 5 |

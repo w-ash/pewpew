@@ -101,7 +101,7 @@ is removed.
 - url: https://electromage.com/pixelblaze/
 - author: Ben Hencke
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260505174829/https://electromage.com/pixelblaze/  # snapshot 2026-05-05
+- archive: https://web.archive.org/web/20260505174829/https://electromage.com/pixelblaze/  # snapshot 2026-05-05 (snapshot predates accessed date; refresh next verification pass)
 - relevance: V3 Standard/Pico current; live-editor pattern engine; closed firmware
 
 ### [S014] Pixelblaze v3.47 release — "New HDR LED Drivers"
@@ -124,7 +124,7 @@ is removed.
 - url: http://www.misc.name/fadecandy
 - author: Micah Elizabeth Scott
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250706105326/https://www.misc.name/fadecandy/  # snapshot 2025-07-06
+- archive: https://web.archive.org/web/20250706105326/https://www.misc.name/fadecandy/  # snapshot 2025-07-06 (snapshot predates accessed date; refresh next verification pass)
 - relevance: design philosophy behind dithering/interpolation choices
 
 ### [S017] led-control (jackw01)
@@ -367,7 +367,7 @@ is removed.
 - url: https://bottosson.github.io/posts/oklab/
 - author: Björn Ottosson
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260627175017/https://bottosson.github.io/posts/oklab/  # snapshot 2026-06-27
+- archive: https://web.archive.org/web/20260627175017/https://bottosson.github.io/posts/oklab/  # snapshot 2026-06-27 (snapshot predates accessed date; refresh next verification pass)
 - relevance: perceptual color space for blending/gradients; candidate for pewpew's internal color model
 
 ### [S056] Sarah Alroe — temporal dithering of NeoPixels on ATtiny412
@@ -388,7 +388,7 @@ is removed.
 - url: https://learn.adafruit.com/led-tricks-gamma-correction/the-issue
 - author: Phillip Burgess (Adafruit)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260308001421/https://learn.adafruit.com/led-tricks-gamma-correction/the-issue  # snapshot 2026-03-08
+- archive: https://web.archive.org/web/20260308001421/https://learn.adafruit.com/led-tricks-gamma-correction/the-issue  # snapshot 2026-03-08 (snapshot predates accessed date; refresh next verification pass)
 - relevance: the community-standard gamma-2.8 8-bit table; also illustrates the low-end code collapse of 8->8 gamma
 
 ### [S059] ledshield — "LED Brightness to your eye, Gamma correction – No!"
@@ -397,7 +397,7 @@ is removed.
 - author: HP LED Shield blog
 - published: 2012-11-13
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260105233202/https://ledshield.wordpress.com/2012/11/13/led-brightness-to-your-eye-gamma-correction-no/  # snapshot 2026-01-05
+- archive: https://web.archive.org/web/20260105233202/https://ledshield.wordpress.com/2012/11/13/led-brightness-to-your-eye-gamma-correction-no/  # snapshot 2026-01-05 (snapshot predates accessed date; refresh next verification pass)
 - relevance: argues CIE 1931 L* (not gamma) is the correct perceptual linearization for direct-view LEDs; 16-bit LUT implementation
 
 ### [S060] Jared Sanson — "Linear LED PWM"
@@ -413,7 +413,7 @@ is removed.
 - url: https://www.photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm
 - author: Bill Claff
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260124202640/https://photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm  # snapshot 2026-01-24
+- archive: https://web.archive.org/web/20260124202640/https://photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm  # snapshot 2026-01-24 (snapshot predates accessed date; refresh next verification pass)
 - relevance: quantitative comparison of gamma-2.2 vs CIE L* (18% gray -> 46% vs perceptual 50%)
 
 ### [S062] Fadecandy — pixelmatix fork (live mirror of deleted scanlime repo)
@@ -440,7 +440,7 @@ is removed.
 - url: https://learn.adafruit.com/adafruit-neopxl8-featherwing-and-library/neopxl8hdr
 - author: Phillip Burgess (Adafruit)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260413181215/https://learn.adafruit.com/adafruit-neopxl8-featherwing-and-library/neopxl8hdr  # snapshot 2026-04-13
+- archive: https://web.archive.org/web/20260413181215/https://learn.adafruit.com/adafruit-neopxl8-featherwing-and-library/neopxl8hdr  # snapshot 2026-04-13 (snapshot predates accessed date; refresh next verification pass)
 - relevance: production 16-bit-in / temporal-dither-out library for 8-way parallel WS2812 on RP2040/ESP32-S3; quantifies ~12-13 effective bits and ~1000-pixel budget; built-in gamma + frame blending
 
 ### [S065] ElectroMage forum — WS2816 discussion
@@ -488,7 +488,7 @@ is removed.
 - type: article
 - url: https://www.superlightingled.com/blog/sk9822-vs-apa102-vs-apa107-vs-hd107-vs-hd107s-vs-hd108/
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250926214129/https://www.superlightingled.com/blog/sk9822-vs-apa102-vs-apa107-vs-hd107-vs-hd107s-vs-hd108/  # snapshot 2025-09-26
+- archive: https://web.archive.org/web/20250926214129/https://www.superlightingled.com/blog/sk9822-vs-apa102-vs-apa107-vs-hd107-vs-hd107s-vs-hd108/  # snapshot 2025-09-26 (snapshot predates accessed date; refresh next verification pass)
 - relevance: vendor comparison of clocked-chip family; PWM rates, protocol compat
 
 ### [S102] HD108 manufacturer page — HD107s/APA102/APA107/SK9822 relationship
@@ -516,7 +516,7 @@ is removed.
 - author: Tom Verbeure
 - published: 2019-10-13
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260605123325/https://tomverbeure.github.io/2019/10/13/WS2812B_Reset_Old_and_New.html  # snapshot 2026-06-05
+- archive: https://web.archive.org/web/20260605123325/https://tomverbeure.github.io/2019/10/13/WS2812B_Reset_Old_and_New.html  # snapshot 2026-06-05 (snapshot predates accessed date; refresh next verification pass)
 - relevance: measured incompatibility between 50 µs (old) and 280 µs (new) WS2812B reset requirements
 
 ### [S106] WS2812B-V5/W datasheet (WorldSemi, via LCSC)
@@ -545,7 +545,7 @@ is removed.
 - type: product
 - url: https://www.lcsc.com/product-detail/RGB-LEDs-Built-in-IC_Worldsemi-WS2812B-2020_C965555.html
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250801212513/https://lcsc.com/product-detail/RGB-LEDs-Built-in-IC_Worldsemi-WS2812B-2020_C965555.html  # snapshot 2025-08-01
+- archive: https://web.archive.org/web/20250801212513/https://lcsc.com/product-detail/RGB-LEDs-Built-in-IC_Worldsemi-WS2812B-2020_C965555.html  # snapshot 2025-08-01 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WS2812B-2020 (2020 package) with 2 kHz port refresh frequency vs 400 Hz classic
 
 ### [S110] NeoPixelBus PR #795 — WS2812x ESP32 RMT timing for WS2815 compat
@@ -559,14 +559,14 @@ is removed.
 - url: https://www.normandled.com/upload/201808/WS2815%20LED%20Datasheet.pdf
 - author: WorldSemi
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251011214024/https://www.normandled.com/upload/201808/WS2815%20LED%20Datasheet.pdf  # snapshot 2025-10-11
+- archive: https://web.archive.org/web/20251011214024/https://www.normandled.com/upload/201808/WS2815%20LED%20Datasheet.pdf  # snapshot 2025-10-11 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WS2815 12 V, BIN backup data input behavior, constant-current spec (~15 mA white)
 
 ### [S112] SDIP Light — What is WS2815 and how to use it
 - type: article
 - url: https://www.sdiplight.com/what-is-ws2815-and-how-to-use-ws2815-led/
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250613201220/https://www.sdiplight.com/what-is-ws2815-and-how-to-use-ws2815-led/  # snapshot 2025-06-13
+- archive: https://web.archive.org/web/20250613201220/https://www.sdiplight.com/what-is-ws2815-and-how-to-use-ws2815-led/  # snapshot 2025-06-13 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WS2815 practical characteristics: per-pixel addressing at 12 V, failure bypass, power behavior
 
 ### [S113] WLED forum — Wiring of WS2815 question
@@ -580,14 +580,14 @@ is removed.
 - url: https://cdn-shop.adafruit.com/product-files/1138/SK6812+LED+datasheet+.pdf
 - author: Opsco Optoelectronics
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260606233015/https://cdn-shop.adafruit.com/product-files/1138/SK6812+LED+datasheet+.pdf  # snapshot 2026-06-06
+- archive: https://web.archive.org/web/20260606233015/https://cdn-shop.adafruit.com/product-files/1138/SK6812+LED+datasheet+.pdf  # snapshot 2026-06-06 (snapshot predates accessed date; refresh next verification pass)
 - relevance: SK6812 timing, 1.2 kHz PWM, RGBW data format
 
 ### [S115] SuperLightingLED blog — SK6812 vs WS2812B
 - type: article
 - url: https://www.superlightingled.com/blog/sk6812-vs-ws2812b/
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260310114317/https://www.superlightingled.com/blog/sk6812-vs-ws2812b/  # snapshot 2026-03-10
+- archive: https://web.archive.org/web/20260310114317/https://www.superlightingled.com/blog/sk6812-vs-ws2812b/  # snapshot 2026-03-10 (snapshot predates accessed date; refresh next verification pass)
 - relevance: vendor comparison: PWM rates (1.2 kHz vs 400 Hz), timing margin, brightness
 
 ### [S116] TM1814 datasheet (Titan Micro, SuperLightingLED mirror)
@@ -635,7 +635,7 @@ is removed.
 - type: forum
 - url: https://github.com/FastLED/FastLED/issues/1855
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250311203105/https://github.com/FastLED/FastLED/issues/1855  # snapshot 2025-03-11
+- archive: https://web.archive.org/web/20250311203105/https://github.com/FastLED/FastLED/issues/1855  # snapshot 2025-03-11 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WS2816 48-bit GRB format, hardware gamma, ~10 kHz refresh; FastLED support discussion
 
 ### [S123] WS2816B-2020 datasheet (TME mirror)
@@ -662,7 +662,7 @@ is removed.
 - type: article
 - url: https://www.shiji-leds.com/blog/future-trends-in-addressable-led-strip-technology-and-applications/
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260415200550/https://www.shiji-leds.com/blog/future-trends-in-addressable-led-strip-technology-and-applications/  # snapshot 2026-04-15
+- archive: https://web.archive.org/web/20260415200550/https://www.shiji-leds.com/blog/future-trends-in-addressable-led-strip-technology-and-applications/  # snapshot 2026-04-15 (snapshot predates accessed date; refresh next verification pass)
 - relevance: 2026 market drift toward 24 V/48 V pixel systems and higher-refresh chips
 
 ### [S127] FastLED wiki — Temporal Dithering
@@ -680,7 +680,7 @@ is removed.
 - author: Tim (cpldcpu)
 - published: 2016-12-13
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260101013716/https://cpldcpu.com/2016/12/13/sk9822-a-clone-of-the-apa102/  # snapshot 2026-01-01
+- archive: https://web.archive.org/web/20260101013716/https://cpldcpu.com/2016/12/13/sk9822-a-clone-of-the-apa102/  # snapshot 2026-01-01 (snapshot predates accessed date; refresh next verification pass)
 - relevance: measured PWM rates (APA102 ~19.2 kHz + ~440 Hz global-brightness PWM; SK9822 4.7 kHz + current-source global brightness); latch/update and end-frame differences
 
 ### [S129] cpldcpu — Understanding the APA102 "Superled"
@@ -720,7 +720,7 @@ is removed.
 - url: https://learn.adafruit.com/neopixel-levelshifter
 - author: Adafruit
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260618044601/https://learn.adafruit.com/neopixel-levelshifter  # snapshot 2026-06-18
+- archive: https://web.archive.org/web/20260618044601/https://learn.adafruit.com/neopixel-levelshifter  # snapshot 2026-06-18 (snapshot predates accessed date; refresh next verification pass)
 - relevance: 74AHCT125 as canonical WS281x level shifter; why I2C MOSFET shifters fail at 800 kHz
 
 ### [S134] Hackaday — Cheating at 5V WS2812 control to use 3.3V data
@@ -735,7 +735,7 @@ is removed.
 - url: https://quinled.info/the-ultimate-led-strip-power-injection-guide/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26
+- archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26 (snapshot predates accessed date; refresh next verification pass)
 - relevance: voltage-drop budgets, wire gauge tables, injection-point spacing practice
 - note: same underlying source as [S369] — do not co-cite the pair as independent corroboration
 
@@ -774,7 +774,7 @@ is removed.
 - url: http://www.3waylabs.com/ddp/
 - author: 3waylabs
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260327012755/https://www.3waylabs.com/ddp/  # snapshot 2026-03-27
+- archive: https://web.archive.org/web/20260327012755/https://www.3waylabs.com/ddp/  # snapshot 2026-03-27 (snapshot predates accessed date; refresh next verification pass)
 - relevance: 10-byte header; up to 1440 channels/packet; native 1/4/8/16/24/32-bit per-channel — the only mainstream pixel transport with a 16-bit wire format
 
 ### [S151] DDP vs E1.31 vs Art-Net comparison (pixel-led-effects, 2025)
@@ -837,7 +837,7 @@ is removed.
 - url: https://kno.wled.ge/interfaces/e1.31-dmx/
 - author: WLED contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260621120941/https://kno.wled.ge/interfaces/e1.31-dmx/
+- archive: https://web.archive.org/web/20260621120941/https://kno.wled.ge/interfaces/e1.31-dmx/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: WLED receiver behavior for sACN/Art-Net/DDP; unicast-over-multicast guidance on WiFi
 
 ### [S159] Art-Net 4 Protocol Release V1.4 (rev 1.4dp, 2025-10-23)
@@ -854,7 +854,7 @@ is removed.
 - url: http://openpixelcontrol.org/
 - author: Ka-Ping Yee (protocol page); ecosystem by Micah Scott (FadeCandy)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260312072216/http://openpixelcontrol.org/  # captured 2026-07-03
+- archive: https://web.archive.org/web/20260312072216/http://openpixelcontrol.org/  # captured 2026-07-03 (snapshot predates accessed date; refresh next verification pass)
 - relevance: OPC wire format (4-byte header, TCP), 8-bit-only standard messages
 
 ### [S161] scanlime/fadecandy — archived GitHub repository
@@ -870,7 +870,7 @@ is removed.
 - url: https://kno.wled.ge/interfaces/udp-realtime/
 - author: WLED contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21
+- archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21 (snapshot predates accessed date; refresh next verification pass)
 - relevance: byte layouts, per-packet LED limits, timeout semantics of WLED-native realtime UDP
 - note: same underlying source as [S253] — do not co-cite the pair as independent corroboration
 
@@ -880,7 +880,7 @@ is removed.
 - author: Falcon Christmas / FPP contributors
 - license: GPL-2.0 (FPP repo)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250628110943/https://github.com/FalconChristmas/fpp/blob/master/docs/ControlProtocol.txt
+- archive: https://web.archive.org/web/20250628110943/https://github.com/FalconChristmas/fpp/blob/master/docs/ControlProtocol.txt (snapshot predates accessed date; refresh next verification pass)
 - relevance: MultiSync packet format — port 32320, multicast 239.70.80.80, frame-number sync of pre-stored sequences
 
 ### [S164] xLights Manual — Controllers Settings / lighting networks (protocol support matrix)
@@ -895,7 +895,7 @@ is removed.
 - url: https://kno.wled.ge/basics/faq/
 - author: WLED contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260621120848/https://kno.wled.ge/basics/faq/  # snapshot 2026-06-21
+- archive: https://web.archive.org/web/20260621120848/https://kno.wled.ge/basics/faq/  # snapshot 2026-06-21 (snapshot predates accessed date; refresh next verification pass)
 - relevance: 750-LED per-controller guidance, 720 kbit/s @1000 LED/30fps, DDP-over-E1.31 recommendation, QuinLED/Olimex Ethernet advice
 
 ### [S166] Electric UI — "Latency comparison of common wireless links for microcontrollers"
@@ -904,7 +904,7 @@ is removed.
 - author: Electric UI
 - published: 2024-02
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260520234140/https://electricui.com/blog/latency-comparison  # snapshot 2026-05-20
+- archive: https://web.archive.org/web/20260520234140/https://electricui.com/blog/latency-comparison  # snapshot 2026-05-20 (snapshot predates accessed date; refresh next verification pass)
 - relevance: logic-analyzer-measured ESP32 WiFi latency: 74-84 ms default config; ~6 ms TCP / ~9 ms UDP median, ~25 ms outliers after power-save/Nagle/IRAM tuning
 
 ### [S167] espressif/esp-idf issue #15345 — "Making UDP send latency more predictable (reducing jitter)"
@@ -954,7 +954,7 @@ is removed.
 - author: Ben Hencke
 - published: 2020 (campaign update)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250612180210/https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3/updates/manufacturing-ui-controls-pov  # snapshot 2025-06-12
+- archive: https://web.archive.org/web/20250612180210/https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3/updates/manufacturing-ui-controls-pov  # snapshot 2025-06-12 (snapshot predates accessed date; refresh next verification pass)
 - relevance: introduces convention-based UI controls (sliderSpeed, hsvPickerColor) generated from exported function names
 
 ### [S204] Pixelblaze Sensor Expansion Board (ElectroMage shop / bhencke.com)
@@ -962,7 +962,7 @@ is removed.
 - url: https://www.bhencke.com/pixelblaze-sensor-expansion
 - author: Ben Hencke
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260420032034/https://electromage.com/docs/sensor-expansion-board/  # captured 2026-07-03
+- archive: https://web.archive.org/web/20260420032034/https://electromage.com/docs/sensor-expansion-board/  # captured 2026-07-03 (snapshot predates accessed date; refresh next verification pass)
 - relevance: sensor feature injection as exported pattern variables (frequencyData[32], energyAverage, accelerometer[3], light, analogInputs[5])
 
 ### [S205] WLED docs — Custom Features (adding effects via usermods)
@@ -970,7 +970,7 @@ is removed.
 - url: https://kno.wled.ge/advanced/custom-features/
 - author: WLED project
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260629193319/https://kno.wled.ge/advanced/custom-features/  # snapshot 2026-06-29
+- archive: https://web.archive.org/web/20260629193319/https://kno.wled.ge/advanced/custom-features/  # snapshot 2026-06-29 (snapshot predates accessed date; refresh next verification pass)
 - relevance: effect function signature (free void fn + SEGMENT/SEGENV/SEGLEN macros), strip.addEffect registration, PROGMEM metadata string, compile-in-only effects
 
 ### [S206] WLED issue #3478 — effect metadata consistency (metadata string format)
@@ -986,7 +986,7 @@ is removed.
 - url: https://mm.kno.wled.ge/moonmodules/arti-fx/
 - author: MoonModules (ewowi et al.)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260313074616/https://mm.kno.wled.ge/moonmodules/arti-fx/  # snapshot 2026-03-13
+- archive: https://web.archive.org/web/20260313074616/https://mm.kno.wled.ge/moonmodules/arti-fx/  # snapshot 2026-03-13 (snapshot predates accessed date; refresh next verification pass)
 - relevance: runtime-interpreted effect language bolted onto WLED-SR; renderFrame/renderLed split; Pixelblaze-compat functions; evidence WLED authoring model is a felt bottleneck
 
 ### [S208] LedFx effect base module (ledfx/effects/__init__.py)
@@ -1014,7 +1014,7 @@ is removed.
 - author: jackw01
 - license: MIT
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251128070835/https://jackw01.github.io/led-control/  # snapshot 2025-11-28
+- archive: https://web.archive.org/web/20251128070835/https://jackw01.github.io/led-control/  # snapshot 2025-11-28 (snapshot predates accessed date; refresh next verification pass)
 - relevance: Python-as-fragment-shader signature (t, dt, x, y, z, prev_state), RestrictedPython + C-extension perf split, 150 fps @ 150 RGBW on Pi Zero claim; repo dormant since 2023-11-10
 
 ### [S211] todbot — "Speed up CircuitPython LED animations 10x!" (+ code repo)
@@ -1023,7 +1023,7 @@ is removed.
 - author: Tod Kurt (todbot)
 - published: 2022-10-21
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19
+- archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19 (snapshot predates accessed date; refresh next verification pass)
 - relevance: measured vectorization gain: fire effect, 256 LEDs, RP2040 — ~40 ms/frame Python loop vs ~4 ms/frame ulab; working-copy idiom (code: github.com/todbot/circuitpython_led_effects)
 - note: same underlying source as [S400] — do not co-cite the pair as independent corroboration
 
@@ -1041,7 +1041,7 @@ is removed.
 - also: https://github.com/yastefan/TouchLED-DMX
 - author: Derivative / yastefan
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251208001252/https://derivative.ca/workshop/dmx-artnet-and-led-mapping-touchdesigner/71671  # snapshot 2025-12-08
+- archive: https://web.archive.org/web/20251208001252/https://derivative.ca/workshop/dmx-artnet-and-led-mapping-touchdesigner/71671  # snapshot 2025-12-08 (snapshot predates accessed date; refresh next verification pass)
 - relevance: canonical GPU route — TOP sampled at SOP fixture points, DMX CHOP emits Art-Net/sACN; TouchLED library wraps mapping+visualizer
 
 ### [S214] ISF — Interactive Shader Format specification
@@ -1064,7 +1064,7 @@ is removed.
 - url: https://chromatik.co/develop/coding/
 - author: Mark Slee / heronarts
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251111015300/https://chromatik.co/develop/coding/  # snapshot 2025-11-11
+- archive: https://web.archive.org/web/20251111015300/https://chromatik.co/develop/coding/  # snapshot 2025-11-11 (snapshot predates accessed date; refresh next verification pass)
 - relevance: first-class parameter objects: addParameter + CompoundParameter(label, init, min, max) → auto UI knob + MIDI/OSC mapping + LFO modulation; LXPattern.run(deltaMs) lifecycle
 
 ## Block S250–S299 — RA-06 Frame pipeline & motion quality
@@ -1095,7 +1095,7 @@ is removed.
 - url: https://kno.wled.ge/interfaces/udp-realtime/
 - author: WLED project
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21
+- archive: https://web.archive.org/web/20260621121207/https://kno.wled.ge/interfaces/udp-realtime/  # snapshot 2026-06-21 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WLED's loss handling for realtime pixel streams — timeout byte, hold-then-revert semantics, per-protocol LED-count limits, no smoothing/interpolation
 - note: same underlying source as [S162] — do not co-cite the pair as independent corroboration
 
@@ -1136,7 +1136,7 @@ is removed.
 - url: https://github.com/Cryptkeeper/fseq-file-format
 - author: Cryptkeeper (Nick Krecklow)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250603142246/https://github.com/Cryptkeeper/fseq-file-format  # snapshot 2025-06-03
+- archive: https://web.archive.org/web/20250603142246/https://github.com/Cryptkeeper/fseq-file-format  # snapshot 2025-06-03 (snapshot predates accessed date; refresh next verification pass)
 - relevance: FSEQ v2 header — uint8 step time in ms at byte 18 (20-30 fps typical), frame/channel counts, zstd/zlib chunk compression; fixes the xLights/FPP ecosystem's authoring frame rate
 
 ### [S259] ANSI E1.31-2016 — Lightweight streaming protocol for transport of DMX512 (sACN)
@@ -1215,7 +1215,7 @@ is removed.
 - url: https://kno.wled.ge/advanced/mapping/
 - author: WLED contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260621120941/https://kno.wled.ge/advanced/mapping/  # snapshot 2026-06-21
+- archive: https://web.archive.org/web/20260621120941/https://kno.wled.ge/advanced/mapping/  # snapshot 2026-06-21 (snapshot predates accessed date; refresh next verification pass)
 - relevance: canonical spec of WLED ledmap.json index-permutation format, -1 gaps, width/height 2D keys, per-preset map selection
 
 ### [S304] Pixelblaze mapper README (simap/pixelblaze)
@@ -1223,7 +1223,7 @@ is removed.
 - url: https://github.com/simap/pixelblaze/blob/master/README.mapper.md
 - author: Ben Hencke
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260420032034/https://github.com/simap/pixelblaze/blob/master/README.mapper.md  # snapshot 2026-04-20
+- archive: https://web.archive.org/web/20260420032034/https://github.com/simap/pixelblaze/blob/master/README.mapper.md  # snapshot 2026-04-20 (snapshot predates accessed date; refresh next verification pass)
 - relevance: spec of Pixelblaze pixel-map JSON, map generator functions, 0..1 world-unit normalization, Fill/Contain scaling, render2D/render3D
 - note: same underlying document as [S680]'s README.mapper.md (seed URL vs pinned repo copy) — do not co-cite the pair as independent corroboration
 
@@ -1232,7 +1232,7 @@ is removed.
 - url: https://docs.ledfx.app/en/latest/howto/virtuals.html
 - author: LedFx contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260521223731/https://docs.ledfx.app/en/latest/howto/virtuals.html  # snapshot 2026-05-21
+- archive: https://web.archive.org/web/20260521223731/https://docs.ledfx.app/en/latest/howto/virtuals.html  # snapshot 2026-05-21 (snapshot predates accessed date; refresh next verification pass)
 - relevance: defines virtuals/segments (device,start,end,reverse), span vs copy modes, rows/grouping 2D reshaping, complex-segments numpy fast path
 
 ### [S306] xLights manual — Custom Model
@@ -1240,7 +1240,7 @@ is removed.
 - url: https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/custom-model
 - author: xLights contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260317062924/https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/custom-model  # snapshot 2026-03-17
+- archive: https://web.archive.org/web/20260317062924/https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/custom-model  # snapshot 2026-03-17 (snapshot predates accessed date; refresh next verification pass)
 - relevance: custom-model node-number grid format, depth for 3D voxel models, .xmodel export
 
 ### [S307] xLights manual — Model Settings (buffer styles)
@@ -1255,7 +1255,7 @@ is removed.
 - url: https://falcon-player.gitbooks.io/falcon-player-manual/content/chapter_five_inputoutput_setup/pixel_overlay_models.html
 - author: FalconChristmas contributors
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260309180104/https://falcon-player.gitbooks.io/falcon-player-manual/content/chapter_five_inputoutput_setup/pixel_overlay_models.html  # snapshot 2026-03-09
+- archive: https://web.archive.org/web/20260309180104/https://falcon-player.gitbooks.io/falcon-player-manual/content/chapter_five_inputoutput_setup/pixel_overlay_models.html  # snapshot 2026-03-09 (snapshot predates accessed date; refresh next verification pass)
 - relevance: FPP channel-arithmetic model definition (start channel, strands/strings, orientation) and overlay/transparency states
 
 ### [S309] Chromatik guide — Custom Fixtures (.lxf format)
@@ -1278,7 +1278,7 @@ is removed.
 - type: forum
 - url: https://forum.electromage.com/t/2d-pixel-coordinate-mapping-tool-for-images/714
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250828092218/https://forum.electromage.com/t/2d-pixel-coordinate-mapping-tool-for-images/714  # snapshot 2025-08-28
+- archive: https://web.archive.org/web/20250828092218/https://forum.electromage.com/t/2d-pixel-coordinate-mapping-tool-for-images/714  # snapshot 2025-08-28 (snapshot predates accessed date; refresh next verification pass)
 - relevance: manual click-on-photo mapping tool emitting Pixelblaze map JSON — the low-tech manual path
 
 ### [S312] L.E.D. Lab (iOS app, App Store listing)
@@ -1325,7 +1325,7 @@ is removed.
 - url: https://kno.wled.ge/basics/compatible-controllers/
 - author: WLED project (Aircoookie et al.)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260621121208/https://kno.wled.ge/basics/compatible-controllers/  # snapshot 2026-06-21
+- archive: https://web.archive.org/web/20260621121208/https://kno.wled.ge/basics/compatible-controllers/  # snapshot 2026-06-21 (snapshot predates accessed date; refresh next verification pass)
 - relevance: official WLED hardware guidance — ESP8266 deprecation, ESP32 variant support tiers, Ethernet boards
 
 ### [S352] MoonModules/MoonLight — Releases (v0.5.8–v1.0.0)
@@ -1335,7 +1335,7 @@ is removed.
 - license: GPL-3.0
 - published: 2025-08-15 through 2026-05-06 (v1.0.0)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251003145210/https://github.com/MoonModules/MoonLight/releases  # snapshot 2025-10-03
+- archive: https://web.archive.org/web/20251003145210/https://github.com/MoonModules/MoonLight/releases  # snapshot 2025-10-03 (snapshot predates accessed date; refresh next verification pass)
 - relevance: MoonLight hardware targets (S3/P4 best, PSRAM 130K LEDs, PARLIO P4 driver, supported boards)
 
 ### [S353] Espressif Developer Portal — Wireless Connectivity Solutions for ESP32-P4
@@ -1343,7 +1343,7 @@ is removed.
 - url: https://developer.espressif.com/blog/wireless-connectivity-solutions-for-esp32-p4/
 - author: Espressif Systems
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260415161024/https://developer.espressif.com/blog/wireless-connectivity-solutions-for-esp32-p4/  # snapshot 2026-04-15
+- archive: https://web.archive.org/web/20260415161024/https://developer.espressif.com/blog/wireless-connectivity-solutions-for-esp32-p4/  # snapshot 2026-04-15 (snapshot predates accessed date; refresh next verification pass)
 - relevance: authoritative statement that P4 has no radio; ESP-Hosted/ESP-AT companion-chip (C6) architecture
 
 ### [S354] Hackaday — Poking at the ESP32-P4 and C6 dies in an ESP32-P4-M3 module
@@ -1367,7 +1367,7 @@ is removed.
 - url: https://github.com/wled/WLED/issues/5576
 - author: WLED users/maintainers
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260512192114/https://github.com/wled/WLED/issues/5576  # snapshot 2026-05-12
+- archive: https://web.archive.org/web/20260512192114/https://github.com/wled/WLED/issues/5576  # snapshot 2026-05-12 (snapshot predates accessed date; refresh next verification pass)
 - relevance: concrete evidence ESP8266 is being squeezed out of full WLED builds (flash exhaustion); see also #5363
 
 ### [S357] QuinLED Dig-Next-2 specifications
@@ -1375,7 +1375,7 @@ is removed.
 - url: https://quinled.info/dig-next-2-specifications/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260418213721/https://quinled.info/dig-next-2-specifications/  # snapshot 2026-04-18
+- archive: https://web.archive.org/web/20260418213721/https://quinled.info/dig-next-2-specifications/  # snapshot 2026-04-18 (snapshot predates accessed date; refresh next verification pass)
 - relevance: current-gen QuinLED small board — ESP32 8MB/2MB PSRAM, 2 outputs, 5-48V, fusing, firmware compatibility list
 
 ### [S358] QuinLED Dig-Octa — modular WLED LED system
@@ -1383,7 +1383,7 @@ is removed.
 - url: https://quinled.info/quinled-dig-octa/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260526015933/https://quinled.info/quinled-dig-octa/  # snapshot 2026-05-26
+- archive: https://web.archive.org/web/20260526015933/https://quinled.info/quinled-dig-octa/  # snapshot 2026-05-26 (snapshot predates accessed date; refresh next verification pass)
 - relevance: room/stage-scale QuinLED — 8 channels + Ethernet brainboard on 30-100A fused powerboards, E1.31/Art-Net/DDP
 
 ### [S359] Falcon F16v5 pixel controller (store page)
@@ -1391,7 +1391,7 @@ is removed.
 - url: https://pixelcontroller.com/store/featured/88-f16v5.html
 - author: Falcon / pixelcontroller.com
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260620030843/https://pixelcontroller.com/store/featured/88-f16v5.html  # snapshot 2026-06-20
+- archive: https://web.archive.org/web/20260620030843/https://pixelcontroller.com/store/featured/88-f16v5.html  # snapshot 2026-06-20 (snapshot predates accessed date; refresh next verification pass)
 - relevance: F16v5 specs — $280, 16+4 ports (to 32), 1024 px/output, 192 universes E1.31/Art-Net/DDP, e-fuses, 2-port Ethernet switch
 
 ### [S360] Kulp K16A-B controller owner's manual
@@ -1413,7 +1413,7 @@ is removed.
 - url: https://www.advateklighting.com/products/a4-s-mk3
 - author: Advatek Lighting
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260628152046/https://www.advateklighting.com/products/a4-s-mk3  # snapshot 2026-06-28
+- archive: https://web.archive.org/web/20260628152046/https://www.advateklighting.com/products/a4-s-mk3  # snapshot 2026-06-28 (snapshot predates accessed date; refresh next verification pass)
 - relevance: professional tier — A4-S Mk3 4080 px over 4 outputs; E4-S Ethernet and T8-S long-range variants
 
 ### [S363] HinksPix Pro V3 CPU (HolidayCoro)
@@ -1421,7 +1421,7 @@ is removed.
 - url: https://www.holidaycoro.com/HinksPix-Pro-V3-CPU-20-Long-Range-Jacks-80-Ports-p/952-6.htm
 - author: HolidayCoro
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250423205030/https://www.holidaycoro.com/HinksPix-Pro-V3-CPU-20-Long-Range-Jacks-80-Ports-p/952-6.htm  # snapshot 2025-04-23
+- archive: https://web.archive.org/web/20250423205030/https://www.holidaycoro.com/HinksPix-Pro-V3-CPU-20-Long-Range-Jacks-80-Ports-p/952-6.htm  # snapshot 2025-04-23 (snapshot predates accessed date; refresh next verification pass)
 - relevance: high-density holiday-show controller — V3 CPU + expansions to 16,320 px, 80-port long-range configs
 
 ### [S364] forkineye/ESPixelStick — repository and releases
@@ -1472,7 +1472,7 @@ is removed.
 - url: https://quinled.info/the-ultimate-led-strip-power-injection-guide/
 - author: Quindor (Intermittent Technology)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26
+- archive: https://web.archive.org/web/20260526053456/https://quinled.info/the-ultimate-led-strip-power-injection-guide/  # snapshot 2026-05-26 (snapshot predates accessed date; refresh next verification pass)
 - relevance: injection sizing (≤10% Vdrop), 5V-vs-12V injection cadence, 18AWG strip-feed guidance, edge-vs-mid injection fusing
 - note: same underlying source as [S135] — do not co-cite the pair as independent corroboration
 
@@ -1481,7 +1481,7 @@ is removed.
 - url: https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/
 - author: AusChristmasLighting community
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251208125019/https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/  # snapshot 2025-12-08
+- archive: https://web.archive.org/web/20251208125019/https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/  # snapshot 2025-12-08 (snapshot predates accessed date; refresh next verification pass)
 - relevance: Ray Wu vs xConnect near-identical mechanically; xConnect single wiring standard + universal store stocking — the connector to standardize on
 
 ## Block S400–S449 — RA-09 Hardware: wearable tier
@@ -1492,7 +1492,7 @@ is removed.
 - author: Tod Kurt
 - published: 2022-10-21
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19
+- archive: https://web.archive.org/web/20260519221054/https://todbot.com/blog/2022/10/21/speed-up-circuitpython-led-animations-10x/  # snapshot 2026-05-19 (snapshot predates accessed date; refresh next verification pass)
 - relevance: establishes realistic CircuitPython frame-rate ceilings and the ulab escape hatch — central to the wearable-tier Python question
 - note: same underlying source as [S211] — do not co-cite the pair as independent corroboration
 
@@ -1508,14 +1508,14 @@ is removed.
 - url: https://core-electronics.com.au/videos/the-factory-huge-micropython-speed-up-with-ws2812-leds
 - author: Core Electronics
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20220331190314/https://core-electronics.com.au/videos/the-factory-huge-micropython-speed-up-with-ws2812-leds  # snapshot 2022-03-31
+- archive: https://web.archive.org/web/20220331190314/https://core-electronics.com.au/videos/the-factory-huge-micropython-speed-up-with-ws2812-leds  # snapshot 2022-03-31 (snapshot predates accessed date; refresh next verification pass)
 - relevance: measured ~2x frame-rate gain (10 → ~22 fps) from @micropython.viper on a GlowBit WS2812 matrix; documents viper restrictions
 
 ### [S403] CircuitPython board pages — RP2350 boards (Feather RP2350, Plasma 2350 etc.)
 - type: docs
 - url: https://circuitpython.org/board/adafruit_feather_rp2350/
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260414211530/https://circuitpython.org/board/adafruit_feather_rp2350/  # captured 2026-07-03
+- archive: https://web.archive.org/web/20260414211530/https://circuitpython.org/board/adafruit_feather_rp2350/  # captured 2026-07-03 (snapshot predates accessed date; refresh next verification pass)
 - relevance: confirms ulab is bundled for RP2350-class boards; RP2350 runs CircuitPython roughly 2x faster than RP2040
 
 ### [S404] Pixelblaze — language reference and product docs
@@ -1523,7 +1523,7 @@ is removed.
 - url: https://electromage.com/docs/language-reference/
 - author: Ben Hencke (ElectroMage)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260209163257/https://electromage.com/docs/language-reference/  # snapshot 2026-02-09
+- archive: https://web.archive.org/web/20260209163257/https://electromage.com/docs/language-reference/  # snapshot 2026-02-09 (snapshot predates accessed date; refresh next verification pass)
 - relevance: JS-like pattern language compiled off-device (in browser) to instructions executed on ESP32 — closest precedent for host-authored/device-executed patterns
 
 ### [S405] Pixelblaze V3 — Crowd Supply campaign page
@@ -1531,7 +1531,7 @@ is removed.
 - url: https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3
 - author: Ben Hencke (ElectroMage)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260605034712/https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3  # snapshot 2026-06-05
+- archive: https://web.archive.org/web/20260605034712/https://www.crowdsupply.com/hencke-technologies/pixelblaze-v3  # snapshot 2026-06-05 (snapshot predates accessed date; refresh next verification pass)
 - relevance: performance claim ~48k pixels/sec on ESP32; bytecode is platform-dependent between v2/v3
 
 ### [S406] wled/WLED PR #4570 — "added support for fseq files"
@@ -1574,7 +1574,7 @@ is removed.
 - author: Raspberry Pi Ltd
 - published: 2024-08-08
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251107121354/https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf  # snapshot 2025-11-07
+- archive: https://web.archive.org/web/20251107121354/https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf  # snapshot 2025-11-07 (snapshot predates accessed date; refresh next verification pass)
 - relevance: RP2350 specs — dual Cortex-M33/RISC-V 150 MHz, 3 PIO blocks / 12 state machines, 32-instruction PIO programs
 
 ### [S411] ESP32 Forum — "ESP32 Power consumption considerations" (thread t=2662)
@@ -1590,7 +1590,7 @@ is removed.
 - author: msfujino
 - published: 2025-01-17
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251026033759/https://forum.seeedstudio.com/t/ble-advertising-current-comparison-esp32c3-c6-s3-mg24-nrf52840/287847  # snapshot 2025-10-26
+- archive: https://web.archive.org/web/20251026033759/https://forum.seeedstudio.com/t/ble-advertising-current-comparison-esp32c3-c6-s3-mg24-nrf52840/287847  # snapshot 2025-10-26 (snapshot predates accessed date; refresh next verification pass)
 - relevance: measured cross-chip BLE advertising current; verdict "nRF52840 is by far the best for low current consumption BLE applications"
 
 ### [S413] FastLED Wiki — Power notes (setMaxPowerInVoltsAndMilliamps)
@@ -1599,7 +1599,7 @@ is removed.
 - author: FastLED project
 - license: MIT (FastLED)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260505174835/https://github.com/FastLED/FastLED/wiki/Power-notes  # snapshot 2026-05-05
+- archive: https://web.archive.org/web/20260505174835/https://github.com/FastLED/FastLED/wiki/Power-notes  # snapshot 2026-05-05 (snapshot predates accessed date; refresh next verification pass)
 - relevance: the reference brightness-limiting pattern — estimate frame power, scale global brightness; applied automatically in show()/delay(); assumes 5 V pixels
 
 ### [S414] Adafruit Sparkle Motion — product page (#6100)
@@ -1616,7 +1616,7 @@ is removed.
 - url: https://learn.adafruit.com/adafruit-sparkle-motion-mini/overview
 - author: Adafruit
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260219011254/https://learn.adafruit.com/adafruit-sparkle-motion-mini/overview  # snapshot 2026-02-19
+- archive: https://web.archive.org/web/20260219011254/https://learn.adafruit.com/adafruit-sparkle-motion-mini/overview  # snapshot 2026-02-19 (snapshot predates accessed date; refresh next verification pass)
 - relevance: 31.6x19.8mm ESP32 WLED board aimed at wearables/portable rigs; 2 outputs
 
 ### [S416] Adafruit LED Glasses Driver — nRF52840 Sensor Board (#5217) + EyeLights guide
@@ -1632,7 +1632,7 @@ is removed.
 - url: https://learn.adafruit.com/adafruit-neopixel-uberguide/powering-neopixels
 - author: Adafruit
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260425060638/https://learn.adafruit.com/adafruit-neopixel-uberguide/powering-neopixels  # snapshot 2026-04-25
+- archive: https://web.archive.org/web/20260425060638/https://learn.adafruit.com/adafruit-neopixel-uberguide/powering-neopixels  # snapshot 2026-04-25 (snapshot predates accessed date; refresh next verification pass)
 - relevance: 60 mA/px worst-case planning constant ("rule of thumb, not hard science"), 3.7 V LiPo direct drive, brownout caps, wearable strain-relief guidance
 
 ### [S418] WLED knowledge base — Settings (Automatic Brightness Limiter)
@@ -1640,7 +1640,7 @@ is removed.
 - url: https://kno.wled.ge/features/settings/
 - author: WLED project
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260629193319/https://kno.wled.ge/features/settings/  # snapshot 2026-06-29
+- archive: https://web.archive.org/web/20260629193319/https://kno.wled.ge/features/settings/  # snapshot 2026-06-29 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WLED ABL — default 850 mA cap, tunable to supply/pack rating; the shipped-firmware version of estimate-and-scale power limiting
 
 ### [S419] Adafruit blog — CircuitPython 10.0.0 (2025-10-01) and 10.2.1 (2026-05-12) release posts
@@ -1741,7 +1741,7 @@ is removed.
 - author: Matthias Geier
 - license: MIT (library)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260701120149/https://python-sounddevice.readthedocs.io/en/0.5.3/
+- archive: https://web.archive.org/web/20260701120149/https://python-sounddevice.readthedocs.io/en/0.5.3/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: PortAudio binding used by LedFx; latency/blocksize semantics for the capture stage of the budget
 
 ### [S459] ITU-R BT.1359-1 — Relative timing of sound and vision
@@ -1750,7 +1750,7 @@ is removed.
 - author: ITU-R
 - published: 1998-11
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20250903014127/https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1359-1-199811-I!!PDF-E.pdf
+- archive: https://web.archive.org/web/20250903014127/https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1359-1-199811-I!!PDF-E.pdf (snapshot predates accessed date; refresh next verification pass)
 - relevance: the canonical A/V sync thresholds: detectability +45/-125 ms, acceptability +90/-185 ms; grounds pewpew's <=50 ms audio-to-light target
 
 ### [S460] scottlawsonbc/audio-reactive-led-strip
@@ -1821,7 +1821,7 @@ is removed.
 - url: https://www.tindie.com/products/electromage/pixelblaze-v3-standard-wifi-led-controller/
 - author: Ben Hencke / ElectroMage
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260114105355/https://www.tindie.com/products/electromage/pixelblaze-v3-standard-wifi-led-controller/
+- archive: https://web.archive.org/web/20260114105355/https://www.tindie.com/products/electromage/pixelblaze-v3-standard-wifi-led-controller/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: maintainer-written description of live editor: recompile-and-send on every change, inline syntax/runtime error highlighting, variable watcher, UI-controls-as-functions
 
 ### [S505] pixelblaze-client (Python websocket library)
@@ -1852,7 +1852,7 @@ is removed.
 - url: https://docs.ledfx.app/en/latest/howto/dummy_matrix.html
 - author: LedFx project
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251003085253/https://docs.ledfx.app/en/latest/howto/dummy_matrix.html
+- archive: https://web.archive.org/web/20251003085253/https://docs.ledfx.app/en/latest/howto/dummy_matrix.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: dummy device renders only to browser frontend for hardware-free testing; 4096-px frontend pixel cap and throttle slider
 
 ### [S509] LedFx docs — "How to: Create and Edit Virtuals"
@@ -1954,7 +1954,7 @@ is removed.
 - author: WLED project (Aircoookie et al.)
 - published: n/a (living doc)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251219022207/https://kno.wled.ge/interfaces/json-api/
+- archive: https://web.archive.org/web/20251219022207/https://kno.wled.ge/interfaces/json-api/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: canonical spec of WLED's single-JSON-state control model: state/seg objects, presets, playlists, fxdata metadata, per-LED `i` writes and buffer limits.
 
 ### [S551] WLED docs — WebSocket interface
@@ -1963,7 +1963,7 @@ is removed.
 - author: WLED project
 - published: n/a (living doc)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251219071936/https://kno.wled.ge/interfaces/websocket/
+- archive: https://web.archive.org/web/20251219071936/https://kno.wled.ge/interfaces/websocket/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: /ws semantics — same JSON vocabulary as HTTP, server-push of merged state on change, {"v":true} full state, {"lv":true} exclusive live-preview stream, 4-client limit.
 
 ### [S552] zranger1/pixelblaze-client (Python protocol reference)
@@ -1982,7 +1982,7 @@ is removed.
 - author: Home Assistant project (integration by Franck Nijhof)
 - published: n/a (living doc)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20251224021119/https://www.home-assistant.io/integrations/wled
+- archive: https://web.archive.org/web/20251224021119/https://www.home-assistant.io/integrations/wled (snapshot predates accessed date; refresh next verification pass)
 - relevance: reference mapping of an LED engine to smart-home entities (segments→lights, presets/playlists/palettes→selects, speed/intensity→numbers); local-push via WebSocket with 10 s polling fallback.
 
 ### [S554] WLED docs — Presets (and timed presets)
@@ -1991,7 +1991,7 @@ is removed.
 - author: WLED project
 - published: n/a (living doc)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260116004106/https://kno.wled.ge/features/presets/
+- archive: https://web.archive.org/web/20260116004106/https://kno.wled.ge/features/presets/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: preset storage model (/presets.json, 250 slots, preset=any API command), playlist-in-preset structure, 8 timer slots + sunrise/sunset, boot preset, LittleFS write-blocking caveats.
 
 ### [S555] Chromatik Guide — OSC
@@ -2000,7 +2000,7 @@ is removed.
 - author: Heron Arts / Mark Slee
 - published: n/a (living doc)
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260218122037/https://chromatik.co/guide/osc/
+- archive: https://web.archive.org/web/20260218122037/https://chromatik.co/guide/osc/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: the reference OSC design for LED engines — /lx/ parameter tree, normalized float32 semantics, OSCQuery zeroconf discovery, OSC-driven tempo/beat.
 
 ### [S556] Chromatik Guide — MIDI
@@ -2188,7 +2188,7 @@ is removed.
 - license: no LICENSE file (docs repo; firmware itself closed). Third-party component licenses listed in README.
 - published: last commit 2020-10-26
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260521061924/https://github.com/simap/pixelblaze/tree/v3
+- archive: https://web.archive.org/web/20260521061924/https://github.com/simap/pixelblaze/tree/v3 (snapshot predates accessed date; refresh next verification pass)
 - relevance: canonical pattern-language reference (README.expressions.md) and mapper/world-units doc (README.mapper.md) — same text shipped in the device editor; also indexes all open Pixelblaze-adjacent repos
 - note: README.mapper.md is the same underlying document as [S304] (pinned repo copy vs seed URL) — do not co-cite the pair as independent corroboration
 
@@ -2308,7 +2308,7 @@ is removed.
 - url: https://kno.wled.ge/basics/getting-started/
 - author: WLED project
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260624190621/https://kno.wled.ge/basics/getting-started/  # snapshot 2026-06-24
+- archive: https://web.archive.org/web/20260624190621/https://kno.wled.ge/basics/getting-started/  # snapshot 2026-06-24 (snapshot predates accessed date; refresh next verification pass)
 - relevance: WLED's standard field-update paths — browser-based initial flash (install.wled.me) and integrated OTA update from the device web UI — the update precedent pewpew's receiver firmware inherits (completeness-critique sweep 3)
 
 ### [S755] ESP Web Tools (ESPHome project)
@@ -2316,7 +2316,7 @@ is removed.
 - url: https://esphome.github.io/esp-web-tools/
 - author: ESPHome / Open Home Foundation
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260622052935/https://esphome.github.io/esp-web-tools/  # snapshot 2026-06-22
+- archive: https://web.archive.org/web/20260622052935/https://esphome.github.io/esp-web-tools/  # snapshot 2026-06-22 (snapshot predates accessed date; refresh next verification pass)
 - relevance: ecosystem-standard browser flashing (Web Serial) with Improv WiFi provisioning; powers the WLED/Tasmota one-click installers — the install/recovery path for pewpew receiver firmware (completeness-critique sweep 3)
 
 ### [S756] ESP-IDF documentation — Over The Air Updates (OTA), ESP32-S3
@@ -2324,7 +2324,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/ota.html
 - author: Espressif Systems
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260304210916/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/ota.html  # snapshot 2026-03-04
+- archive: https://web.archive.org/web/20260304210916/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/ota.html  # snapshot 2026-03-04 (snapshot predates accessed date; refresh next verification pass)
 - relevance: esp-idf dual OTA app partitions with rollback/anti-rollback — the safe field-update and bad-flash-recovery mechanism for the Phase-4 ESP32-S3 pewpew receiver (completeness-critique sweep 3)
 
 ### [S757] WLED issue #4252 — Matter support discussion
@@ -2339,7 +2339,7 @@ is removed.
 - url: https://github.com/zackelia/wled-matter-bridge
 - author: Zack Elia
 - accessed: 2026-07-03
-- archive: https://web.archive.org/web/20260511093720/https://github.com/zackelia/wled-matter-bridge  # snapshot 2026-05-11
+- archive: https://web.archive.org/web/20260511093720/https://github.com/zackelia/wled-matter-bridge  # snapshot 2026-05-11 (snapshot predates accessed date; refresh next verification pass)
 - relevance: existence proof that Matter reaches WLED devices via a bridge process (on/off/brightness/color only) — bridging, not native, is the current Matter/LED state of the art (completeness-critique sweep 2)
 
 ### [S759] maui1911/TLED — Matter-over-Thread addressable LED controller
@@ -2378,7 +2378,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260319154338/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
+- archive: https://web.archive.org/web/20260319154338/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Official FAQ: 20 unicast peers max; ~6 simultaneously controllable encrypted peers; broadcast "theoretically there is no limitation in the number of devices"; ESP-NOW+WiFi STA must share the AP's channel; measured one-to-one throughput 214 kbps (open) / 555 kbps (shielded); default 1 Mbps changeable via esp_wifi_config_espnow_rate; 250 B v1 limit "does not support configuration" (IE-field constraint).
 
 ### [S803] arduino-esp32 issue #11261 — "Support ESP-Now Version 2 packet size"
@@ -2395,7 +2395,7 @@ is removed.
 - author: B. Becker, C. Oberli, J. Zobel, R. Steinmetz, T. Meuser (TU Darmstadt / PUC Chile)
 - published: 2025
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251009212258/https://dl.ifip.org/db/conf/wons/wons2025/1571077625.pdf
+- archive: https://web.archive.org/web/20251009212258/https://dl.ifip.org/db/conf/wons/wons2025/1571077625.pdf (snapshot predates accessed date; refresh next verification pass)
 - relevance: Best sniffer-verified low-level study found. ESP-NOW (IDF 4.4.6 defaults, ESP32-S3 Heltec boards) transmits 802.11b MPDUs at 1 Mbit/s / 20 MHz; unicast performs up to 31 retransmissions with p-persistent geometric backoff (~481 µs average slot, first retransmission at ~3.4 ms); driver-to-first-transmission latency 2673–2780 µs for 250 B payloads; farmland PDR 99.97 % below 55 m (0.95 m antenna height) collapsing non-monotonically beyond; forest 133/205 positions usable; validated delay model (t_tx = 2800 µs, t_rtx = 3350 µs, n_max = 31). Also confirms CSMA carrier sensing and cites prior latency measurements (1059 µs for 1 B, 1869 µs for 100 B payloads).
 
 ### [S805] Espressif Developer Portal — "Data transmission reliability over ESP-NOW protocol in indoor environment"
@@ -2550,7 +2550,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/esp-wifi-mesh.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251118072742/https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/esp-wifi-mesh.html
+- archive: https://web.archive.org/web/20251118072742/https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/esp-wifi-mesh.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: authoritative description of tree topology, softAP+STA node
   roles, router-RSSI root election (90% vote threshold), fixed-root/no-router
   mode, and vendor performance figures (100-device test, 6 layers × 6
@@ -2561,7 +2561,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/wifi-mesh-development-framework.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260601145155/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/wifi-mesh-development-framework.html
+- archive: https://web.archive.org/web/20260601145155/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/wifi-mesh-development-framework.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Espressif's own steering: "recommended to use our newly released
   ESP-Mesh-Lite solution, instead of Wi-Fi Mesh" for new designs; no-router
   caveat that a designated root that crashes cannot be recovered from; claims
@@ -2638,7 +2638,7 @@ is removed.
 - author: R. Rondón, A. Mahmood, S. Grimaldi, M. Gidlund (Mid Sweden Univ.)
 - published: 2019-10-08
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260103131441/https://arxiv.org/abs/1910.03345
+- archive: https://web.archive.org/web/20260103131441/https://arxiv.org/abs/1910.03345 (snapshot predates accessed date; refresh next verification pass)
 - relevance: peer-reviewed scalability analysis: BLE mesh "is prone to
   broadcast storm"; in 52–106-device grids, density beyond ~86 devices
   increases loss and delay; 10% side-traffic pushes loss >10%; avg delay
@@ -2681,7 +2681,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/openthread.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260502090443/https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/openthread.html
+- archive: https://web.archive.org/web/20260502090443/https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/openthread.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: which Espressif chips have native 802.15.4 (H2/C6/C5); RCP
   architecture that adds Thread to Wi-Fi chips (incl. ESP32-S3) over
   UART/SPI, SPI recommended for latency — defines the hardware cost of a
@@ -2805,7 +2805,7 @@ is removed.
 - author: Geoffrey Werner-Allen, Geetika Tewari, Ankit Patel, Matt Welsh, Radhika Nagpal
 - published: 2005 (ACM SenSys '05)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20250318100936/https://mdw.la/papers/firefly-sensys05.pdf
+- archive: https://web.archive.org/web/20250318100936/https://mdw.la/papers/firefly-sensys05.pdf (snapshot predates accessed date; refresh next verification pass)
 - relevance: the canonical "firefly sync on real lossy radios" paper — Reachback Firefly Algorithm on 24 MicaZ motes; ~100–150 µs group spread, 1/ε convergence, MAC timestamping, reachback response, 25 ms pre-emptive message staggering. Directly informs pewpew's beat-phase layer design.
 
 ### [S902] Tyrrell, Auer & Bettstetter — Fireflies as Role Models for Synchronization in Ad Hoc Networks
@@ -2838,7 +2838,7 @@ is removed.
 - author: Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, Doug Terry (Xerox PARC)
 - published: 1987 (ACM PODC '87; Xerox PARC CSL-89-1)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20250426184746/http://bitsavers.trailing-edge.com/pdf/xerox/parc/techReports/CSL-89-1_Epidemic_Algorithms_for_Replicated_Database_Maintenance.pdf
+- archive: https://web.archive.org/web/20250426184746/http://bitsavers.trailing-edge.com/pdf/xerox/parc/techReports/CSL-89-1_Epidemic_Algorithms_for_Replicated_Database_Maintenance.pdf (snapshot predates accessed date; refresh next verification pass)
 - relevance: origin of the anti-entropy / rumor-mongering / direct-mail taxonomy and the exponential-spread convergence argument underlying pewpew's parameter-gossip layer.
 
 ### [S906] Karp, Schindelhauer, Shenker & Vöcking — Randomized Rumor Spreading
@@ -2873,7 +2873,7 @@ is removed.
 - author: D. Stott Parker Jr., Gerald Popek, Gerard Rudisin, Allen Stoughton, Bruce Walker, Evelyn Walton, Johanna Chow, David Edwards, Stephen Kiser, Charles Kline
 - published: 1983 (IEEE Transactions on Software Engineering SE-9(3))
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20250527141518/https://dl.acm.org/doi/10.1109/TSE.1983.236733
+- archive: https://web.archive.org/web/20250527141518/https://dl.acm.org/doi/10.1109/TSE.1983.236733 (snapshot predates accessed date; refresh next verification pass)
 - relevance: version vectors — per-writer counters that detect (rather than arbitrate) concurrent updates; cited to show why they are overkill/oversized for pewpew's 11-byte single-writer state.
 
 ### [S910] RFC 6206 — The Trickle Algorithm
@@ -2909,7 +2909,7 @@ is removed.
 - author: Nazim Fatès
 - published: 2014 (Journal of Cellular Automata; arXiv:1406.0792)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251211075327/https://arxiv.org/pdf/1406.0792
+- archive: https://web.archive.org/web/20251211075327/https://arxiv.org/pdf/1406.0792 (snapshot predates accessed date; refresh next verification pass)
 - relevance: survey establishing that update policy (synchronous vs α-asynchronous vs random-order) is a first-class determinant of CA behavior — evidence that pewpew cannot naively port synchronous CA rules onto lossy asynchronous broadcast.
 
 ### [S914] Blok & Bergersen — Synchronous versus asynchronous updating in the "game of Life"
@@ -2936,7 +2936,7 @@ is removed.
 - author: Max Wertheimer (1912); Adolf Korte (1915); summarized via secondary references
 - published: 1912/1915 (historical); accessed via encyclopedic summary 2026-07-09
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251205094841/https://en.wikipedia.org/wiki/Korte%27s_third_law_of_apparent_motion
+- archive: https://web.archive.org/web/20251205094841/https://en.wikipedia.org/wiki/Korte%27s_third_law_of_apparent_motion (snapshot predates accessed date; refresh next verification pass)
 - relevance: bounds the perceptual window for smooth apparent motion between discrete lights (~30–400 ms inter-element interval, optimal ~60 ms) — the basis for the claim that 10 Hz (100 ms/step) inter-group wave propagation reads as coherent motion. Primary-source figures flagged where derived from secondary summaries.
 
 ### [S917] Maróti, Kusy, Simon & Lédeczi — The Flooding Time Synchronization Protocol (FTSP)
@@ -2953,7 +2953,7 @@ is removed.
 - url: https://content.u-blox.com/sites/default/files/products/documents/Timing_AppNote_(GPS.G6-X-11007).pdf
 - author: u-blox AG
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260320101858/https://content.u-blox.com/sites/default/files/products/documents/Timing_AppNote_%28GPS.G6-X-11007%29.pdf
+- archive: https://web.archive.org/web/20260320101858/https://content.u-blox.com/sites/default/files/products/documents/Timing_AppNote_%28GPS.G6-X-11007%29.pdf (snapshot predates accessed date; refresh next verification pass)
 - relevance: GPS/PPS timing spec — timing modules deliver ~15–30 ns RMS 1PPS, giving every equipped node a drift-free fleet-wide absolute second boundary with zero radio coordination; the cheapest route to sub-µs absolute time outdoors at art scale.
 
 ## Block S950–S999 — RA-16 ESP32-S3 render+radio coexistence
@@ -3168,7 +3168,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260319154338/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html
+- archive: https://web.archive.org/web/20260319154338/https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/esp-now.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Official FAQ stating the gateway-critical constraints: ESP-NOW channel must equal the connected AP's channel, no channel switching after WiFi connect, modem-sleep breaks ESP-NOW receive, connectionless-power-save wake-interval APIs, peer-count limits under coexistence.
 
 ### [S1001] espressif/esp-now — application-layer ESP-NOW component (pairing, control, provisioning, OTA, debug, security)
@@ -3194,7 +3194,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/ota.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260312072212/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/ota.html
+- archive: https://web.archive.org/web/20260312072212/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/ota.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Authoritative OTA model: two OTA app slots (ota_0/ota_1) + otadata partition; app rollback via esp_ota_mark_app_valid_cancel_rollback()/ESP_OTA_IMG_PENDING_VERIFY with automatic rollback on unconfirmed reboot; eFuse anti-rollback ("the version in the bootable firmware must be greater than or equal to the version in the chip"); signed OTA images verifiable "even without enabling hardware secure boot" (CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT).
 
 ### [S1004] ESP-IDF Programming Guide — Wi-Fi performance and power save
@@ -3249,7 +3249,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260213110244/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
+- archive: https://web.archive.org/web/20260213110244/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Key-value config store in its own flash partition: namespaces, power-fail safety ("one should be able to power off the device at any point"), built-in wear levelling, optional NVS encryption. Basis for config-vs-firmware separation.
 
 ### [S1011] ESP-IDF Programming Guide — Miscellaneous System APIs: MAC addresses (ESP32-S3)
@@ -3257,7 +3257,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260303122027/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
+- archive: https://web.archive.org/web/20260303122027/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Base MAC is "pre-programmed into the ESP32-S3 eFuse in the factory during production"; esp_read_mac()/esp_efuse_mac_get_default(); per-interface MACs derived from base MAC; custom base MAC possible via esp_base_mac_addr_set(). Basis for zero-touch MAC-derived node identity.
 
 ### [S1012] Random Nerd Tutorials — "ESP32: ESP-NOW Web Server Sensor Dashboard (ESP-NOW + Wi-Fi)"
@@ -3273,7 +3273,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/app_image_format.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260513185641/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/app_image_format.html
+- archive: https://web.archive.org/web/20260513185641/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/app_image_format.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: Every app image embeds esp_app_desc_t (version string ≤32 chars, project name, compile date/time, IDF version, ELF SHA-256) at a fixed offset, readable via esp_app_get_description(); "useful for identification of images uploaded via Over-the-Air (OTA) updates". Basis for version self-reporting telemetry.
 
 ### [S1014] ESPHome 2025.11.0 changelog — ESP-NOW packet transport
@@ -3299,7 +3299,7 @@ is removed.
 - url: https://novelbits.io/maximum-data-bluetooth-advertising-packet-ble/
 - author: Novel Bits (Mohammad Afaneh)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251006021903/https://novelbits.io/maximum-data-bluetooth-advertising-packet-ble/
+- archive: https://web.archive.org/web/20251006021903/https://novelbits.io/maximum-data-bluetooth-advertising-packet-ble/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: payload math for legacy (31 B AD, 29 B after LTV overhead, 27 B custom via Manufacturer Specific Data) and extended advertising (254 B per AUX PDU, 250 B custom via MSD); notes extended advertising is optional and not universally supported by scanners
 
 ### [S1051] Nordic DevZone — "reducing power consumption during BLE scan"
@@ -3315,7 +3315,7 @@ is removed.
 - url: https://docs.nordicsemi.com/bundle/ps_nrf52840/page/_tmp/nrf52840/autodita/current/parameters.i_radio.html
 - author: Nordic Semiconductor
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260510231003/https://docs.nordicsemi.com/bundle/ps_nrf52840/page/_tmp/nrf52840/autodita/CURRENT/parameters.i_radio.html
+- archive: https://web.archive.org/web/20260510231003/https://docs.nordicsemi.com/bundle/ps_nrf52840/page/_tmp/nrf52840/autodita/CURRENT/parameters.i_radio.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: official radio currents — IRADIO_RX0 (RX @1 Mbps BLE, HFXO, DCDC) = 6.26 mA typ; IRADIO_TX1 (0 dBm, DCDC) = 6.40 mA typ; anchors the observer-role duty-cycle power math
 
 ### [S1053] ESP-IDF Programming Guide — RF Coexistence (ESP32-S3)
@@ -3323,7 +3323,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/coexist.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260228151623/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/coexist.html
+- archive: https://web.archive.org/web/20260228151623/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/coexist.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: S3 has one 2.4 GHz RF module time-sliced between WiFi and BLE; coexistence table marks WiFi-STA + BLE advertising stable ("Y") but ESP-NOW RX only "supported and the performance is stable in STA mode, otherwise not supported"; SoftAP + BLE marked unstable ("C1") — decides the bridge's WiFi mode
 
 ### [S1054] ESP-IDF Programming Guide — ESP-NOW API reference (ESP32-S3)
@@ -3339,7 +3339,7 @@ is removed.
 - url: https://docs.circuitpython.org/en/latest/shared-bindings/_bleio/index.html
 - author: Adafruit / CircuitPython project
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260527030025/https://docs.circuitpython.org/en/latest/shared-bindings/_bleio/index.html
+- archive: https://web.archive.org/web/20260527030025/https://docs.circuitpython.org/en/latest/shared-bindings/_bleio/index.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: `Adapter.start_scan(prefixes, *, buffer_size=512, extended=False, timeout=None, interval=0.1, window=0.1, minimum_rssi=-80, active=True)` — observer role with hardware prefix filtering and a scan window/interval duty-cycle lever (interval 0.0025–40.96 s, window ≤ interval); passive scanning via active=False
 
 ### [S1056] adafruit/Adafruit_CircuitPython_BLE
@@ -3364,7 +3364,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/low-power-mode/low-power-mode-wifi.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260319185803/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/low-power-mode/low-power-mode-wifi.html
+- archive: https://web.archive.org/web/20260319185803/https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/low-power-mode/low-power-mode-wifi.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: measured (shielded-box) modem-sleep averages on ESP32-S3: ~19.5–20.7 mA with DFS on (DTIM 10–1), ~38–40 mA without DFS, peaks ~113 mA during radio activity — the realistic floor for any duty-cycled WiFi/ESP-NOW receiver on S3
 
 ### [S1059] Nordic DevZone — "nRF52 DK — 20 ms non connectable advertising interval"
@@ -3396,7 +3396,7 @@ is removed.
 - url: https://github.com/adafruit/circuitpython/issues/3119
 - author: CircuitPython community (reported 2020-07-04, closed 2023-10-28)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251121042516/https://github.com/adafruit/circuitpython/issues/3119
+- archive: https://web.archive.org/web/20251121042516/https://github.com/adafruit/circuitpython/issues/3119 (snapshot predates accessed date; refresh next verification pass)
 - relevance: historical evidence that unfiltered long-running scans put large allocations (64 KB-class) on the CircuitPython heap; motivates prefix-filtered, bounded-buffer, short-burst scanning in a render loop
 
 ### [S1063] Nordic Semiconductor — Enhanced ShockBurst (ESB), nRF Connect SDK protocol docs
@@ -3420,7 +3420,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/coexist.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260410144209/https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/coexist.html
+- archive: https://web.archive.org/web/20260410144209/https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/coexist.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: ESP32-C6 likewise has a single time-sliced 2.4 GHz RF module (WiFi/BLE/802.15.4); same coexistence matrix shape as S3 (STA+BLE-adv "Y", ESP-NOW RX stable only in STA mode) — C6 offers no coexistence advantage over S3 for the bridge role
 
 ### [S1066] Adafruit Learn — "Circuit Playground Bluefruit NeoPixel Animation and Color Remote Control"
@@ -3445,7 +3445,7 @@ is removed.
 - url: https://docs.wokwi.com/guides/esp32-wifi
 - author: Wokwi (CodeMagic LTD)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260620122714/https://docs.wokwi.com/guides/esp32-wifi
+- archive: https://web.archive.org/web/20260620122714/https://docs.wokwi.com/guides/esp32-wifi (snapshot predates accessed date; refresh next verification pass)
 - relevance: WiFi simulated "from the 802.11 MAC layer" via virtual open AP "Wokwi-GUEST" (BSSID 42:13:37:55:aa:01, ch 6) + IoT gateway carrying TCP and UDP (no ICMP) — enough for DDP-over-UDP receiver testing, STA/infrastructure mode only
 
 ### [S1102] Wokwi docs — Wokwi for CI, getting started
@@ -3477,7 +3477,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/tools/qemu.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260214045143/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/tools/qemu.html
+- archive: https://web.archive.org/web/20260214045143/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/tools/qemu.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: QEMU is a first-class IDF tool — `idf.py qemu monitor` / `idf.py qemu gdb`, prebuilt binaries for Linux/macOS/Windows; S3 emulation of "CPU, memory, and several peripherals"; virtual framebuffer, eFuse/secure-boot emulation
 
 ### [S1106] espressif/esp-toolchain-docs — QEMU README (chip/peripheral coverage)
@@ -3512,7 +3512,7 @@ is removed.
 - url: https://renode.readthedocs.io/en/latest/tutorials/ble-simulation.html
 - author: Antmicro
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251011204153/https://renode.readthedocs.io/en/latest/tutorials/ble-simulation.html
+- archive: https://web.archive.org/web/20251011204153/https://renode.readthedocs.io/en/latest/tutorials/ble-simulation.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: shared wireless-medium model (`BLEMedium`), multi-machine radio linking, Python packet-interception hooks; canonical demo = two nRF52840s running Zephyr BLE — Renode's multi-node radio sim is real but nRF-centric
 
 ### [S1110] Renode docs — supported boards
@@ -3562,7 +3562,7 @@ is removed.
 - url: https://docs.espressif.com/projects/pytest-embedded/en/latest/
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260701130032/https://docs.espressif.com/projects/pytest-embedded/en/latest/
+- archive: https://web.archive.org/web/20260701130032/https://docs.espressif.com/projects/pytest-embedded/en/latest/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: the plugin family — services `serial`/`esp`/`idf`/`qemu`/`wokwi`/`arduino`/`nuttx` behind one `dut.expect()` API; same test body runs on simulator or devkit by swapping `--embedded-services`; per-DUT log capture built in
 
 ### [S1116] espressif/pytest-embedded
@@ -3580,7 +3580,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/esp-idf-tests-with-pytest.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260702205830/https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/esp-idf-tests-with-pytest.html
+- archive: https://web.archive.org/web/20260702205830/https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/esp-idf-tests-with-pytest.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: how Espressif runs its own hardware CI — pytest-embedded(esp,idf) + pytest-rerunfailures; `target` + `env` markers route tests to CI runners with matching tags; multi-DUT via `count`/`'esp32|esp32s2'` parameterization and per-DUT `app_path`; flake vocabulary `flaky(reruns=3)`, `xfail`, `temp_skip_ci`
 
 ### [S1118] ESP-IDF Programming Guide — Unit Testing in ESP32 (Unity on target)
@@ -3606,7 +3606,7 @@ is removed.
 - url: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners
 - author: GitHub
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20250615070344/https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners
+- archive: https://web.archive.org/web/20250615070344/https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners (snapshot predates accessed date; refresh next verification pass)
 - relevance: self-hosted runners give hardware/OS control and USB access, route via labels, poll GitHub over HTTPS; GitHub recommends them only for private repos (fork PRs can execute arbitrary code on the runner)
 
 ### [S1121] Ferrous Systems — "Running hardware-in-the-loop tests on GitHub Actions"
@@ -3615,7 +3615,7 @@ is removed.
 - author: Ferrous Systems
 - published: 2021-03-17
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260317053019/https://ferrous-systems.com/blog/gha-hil-tests/
+- archive: https://web.archive.org/web/20260317053019/https://ferrous-systems.com/blog/gha-hil-tests/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: canonical HIL-on-GHA writeup — nRF52840-DK on a Pi 4 self-hosted runner, probe-run/defmt-test `cargo test` on target; two-repo public-proxy→private-runner pattern + merge-queue approval to keep untrusted PRs off hardware
 
 ### [S1122] The Good Penguin — "Automated Testing with GitHub Actions, pytest and a Board Farm"
@@ -3632,7 +3632,7 @@ is removed.
 - url: https://docs.github.com/en/actions/reference/limits
 - author: GitHub
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260625171148/https://docs.github.com/en/actions/reference/limits
+- archive: https://web.archive.org/web/20260625171148/https://docs.github.com/en/actions/reference/limits (snapshot predates accessed date; refresh next verification pass)
 - relevance: job limits — 6 h GitHub-hosted vs 5 days self-hosted, 35-day workflow runs — which is what makes multi-day soak-as-CI-job feasible on own hardware; artifact storage plan-limited (500 MB Free)
 
 ### [S1124] pytest-dev/pytest-rerunfailures
@@ -3650,7 +3650,7 @@ is removed.
 - url: https://sigrok.org/wiki/Sigrok-cli
 - author: sigrok project
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260623070520/http://sigrok.org/wiki/Sigrok-cli
+- archive: https://web.archive.org/web/20260623070520/http://sigrok.org/wiki/Sigrok-cli (snapshot predates accessed date; refresh next verification pass)
 - relevance: fully headless capture + decode: `--driver fx2lafw --time 3s`, stacked protocol decoders via `-P`, binary/CSV outputs — explicitly aimed at scripts and CI pipelines
 
 ### [S1126] sigrokproject/libsigrokdecode
@@ -3667,7 +3667,7 @@ is removed.
 - url: https://sigrok.org/wiki/Fx2lafw
 - author: sigrok project
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260704001351/http://sigrok.org/wiki/Fx2lafw
+- archive: https://web.archive.org/web/20260704001351/http://sigrok.org/wiki/Fx2lafw (snapshot predates accessed date; refresh next verification pass)
 - relevance: open firmware (GPLv2+) for $10–25 Cypress FX2 logic-analyzer clones (Saleae Logic/USBee clones); 24 MHz crystal, 8 probes (PB0–7) or 16 — 24 MS/s is ~30 samples/bit for 800 kHz WS2812, adequate for decode and skew timestamps
 
 ### [S1128] Saleae Logic 2 Automation API documentation
@@ -3728,7 +3728,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_wifi.html
 - author: Espressif
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251207093313/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_wifi.html
+- archive: https://web.archive.org/web/20251207093313/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/network/esp_wifi.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: esp_wifi_set_promiscuous() + esp_wifi_set_promiscuous_filter() deliver management frames (incl. ESP-NOW's action frames) to a callback with wifi_pkt_rx_ctrl_t metadata (RSSI etc.) — a spare ESP32 becomes a channel sniffer with ESP32-radio-eye RSSI
 
 ### [S1135] morrownr/USB-WiFi — Linux USB WiFi adapter reference
@@ -3745,7 +3745,7 @@ is removed.
 - url: https://scapy.readthedocs.io/en/latest/usage.html
 - author: Scapy project
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260624121923/https://scapy.readthedocs.io/en/latest/usage.html
+- archive: https://web.archive.org/web/20260624121923/https://scapy.readthedocs.io/en/latest/usage.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: `sniff(monitor=True)` on monitor-mode interfaces, Dot11 dissection, BPF filters at OS level, `wrpcap`/`rdpcap` for pcap artifacts — the Python half of the ESP-NOW PDR-counting pipeline
 
 ### [S1137] Power Electronic Tips — "How to gauge LED flicker" (+ IEEE 1789-2015 context)
@@ -3761,7 +3761,7 @@ is removed.
 - url: https://hypothesis.readthedocs.io/en/latest/stateful.html
 - author: Hypothesis project (David R. MacIver et al.)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260518144923/https://hypothesis.readthedocs.io/en/latest/stateful.html
+- archive: https://web.archive.org/web/20260518144923/https://hypothesis.readthedocs.io/en/latest/stateful.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: RuleBasedStateMachine — @rule methods chained into generated sequences, Bundles pass values between steps, @invariant checked after every step, failures shrink to a minimal reproducible program — the exact shape for gossip/epoch protocol model testing
 
 ### [S1139] HypothesisWorks/hypothesis
@@ -3779,7 +3779,7 @@ is removed.
 - url: https://llvm.org/docs/LibFuzzer.html
 - author: LLVM project
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260707105930/https://llvm.org/docs/LibFuzzer.html
+- archive: https://web.archive.org/web/20260707105930/https://llvm.org/docs/LibFuzzer.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: in-process coverage-guided fuzzing via -fsanitize=fuzzer; status quote: "The original authors of libFuzzer have stopped active work on it and switched to working on another fuzzing engine, Centipede. LibFuzzer is still fully supported in that important bugs will get fixed" — maintenance-only
 
 ### [S1141] AFLplusplus/AFLplusplus
@@ -3806,7 +3806,7 @@ is removed.
 - url: https://docs.github.com/en/actions/reference/events-that-trigger-workflows
 - author: GitHub
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20250718094418/https://docs.github.com/en/actions/reference/events-that-trigger-workflows
+- archive: https://web.archive.org/web/20250718094418/https://docs.github.com/en/actions/reference/events-that-trigger-workflows (snapshot predates accessed date; refresh next verification pass)
 - relevance: `schedule` cron (min 5-minute interval; runs may be delayed or dropped under load; default branch only; auto-disabled after 60 days inactivity on public repos) + `workflow_dispatch` manual runs — the constraints that shape soak-as-background-CI-job design
 
 ## Block S1150–S1199 — RA-20 Agentic feedback loops
@@ -3895,7 +3895,7 @@ is removed.
 - author: Model Context Protocol maintainers
 - published: 2026-05-21
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260629215216/https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
+- archive: https://web.archive.org/web/20260629215216/https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: where MCP is going as of mid-2026: stateless core (no initialize handshake/session header), Tasks extension for long-running tool calls (tools/call returns a task handle; tasks/get / tasks/update / tasks/cancel), extensions framework, Sampling/Roots/Logging deprecated
 
 ### [S1160] MCP specification 2025-11-25 — Server tools
@@ -3904,7 +3904,7 @@ is removed.
 - author: Model Context Protocol project
 - published: 2025-11-25
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260704182228/https://modelcontextprotocol.io/specification/2025-11-25/server/tools
+- archive: https://web.archive.org/web/20260704182228/https://modelcontextprotocol.io/specification/2025-11-25/server/tools (snapshot predates accessed date; refresh next verification pass)
 - relevance: current-ratified norms for tool safety: human-in-the-loop SHOULD with ability to deny invocations, tool annotations treated as untrusted unless server is trusted, outputSchema/structuredContent for machine-parseable results, isError execution errors designed for agent self-correction, "log tool usage for audit purposes"
 
 ### [S1161] beriberikix/awesome-mcp-hardware — curated hardware MCP server list
@@ -3975,7 +3975,7 @@ is removed.
 - author: Justin Poehnelt, Senior Software Engineer at Google (built the Google Workspace CLI agent-first)
 - published: 2026-03-04
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260706195226/https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/
+- archive: https://web.archive.org/web/20260706195226/https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: concrete 2026 statement of agent-first CLI design from a practitioner who shipped one: deterministic JSON output, runtime schema introspection, --dry-run on mutating operations, adversarial input validation, skill files over --help
 
 ### [S1169] Espressif Developer Portal — Developing a Zephyr IoT app with AI
@@ -3993,7 +3993,7 @@ is removed.
 - author: Scrolltest
 - published: 2026-03-19
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260411172428/https://scrolltest.com/flaky-tests-detection-quarantine-prevention-guide-2026/
+- archive: https://web.archive.org/web/20260411172428/https://scrolltest.com/flaky-tests-detection-quarantine-prevention-guide-2026/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: 2026 flake discipline: run new/changed tests 5–10× pre-merge, flakiness scores per test, quarantine lanes with owner + two-week deadline, blind retries explicitly deprecated ("a test that needs retries to pass consistently is still broken")
 
 ### [S1171] Sentry docs — Seer (AI debugging agent)
@@ -4002,7 +4002,7 @@ is removed.
 - author: Sentry
 - published: continuously updated; current as of access
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260519071048/https://docs.sentry.io/product/ai-in-sentry/seer/
+- archive: https://web.archive.org/web/20260519071048/https://docs.sentry.io/product/ai-in-sentry/seer/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: production example of a telemetry-watching background agent: auto-scans incoming issues, background root-cause analysis over traces/logs/profiles, hands fixes off to Claude Code / Cursor cloud agents / Copilot; PR creation gated on explicit human prompt with org-level disable controls
 
 ### [S1172] Sentry press release — Sentry Launches Seer Agent
@@ -4029,7 +4029,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260113062456/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html
+- archive: https://web.archive.org/web/20260113062456/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: first-party reference for IWDT/TWDT/XTWDT config, defaults, and the subscribe/reset API a render loop must use
 
 ### [S1201] ESP-IDF Fatal Errors guide (ESP32-S3)
@@ -4037,7 +4037,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/fatal-errors.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260310155012/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/fatal-errors.html
+- archive: https://web.archive.org/web/20260310155012/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/fatal-errors.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: panic-handler behaviors (CONFIG_ESP_SYSTEM_PANIC), Guru Meditation classes, brownout reset behavior, RTC-watchdog-as-final-failsafe
 
 ### [S1202] ESP-IDF Core Dump guide (ESP32-S3)
@@ -4062,7 +4062,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260303122027/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html
+- archive: https://web.archive.org/web/20260303122027/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/misc_system_api.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: full esp_reset_reason_t enum (PANIC, INT_WDT, TASK_WDT, BROWNOUT, PWR_GLITCH, CPU_LOCKUP…), shutdown handlers, esp_get_minimum_free_heap_size
 
 ### [S1205] ESP-IDF Non-Volatile Storage (NVS) docs
@@ -4070,7 +4070,7 @@ is removed.
 - url: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
 - author: Espressif Systems
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260213110244/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html
+- archive: https://web.archive.org/web/20260213110244/https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/storage/nvs_flash.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: log-structured append semantics (÷126 erase amortization), power-loss guarantees, CONFIG_NVS_FLASH_VERIFY_ERASE for weak supplies — the write-frequency discipline evidence
 
 ### [S1206] ESP32-S3 brownout Kconfig (Kconfig.power)
@@ -4111,7 +4111,7 @@ is removed.
 - url: https://esphome.io/components/safe_mode/
 - author: ESPHome project (Open Home Foundation)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260622152128/https://esphome.io/components/safe_mode/
+- archive: https://web.archive.org/web/20260622152128/https://esphome.io/components/safe_mode/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: production boot-loop-detection pattern: N consecutive failed boots (default 10) → minimal firmware with only network+OTA; boot "good" after 1 min; the safe-mode design pewpew should copy
 
 ### [S1211] esphome issue #15796: safe-mode counter misses setup-phase crashes
@@ -4128,7 +4128,7 @@ is removed.
 - url: https://docs.memfault.com/docs/mcu/coredumps
 - author: Memfault
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260601155918/https://docs.memfault.com/docs/mcu/coredumps
+- archive: https://web.archive.org/web/20260601155918/https://docs.memfault.com/docs/mcu/coredumps (snapshot predates accessed date; refresh next verification pass)
 - relevance: what a commercial device-observability pipeline captures on fault (registers, tasks, selected RAM regions), store-then-upload-on-next-boot, fallback to minimal trace if storage fails
 
 ### [S1213] Memfault MCU reboot reason tracking docs
@@ -4136,7 +4136,7 @@ is removed.
 - url: https://docs.memfault.com/docs/mcu/reboot-reason-tracking
 - author: Memfault
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260321104846/https://docs.memfault.com/docs/mcu/reboot-reason-tracking
+- archive: https://web.archive.org/web/20260321104846/https://docs.memfault.com/docs/mcu/reboot-reason-tracking (snapshot predates accessed date; refresh next verification pass)
 - relevance: two-source reboot attribution (hardware register + software-marked imminent reason), noinit-RAM tracking, expected-vs-unexpected classification, bootloop metric — the forensics-minimum reference design
 
 ### [S1214] Memfault OTA & release management docs
@@ -4144,7 +4144,7 @@ is removed.
 - url: https://docs.memfault.com/docs/platform/ota
 - author: Memfault
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260321104825/https://docs.memfault.com/docs/platform/ota
+- archive: https://web.archive.org/web/20260321104825/https://docs.memfault.com/docs/platform/ota (snapshot predates accessed date; refresh next verification pass)
 - relevance: cohorts + percentage staged rollout + fleet-health comparison charts as the abort signal — vendor-practice reference for rollout rings
 
 ### [S1215] Interrupt (Memfault) — watchdog timer best practices guide
@@ -4152,7 +4152,7 @@ is removed.
 - url: https://interrupt.memfault.com/blog/firmware-watchdog-best-practices
 - author: Interrupt / Memfault engineering blog
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260408021818/https://interrupt.memfault.com/blog/firmware-watchdog-best-practices
+- archive: https://web.archive.org/web/20260408021818/https://interrupt.memfault.com/blog/firmware-watchdog-best-practices (snapshot predates accessed date; refresh next verification pass)
 - relevance: hardware WDT as last resort + software WDT for state capture; feed from a low-priority task, never a timer ISR; all-tasks-check-in pattern; always-reboot-never-wedge stance
 
 ### [S1216] Google SRE Workbook ch. 16 — Canarying Releases
@@ -4161,7 +4161,7 @@ is removed.
 - author: Google (Site Reliability Workbook)
 - published: 2018
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260627024041/https://sre.google/workbook/canarying-releases/
+- archive: https://web.archive.org/web/20260627024041/https://sre.google/workbook/canarying-releases/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: canary definition, population sizing vs blast radius, metric selection, small-population caveats — the discipline to shrink to 50 nodes
 
 ### [S1217] AWS IoT Device Management — job rollout, abort, timeout, retry configurations
@@ -4169,7 +4169,7 @@ is removed.
 - url: https://docs.aws.amazon.com/iot/latest/developerguide/jobs-configurations-details.html
 - author: Amazon Web Services
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260703211645/https://docs.aws.amazon.com/iot/latest/developerguide/jobs-configurations-details.html
+- archive: https://web.archive.org/web/20260703211645/https://docs.aws.amazon.com/iot/latest/developerguide/jobs-configurations-details.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: production fleet-OTA machinery: exponential rollout rates gated on success counts, abort on failure-percentage thresholds, maintenance windows — "avoid a bad update from being sent to an entire fleet"
 
 ### [S1218] balena docs — release policies (fleet default vs device pinning)
@@ -4177,7 +4177,7 @@ is removed.
 - url: https://docs.balena.io/learn/deploy/release-strategy/release-policy/
 - author: balena
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20251202153028/https://docs.balena.io/learn/deploy/release-strategy/release-policy/
+- archive: https://web.archive.org/web/20251202153028/https://docs.balena.io/learn/deploy/release-strategy/release-policy/ (snapshot predates accessed date; refresh next verification pass)
 - relevance: per-device release pinning "when performing a canary deployment" — the small-fleet adaptation of rollout rings
 
 ### [S1219] Golioth OTA docs — cohorts, packages, rollout
@@ -4211,7 +4211,7 @@ is removed.
 - author: George Candea, Armando Fox (Stanford)
 - published: 2003-05
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260115050447/https://www.usenix.org/legacy/events/hotos03/tech/full_papers/candea/candea_html/index.html
+- archive: https://web.archive.org/web/20260115050447/https://www.usenix.org/legacy/events/hotos03/tech/full_papers/candea/candea_html/index.html (snapshot predates accessed date; refresh next verification pass)
 - relevance: the academic case for reboot-as-recovery: one way to stop (crash) and one way to start (recover) yields simpler, more reliable systems — grounds the self-reboot-on-anomaly stance
 
 ### [S1223] Doug Fleenor Design — DMX512 to 0-10 V Analog Converter owner's manual
@@ -4237,7 +4237,7 @@ is removed.
 - url: https://batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures
 - author: Battery University (Cadex Electronics)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260622174801/https://www.batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures
+- archive: https://web.archive.org/web/20260622174801/https://www.batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures (snapshot predates accessed date; refresh next verification pass)
 - relevance: capacity ≈50 % at –18 °C, internal-resistance rise in cold, cycle-life loss above 30 °C — battery-vs-temperature priors for outdoor fleet planning
 
 ### [S1226] MacroFab — Conformal Coating vs. Potting/Encapsulation
@@ -4261,7 +4261,7 @@ is removed.
 - url: https://reliabilityanalyticstoolkit.appspot.com/poisson_spares_analysis
 - author: Reliability Analytics (method per USAF Rome Laboratory Reliability Engineer's Toolkit, 1993)
 - accessed: 2026-07-09
-- archive: https://web.archive.org/web/20260119174046/https://reliabilityanalyticstoolkit.appspot.com/poisson_spares_analysis
+- archive: https://web.archive.org/web/20260119174046/https://reliabilityanalyticstoolkit.appspot.com/poisson_spares_analysis (snapshot predates accessed date; refresh next verification pass)
 - relevance: the standard spares formula: Poisson on population × failure rate × resupply interval at a chosen confidence — the method RA-21 applies to a 50-node fleet
 
 ### [S1229] Advatek PixLite 16 Plug & Play Mk2 user manual
