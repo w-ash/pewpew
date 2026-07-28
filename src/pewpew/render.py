@@ -87,7 +87,11 @@ class Renderer:
         self._t = 0.0
         self._frame = 0
         self._error: PatternError | None = None
-        self._logged: set[str] = set()
+        # Deliberately never cleared. Clearing on a good frame reintroduces the
+        # flood for the intermittent case — a pattern failing on alternate
+        # frames would re-log a full traceback 30 times a second forever. Bound
+        # by the number of distinct failure sites, not by time.
+        self._logged: set[tuple] = set()
         self._diagnostics: list[str] = []
         self._bind_mapping(mapping)
 
@@ -135,12 +139,25 @@ class Renderer:
             raise ValueError(f"mapping must be (N,3) world coords, got {mapping.shape}")
         self._mapping = mapping
         self._n = int(mapping.shape[0])
-        # Column views, exactly as the study runner passed them.
+        # Column views, exactly as the study runner passed them — but read-only.
+        # Buffer locking alone does not make `render` pure: the coordinate
+        # arrays never enter the registry, and they are views onto the caller's
+        # mapping, so a stray in-place `x += 0.5` would corrupt the mapping
+        # permanently and every later frame with it.
         self._x, self._y, self._z = mapping[:, 0], mapping[:, 1], mapping[:, 2]
         self._index = np.arange(self._n, dtype=np.int32)
+        for coords in (self._x, self._y, self._z, self._index):
+            coords.setflags(write=False)
+        # A raising `setup` leaves the pattern half-initialized — some buffers
+        # reallocated, the ones declared after the raise missing. Binding is
+        # deliberately *not* contained (a bind failure should be loud), but the
+        # renderer must not go on rendering from that wreck as if nothing
+        # happened, so it is poisoned until a later bind succeeds.
+        self._bind_failed = True
         self.pattern._bind(
             self._n, self._x, self._y, self._z, self._index, seed=self.seed, params=self.params
         )
+        self._bind_failed = False
 
     # ---- the frame path -------------------------------------------------
 
@@ -151,8 +168,22 @@ class Renderer:
         (a fixed-step sequence, a scrub, a paced live loop) and float `t`
         accumulation must not be re-derived in two places.
         """
+        if self._bind_failed:
+            raise RuntimeError(
+                f"{getattr(self.pattern, 'name', 'pattern')} is not bound — its setup() raised, "
+                "so its buffers are half-initialized. Fix the pattern and rebind."
+            )
         t = float(t)
         dt = t - self._t
+        if dt < 0.0:
+            # Same invariant harness.clock.FakeClock.tick enforces, and for the
+            # same reason: stateful patterns cannot be run backwards. `fade`
+            # would return a factor > 1 and amplify instead of decaying, so a
+            # trail saturates to white rather than obviously failing. Scrubbing
+            # is re-rendering from t=0 with render_sequence, not stepping back.
+            raise ValueError(
+                f"time never goes backwards: advance_to({t!r}) is before the current t={self._t!r}"
+            )
         self._t = t
         frame_index = self._frame
         self._frame += 1
@@ -178,18 +209,31 @@ class Renderer:
             finally:
                 pattern._unlock_buffers(locked)
 
+            # Returning the wrong thing is as much a pattern bug as raising, and
+            # would otherwise escape containment downstream. dtype is checked as
+            # well as shape because `pattern.pixels` is a registered buffer: a
+            # float64 frame would make the array disagree with its own
+            # BufferSpec, which is the unit hot reload carries state across by.
+            # Finiteness and [0,1] range are deliberately NOT checked here —
+            # both are O(N) scans on the 60 fps path, and the L1 goldens and
+            # bench/bench_authoring.py already gate them off the hot loop.
             if not isinstance(frame, np.ndarray) or frame.shape != (self._n, 3):
                 got = f"{type(frame).__name__}"
                 if isinstance(frame, np.ndarray):
                     got = f"array of shape {frame.shape}"
-                # Returning the wrong thing is as much a pattern bug as raising,
-                # and would otherwise escape containment downstream.
                 exc = TypeError(f"render must return an ({self._n},3) array, got {got}")
+                return self._contain("render", exc, frame_index, t)
+            if frame.dtype != np.float32:
+                exc = TypeError(f"render must return float32, got {frame.dtype}")
                 return self._contain("render", exc, frame_index, t)
 
         self._error = None
-        self._logged.clear()  # a recurrence after a fix is worth logging again
-        pattern.pixels = frame  # previous-frame buffer for the next render
+        # A copy, not the frame itself. Handing the caller the same object the
+        # pattern reads back next frame means a sink applying gamma in place
+        # would destroy every trail pattern's state — and worse, the engine
+        # flips this array read-only during the next render, so a consumer
+        # still holding it would get a ValueError out of an object it owns.
+        pattern.pixels = frame.copy()
         return frame
 
     def step(self, dt: float) -> np.ndarray:
@@ -200,6 +244,22 @@ class Renderer:
 
     def _contain(self, phase: str, exc: Exception, frame_index: int, t: float) -> np.ndarray:
         formatted = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        # De-duplicate on the *site* (phase + exception type + call sites),
+        # never on the formatted message: messages routinely carry per-frame
+        # detail ("...at frame 41"), and keying on those would flood at 60 fps —
+        # exactly what this guard exists to prevent. A different failure in the
+        # same pattern still gets its own line. Built from extract_tb rather
+        # than a second format_tb pass, since this runs on every failing frame.
+        sites = tuple(
+            (f.filename, f.lineno, f.name) for f in traceback.extract_tb(exc.__traceback__)
+        )
+        key = (phase, type(exc).__name__, sites)
+        # Drop the live traceback before storing: it pins every frame in the
+        # failing call stack and all of their locals (a render's big temporary
+        # arrays, the mapping views) for as long as the error is set, which for
+        # a permanently-broken pattern in a long-running show is forever. The
+        # formatted text above is what the error record actually needs.
+        exc.__traceback__ = None
         self._error = PatternError(
             pattern=getattr(self.pattern, "name", type(self.pattern).__name__),
             phase=phase,
@@ -208,12 +268,6 @@ class Renderer:
             frame=frame_index,
             t=t,
         )
-        # De-duplicate on the *site* (phase + exception type + stack), never on
-        # the formatted message: messages routinely carry per-frame detail
-        # ("...at frame 41"), and keying on those would flood at 60 fps —
-        # exactly what this guard exists to prevent. A different failure in the
-        # same pattern still gets its own line.
-        key = f"{phase}\n{type(exc).__name__}\n{''.join(traceback.format_tb(exc.__traceback__))}"
         if key not in self._logged:
             self._logged.add(key)
             logger.error("%s\n%s", self._error, formatted)

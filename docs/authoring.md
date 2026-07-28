@@ -43,7 +43,7 @@ the effect — not the mapping's pixel count — advances it in `before_render`
 with ordinary grid math (`np.roll` for neighbors), and `render` samples that
 field at each pixel's world coordinate. Declare the field in `setup` with
 `self.buffer(name, shape)`; the engine allocates it, zeroes it on rebind, and
-carries it across hot reload. `sample2d(field, x, y)` does the coordinate →
+reallocates it when the mapping changes. `sample2d(field, x, y)` does the coordinate →
 cell lookup — nearest cell, edges clamped — so every field pattern doesn't
 reinvent it (stumble **#15**, the same boilerplate repeated in every field
 pattern before this helper existed):
@@ -139,10 +139,13 @@ Compare a pixel that re-triggers every frame through `self.pixels` instead:
 
 `self.buffer(name, shape, dtype=np.float32, fill=0.0)` can only be called
 inside `setup`; `shape` is free-form (`n` for one value per pixel, `(H, W)`
-for a field as in §1 — same mechanism, either use). The names `n`, `seed`,
-`rng`, `name`, and `pixels` are reserved — the engine owns those. Buffers are
-zeroed on rebind, reallocated when the mapping changes, and carried across
-hot reload by name and shape. Inside `render`, every buffer — `self.pixels`
+for a field as in §1 — same mechanism, either use). Any name that already
+exists on the class is refused, which covers engine state (`n`, `seed`,
+`rng`, `pixels`), the hooks themselves, and your own `Param`s. Buffers are
+zeroed on rebind and reallocated when the mapping changes; carrying them
+across hot reload is what the registry's name+shape keying is *for*, but
+hot reload itself is not built yet (`docs/backlog/v0.2.x.md`). Inside
+`render`, every buffer — `self.pixels`
 included — is a read-only view; writing to one raises `ValueError`, not a
 silent no-op, so a stray write in `render` fails loudly during development
 rather than corrupting state in production.

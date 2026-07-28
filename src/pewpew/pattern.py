@@ -31,9 +31,12 @@ from typing import Any, Iterable
 
 import numpy as np
 
-# Names the engine owns on a bound pattern instance. `pixels` is in the list
-# because the engine registers it itself — an author re-declaring it at a
-# different shape would silently break the previous-frame contract.
+# `pixels` is engine-registered, so an author re-declaring it at a different
+# shape would silently break the previous-frame contract. The other names are
+# engine-provided instance state. Note this denylist is a *message* aid only —
+# the real guard in `buffer()` refuses any name that already resolves on the
+# class, which also covers the hooks (`render`, `setup`, ...), the registry
+# internals (`_buffers`), and every declared `Param`.
 _RESERVED_BUFFER_NAMES = frozenset({"n", "seed", "rng", "name", "pixels"})
 
 
@@ -149,12 +152,21 @@ class Pattern:
             )
         if not isinstance(name, str) or not name.isidentifier():
             raise ValueError(f"buffer name must be a valid attribute name, got {name!r}")
-        if name in _RESERVED_BUFFER_NAMES:
-            reason = (
-                "the engine registers it for you as the previous-frame buffer"
-                if name == "pixels"
-                else "it is engine-provided instance state"
-            )
+        # Refuse anything that already resolves on the class. Enumerating a
+        # denylist is not enough: `buffer("render", n)` would shadow the hook
+        # (every later frame dies with "'ndarray' object is not callable"),
+        # and `buffer("_buffers", n)` would replace the registry mid-`setup`
+        # and raise *out* of binding, past all containment.
+        if name in _RESERVED_BUFFER_NAMES or hasattr(type(self), name):
+            if name == "pixels":
+                reason = "the engine registers it for you as the previous-frame buffer"
+            elif name in _RESERVED_BUFFER_NAMES:
+                reason = "it is engine-provided instance state"
+            else:
+                reason = (
+                    f"{type(self).__name__}.{name} already exists on the class "
+                    f"({type(getattr(type(self), name)).__name__}) — a buffer would shadow it"
+                )
             raise ValueError(f"buffer name {name!r} is reserved — {reason}")
         if name in self._buffers:
             raise ValueError(f"buffer {name!r} is already declared by this pattern")

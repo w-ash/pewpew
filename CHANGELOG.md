@@ -85,6 +85,23 @@ series (batch mode).
 
 ### Fixed
 
+- Make the coordinate arrays read-only inside `render`. Locking the buffer
+  registry alone left them writable, so an in-place write corrupted the
+  caller's mapping permanently instead of failing.
+- Return a frame that does not alias the pattern's previous-frame buffer, so
+  a sink working in place cannot destroy every trail pattern's state.
+- Clamp `bins` and `sample2d` at the lower edge, not just the upper. A
+  negative coordinate produced a negative index that wrapped to the far end
+  of the array and returned another band's or cell's value silently.
+- Refuse a buffer name that already exists on the pattern class. Declaring
+  `buffer("render", n)` shadowed the hook, and `buffer("_buffers", n)`
+  replaced the registry mid-bind and escaped containment.
+- Reject a frame whose dtype is not float32, which otherwise left
+  `pattern.pixels` disagreeing with the spec the registry tracks it by.
+- Refuse time moving backwards, matching `FakeClock`. A negative dt made
+  `fade` return a factor above 1, so trails amplified to white.
+- Stop rendering from a pattern whose `setup` raised, instead of continuing
+  from half-initialized buffers as though the bind had succeeded.
 - Keep preview lattice cell colors attached to their cells through the depth
   sort — colors were being read from pre-sort indices.
 - Restore display gamma in the preview, which was crushing low-end glow to

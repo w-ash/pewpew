@@ -49,6 +49,10 @@ def _frame_time(t: float) -> Iterator[None]:
 
 def time(interval: float):
     """Pixelblaze-scaled 0-1 sawtooth: period = interval * 65.536 seconds."""
+    if interval == 0:
+        # 0 is the natural spelling for "don't animate", and the bare
+        # ZeroDivisionError points at the kit rather than at the call site.
+        raise ValueError("time(interval) needs a non-zero interval; use a constant phase instead")
     return (_NOW.get() / (interval * 65.536)) % 1.0
 
 
@@ -124,8 +128,16 @@ def bins(x, n: int):
     last pixel of an inclusive 0-1 mapping) into bin `n`, one past the end,
     and every segment/band lookup IndexErrors. Nothing warns you until the
     rightmost pixel.
+
+    Clamped at *both* ends. The study spelling clamped only the top, which is
+    invisible while coordinates are exactly 0-1 but silently wrong the moment
+    they are not: a negative index does not raise, it wraps to the far end of
+    the band array and quietly returns another band's value. Imported maps
+    (marimapper CSVs, §6) are exactly where slightly-out-of-range coordinates
+    come from. The 0-1 case is unaffected, so this stays bit-exact with the
+    study.
     """
-    return np.minimum((np.asarray(x) * n).astype(np.int32), n - 1)
+    return np.clip((np.asarray(x) * n).astype(np.int32), 0, n - 1)
 
 
 def sample2d(field: np.ndarray, x, y) -> np.ndarray:
@@ -142,12 +154,18 @@ def sample2d(field: np.ndarray, x, y) -> np.ndarray:
     unblocking idiom is a pattern-owned internal field sampled at world
     coords in `render`. Every field pattern then repeats this exact
     scale/round/cast/clamp/gather boilerplate (stumble #15).
+
+    Clamped at *both* ends, for the reason spelled out in `bins`: the study
+    spelling clamped only the top, so a coordinate below 0 indexed the field
+    from its opposite edge instead of its nearest cell — for fire, sampling
+    the top of the flame for a pixel below the panel origin. Coordinates in
+    0-1 are unaffected, so this stays bit-exact with the study.
     """
     if field.ndim != 2:
         raise ValueError(f"sample2d expects a 2D field (H, W), got shape {field.shape}")
     h, w = field.shape
-    ci = np.minimum((np.asarray(x) * (w - 1) + 0.5).astype(np.int32), w - 1)
-    ri = np.minimum((np.asarray(y) * (h - 1) + 0.5).astype(np.int32), h - 1)
+    ci = np.clip((np.asarray(x) * (w - 1) + 0.5).astype(np.int32), 0, w - 1)
+    ri = np.clip((np.asarray(y) * (h - 1) + 0.5).astype(np.int32), 0, h - 1)
     return field[ri, ci]
 
 
