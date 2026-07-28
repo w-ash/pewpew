@@ -215,7 +215,7 @@ def comet_numba(t: float, mapping: np.ndarray, seed: int) -> np.ndarray:
 
 # --------------------------------------------------------------------------
 # Kernel C — solid_pulse. The existing reference pattern's math, verbatim
-# (harness/patterns/solid_pulse.py, rate_hz=0.5): trivially-broadcast lower
+# (src/harness/patterns/solid_pulse.py, rate_hz=0.5): trivially-broadcast lower
 # bound — any real pattern lands between C and A.
 # --------------------------------------------------------------------------
 

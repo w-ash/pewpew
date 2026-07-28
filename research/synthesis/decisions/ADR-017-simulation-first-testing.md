@@ -26,7 +26,7 @@ everything below it needs the bench (ADR-018).
   medium, with injectable faults (per-link loss, partitions, node churn,
   clock drift). Contract: **same (nodes, schedule, seed) → byte-identical
   trace**, so fleet behavior is golden-testable exactly like render frames.
-  Interfaces already scaffolded in `harness/fleetsim.py`.
+  Interfaces already scaffolded in `src/harness/fleetsim.py`.
 - **Property-based testing is the default above the radio line**:
   Hypothesis round-trip properties for the 11-byte codec; the CRDT merge
   laws (associativity/commutativity/idempotence) as one-line properties;
@@ -43,7 +43,7 @@ everything below it needs the bench (ADR-018).
   logic and RMT-TX smoke tests. Neither touches mesh-radio or timing
   claims; timing measured in emulators is explicitly untrusted.
 - **Golden artifacts across levels**: golden frames (L1, shipped in
-  `harness/`), golden fleet traces (L2), decoded-waveform goldens from the
+  `src/harness/`), golden fleet traces (L2), decoded-waveform goldens from the
   bench (L4) — all compared with tolerance appropriate to the level.
 
 ## Consequences

@@ -173,7 +173,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pewpew-harness"
+name = "pewpew"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [

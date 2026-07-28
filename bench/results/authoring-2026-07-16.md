@@ -141,3 +141,20 @@ alongside the param-liveness check this report's addendum motivates. The
 "pending sign-off
 — not yet applied" heading above is left as written (frozen evidence); this
 addendum supersedes it.
+
+## Addendum (2026-07-27) — stumble #17 resolved
+
+The Phase-1 question #17 left open — whether private per-pixel state buffers
+become sanctioned alongside `self.pixels` — is decided **yes**. Patterns get a
+`setup(n, x, y, z, index)` hook, called once per (pattern, mapping) binding,
+and may declare engine-managed persistent buffers there via
+`self.buffer(name, shape)`; `render` still receives read-only views, so it stays
+pure. Handing `setup` the coordinates is what unbinds #17: per-pixel state can
+now be advanced in `before_render` with coordinate knowledge instead of being
+laundered through the output buffer, which is what ratcheted the sparkle
+overlay to permanent white. Free-form shapes also give #12's internal heat
+field a sanctioned home rather than an undocumented idiom. Recorded as
+`## Amendment (2026-07-27)` in
+`research/synthesis/decisions/ADR-005-pattern-authoring-model.md`; evidence
+[S680] (Pixelblaze), [S218] (ISF), [S219] (Shadertoy). Nothing above is
+restated or corrected — the inventory stands as measured.

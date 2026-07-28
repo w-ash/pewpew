@@ -123,6 +123,21 @@ class Comet(Pattern):
   trails/decay — LedFx convention [S630:ledfx/effects/__init__.py#L479-L547];
   projectMM learned the hard way that auto-clearing breaks every trail effect
   [S715:docs/history/decisions.md#L540-L549].
+- **Private per-pixel state is sanctioned** (ADR-005 amendment 2026-07-27):
+  a `setup(n, x, y, z, index)` hook hands the pattern its coordinates once
+  per binding, and buffers declared there with `self.buffer(name, shape)`
+  are engine-managed — zeroed on rebind, reallocated on mapping change,
+  carried across hot reload by name+shape (the registry keys on name and
+  spec, never array identity, because authors rebind their buffers);
+  `self.pixels` is just the engine's own entry. Shape is
+  free-form, so fire's 16×32 heat field is as legitimate as an `(N,)` array.
+  `render` keeps seeing read-only views, so it stays pure. Precedents:
+  Pixelblaze's persistent pattern arrays [S680:README.expressions.md#L86,L93]
+  (which pay for them with an impure `render`
+  [S680:README.expressions.md#L35] — we do not), ISF's host-created
+  `PERSISTENT` buffers at
+  their own `WIDTH`/`HEIGHT` [S218], and Shadertoy's previous-state/next-state
+  buffers, which also warn persistence breaks on a resolution change [S219].
 - **Errors never stop the show**: per-frame exception containment with a
   visible error state and the last-good pattern kept running — led-control's
   pulsing-red frame [S660:ledcontrol/animationcontroller.py#L418-L434] and
@@ -565,7 +580,7 @@ scalar-looking-over-arrays authoring surface, including the `if` vs
 ADR-011 (Numba/compiled tier promoted from optional to required), not the
 product shape. **Feedback before features**: the test-harness skeleton
 (golden-frame loop, fake clock, fleet-twin interfaces) is already landed in
-`harness/`; Phase 0 also assembles the ~$200 bench core
+`src/harness/`; Phase 0 also assembles the ~$200 bench core
 ([ADR-018](decisions/ADR-018-agent-driveable-bench.md)) so every later
 phase's §12 items run as scripted rigs, not lab afternoons (§13).
 
@@ -658,7 +673,7 @@ requirements (T-1…T-10) in **[test-and-feedback.md](test-and-feedback.md)**.
 The one-paragraph version:
 
 Development feedback runs on a five-level pyramid — pure-Python golden
-frames and property tests (ms; already landed in `harness/`), the
+frames and property tests (ms; already landed in `src/harness/`), the
 deterministic **fleet digital twin** (the mesh tier simulated with
 seed-derived fault injection; same seed → same trace), a thin emulation
 tier (QEMU-S3/Wokwi for firmware logic; **no emulator exercises ESP-NOW**

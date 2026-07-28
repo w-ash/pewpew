@@ -23,7 +23,7 @@ other side: give the agent the cheapest verifiable check first [S1150].
 
 | Level | Environment | Latency | What runs here | Feeds |
 |---|---|---|---|---|
-| L1 | Pure Python on host (`harness/`) | ms | render core golden frames [S518][S516]; codec round-trip, CRDT merge laws, protocol state machines via Hypothesis [S1138][S1139]; PCO convergence statistics over seeded topologies | every commit; agents live here |
+| L1 | Pure Python on host (`src/harness/`) | ms | render core golden frames [S518][S516]; codec round-trip, CRDT merge laws, protocol state machines via Hypothesis [S1138][S1139]; PCO convergence statistics over seeded topologies | every commit; agents live here |
 | L2 | Deterministic fleet sim (the mesh digital twin, [ADR-017]) | ms–s | gossip/PCO/gradient-field behavior at 25–150 simulated nodes; fault injection: loss %, partition, churn — same seed → byte-identical trace | golden fleet-traces; chaos drills in sim [S1220] |
 | L3 | Emulation — honestly thin | s–min | QEMU-S3 (`idf.py qemu`): boot, NVS, OTA state machines, task structure — no radio, no RMT [S1105][S1106]; Wokwi: WiFi-STA/DDP receiver logic + RMT-TX smoke, **no ESP-NOW** [S1100][S1101][S1113] | firmware logic tests without a desk |
 | L4 | The bench ([ADR-018]) | min–days | everything the radio boundary forces to hardware: ESP-NOW PDR, PCO spread, dither photometry, coexistence soaks, power profiling | pass^k-gated results [S1154]; soak daemons [S1123] |

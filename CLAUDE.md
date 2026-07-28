@@ -1,15 +1,17 @@
 # pewpew — agent conventions
 
 Python-first addressable-LED engine, four tiers (host / receivers /
-wearables / mesh groups). Currently: provenance-tracked research tree +
-test-harness skeleton. Architecture: `research/synthesis/architecture.md`;
+wearables / mesh groups). Currently: provenance-tracked research tree,
+test harness, and the Phase-1 render core in `src/pewpew/` (ADR-005
+authoring contract — author-facing guide in `docs/authoring.md`).
+Architecture: `research/synthesis/architecture.md`;
 requirements IDs (Q/W/P/R/M/T-*): `research/synthesis/requirements.md`;
 every major decision has an ADR in `research/synthesis/decisions/`.
 
 ## Verify loop (T-1…T-5)
 
 - `uv run pytest` — the L1 suite (golden frames + determinism). Run it
-  after any change to `harness/` or future engine code. It must stay green
+  after any change to `src/harness/` or future engine code. It must stay green
   and fast (<30 s).
 - `uv run pytest --regen-goldens` — ONLY for intentional visual changes;
   review the diff of the regenerated baseline before committing it.
@@ -17,8 +19,8 @@ every major decision has an ADR in `research/synthesis/decisions/`.
   `research/synthesis/test-and-feedback.md`): host tests → fleet twin →
   emulation → bench. Hardware confirms; it is not the iteration loop.
 - Determinism is load-bearing: no wall clock, no unseeded RNG in pattern or
-  coordination code — inject `FakeClock` and seeds (harness/clock.py,
-  harness/pattern.py). Same inputs must give byte-identical output.
+  coordination code — inject `FakeClock` and seeds (src/harness/clock.py,
+  src/harness/pattern.py). Same inputs must give byte-identical output.
 - Bench/hardware results are distributions, not point values — report
   pass^k, never hard-gate a session on them (T-5).
 

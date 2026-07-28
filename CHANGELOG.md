@@ -49,6 +49,22 @@ series (batch mode).
   availability API first, Save-Page-Now fallback, journalled per entry.
 - Decompose Phase 1 into a scheduled `docs/backlog/v0.2.x.md` series, with
   the Phase-0 study's conditional obligations as first-class stories.
+- Land the Phase-1 render core (`src/pewpew/`): the ADR-005 authoring
+  contract as `setup`/`before_render`/`render` over coordinate arrays, the
+  pure `render_sequence()`, frame-scoped `time()`, and per-frame exception
+  containment that shows a pulsing-red error frame and keeps the show
+  running. Ships the five study patterns as the built-in gallery, rendering
+  bit-identically to the prototype they replace.
+- Sanction private per-pixel state (ADR-005 amendment): a `setup(n, x, y, z,
+  index)` hook hands patterns their coordinates, and buffers declared there
+  with `self.buffer(name, shape)` are engine-managed and read-only inside
+  `render` — so stateful effects no longer launder per-pixel state through
+  the output buffer, which is what ratcheted additive overlays to white.
+- Add the four idiom-kit helpers the Phase-0 verdict made the GO conditional
+  on — `fade`, `bins`, `sample2d`, `hash01` — each a bit-exact substitute for
+  the study expression it replaces.
+- Add `docs/authoring.md`, covering the six friction points the authoring
+  study measured, each traced to the pattern line that produced it.
 
 ### Changed
 
@@ -62,6 +78,10 @@ series (batch mode).
 - Require an archive snapshot to be at or after the date its source was read.
   Accepting anything older produced `archive:` fields that satisfied the
   archival rule and evidenced nothing.
+- Move the packages to a `src/` layout (`src/pewpew`, `src/harness`) so the
+  installed copy is what gets imported; import paths are unchanged.
+- Refuse a pattern parameter override that names an undeclared `Param`
+  instead of silently creating an attribute nothing reads.
 
 ### Fixed
 

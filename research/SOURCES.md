@@ -1067,6 +1067,37 @@ is removed.
 - archive: https://web.archive.org/web/20251111015300/https://chromatik.co/develop/coding/  # snapshot 2025-11-11 (snapshot predates accessed date; refresh next verification pass)
 - relevance: first-class parameter objects: addParameter + CompoundParameter(label, init, min, max) → auto UI knob + MIDI/OSC mapping + LFO modulation; LXPattern.run(deltaMs) lifecycle
 
+### [S217] Pixelblaze Language Reference (hosted docs, current firmware)
+- type: docs
+- url: https://electromage.com/docs/language-reference/
+- author: Ben Hencke / ElectroMage (Hencke Technologies, Inc.)
+- published: page states it is current for firmware v3.30 (v3 devices) and v2.24 (v2)
+- accessed: 2026-07-27
+- archive: pending (UNARCHIVABLE by the usual route: the page is a JS-rendered Nuxt SPA. Save-Page-Now on 2026-07-27 declined to re-capture and redirected to an existing 2026-07-04 snapshot, which predates this read AND stores only the loader shell — it contains none of the cited text. Recording that URL would satisfy a grep and prove nothing. Needs a rendered-DOM capture or a verbatim excerpt under research/excerpts/; content below was read from the live rendered DOM on 2026-07-27.)
+- relevance: arrays are first-class persistent globals — created with `array(n)` or array literals, mutated in place through an Array Functions library (`arrayMutate`, `arrayMapTo`, `arrayReduce`, `arraySum`) that the 2020 pinned copy [S680] predates — so per-pixel state beyond the output buffer already survives frames in the model ADR-005 copies. Counterpoint recorded with it: `beforeRender(delta)` receives no coordinates, and the docs assume globals may be written inside `render()` ("If you export a global variable that is modified inside `render()`"), i.e. Pixelblaze buys per-pixel state with an impure render — the opposite trade to ADR-005's.
+- note: the hosted, continuously-updated sibling of [S680]'s pinned `README.expressions.md`. Overlapping text (array creation, no-free, the Var Watcher render() note) is the SAME document lineage — do not co-cite the pair as independent corroboration. Only the Array Functions library and the firmware-currency statement are genuinely additive over S680.
+- note: no per-pattern array-element budget is stated anywhere on this page; the widely-repeated "10,240 elements" figure is NOT sourced here and is not claimed.
+- note: **deliberately not cited by any ADR**, so the pending archive above is not an ADR-000 rule-4 violation. The ADR-005 amendment that this source was read for anchors every load-bearing Pixelblaze claim on the pinned, excerpted [S680] instead — array creation and the no-free rule at `README.expressions.md#L86,L93`, the coordinate-free `beforeRender(delta)` at `#L23`, and the globals-written-inside-`render()` note at `#L35`. Retained here because the read produced two findings worth keeping: the Array Functions library that postdates the S680 pin, and the negative result about the "10,240" figure. Promote to a cited source only alongside a rendered-DOM capture or an excerpt under `research/excerpts/`.
+
+### [S218] ISF — Multi-Pass and Persistent Buffer Reference
+- type: docs
+- url: https://docs.isf.video/ref_multipass.html
+- author: VIDVOX (mrRay)
+- accessed: 2026-07-27
+- archive: https://web.archive.org/web/20260728022305/https://docs.isf.video/ref_multipass.html#multi-pass-shaders
+- relevance: the host-allocated, author-declared persistent-buffer model. Buffers are declared per entry in the `PASSES` manifest with `PERSISTENT: true`; "the ISF host will automatically create buffers to render into"; they "stay with the ISF file for as long as it exists". Optional `FLOAT: true` selects 32-bit storage and optional per-buffer `WIDTH`/`HEIGHT` expressions (`"$WIDTH/16.0"`) let a buffer live at its own resolution — direct precedent for engine-managed state buffers declared up front, at a shape the pattern chooses rather than the output's.
+- note: same project and authorship as [S214] (ISF spec, cited in ADR-006 for the typed-param manifest) — the manifest mechanism extended to state, NOT an independent second source. Do not count S214 and S218 as two.
+- note: this page does not describe pooling or per-frame discard of NON-persistent buffers; it says only that the host creates them. No claim about their lifetime is made here.
+
+### [S219] Shadertoy unofficial — "Special Shadertoy features" (Buffers A..D)
+- type: article
+- url: https://shadertoyunofficial.wordpress.com/2016/07/20/special-shadertoy-features/
+- author: Fabrice Neyret (fabriceN) — community documentation, not Shadertoy's own
+- published: 2016-07-20 (page byline shows a 2025-08-25 revision)
+- accessed: 2026-07-27
+- archive: https://web.archive.org/web/20260728022346/https://shadertoyunofficial.wordpress.com/2016/07/20/special-shadertoy-features/
+- relevance: the third independent lineage for persistent render-target state. Buffers A–D store their result instead of displaying it, are "evaluated in A..D order, then image", are 32-bit float rather than byte, and the canonical feedback idiom is stated outright: "For persistent or incremental effects, make your buffer read the same texture it produces (i.e. previous state vs next state). It seems to be initialized to 0." Also independently supports re-initialising persistent state when geometry changes: "For buffers relying on persistence, they won't keep valid if resolution changes while running: consider testing change, or a magic key to reinitialize."
+
 ## Block S250–S299 — RA-06 Frame pipeline & motion quality
 
 ### [S250] ElectroMage forum — "Rendered FPS vs maximum refresh rate ... for strobing"
