@@ -174,7 +174,40 @@ master" relevance claims actually rest on.
 archival rule does not trigger; several (PyPI, pastebin, wokwi) are not git repos and want an
 `archive:` snapshot rather than a SHA. Tracked as a v0.1.x story.
 
-### Archives: 47 of 53 resolved
+### Correction (2026-07-27) — the counts below were overstated
+
+Review caught that the pass accepted any snapshot from 2025-01-01 onward rather
+than requiring one at or after each entry's own `accessed:` date. A snapshot
+older than the read cannot evidence what was read: 19 of the 47 "resolved"
+fields were pre-read snapshots, i.e. compliant to a grep and worthless as
+provenance. The 4 entries this report's own mesh addendum flagged as "predates
+accessed date" were the same defect, unnoticed at scale.
+
+Follow-up pass on 2026-07-27, after fixing the tool to use the per-entry
+accessed date as the cutoff:
+
+| | |
+|---|---|
+| Fields written by the 07-26 pass | 47 |
+| Valid after the 07-27 correction pass (snapshot ≥ accessed) | **40** |
+| Still pre-read, now annotated in-line | 7 (S862, S867, S915, S1063, S1131, S1221, S1224) |
+| Still `archive: pending` | 6 (unchanged) |
+
+Two further defects fixed in `retry_archives.py` during the correction:
+
+- Save Page Now does **not** always capture — for a recently-archived page it
+  redirects to the existing snapshot. The tool trusted the redirect, so three
+  entries were logged "fresh SPN capture" while remaining exactly as stale.
+  It now rejects a returned snapshot that predates the cutoff.
+- Snapshot URLs were written back verbatim from the availability API, which
+  answers `http://`; `research/README.md` specifies `https://`. 31 entries were
+  affected and are normalized.
+
+**Not in scope, now tracked:** 141 further entries from the 2026-07-03 and
+07-09 passes carry pre-read snapshots under the old flat cutoff. They are
+greppable via `retry_archives.py --stale --dry-run`.
+
+### Archives: 47 of 53 resolved (superseded — see correction above)
 
 Tooling: the earlier passes' fetch script was never committed, so this pass built
 `research/tools/retry_archives.py` — availability API first (accepting snapshots ≥ 2025-01-01),

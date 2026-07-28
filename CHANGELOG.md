@@ -42,8 +42,8 @@ series (batch mode).
 - Add the Phase-0 pacing-jitter soak (`bench/bench_pacing.py`): three pacers
   over a 16.67 ms tick under render + capture-thread load, reporting cadence
   distribution, drift and GC pauses. Desktop datapoint passes — p99 cadence
-  error 6.98 ms over 10 minutes, 2 of 35 991 intervals off by a frame — and
-  measures ADR-010's rejected compensated-sleep pacer at 51.49 fps.
+  error 3.78 ms over 10 minutes, 1 of 35 995 intervals off by a frame — and
+  measures ADR-010's rejected compensated-sleep pacer at 51.17 fps.
 - Add `research/tools/retry_archives.py`: resumable archive.org snapshot
   retries for `SOURCES.md` entries left marked pending by earlier passes —
   availability API first, Save-Page-Now fallback, journalled per entry.
@@ -56,8 +56,12 @@ series (batch mode).
   confirmed the vectorized-authoring bet, conditional on idiom-kit additions.
 - Pin every ADR-cited code source to the commit that was actually read, so
   ADR evidence resolves to a fixed tree rather than a moving branch.
-- Snapshot 47 of the 53 sources left unarchived by earlier passes; the
-  remaining 6 are refused by Save Page Now at the domain level.
+- Snapshot 40 of the 53 sources left unarchived by earlier passes; 6 are
+  refused by Save Page Now at the domain level and 7 resolve only to snapshots
+  predating the read, now annotated as such.
+- Require an archive snapshot to be at or after the date its source was read.
+  Accepting anything older produced `archive:` fields that satisfied the
+  archival rule and evidenced nothing.
 
 ### Fixed
 

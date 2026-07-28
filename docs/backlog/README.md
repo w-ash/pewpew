@@ -8,7 +8,7 @@ authoring surface (ADR-005), and host pacing (ADR-010) — and stand up the benc
 core (ADR-018) before any engine code hardens. All three benchmarks have
 desktop verdicts on Apple M5 Pro: throughput 52× the R-9 target (2026-07-15),
 authoring GO conditional on idiom-kit additions (2026-07-16), pacing PASS with
-p99 cadence error 6.98 ms (2026-07-26). Each wants a rerun on the deployed
+p99 cadence error 3.78 ms (2026-07-27). Each wants a rerun on the deployed
 host; the bench core is unbought.
 
 ## Next

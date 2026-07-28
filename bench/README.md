@@ -50,7 +50,7 @@ cadence consistency, not to average speed.
 
 ```sh
 uv run python bench/bench_pacing.py --label <host>
-uv run python bench/bench_pacing.py --quick     # ~40 s smoke run
+uv run python bench/bench_pacing.py --quick     # ~60 s smoke run
 ```
 
 Three pacers run head to head over a 16.67 ms tick:
@@ -58,33 +58,49 @@ Three pacers run head to head over a 16.67 ms tick:
 | Pacer | What it is |
 |---|---|
 | `deadline` | ADR-010's — absolute schedule, accumulated error corrected |
-| `deadline_spin` | same, but sleeps ~6 ms short of the deadline and busy-waits the rest |
+| `deadline_spin` | same, but sleeps short of the deadline (margin derived from the measured overshoot) and busy-waits the rest |
 | `naive` | LedFx / led-control's compensated sleep, no accumulated-error term — ADR-010's rejected alternative [S630][S660] |
 
-All three are scored against the **same** ideal schedule (`t_start + k·period`).
-That matters: measured against its own re-based deadline the naive pacer is
-never late — it just silently runs slow, which only a fixed external reference
-exposes.
+The headline metric is **cadence** — the gap between consecutive tick starts,
+minus the period. That is what device-side keyframe interpolation depends on:
+whether frame k+1 lands one period after frame k, not where either sits in
+absolute time.
 
-Load conditions: `idle`, `render` (plasma NumPy at 20k px, the count R-9
-names), and `render+audio` — the last adds a thread waking every 11.6 ms
-(44.1 kHz / 512-frame blocks) doing an rfft, standing in for the capture
-thread's GIL contention. GC stays enabled and every collection is timed via
-`gc.callbacks`; the run also probes bare `time.sleep()` overshoot at 1 ms and
-at the frame period, which is the floor no pacer can beat.
+Phase against an ideal schedule (`t_start + k·period`) is also recorded, but
+read it for *slope* only. It catches the naive pacer, which is never late
+against its own re-based deadline and just silently runs slow. It is misleading
+as a magnitude: when the deadline pacer absorbs a stall by skipping ahead
+(ADR-010's newest-wins rule) the phase offset persists for the whole run while
+cadence stays tight. Scoring phase reported "every tick is 70 ms late" on a run
+whose cadence p99 was under 7 ms.
+
+Load conditions: `idle`, `render` (plasma NumPy at 20k px from `bench/common.py`
+— the same kernel `bench_throughput.py` times, imported rather than copied),
+and `render+audio` — the last adds a thread waking every 11.6 ms (44.1 kHz /
+512-frame blocks) doing an rfft, standing in for the capture thread's GIL
+contention. GC stays enabled and every collection is timed via `gc.callbacks`;
+the run also probes bare `time.sleep()` overshoot at 1 ms and at the frame
+period, which is the floor no pacer can beat and from which the spin pacer's
+margin is derived.
 
 Headline run is what item 13 specifies: `deadline` + `render+audio`, 10 min.
-The sweep cells are 60 s each. Results are a distribution — percentiles,
-late-tick counts, cumulative drift and a histogram go to the JSON (T-5).
+It runs **first**, on a cold machine, before the 60 s sweep cells — two of
+which pin a core — so thermal state is not confounded with the reported result.
+The JSON is rewritten after every cell, so a crash or Ctrl-C keeps whatever
+completed. Results are a distribution — percentiles, late-tick counts,
+cumulative drift and a histogram go to the JSON (T-5).
 
 ### Status
 
-- [x] Desktop datapoint: `results/pacing-2026-07-26-mac-m5pro.{md,json}`
-      (Apple M5 Pro). p99 cadence error 6.98 ms over a 10-min soak, 2 of
-      35 991 intervals off by a full frame, 59.98 fps — **PASS on this host**.
-      The residual jitter is the OS sleep timer (3.70 ms median overshoot at
+- [x] Desktop datapoint: `results/pacing-2026-07-27-mac-m5pro.{md,json}`
+      (Apple M5 Pro). p99 cadence error 3.78 ms over a 10-min soak, 1 of
+      35 995 intervals off by a full frame, 59.99 fps — **PASS on this host**.
+      The residual jitter is the OS sleep timer (3.82 ms median overshoot at
       this period), not CPython. The `naive` pacer ADR-010 rejects measures
-      51.49 fps and 8.5 s of drift per minute.
+      51.17 fps and 8.8 s of drift per minute.
+      A 2026-07-26 run was published and withdrawn — a skip-ahead off-by-one
+      and a run order that let the headline inherit thermal state from two
+      core-pinning cells. Both fixed; see the report's *Superseded run*.
 - [ ] **Pi 5 (or whichever host is chosen) rerun** (`--label pi5`) — R-8 names
       a Pi 5 / N100-class machine; a desktop only bounds it. ADR-010 stays
       Proposed until then: the mechanism is confirmed, the host is not.

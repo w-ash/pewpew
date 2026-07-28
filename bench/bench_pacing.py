@@ -30,7 +30,7 @@ L1 one-off host benchmark (test-and-feedback.md §4) — not a pytest rig.
 Results are a distribution, never a point value (T-5).
 
     uv run python bench/bench_pacing.py --label <host>
-    uv run python bench/bench_pacing.py --quick        # ~40 s smoke run
+    uv run python bench/bench_pacing.py --quick        # ~60 s smoke run
 
 The bench measures with the wall clock (perf_counter) — that is the subject.
 Render inputs stay deterministic: FakeClock timestamps, fixed seed.
@@ -39,19 +39,17 @@ Render inputs stay deterministic: FakeClock timestamps, fixed seed.
 from __future__ import annotations
 
 import argparse
-import datetime
 import gc
 import json
 import platform
 import statistics
-import subprocess
-import sys
 import threading
 import time
 from pathlib import Path
 
 import numpy as np
 
+from bench.common import gather_meta, make_mapping, plasma_numpy
 from harness.clock import FakeClock
 
 TARGET_FPS = 60.0
@@ -68,35 +66,16 @@ AUDIO_BLOCK = 512
 AUDIO_RATE = 44_100.0
 AUDIO_PERIOD_S = AUDIO_BLOCK / AUDIO_RATE
 
-# How far short of the deadline the spin pacer stops sleeping. Must exceed the
-# sleep overshoot at this period (measured, ~4 ms on macOS) or the sleep lands
-# past the deadline and the spin never runs.
-SPIN_MARGIN_S = 0.006
+# How far short of the deadline the spin pacer stops sleeping. Derived at
+# runtime from the measured sleep overshoot (see spin_margin_s) rather than
+# hardcoded: too small and the sleep lands past the deadline so the spin never
+# runs; too large and it burns a core for nothing. macOS overshoots ~4 ms at
+# this period, Linux typically <0.2 ms — a constant cannot serve both.
+SPIN_MARGIN_FLOOR_S = 0.0005
+SPIN_MARGIN_SAFETY = 1.5
 
 # Tick-error histogram edges in ms. Open-ended above the last edge.
 HIST_EDGES_MS = [0.0, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.667, 33.3]
-
-
-def make_mapping(n: int, seed: int = 7) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    return rng.random((n, 3), dtype=np.float32)
-
-
-def plasma_numpy(t: float, mapping: np.ndarray, seed: int) -> np.ndarray:
-    """Same kernel as bench_throughput's plasma — the representative load."""
-    phase = (seed * 0.6180339887498949) % 1.0
-    u = 4.0 * mapping[:, 0]
-    v = 4.0 * mapping[:, 1]
-    w = 4.0 * mapping[:, 2]
-    a = np.sin(u * 1.7 + t * 1.3)
-    b = np.sin(v * 2.3 - t * 0.7 + np.sin(u * 3.1 + t))
-    c = np.sin((u + v + w) * 1.9 + t * 2.1 + 2.0 * np.pi * phase)
-    p = (a + b + c) / 3.0
-    frame = np.empty((mapping.shape[0], 3), dtype=np.float32)
-    frame[:, 0] = 0.5 + 0.5 * np.sin(np.pi * p)
-    frame[:, 1] = 0.5 + 0.5 * np.sin(np.pi * p + 2.0943951023931953)
-    frame[:, 2] = 0.5 + 0.5 * np.sin(np.pi * p + 4.1887902047863905)
-    return frame
 
 
 class AudioThread:
@@ -111,6 +90,7 @@ class AudioThread:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True, name="audio-capture")
         self.blocks = 0
+        self.dropped = 0
         rng = np.random.default_rng(SEED)
         self._buf = rng.standard_normal(AUDIO_BLOCK).astype(np.float32)
         self._window = np.hanning(AUDIO_BLOCK).astype(np.float32)
@@ -122,6 +102,15 @@ class AudioThread:
             slack = next_at - time.perf_counter()
             if slack > 0:
                 time.sleep(slack)
+            else:
+                # Same skip-ahead rule the render pacer uses. Without it, a
+                # stall leaves this thread N periods behind and it runs N
+                # rffts back-to-back with no sleep — seizing the GIL exactly
+                # while the render loop recovers. That would manufacture the
+                # interference this bench exists to measure. A real capture
+                # device drops blocks; it does not burst.
+                next_at += int(-slack // AUDIO_PERIOD_S) * AUDIO_PERIOD_S
+                self.dropped += 1
             spec = np.abs(np.fft.rfft(self._buf * self._window))
             self._buf[0] = float(spec[1]) * 1e-9  # keep the result live
             self.blocks += 1
@@ -180,6 +169,12 @@ def sleep_quantization_ms(samples: int = 200) -> list[dict]:
     return rows
 
 
+def spin_margin_s(quant: list[dict]) -> float:
+    """Sleep short by the measured p99 overshoot at the period, plus headroom."""
+    p99_ms = quant[-1]["p99_overshoot_ms"]
+    return max(SPIN_MARGIN_FLOOR_S, (p99_ms / 1000.0) * SPIN_MARGIN_SAFETY)
+
+
 def percentile(values: list[float], pct: float) -> float:
     if not values:
         return float("nan")
@@ -198,7 +193,7 @@ def histogram(values: list[float]) -> list[dict]:
     return buckets
 
 
-def run_soak(pacer: str, load: str, duration_s: float, px: int) -> dict:
+def run_soak(pacer: str, load: str, duration_s: float, px: int, spin_margin: float) -> dict:
     """Run one paced loop; return its timing distributions.
 
     Two different things are measured, because they answer different questions
@@ -256,8 +251,8 @@ def run_soak(pacer: str, load: str, duration_s: float, px: int) -> dict:
                         if pacer == "deadline_spin":
                             # Sleep short of the deadline, then busy-wait the
                             # remainder — trades CPU for sub-timer accuracy.
-                            if slack > SPIN_MARGIN_S:
-                                time.sleep(slack - SPIN_MARGIN_S)
+                            if slack > spin_margin:
+                                time.sleep(slack - spin_margin)
                             while time.perf_counter() < next_due:
                                 pass
                         else:
@@ -265,7 +260,13 @@ def run_soak(pacer: str, load: str, duration_s: float, px: int) -> dict:
                     else:
                         # Deadline already blown: skip ahead so we never chase a
                         # backlog (newest-wins, never queue deeper).
-                        missed = int(-slack // PERIOD_S) + 1
+                        #
+                        # No +1 here. The next iteration adds one PERIOD_S of
+                        # its own before testing slack, so landing next_due on
+                        # the last *past* slot makes that addition arrive on the
+                        # first future one. Adding 1 here consumed an extra slot
+                        # and silently dropped one more frame per skip.
+                        missed = int(-slack // PERIOD_S)
                         next_due += missed * PERIOD_S
                         skips += 1
                         skipped_ms += missed * PERIOD_S * 1000.0
@@ -337,39 +338,6 @@ class _null_ctx:
         return False
 
 
-def gather_meta(label: str) -> dict:
-    def try_cmd(cmd: list[str]) -> str | None:
-        try:
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout.strip() or None
-        except Exception:
-            return None
-
-    cpu = None
-    if sys.platform == "darwin":
-        cpu = try_cmd(["sysctl", "-n", "machdep.cpu.brand_string"])
-    elif sys.platform.startswith("linux"):
-        try:
-            for line in Path("/proc/cpuinfo").read_text().splitlines():
-                if line.lower().startswith(("model name", "model")):
-                    cpu = line.split(":", 1)[1].strip()
-                    break
-        except Exception:
-            pass
-
-    return {
-        "label": label,
-        "date": datetime.date.today().isoformat(),
-        "platform": platform.platform(),
-        "machine": platform.machine(),
-        "cpu": cpu,
-        "cpu_count": __import__("os").cpu_count(),
-        "python": platform.python_version(),
-        "numpy": np.__version__,
-        "gc_enabled": gc.isenabled(),
-        "gc_thresholds": gc.get_threshold(),
-        "git_sha": try_cmd(["git", "rev-parse", "--short", "HEAD"]),
-    }
-
 
 def print_row(r: dict) -> None:
     e = r["abs_interval_error_ms"]
@@ -397,13 +365,13 @@ def main() -> None:
     ap.add_argument("--px", type=int, default=DEFAULT_PX, help=f"render load in pixels (default {DEFAULT_PX})")
     ap.add_argument("--duration", type=float, default=SOAK_S, help=f"headline soak seconds (default {SOAK_S:.0f})")
     ap.add_argument("--sweep-duration", type=float, default=SWEEP_S, help=f"per-cell comparison seconds (default {SWEEP_S:.0f})")
-    ap.add_argument("--quick", action="store_true", help="~40 s smoke run")
+    ap.add_argument("--quick", action="store_true", help="~60 s smoke run")
     args = ap.parse_args()
 
     soak_s = 10.0 if args.quick else args.duration
     sweep_s = 5.0 if args.quick else args.sweep_duration
 
-    meta = gather_meta(args.label)
+    meta = gather_meta(args.label, gc_enabled=gc.isenabled(), gc_thresholds=gc.get_threshold())
     print(f"host: {meta['cpu'] or meta['machine']} | python {meta['python']} | "
           f"gc={'on' if meta['gc_enabled'] else 'OFF'} | {args.px} px @ {TARGET_FPS:.0f} fps")
 
@@ -413,38 +381,54 @@ def main() -> None:
               f"p99 {q['p99_overshoot_ms']:.3f} ms, max {q['max_overshoot_ms']:.3f} ms")
     print("  ^ the floor under any pacer — the frame-period row is the comparable one")
 
-    results = []
-    print_header()
-
-    # Comparison sweep: each pacer, increasing load.
-    for load in ("idle", "render", "render+audio"):
-        for pacer in ("deadline", "deadline_spin", "naive"):
-            r = run_soak(pacer, load, sweep_s, args.px)
-            r["role"] = "sweep"
-            results.append(r)
-            print_row(r)
-
-    # Headline: what §12 item 13 actually specifies.
-    print(f"\n-- headline soak: deadline pacer, render+audio, {soak_s:.0f}s --")
-    print_header()
-    headline = run_soak("deadline", "render+audio", soak_s, args.px)
-    headline["role"] = "headline"
-    results.append(headline)
-    print_row(headline)
-
-    print_summary(headline, results, meta, quant)
+    spin_margin = spin_margin_s(quant)
+    print(f"spin margin derived from measured p99 overshoot: {spin_margin * 1000:.3f} ms")
 
     out_path = Path(args.out) if args.out else (
         Path(__file__).parent / "results" / f"pacing-{meta['date']}-{meta['label']}.json"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps({
-        "meta": meta,
-        "target_fps": TARGET_FPS,
-        "period_ms": PERIOD_S * 1000.0,
-        "sleep_quantization": quant,
-        "results": results,
-    }, indent=2) + "\n")
+    results: list[dict] = []
+
+    def flush() -> None:
+        """Persist after every cell — a 19-minute run must survive a crash."""
+        out_path.write_text(json.dumps({
+            "meta": meta,
+            "target_fps": TARGET_FPS,
+            "period_ms": PERIOD_S * 1000.0,
+            "spin_margin_ms": spin_margin * 1000.0,
+            "sleep_quantization": quant,
+            "results": results,
+        }, indent=2) + "\n")
+
+    # The headline runs FIRST, on a cold machine. Previously it ran after nine
+    # sweep cells — two of which pin a core for a minute — so thermal/DVFS state
+    # was confounded with the result this bench reports.
+    print(f"\n-- headline soak: deadline pacer, render+audio, {soak_s:.0f}s --")
+    print_header()
+    headline = run_soak("deadline", "render+audio", soak_s, args.px, spin_margin)
+    headline["role"] = "headline"
+    headline["order"] = 0
+    results.append(headline)
+    print_row(headline)
+    flush()
+
+    # Comparison sweep. Interleaved so each pacer sees a comparable thermal
+    # state rather than all of one pacer's cells running back to back.
+    print("\n-- comparison sweep --")
+    print_header()
+    cells = [(load, pacer)
+             for load in ("idle", "render", "render+audio")
+             for pacer in ("deadline", "deadline_spin", "naive")]
+    for i, (load, pacer) in enumerate(cells, start=1):
+        r = run_soak(pacer, load, sweep_s, args.px, spin_margin)
+        r["role"] = "sweep"
+        r["order"] = i
+        results.append(r)
+        print_row(r)
+        flush()
+
+    print_summary(headline, results, meta, quant)
     print(f"\nresults written to {out_path}")
 
 
