@@ -108,3 +108,23 @@ corrected re-run. Detail in the report's *Superseded run* section.)
   [S680][S715].
 - **Blocking the render loop on the slowest sink** — one WiFi outlier
   (~25 ms tails measured [S166]) would stall every other output.
+
+## Amendment (2026-08-20) — engine time is schedule time
+
+The decision above leaves open which timestamp the paced loop hands the
+renderer: the nominal schedule time or the measured wall time. Answer:
+**nominal, always.** The wall clock decides *when* a frame runs; it never
+decides *what* the frame contains. Each rendered tick advances engine time
+by exactly one period (repeated float accumulation, `t += 1/fps`), and a
+blown deadline advances it by one further period per skipped slot — so the
+`t` a live show hands `render` at schedule slot k is bit-identical to what
+`render_sequence` and the golden-frame tests produce at slot k, skips or
+not. This follows from commitments already made here: motion is
+time-parameterized so dropped or late frames slow nothing [S680][S715]
+(Q-5), and feeding measured wall time in would inject the OS sleep timer's
+~4 ms jitter (the dominant residual in the 2026-07-27 verification above)
+into frame content, making live output diverge from every deterministic
+artifact the test strategy rests on (T-1). The 2026-07-27 bench takes the
+same split: it renders from nominal `FakeClock` ticks while pacing against
+`perf_counter`. Implemented in `src/pewpew/pace.py` (`PacedLoop`), with
+the equivalence pinned by `tests/test_pace.py::test_engine_time_matches_render_sequence_bitwise`.

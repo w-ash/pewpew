@@ -34,6 +34,7 @@ from __future__ import annotations
 from pewpew.features import FakeFeatures, FeatureFrame
 from pewpew.kit import TWO_PI, bins, fade, hash01, hsv, sample2d, square, time, triangle, wave
 from pewpew.mapping import grid, lattice, line
+from pewpew.pace import PacedLoop, PaceStats, SinkDriver
 from pewpew.pattern import Param, Pattern
 from pewpew.render import PatternError, Renderer, render_sequence
 
@@ -56,6 +57,10 @@ __all__ = [
     "Renderer",
     "render_sequence",
     "PatternError",
+    # pipeline (measure_spin_margin stays at pewpew.pace — not author-facing)
+    "PacedLoop",
+    "PaceStats",
+    "SinkDriver",
     # fixtures and inputs
     "line",
     "grid",

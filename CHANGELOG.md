@@ -65,6 +65,15 @@ series (batch mode).
   the study expression it replaces.
 - Add `docs/authoring.md`, covering the six friction points the authoring
   study measured, each traced to the pattern line that produced it.
+- Land the paced render loop (`src/pewpew/pace.py`, `PacedLoop`): ADR-010's
+  deadline-corrected clock, ported from the pacer the Phase-0 soak validated
+  — absolute schedule, accumulated-error correction, skip-ahead on blown
+  deadlines, and an opt-in spin variant with a host-measured margin. Engine
+  time is nominal schedule time (ADR-010 amendment), so a live show renders
+  bit-identically to `render_sequence` at the same slot.
+- Add `SinkDriver`: per-sink newest-wins backpressure — a worker thread and
+  one-slot mailbox bounding frames in flight at two, so a stalled or raising
+  sink drops stale frames instead of ever backing up the render loop.
 
 ### Changed
 
