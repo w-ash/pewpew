@@ -289,6 +289,32 @@ class Renderer:
         logger.warning("%s: %s", getattr(self.pattern, "name", "pattern"), complaint)
 
 
+class SlotClock:
+    """Engine-time accumulator: one repeated `t += 1/fps` per schedule slot.
+
+    The single home of the float sequence every deterministic artifact is
+    frozen against. Repeated accumulation — yielding t *after* each
+    increment, so the first slot lands at t=1/fps — reproduces
+    `harness.clock.FakeClock.frames()` and the study runner
+    `bench/bench_authoring.py::run_sequence` bit-for-bit; `t = i/fps` or a
+    constant `dt = 1/fps` would give different floats and break equivalence
+    with the frozen study evidence. `render_sequence` and the paced live
+    loop (`pewpew.pace.PacedLoop`) both draw slot times from here, making
+    `advance_to`'s rule — float `t` accumulation must not be re-derived in
+    two places — structural. FakeClock itself stays separate: the engine
+    does not depend on the harness.
+    """
+
+    def __init__(self, fps: float, start: float = 0.0) -> None:
+        self.period = 1.0 / float(fps)
+        self.t = float(start)
+
+    def advance(self, slots: int = 1) -> float:
+        for _ in range(slots):
+            self.t += self.period
+        return self.t
+
+
 def render_sequence(
     pattern_factory: Callable[[], Pattern],
     mapping: np.ndarray,
@@ -302,20 +328,11 @@ def render_sequence(
 
     `pattern_factory` is a Pattern class or any zero-arg callable returning an
     instance — a new one every call, so no state survives between sequences.
-
-    Timestamps are produced by repeated float accumulation (`t += 1.0/fps`,
-    yielding t *after* each increment, so the first frame is at t=1/fps) and
-    dt is the difference between successive accumulated values. That is not
-    incidental: it reproduces `harness.clock.FakeClock.frames()` and the
-    study runner `bench/bench_authoring.py::run_sequence` bit-for-bit, and
-    `t = i/fps` or a constant `dt = 1/fps` would give different floats and
-    break equivalence with the frozen study evidence. FakeClock is
-    deliberately not imported — the engine does not depend on the harness.
+    Timestamps come from `SlotClock`, whose docstring is the contract.
     """
     renderer = Renderer(pattern_factory(), mapping, params=params, seed=seed, features=features)
     out = np.empty((frames, renderer.n, 3), dtype=np.float32)
-    t = 0.0
+    clock = SlotClock(fps)
     for i in range(frames):
-        t += 1.0 / fps
-        out[i] = renderer.advance_to(t)
+        out[i] = renderer.advance_to(clock.advance())
     return out

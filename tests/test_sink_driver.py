@@ -11,6 +11,7 @@ import threading
 
 import numpy as np
 import pytest
+from conftest import FakeTime
 
 from pewpew import Renderer, line
 from pewpew.pace import PacedLoop, SinkDriver
@@ -21,17 +22,6 @@ N_PX = 16
 
 def frame_of(v: float) -> np.ndarray:
     return np.full((N_PX, 3), v, dtype=np.float32)
-
-
-class FakeTime:
-    def __init__(self):
-        self.t = 0.0
-
-    def now(self):
-        return self.t
-
-    def sleep(self, s):
-        self.t += s
 
 
 def test_newest_wins_coalescing():
@@ -159,8 +149,44 @@ def test_delivered_frame_is_read_only_and_unaliased():
     assert np.array_equal(first, held)
 
 
-def test_stop_joins_worker():
+def test_stop_reports_worker_exit():
     driver = SinkDriver(lambda t, frame: None)
     driver.start()
-    driver.stop()
-    assert not driver._worker.is_alive()
+    assert driver.stop() is True
+
+
+def test_submit_before_start_drops_loudly(caplog):
+    driver = SinkDriver(lambda t, frame: None, name="unstarted")
+    with caplog.at_level("WARNING"):
+        for v in range(5):
+            driver.submit(float(v), frame_of(v))
+    assert driver.dropped == 5
+    # One warning for the condition, not one per frame.
+    assert sum("unstarted" in r.getMessage() for r in caplog.records) == 1
+
+
+def test_lifecycle_is_one_shot():
+    driver = SinkDriver(lambda t, frame: None)
+    assert driver.stop() is True  # stop before start: nothing was running
+    with pytest.raises(RuntimeError, match="one-shot"):
+        driver.start()  # a stopped driver cannot be (re)started
+
+
+def test_stop_reports_wedged_worker(caplog):
+    wedged = threading.Event()
+    entered = threading.Event()
+
+    def send(t, frame):
+        entered.set()
+        wedged.wait(timeout=30.0)
+
+    driver = SinkDriver(send, name="wedged")
+    driver.start()
+    driver.submit(1.0, frame_of(1))
+    assert entered.wait(timeout=5.0)  # worker is inside send before we stop
+    with caplog.at_level("WARNING"):
+        assert driver.stop(timeout=0.05) is False  # still mid-send: caller
+        # must not tear down the transport yet
+    assert any("wedged" in r.getMessage() for r in caplog.records)
+    wedged.set()
+    assert driver.stop(timeout=5.0) is True  # released: orderly exit

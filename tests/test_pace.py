@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from conftest import FakeTime, Oversleeper
 
 from pewpew import Pattern, Renderer, line, render_sequence
 from pewpew.pace import PacedLoop, PaceStats
@@ -21,33 +22,6 @@ from pewpew.patterns.plasma import Plasma
 PERIOD = 1.0 / 60.0
 SEED = 42
 N_PX = 32
-
-
-class FakeTime:
-    """Perfect sleeper: sleep(s) advances the clock by exactly s."""
-
-    def __init__(self, start: float = 0.0) -> None:
-        self.t = float(start)
-        self.sleeps: list[float] = []
-
-    def now(self) -> float:
-        return self.t
-
-    def sleep(self, s: float) -> None:
-        self.sleeps.append(s)
-        self.t += s
-
-
-class Oversleeper(FakeTime):
-    """macOS-shaped sleeper: every sleep lands `overshoot` seconds late."""
-
-    def __init__(self, overshoot: float, start: float = 0.0) -> None:
-        super().__init__(start)
-        self.overshoot = overshoot
-
-    def sleep(self, s: float) -> None:
-        self.sleeps.append(s)
-        self.t += s + self.overshoot
 
 
 class Costed(Pattern):
@@ -294,6 +268,36 @@ def test_poisoned_bind_propagates():
     # ...and the next advance_to is loud, straight out of run().
     with pytest.raises(RuntimeError, match="not bound"):
         loop.run(frames=10)
+
+
+def test_callback_advancing_renderer_time_is_adopted():
+    ft = FakeTime()
+    delivered: list[float] = []
+    renderer = Renderer(Plasma(), line(N_PX), seed=SEED)
+
+    def probe_frame():
+        renderer.step(0.5)  # a supervisor rendering a transition frame
+
+    def on_frame(t, frame):
+        delivered.append(t)
+        if len(delivered) == 1:
+            loop.call_soon(probe_frame)
+
+    loop = PacedLoop(renderer, fps=60.0, on_frame=[on_frame], now=ft.now, sleep=ft.sleep)
+    loop.run(frames=3)  # must not die with "time never goes backwards"
+    # The loop adopts the advanced time: the show jumps forward, stays
+    # monotonic, and keeps stepping one period per tick from there.
+    assert delivered == sorted(delivered)
+    assert delivered[1] == pytest.approx(delivered[0] + 0.5 + PERIOD, abs=1e-12)
+
+
+def test_stop_before_run_is_honored_not_erased():
+    ft = FakeTime()
+    loop = make_loop(ft)
+    loop.stop()  # standing request: e.g. a supervisor aborting at startup
+    assert loop.run(frames=5).ticks == 0
+    # Each run() consumes the request on exit; the next one is normal.
+    assert loop.run(frames=3).ticks == 3
 
 
 def test_rejects_nonpositive_fps():
