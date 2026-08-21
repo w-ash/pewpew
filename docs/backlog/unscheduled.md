@@ -28,7 +28,7 @@ scheduled, and each is promoted to its own series when its dependencies clear.
     - Why: Makes the engine drivable and mappable (§5–7, ADR-007/009).
     - Dependencies: v0.2.x (Phase 1)
     - Status: Not Started
-    - Notes: XL must be decomposed before scheduling.
+    - Notes: XL must be decomposed before scheduling. The v0.2.x preview sink deliberately ships a 2D-canvas page that draws 3D maps as z-slices (matching the ANSI reading); the three.js `Points` view was deferred to here because it means vendoring a library into the served page (§8, [S513]).
 
 - [ ] **Phase 4 — custom hardware tiers**
     - Effort: XXL
@@ -50,6 +50,14 @@ scheduled, and each is promoted to its own series when its dependencies clear.
     - Effort: S
     - What: Bring the preview's FireSim recipe (Doom-style randomized advection with wind/gusts, scrolling-noise cooling, wandering hot-spot tongues, additive ember particles) into a Python pattern once the Phase-1 engine and idiom kit exist.
     - Why: It's a far better fire than the study's Fire2012 and it stress-tests exactly the contract questions Phase 1 must settle: internal fields, per-particle state, the stumble-17 private-buffer decision.
-    - Dependencies: v0.2.x stories — pure render core, idiom-kit additions, private per-pixel state buffers (#17)
+    - Dependencies: v0.2.x stories — pure render core, idiom-kit additions, private per-pixel state buffers (#17) — **all cleared 2026-08-20**
     - Status: Not Started
-    - Notes: Reference implementation: `FireSim` in `preview/index.html`; technique sources in the CHANGELOG playground entry (Sanglard PSX-Doom fire, FastLED Fire2012WithPalette, 29a.ch, Petrick Fire2018, MatrixFireFast, Pagurek).
+    - Notes: Reference implementation: `preview/fire-reference.js` (extracted verbatim, with the helpers it uses, when the playground was retired 2026-08-20; header records provenance). Technique sources in the CHANGELOG playground entry (Sanglard PSX-Doom fire, FastLED Fire2012WithPalette, 29a.ch, Petrick Fire2018, MatrixFireFast, Pagurek). The ember layer lived in the playground's *renderer* (additive sprite stamps) — decide whether it becomes pattern pixels or stays a preview-side nicety.
+
+- [ ] **Normalize preview layouts per axis for partial-range maps**
+    - Effort: S
+    - What: Make both preview sinks position pixels by each axis's *observed* range rather than assuming coordinates span 0–1 — `AnsiLayout.from_mapping` (`src/pewpew/sinks/ansi.py`) and `makeLayout` (`src/pewpew/sinks/web/index.html`), changed together.
+    - Why: Resolution comes from the count of distinct values per axis, but position comes from `bins()`/`* scale`, which map the value linearly over [0, 1]. A map spanning, say, 0.4–0.6 therefore gets full-width columns and draws into a fifth of them, colliding pixels into shared cells while the rest of the grid stays blank.
+    - Dependencies: Fixture format + map compiler + marimapper import (Phase 3) — that is the first source of maps that do not span 0–1
+    - Status: Not Started
+    - Notes: Surfaced by the 2026-08-21 sink review and deliberately deferred there. Every in-tree mapping (`line`, `grid`, `lattice`) spans 0–1, so nothing fails today; `bins`' own docstring already names imported marimapper CSVs (§6) as where out-of-range coordinates come from. **Both sinks must change in the same pass** — the shared 0–1 assumption is what makes the ANSI and browser previews agree on what the cube looks like (both module docstrings say so), and normalizing one alone would split them. The assumption is documented on `AnsiLayout.from_mapping` until then.

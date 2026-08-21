@@ -190,3 +190,51 @@ def test_stop_reports_wedged_worker(caplog):
     assert any("wedged" in r.getMessage() for r in caplog.records)
     wedged.set()
     assert driver.stop(timeout=5.0) is True  # released: orderly exit
+
+
+def test_drain_waits_for_the_frame_stop_would_discard():
+    """`stop()` checks `_stopping` before `_pending`, so the last submitted
+    frame is thrown away — the reason `--frames N` never showed frame N."""
+    release = threading.Event()
+    entered = threading.Event()
+    sent: list[float] = []
+
+    def send(t, frame):
+        entered.set()
+        release.wait(timeout=5.0)
+        sent.append(t)
+
+    driver = SinkDriver(send, name="drainable")
+    driver.start()
+    driver.submit(1.0, frame_of(1))
+    assert entered.wait(timeout=5.0)  # worker is inside send #1
+    driver.submit(2.0, frame_of(2))  # queued behind it: stop() would drop this
+    release.set()
+    assert driver.drain(timeout=5.0) is True
+    assert sent == [1.0, 2.0]
+    assert driver.dropped == 0
+    assert driver.stop() is True
+
+
+def test_drain_reports_false_when_nothing_will_consume_the_frame():
+    driver = SinkDriver(lambda t, frame: None, name="never-started")
+    assert driver.drain(timeout=5.0) is True  # empty mailbox, nothing to wait on
+    driver.submit(1.0, frame_of(1))  # dropped: no worker
+    assert driver.drain(timeout=5.0) is True
+
+
+def test_drain_times_out_on_a_wedged_worker():
+    wedged = threading.Event()
+    entered = threading.Event()
+
+    def send(t, frame):
+        entered.set()
+        wedged.wait(timeout=30.0)
+
+    driver = SinkDriver(send, name="wedged-drain")
+    driver.start()
+    driver.submit(1.0, frame_of(1))
+    assert entered.wait(timeout=5.0)
+    assert driver.drain(timeout=0.05) is False  # still sending: bounded, not hung
+    wedged.set()
+    assert driver.stop(timeout=5.0) is True

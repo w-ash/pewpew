@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pewpew preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b0e; color: #ddd;
+               font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #status { position: fixed; left: 0; right: 0; top: 0; padding: 6px 10px;
+            background: #7f1d1d; color: #fff; display: none;
+            white-space: pre; overflow-x: auto; }
+  #meta { position: fixed; left: 10px; bottom: 8px; color: #666; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="status"></div>
+<canvas id="c"></canvas>
+<div id="meta">connecting…</div>
+<script>
+"use strict";
+// Colors arrive display-ready (gamma + quantize happen server-side, the
+// Q-1 quantize-once point) — this page applies NO gamma of its own.
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const statusEl = document.getElementById("status");
+const metaEl = document.getElementById("meta");
+
+let layout = null;   // {px: Float32Array, py: Float32Array, n, radius}
+let hello = null;
+let last = null;     // latest frame bytes, redrawn on resize
+
+function clear() {
+  ctx.fillStyle = "#0b0b0e";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function resize() {
+  canvas.width = canvas.clientWidth * devicePixelRatio;
+  canvas.height = canvas.clientHeight * devicePixelRatio;
+  if (hello) layout = makeLayout(hello);
+  if (last) draw(last); else clear();
+}
+addEventListener("resize", resize);
+
+// 2D maps draw as-is (y=0 at the bottom); 3D maps draw their z-slices
+// side by side, ascending z left to right — the same reading as the
+// ANSI sink, so both previews agree on what "the cube" looks like.
+function makeLayout(h) {
+  const n = h.n, pos = h.positions;
+  let sliceOf = new Int32Array(n), slices = 1;
+  if (h.is3d) {
+    const zs = [...new Set(pos.map(p => Math.round(p[2] * 100)))].sort((a, b) => a - b);
+    slices = zs.length;
+    const zi = new Map(zs.map((z, i) => [z, i]));
+    for (let i = 0; i < n; i++) sliceOf[i] = zi.get(Math.round(pos[i][2] * 100));
+  }
+  const gutter = 0.15;                       // in slice widths
+  const totalW = slices + gutter * (slices - 1);
+  const pad = 30 * devicePixelRatio;
+  const w = canvas.width - 2 * pad, hgt = canvas.height - 2 * pad;
+  const px = new Float32Array(n), py = new Float32Array(n);
+
+  // A degenerate y axis (a 1D strip) spans the full width, centered
+  // vertically, with dot size from pixel spacing rather than cell area.
+  const ys = pos.map(p => p[1]);
+  if (!h.is3d && Math.max(...ys) - Math.min(...ys) < 1e-6) {
+    for (let i = 0; i < n; i++) {
+      px[i] = pad + pos[i][0] * w;
+      py[i] = canvas.height / 2;
+    }
+    return { px, py, n, radius: Math.max(2, (w / n) * 0.6) };
+  }
+
+  const scale = Math.min(w / totalW, hgt);
+  const x0 = (canvas.width - totalW * scale) / 2;
+  const y0 = (canvas.height - scale) / 2;
+  for (let i = 0; i < n; i++) {
+    const off = sliceOf[i] * (1 + gutter);
+    px[i] = x0 + (off + pos[i][0]) * scale;
+    py[i] = y0 + (1 - pos[i][1]) * scale;     // y=0 at the bottom
+  }
+  // Dot size from typical spacing: assume roughly square slices.
+  const perSlice = n / slices;
+  const radius = Math.max(2, (scale / Math.max(4, Math.sqrt(perSlice))) * 0.42);
+  return { px, py, n, radius };
+}
+
+function draw(bytes) {
+  last = bytes;
+  if (!layout) return;
+  const t = new DataView(bytes.buffer, bytes.byteOffset, 8).getFloat32(0, true);
+  const rgb = new Uint8Array(bytes.buffer, bytes.byteOffset + 8);
+  clear();
+  const r = layout.radius;
+  ctx.shadowBlur = r * 2.2;                   // the glow, in display space
+  for (let i = 0; i < layout.n; i++) {
+    const c = `rgb(${rgb[3 * i]},${rgb[3 * i + 1]},${rgb[3 * i + 2]})`;
+    ctx.fillStyle = c;
+    ctx.shadowColor = c;
+    ctx.beginPath();
+    ctx.arc(layout.px[i], layout.py[i], r, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  metaEl.textContent =
+    `t=${t.toFixed(2)}s · ${layout.n}${hello.total > hello.n ? "/" + hello.total : ""} px`;
+}
+
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/`);
+  ws.binaryType = "arraybuffer";
+  ws.onmessage = (ev) => {
+    if (typeof ev.data === "string") {
+      const msg = JSON.parse(ev.data);
+      // A reconnect may bring a different map. `last` belongs to the old
+      // one: redrawing it against the new layout reads past the buffer and
+      // yields rgb(undefined,...), an invalid fillStyle that silently
+      // leaves dots at their previous color.
+      if (msg.type === "hello") { hello = msg; last = null; resize(); }
+      else if (msg.type === "status") {
+        statusEl.textContent = msg.error || "";
+        statusEl.style.display = msg.error ? "block" : "none";
+      }
+    } else {
+      draw(new Uint8Array(ev.data));
+    }
+  };
+  ws.onclose = () => {
+    metaEl.textContent = "disconnected — retrying…";
+    statusEl.style.display = "none";         // the error died with its engine
+    statusEl.textContent = "";
+    setTimeout(connect, 1000);               // engine restarts are routine
+  };
+}
+connect();
+resize();
+</script>
+</body>
+</html>

@@ -32,7 +32,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable, Sequence
+from typing import Callable, Generic, Sequence, TypeVar
 
 import numpy as np
 
@@ -178,7 +178,13 @@ class PacedLoop:
             self._running = False
 
 
-class SinkDriver:
+# SinkDriver's payload: normally the loop's (N,3) frame, but a fan-out
+# sink (preview per-client drivers) submits pre-encoded bytes instead —
+# the driver never looks inside, so it is generic over what it carries.
+P = TypeVar("P")
+
+
+class SinkDriver(Generic[P]):
     """Newest-wins mailbox and worker thread around a blocking `send`.
 
     At most two frames are in flight: one being sent, one pending.
@@ -192,18 +198,21 @@ class SinkDriver:
     The lifecycle is one-shot: `start()` once, `stop()` once, then create
     a new driver. Submitting while the worker is not running drops the
     frame with a single warning rather than raising — a sink must never
-    take the show down.
+    take the show down. `drain()` before `stop()` is the orderly exit: it
+    waits for the frame already in the mailbox to be sent, which `stop()`
+    deliberately does not.
     """
 
-    def __init__(self, send: Callable[[float, np.ndarray], None], *, name: str = "sink") -> None:
+    def __init__(self, send: Callable[[float, P], None], *, name: str = "sink") -> None:
         self._send = send
         self.name = name
         self.dropped = 0  # frames coalesced away by newest-wins, or dropped dead
         self.errors = 0  # contained send exceptions
         self._cond = threading.Condition()
-        self._pending: tuple[float, np.ndarray] | None = None
+        self._pending: tuple[float, P] | None = None
         self._started = False
         self._stopping = False
+        self._sending = False  # worker is inside _send; see drain()
         self._warned_dead = False
         self._logged_types: set[type] = set()
         # Daemon so a wedged send never blocks interpreter exit; stop()
@@ -228,7 +237,7 @@ class SinkDriver:
         """
         with self._cond:
             self._stopping = True
-            self._cond.notify()
+            self._cond.notify_all()
         if not self._started:
             return True
         self._worker.join(timeout)
@@ -242,6 +251,28 @@ class SinkDriver:
             return False
         return True
 
+    def drain(self, timeout: float = 1.0) -> bool:
+        """Block until the mailbox is empty and the worker is idle.
+
+        The orderly counterpart to `stop()`, which discards the pending
+        frame rather than waiting on a backlog. A bounded run wants its
+        last frame actually displayed — `--frames N` submits frame N and
+        returns, so without a drain the teardown throws it away — and a
+        caller that drains before stopping loses nothing. Returns False if
+        the sink is still busy when `timeout` expires, or if nothing is
+        left to consume the pending frame (never started, or stopping).
+        """
+        deadline = time.monotonic() + timeout
+        with self._cond:
+            while self._pending is not None or self._sending:
+                if not self._started or self._stopping:
+                    return False  # nothing will ever consume it
+                remaining = deadline - time.monotonic()
+                if remaining <= 0.0:
+                    return False
+                self._cond.wait(remaining)
+            return True
+
     def __enter__(self) -> "SinkDriver":
         self.start()
         return self
@@ -249,7 +280,7 @@ class SinkDriver:
     def __exit__(self, *exc: object) -> None:
         self.stop()
 
-    def submit(self, t: float, frame: np.ndarray) -> None:
+    def submit(self, t: float, frame: P) -> None:
         """Hand the newest frame to the worker; never blocks, never raises."""
         if not self._worker.is_alive():
             self.dropped += 1
@@ -265,7 +296,7 @@ class SinkDriver:
             if self._pending is not None:
                 self.dropped += 1
             self._pending = (t, frame)
-            self._cond.notify()
+            self._cond.notify_all()
 
     # A driver is its own on_frame callable.
     __call__ = submit
@@ -279,6 +310,7 @@ class SinkDriver:
                     return
                 t, frame = self._pending  # type: ignore[misc]
                 self._pending = None
+                self._sending = True
             try:
                 self._send(t, frame)
             except Exception as exc:
@@ -286,6 +318,10 @@ class SinkDriver:
                 if type(exc) not in self._logged_types:
                     self._logged_types.add(type(exc))
                     logger.exception("sink %r send failed (contained)", self.name)
+            finally:
+                with self._cond:
+                    self._sending = False
+                    self._cond.notify_all()
 
 
 def measure_spin_margin(

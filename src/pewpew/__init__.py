@@ -37,6 +37,7 @@ from pewpew.mapping import grid, lattice, line
 from pewpew.pace import PacedLoop, PaceStats, SinkDriver
 from pewpew.pattern import Param, Pattern
 from pewpew.render import PatternError, Renderer, render_sequence
+from pewpew.sinks import AnsiSink, PreviewSink, Sink
 
 __all__ = [
     # authoring contract
@@ -61,6 +62,10 @@ __all__ = [
     "PacedLoop",
     "PaceStats",
     "SinkDriver",
+    # sinks (layouts and helpers stay at pewpew.sinks)
+    "Sink",
+    "AnsiSink",
+    "PreviewSink",
     # fixtures and inputs
     "line",
     "grid",

@@ -1977,6 +1977,24 @@ is removed.
 - accessed: 2026-07-03
 - relevance: in-place code patching (jurigged: existing instances get new behavior) and reactive module re-run (hmr) — the state-preserving alternatives to process restart
 
+### [S521] websockets (python-websockets) — sync/threading server
+- type: code
+- url: https://github.com/python-websockets/websockets
+- author: Aymeric Augustin et al.
+- license: BSD-3-Clause
+- pinned: python-websockets/websockets@fd3f16cc4f57ace08e323a7806f1432e957cb75e
+- published: 17.0.1 released 2026-07-31 (PyPI)
+- accessed: 2026-08-20
+- relevance: the reference RFC 6455/7692 implementation for Python; `websockets.sync.server` is a thread-per-connection server (no asyncio) matching the engine's thread-per-sink model, with a `process_request` hook that serves plain HTTP from the same port; C extension accelerates frame masking; requires Python >=3.11, same floor as pewpew. Evidence for ADR-020's adopt decision.
+
+### [S522] RFC 6455 — The WebSocket Protocol
+- type: spec
+- url: https://datatracker.ietf.org/doc/html/rfc6455
+- author: IETF (Fette, Melnikov)
+- published: 2011-12
+- accessed: 2026-08-20
+- relevance: the protocol itself — sizes ADR-020's rejected hand-roll alternative: the server-side subset pewpew needs (upgrade handshake, unmasked server-to-client frames, ping/pong, close) is small, but close-handshake and fragmentation edge cases are where hand-rolled implementations rot.
+
 ## Block S550–S599 — RA-12 Prior art & control plane
 
 ### [S550] WLED docs — JSON API

@@ -74,6 +74,28 @@ series (batch mode).
 - Add `SinkDriver`: per-sink newest-wins backpressure — a worker thread and
   one-slot mailbox bounding frames in flight at two, so a stalled or raising
   sink drops stale frames instead of ever backing up the render loop.
+- Land the sink layer (`src/pewpew/sinks/`): the `Sink` protocol
+  (`send(t, frame)` + lifecycle, with DDP's fill/latch fused into `send` per
+  ADR-003), a shared display-gamma + quantize-once helper (`to_display_u8`),
+  and `RateGate` self-pacing that lets each sink run at its own output rate
+  by blocking its own driver worker.
+- Add the ANSI terminal sink: truecolor half-block rendering laid out from
+  the mapping — 1D strips as a row, 2D grids with y=0 at the bottom, 3D
+  lattices as z-slices left to right — with linear-light cell averaging
+  before gamma, TTY cursor-overwrite vs frame-per-block pipe mode, and an
+  exact-string golden test.
+- Add the browser preview sink (ADR-020: `websockets` sync server becomes
+  the second runtime dependency): one port serves a zero-dependency canvas
+  page and the websocket, positions cross the wire once, frames stream as
+  display-ready uint8 after server-side gamma, mappings decimate at 4096 px,
+  and every connected tab gets its own newest-wins driver so a dead client
+  is contained.
+- Surface the renderer's error state through both sinks as text — a red
+  status line under the ANSI grid, a banner on the preview page — beside the
+  pulsing-red error frame that already flows as pixels.
+- Add the `python -m pewpew run <pattern>` entry point wiring renderer,
+  paced loop, and driver-wrapped sinks: `--map line:64|grid:16x16|lattice:8`,
+  `--ansi`, `--preview [PORT]`, `--param k=v`, `--frames N`.
 
 ### Changed
 
@@ -91,6 +113,12 @@ series (batch mode).
   installed copy is what gets imported; import paths are unchanged.
 - Refuse a pattern parameter override that names an undeclared `Param`
   instead of silently creating an attribute nothing reads.
+- Retire the JS pattern playground (`preview/index.html` + `verify.js`): the
+  engine-backed preview sink renders the real contract, which the
+  hand-written mirrors could not express (`setup`/`self.buffer`, both-end
+  `bins` clamping, NumPy floor-mod hashing). The upgraded FireSim — an
+  original, not a port — is preserved verbatim in `preview/fire-reference.js`
+  as the reference for its future Python port.
 
 ### Fixed
 
@@ -117,3 +145,21 @@ series (batch mode).
   black.
 - Make the preview's sdf3d `spin` parameter visible as an end-over-end
   tumble — spinning about the torus symmetry axis is a mathematical no-op.
+- Print the browser preview's URL. It was only ever logged at INFO, and the
+  runner configures no handler, so `--preview` told the user to open a page
+  and never said where.
+- Keep the engine's own log output off the terminal while the ANSI sink owns
+  it. A pattern that raised logged a traceback straight through the sink's
+  cursor-rewind block, permanently desyncing it so every later frame
+  overwrote the wrong rows. Records are held and replayed on exit.
+- Stop the error status line from reading `None`. It tested
+  `renderer.error` and then formatted it as a second read, so a pattern that
+  recovered in between rendered the string "None" in red.
+- Reserve the status line's row in the ANSI height budget. A tall map filled
+  the terminal and the extra line scrolled the block one row per frame,
+  walking the display up over the scrollback.
+- Deliver the last frame of a bounded `--frames N` run. Teardown discarded
+  whatever was still in the sink's mailbox, which was usually frame N.
+- Drop the previous connection's frame buffer when the preview page
+  reconnects. Against a larger mapping the redraw read past the end of it
+  and left dots frozen at their old color.

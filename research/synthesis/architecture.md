@@ -453,6 +453,7 @@ transplanting.
 | NumPy / CircuitPython+ulab | The two-tier array substrate; ulab mirrors NumPy by design [S400][S403] | BSD/MIT — fine |
 | sounddevice (PortAudio) | Capture; maintained, NumPy-native [S458] | MIT — fine |
 | watchfiles | Hot-reload watcher; de-facto standard [S519] | MIT — fine |
+| websockets (sync server) | Preview-sink frame transport + page serving ([ADR-020]) [S521] | BSD-3-Clause — fine |
 | DDP + sACN/Art-Net wire formats | Protocols, not code [S150][S157] | Specs — fine |
 | WLED audio-sync V2 packet format | 44-byte feature struct, port 11988 — wire format only [S453] | Format — fine |
 | Stock WLED / WLED-MM firmware | Day-one receivers over the network ([ADR-004]) | Separate device; network boundary |

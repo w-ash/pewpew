@@ -1,8 +1,0 @@
-{
-  "name": "pewpew-preview-verify",
-  "private": true,
-  "description": "Playwright verification harness for the pattern playground (verify.js)",
-  "devDependencies": {
-    "playwright": "^1.61.1"
-  }
-}

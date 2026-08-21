@@ -18,11 +18,12 @@ All three Phase-0 gates now have desktop verdicts (item 2 GO, item 1 PASS at
 52×, item 13 PASS) — each wants a rerun on whichever host gets deployed, but
 none blocks the work. The Authoring-surface epic is complete as of 2026-07-27:
 the render core, idiom kit, authoring docs, and the stumble-#17 contract
-decision all landed, so item 2's GO is no longer conditional, and the paced
-clock (ADR-010) landed 2026-08-20. Remaining: sinks, hot reload, DDP,
-param-liveness. Only the DDP-sink story is hard blocked, on a receiver +
-strip. Later phases live in `unscheduled.md` until
-promoted.
+decision all landed, so item 2's GO is no longer conditional. The paced clock
+(ADR-010) and the sink story (Sink protocol, ANSI + browser preview,
+`python -m pewpew run`, playground retirement, ADR-020) both landed
+2026-08-20. Remaining: hot reload, DDP, param-liveness. Only the DDP-sink
+story is hard blocked, on a receiver + strip. Later phases live in
+`unscheduled.md` until promoted.
 
 ## Version matrix
 
