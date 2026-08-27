@@ -109,6 +109,14 @@ series (batch mode).
   parameter that was a mathematical no-op nothing caught — it now fails at
   rms 2.65e-08 against a 1e-3 bar, and is carried as a strict `xfail` so the
   exemption cannot outlive the bug.
+- Re-verify the receiver and wearable silicon bets against 2025–26 sources
+  (`research/verification/hardware-refresh-2026-08.md`; new sources S371–S382
+  and S422): the ESP32-S3-with-PSRAM receiver bet stands and strengthened, and
+  three dated triggers that would overturn it are now named. Chief among them
+  is the ESP32-S31, in mass production since 2026-07-27 and superseding the S3
+  on paper once devkits and a WLED/FastLED port exist — re-check it before any
+  fleet-scale buy. Recorded as `## Verification` in ADR-013, which also makes
+  nRF54L15 the W-5 wearable default in place of nRF52840.
 
 ### Changed
 
@@ -123,6 +131,10 @@ series (batch mode).
 - Share one canonical (pattern, fixture) table from `pewpew.patterns`, which
   the golden, port-equivalence and liveness tests had each been re-deriving
   from the study runner by hand.
+- Re-verify sections 1–2 and the quick-start cart of the hardware buying list
+  against live listings, and add a vendor policy naming which suppliers to buy
+  from. The N32R8V devkit and the TSL257-LF photodiode are obsolete, DigiKey's
+  N8R8 backorder slipped to 2027-03, and three Adafruit parts went out of stock.
 - Accept ADR-005 (pattern authoring model) — the Phase-0 item-2 study
   confirmed the vectorized-authoring bet, conditional on idiom-kit additions.
 - Pin every ADR-cited code source to the commit that was actually read, so

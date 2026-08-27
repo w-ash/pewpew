@@ -1515,6 +1515,104 @@ is removed.
 - archive: https://web.archive.org/web/20251208125019/https://auschristmaslighting.com/threads/pigtail-connector-plug-type-comparisons.16968/  # snapshot 2025-12-08 (snapshot predates accessed date; refresh next verification pass)
 - relevance: Ray Wu vs xConnect near-identical mechanically; xConnect single wiring standard + universal store stocking — the connector to standardize on
 
+### [S371] ESP32-S31 — announcement and mass production
+- type: news
+- url: https://www.espressif.com/en/news/ESP32_S31_Release
+- author: Espressif Systems
+- published: 2026-03-26 (announcement); mass production declared 2026-07-27 (https://www.espressif.com/en/news/ESP32_S31_Mass_Production)
+- accessed: 2026-08-22
+- relevance: the S3's heir for the receiver workload — dual-core RISC-V 320 MHz (one core 128-bit SIMD), 512 KB SRAM, 250 MHz DDR-PSRAM support, WiFi 6 (2.4 GHz) + BT 5.4 + 802.15.4, GbE MAC, 60 GPIOs, 8–24-bit parallel LCD bus, ~$4.51 launch price (Hackster). Weeks into mass production as of 2026-08: no devkit ecosystem, no WLED/FastLED port, no independent radio/power measurements — the named re-evaluation trigger for the fleet buy, not a buy today.
+
+### [S372] Espressif longevity commitment — per-chip production end dates
+- type: docs
+- url: https://www.espressif.com/en/products/longevity-commitment
+- author: Espressif Systems
+- published: n/a (living page, undated)
+- accessed: 2026-08-22
+- relevance: guaranteed production — classic ESP32 to 2031-01-01, S3/C3 to 2033, C6 to 2035, C5/P4 to 2037. An S3 fleet buy has ~6.5 years of guaranteed supply; EOL creates no urgency to move.
+
+### [S373] ESP32-C5 — mass production and capabilities
+- type: news
+- url: https://developer.espressif.com/blog/2025/05/news-esp32c5-mp/
+- author: Espressif Systems
+- published: 2025-05 (also cnx-software 2025-04-30)
+- accessed: 2026-08-22
+- relevance: dual-band WiFi 6 (2.4+5 GHz, TWT/OFDMA), BLE 5.0, 802.15.4; single-core RISC-V 240 MHz, 384 KB SRAM, up to 8 MB PSRAM (C5HR8); has RMT and PARLIO but no LCD_CAM and only 29 GPIOs. DevKitC-1 ≈ $15. The 5 GHz escape hatch if 2.4 GHz venue congestion becomes the observed failure mode — at a receiver-peripheral cost vs the S3.
+
+### [S374] ESP32-C5 practical reviews (2025–2026)
+- type: article
+- url: https://jrattechworks.com/esp32-c5-explained/
+- author: JRat TechWorks (2026-03-19); DigiKey FireBeetle 2 C5 review (2025-01-29, https://www.digikey.com/en/maker/blogs/2025/firebeetle-2-esp32-c5-review-dual-band-wi-fi-6-and-solar-charging)
+- published: 2026-03-19 / 2025-01-29
+- accessed: 2026-08-22
+- relevance: consensus reading — C5 is "not the universal default ESP32 choice in 2026": right for congested-RF nodes, not display/LED-heavy work. Deep-sleep 23 µA measured board-level; datasheet WiFi RX ~110 mA @ 2.4 GHz / ~105 mA @ 5 GHz — same order as S3, so streaming power stays LED-dominated. No rigorous third-party latency/jitter benchmark of C5/C6 station-mode streaming vs S3 WiFi 4 found in 2025–26 [NEEDS-VERIFICATION for the WiFi-6 jitter benefit specifically].
+
+### [S375] esp-hosted-mcu — P4 hosted-WiFi architecture
+- type: code
+- url: https://github.com/espressif/esp-hosted-mcu
+- author: Espressif Systems
+- license: Apache-2.0
+- published: active repo, v2.5.x (2026)
+- accessed: 2026-08-22
+- relevance: P4's radio story is a two-chip architecture (P4 + C6/C61 co-processor over 4-bit SDIO, ~68 Mbit/s UDP host-RX quoted — enough for 60 fps DDP). Matured through 2025–26 but breaks one-SKU economics; no P4 variant with integrated radio exists.
+
+### [S376] WLED v16 releases
+- type: release
+- url: https://github.com/wled/WLED/releases
+- author: WLED project
+- published: v16.0.0 2026-05-03; v16.0.1 2026-07-07
+- accessed: 2026-08-22
+- relevance: the current production line still ships on ESP-IDF 4.4.8 / arduino-esp32 2.0.18; headline features include segment layering, particle system, and multiple ESP-NOW remotes — mainline LED firmware now leans on ESP-NOW in production. S3 builds ship, but official docs still label S3 "experimental" with a stale summer-2023 marker (documentation lag, kno.wled.ge/basics/compatible-controllers/).
+
+### [S377] WLED next-chip era — IDF5 migration and C6/C5/P4 support
+- type: code
+- url: https://github.com/wled/WLED/pull/4838
+- author: WLED project
+- license: EUPL-1.2
+- published: PR #4838 (IDF v5 port) merged 2026-07-19; PR #5048 (adds C6/C5/P4 to V5 builds) merged 2026-06-23; status issue #3078 pinned update 2026-07-04
+- accessed: 2026-08-22
+- relevance: the C6/C5/P4 era formally begins with WLED 17, and is explicitly "absolutely not suitable for production" today — effects/UI/WiFi/PSRAM work, OTA and WLED sync unstable, NTP broken on C5, P4 Ethernet not working; P4 runs with a C6 hosted-WiFi co-processor. The ecosystem argument for S3 holds until this stabilizes.
+
+### [S378] MoonLight v1.0.0 and the ProjectMM pivot
+- type: release
+- url: https://github.com/MoonModules/MoonLight/releases
+- author: MoonModules
+- published: v0.6.0 2025-11-07; v0.8.0 (P4 parlio driver) 2026-01-16; v1.0.0 2026-05-06; ProjectMM pivot notice 2026-05 (moonmodules.org)
+- accessed: 2026-08-22
+- relevance: the high-pixel-count frontier targets S3 and P4 (~130k LEDs claimed with PSRAM; C3 capped at 1024); WLED-MM keeps S3+PSRAM as primary target (v14.7.1 2026-01-13). Confirms and extends the S352 trajectory claim: S3 for today, P4 for the high end.
+
+### [S379] FastLED 2025–2026 releases — parallel-driver maturation
+- type: release
+- url: https://github.com/FastLED/FastLED/releases
+- author: FastLED project
+- published: 3.9.9 2025-01 (16-way S3 I2S driver) through 3.10.4 2026-06-16; P4 support 3.10.0 2025-06-16; C5 support 3.10.2 2025-08-22
+- accessed: 2026-08-22
+- relevance: S3 parallel paths (I2S + RMT5-DMA) read as mature after the 2025 fix series; the P4 LCD/RGB 16-strip driver (issue #2113) is experimental and "untested on hardware." No RP2350 support in any 2025–26 release.
+
+### [S380] ESP-IDF v6.0 release
+- type: news
+- url: https://developer.espressif.com/blog/2026/03/idf-v6-0-release/
+- author: Espressif Systems
+- published: 2026-03-24
+- accessed: 2026-08-22
+- relevance: C5 and C61 graduate to full support; H21/H4 in preview. ESP-NOW component v2.5.3 (~2026-02) "supports all targets," so S3↔C6/C5 mesh interop is a supported configuration — the mesh tier does not lock the fleet to one chip generation.
+
+### [S381] ESP32-C61 modules at ~$2
+- type: news
+- url: https://www.cnx-software.com/2026/08/04/espressif-esp32-c61-mini-1-1u-wi-fi-6-and-ble-iot-module-2-dollars/
+- author: CNX Software
+- published: 2026-08-04
+- accessed: 2026-08-22
+- relevance: WiFi-6 silicon floor price — C61-MINI-1 modules ~$2.14, devkits $9–12; single weak core, 320 KB SRAM: a sensor/bridge tier, not a renderer. Marks where radio cost is heading for future co-processor or gateway roles.
+
+### [S382] QuinLED Dig-Next-2 — 2026 flagship still classic-ESP32
+- type: docs
+- url: https://quinled.info/dig-next-2/
+- author: Quindor (QuinLED)
+- published: 2026 (product page)
+- accessed: 2026-08-22
+- relevance: the leading WLED-adjacent board vendor's 2026 entry flagship remains classic ESP32 (8 MB flash, 2 MB PSRAM), marketed WLED/MoonLight-ready — commercial LED hardware has not moved past classic ESP32, placing the S3 buy ahead of, not behind, the commercial curve.
+
 ## Block S400–S449 — RA-09 Hardware: wearable tier
 
 ### [S400] todbot — "Speed up CircuitPython LED animations 10x with ulab"
@@ -1696,6 +1794,14 @@ is removed.
 - published: 2016-02-04
 - accessed: 2026-07-03
 - relevance: early precedent for baked-frame SD playback at wearable scale (the bake-and-play portability strategy)
+
+### [S422] Nordic nRF54L15 — shipping wearable-tier upgrade
+- type: docs
+- url: https://www.nordicsemi.com/Products/nRF54L15
+- author: Nordic Semiconductor
+- published: full-volume production since 2024-12 (product page, accessed 2026-08-22); XIAO nRF54L15 board $9.90 (Seeed, 2025-07-30)
+- accessed: 2026-08-22
+- relevance: direct shipping upgrade for the W-5 nRF52840 slot — ~2× better power (sub-1 µA sleep; 3.0 µA System ON with 256 KB RAM retention), BT 6.0 Channel Sounding (cm-level node-to-node ranging — a new capability for prop-to-prop distance effects), cheaper boards. nRF54H20 still selective-sampling mid-2026, not buyable.
 
 ## Block S450–S499 — RA-10 Audio reactivity
 

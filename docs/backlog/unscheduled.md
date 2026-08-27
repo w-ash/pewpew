@@ -36,7 +36,7 @@ scheduled, and each is promoted to its own series when its dependencies clear.
     - Why: The receiver's device-side dithering is the field's biggest unclaimed quality lever [S600][S054][S251].
     - Dependencies: Phase 2 (16-bit host pipeline)
     - Status: Not Started
-    - Notes: Stock WLED and baked frames are the adequate interim carriers until here.
+    - Notes: Stock WLED and baked frames are the adequate interim carriers until here. **Before committing silicon for this phase, re-run the 2026-08-22 hardware refresh** (ADR-013 § Verification; `research/verification/hardware-refresh-2026-08.md`): the ESP32-S31 (mass production 2026-07-27) supersedes the S3 on paper once devkits + a WLED/FastLED port exist, and **nRF54L15 is already the recorded W-5 default over nRF52840**.
 
 - [ ] **Phase 5 — mesh group tier**
     - Effort: XXL
@@ -44,7 +44,7 @@ scheduled, and each is promoted to its own series when its dependencies clear.
     - Why: The decentralized-groups product tier (M-* requirements).
     - Dependencies: Phase 4 receiver firmware; §12 items 15–20 gate the fleet buy
     - Status: Not Started
-    - Notes: 25–50 nodes at defaults is already inside the evidence; benches gate the buy, not the design.
+    - Notes: 25–50 nodes at defaults is already inside the evidence; benches gate the buy, not the design. The fleet buy is also the ESP32-S31 re-check point (ADR-013 § Verification).
 
 - [ ] **Port the upgraded fire to Python**
     - Effort: S

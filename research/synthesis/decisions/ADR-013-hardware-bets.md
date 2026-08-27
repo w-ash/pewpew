@@ -97,3 +97,23 @@ wearables.
   not a hobby room [S362].
 - **Hosts driving pixels directly** — Pi 5 GPIO regression proves the
   fragility; the architecture never needs it [S367].
+
+## Verification
+
+**2026-08-22 refresh** (full report:
+`research/verification/hardware-refresh-2026-08.md`; sources S371–S382,
+S422, all published 2025–2026). The S3-with-PSRAM receiver bet **stands
+and strengthened**: S3 parallel drivers matured in FastLED through 2025
+[S379], WLED-MM/MoonLight target S3+PSRAM for the largest builds [S378],
+QuinLED's 2026 flagship is still classic ESP32 [S382], and Espressif
+guarantees S3 production to 2033 [S372]. Three dated triggers would
+change it: (1) **ESP32-S31** (mass production 2026-07-27 — WiFi 6, DDR
+PSRAM, parallel LCD bus, ~$4.51 [S371]) reaching devkits + a WLED/FastLED
+port supersedes the S3 for the Phase 4–5 fleet buy — **re-check Q4 2026 /
+Q1 2027 before that buy**; (2) observed 2.4 GHz congestion at 60 fps in
+venues → C5's 5 GHz station mode [S373][S374]; (3) WLED 17's P4 +
+hosted-WiFi combo reaching production stability with hardware-validated
+parallel drivers [S377][S375]. Wearable amendment: **nRF54L15 replaces
+nRF52840 as the W-5 default at the next design decision** — ~2× power
+efficiency, BT 6.0 Channel Sounding, in full-volume production [S422];
+no trigger needed.
