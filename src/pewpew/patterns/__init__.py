@@ -38,4 +38,14 @@ STUDY_CASES: tuple[tuple[type, np.ndarray], ...] = (
     (Sdf3d, _frozen(lattice(10))),
 )
 
-__all__ = ["Plasma", "Comet", "Geq", "Fire", "Sdf3d", "STUDY_CASES"]
+def default_mapping(pattern_cls: type) -> np.ndarray | None:
+    """The fixture `pattern_cls` was authored against, or None if it has no
+    entry. The runner uses this so a bare `run <pattern>` shows a pattern on
+    the geometry it was designed for."""
+    for cls, mapping in STUDY_CASES:
+        if cls is pattern_cls:
+            return mapping
+    return None
+
+
+__all__ = ["Plasma", "Comet", "Geq", "Fire", "Sdf3d", "STUDY_CASES", "default_mapping"]

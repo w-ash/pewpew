@@ -34,7 +34,7 @@ from typing import Callable, Iterator, TextIO
 import numpy as np
 
 import pewpew.patterns as gallery
-from pewpew import PacedLoop, ParamSet, Renderer, SinkDriver, grid, lattice, line
+from pewpew import PacedLoop, ParamSet, Pattern, Renderer, SinkDriver, grid, lattice, line
 from pewpew.sinks import AnsiSink, PreviewSink
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,14 @@ _GRACE = 2.0  # extra seconds to wait on a mid-send worker before releasing
 
 
 def _pattern_class(name: str) -> type:
-    by_name = {cls_name.lower(): getattr(gallery, cls_name) for cls_name in gallery.__all__}
+    # Pattern subclasses only. The gallery's __all__ is its public API, which
+    # is wider than its runnable patterns — reflecting over all of it once
+    # offered `study_cases` as a pattern name and failed at construction.
+    by_name = {
+        cls_name.lower(): obj
+        for cls_name in gallery.__all__
+        if isinstance(obj := getattr(gallery, cls_name), type) and issubclass(obj, Pattern)
+    }
     try:
         return by_name[name.lower()]
     except KeyError:
@@ -65,6 +72,19 @@ def _mapping(spec: str) -> np.ndarray:
     except ValueError:
         pass
     raise SystemExit(f"bad --map {spec!r}; expected line:64, grid:16x16, or lattice:8")
+
+
+def _default_mapping(pattern_cls: type) -> np.ndarray:
+    """The fixture a pattern was authored against, for a bare `run <pattern>`.
+
+    `grid:16x16` fits geq and fire and nothing else — comet and plasma were
+    written for `line(300)`, sdf3d for `lattice(10)` — so the no-argument run,
+    the first thing anyone types, showed three of five patterns on geometry
+    they were never designed against. A pattern outside the study table keeps
+    the old default.
+    """
+    mapping = gallery.default_mapping(pattern_cls)
+    return _mapping("grid:16x16") if mapping is None else mapping
 
 
 def _params(pairs: list[str], pattern_cls: type) -> dict[str, float]:
@@ -161,7 +181,13 @@ def main(
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", help="render a pattern live to one or more sinks")
     run.add_argument("pattern", help="gallery pattern name (comet, fire, ...)")
-    run.add_argument("--map", default="grid:16x16", dest="map_spec", metavar="SPEC")
+    run.add_argument(
+        "--map",
+        default=None,
+        dest="map_spec",
+        metavar="SPEC",
+        help="line:64, grid:16x16 or lattice:8 (default: the pattern's own study fixture)",
+    )
     run.add_argument("--fps", type=float, default=60.0)
     run.add_argument("--ansi", action="store_true", help="terminal sink (the default sink)")
     run.add_argument(
@@ -178,8 +204,8 @@ def main(
     run.add_argument("--frames", type=int, default=None, help="stop after N frames (default: run until ^C)")
     args = parser.parse_args(argv)
 
-    mapping = _mapping(args.map_spec)
     pattern_cls = _pattern_class(args.pattern)
+    mapping = _default_mapping(pattern_cls) if args.map_spec is None else _mapping(args.map_spec)
     renderer = Renderer(
         pattern_cls(), mapping, params=_params(args.param, pattern_cls), seed=args.seed
     )

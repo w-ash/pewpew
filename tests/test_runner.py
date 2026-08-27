@@ -9,7 +9,7 @@ import sys
 import pytest
 from conftest import FakeTime
 
-from pewpew.__main__ import _status_of, main
+from pewpew.__main__ import _default_mapping, _pattern_class, _status_of, main
 
 
 def run(argv, **kw):
@@ -32,9 +32,25 @@ def test_run_renders_n_frames_to_ansi_and_exits_clean():
     assert "\x1b[38;2;" in out
 
 
+def test_run_defaults_the_map_to_the_patterns_own_study_fixture():
+    # comet was authored against line(300); the old fixed grid:16x16 default
+    # showed it on geometry it was never designed for.
+    for name, expected in [("comet", 300), ("plasma", 300), ("geq", 256), ("fire", 512), ("sdf3d", 1000)]:
+        assert len(_default_mapping(_pattern_class(name))) == expected
+
+
+def test_explicit_map_still_wins_over_the_default():
+    rc, out = run(["run", "comet", "--map", "line:8", "--frames", "1"])
+    assert rc == 0
+    assert out.count("█") == 8  # the 8 asked for, not comet's 300
+
+
 def test_run_rejects_unknown_pattern_and_bad_map():
-    with pytest.raises(SystemExit, match="unknown pattern"):
+    with pytest.raises(SystemExit, match="unknown pattern") as exc:
         main(["run", "nope", "--frames", "1"])
+    # The gallery's __all__ is wider than its runnable patterns; only Pattern
+    # subclasses may be offered.
+    assert "study_cases" not in str(exc.value)
     with pytest.raises(SystemExit, match="bad --map"):
         main(["run", "comet", "--map", "torus:9", "--frames", "1"])
     with pytest.raises(SystemExit, match="bad --param"):

@@ -117,6 +117,12 @@ series (batch mode).
   on paper once devkits and a WLED/FastLED port exist — re-check it before any
   fleet-scale buy. Recorded as `## Verification` in ADR-013, which also makes
   nRF54L15 the W-5 wearable default in place of nRF52840.
+- Default `--map` to the fixture a pattern was authored against, from
+  `STUDY_CASES`. `grid:16x16` fits geq and fire and nothing else — comet and
+  plasma were written for `line(300)`, sdf3d for `lattice(10)` — so the
+  no-argument run, the first thing anyone types, showed three of five patterns
+  on geometry they were never designed against. An explicit `--map` still wins,
+  and a pattern outside the table keeps the old default.
 
 ### Changed
 
