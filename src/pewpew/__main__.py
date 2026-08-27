@@ -129,6 +129,40 @@ def _status_of(renderer: Renderer) -> Callable[[], str | None]:
     return status
 
 
+class _LoopControls:
+    """Bridges the preview's back-channel to the renderer's loop thread.
+
+    Validation happens on the caller's thread and only what passed is
+    queued, because `PacedLoop.call_soon` propagates a closure's exception
+    out of `run()` — a raising setter reached over a socket is a way to
+    stop the show from a browser (ADR-006 amendment, verified).
+    """
+
+    def __init__(self, renderer: Renderer, call_soon: Callable[[Callable[[], None]], None]) -> None:
+        self._renderer = renderer
+        self._call_soon = call_soon
+
+    def describe(self) -> list[dict]:
+        return self._renderer.params.describe()
+
+    def set(self, name: str, value: object) -> str | None:
+        reason = self._renderer.params.check(name, value)
+        if reason is not None:
+            return reason  # network-safe wording; `hint` names a file, so it stays here
+        self._call_soon(lambda: self._apply(name, float(value)))  # type: ignore[arg-type]
+        return None
+
+    def _apply(self, name: str, value: float) -> None:
+        """Runs on the loop thread, where `call_soon` drains before
+        `advance_to`, so no frame sees half a change. Must not raise: the
+        value passed `check` on another thread, but a reload could narrow
+        its range in between, and that must not be how the show ends."""
+        try:
+            self._renderer.set_param(name, value)
+        except ValueError:
+            logger.warning("dropped a live set of %r to %r: no longer in range", name, value)
+
+
 class _DeferredLog(logging.Handler):
     """Hold log records while a sink owns the terminal; replay on release.
 
@@ -228,8 +262,19 @@ def main(
         )
         sinks.append(ansi)
     if args.preview is not None:
+        # `loop` is assigned a few lines down and no client can connect until
+        # sink.start(), so binding it late here is safe and keeps the loop's
+        # construction order (it needs the drivers, which need the sinks).
+        controls = _LoopControls(renderer, lambda fn: loop.call_soon(fn))
         sinks.append(
-            PreviewSink(mapping, port=args.preview, status=status, now=now, sleep=sleep)
+            PreviewSink(
+                mapping,
+                port=args.preview,
+                status=status,
+                controls=controls,
+                now=now,
+                sleep=sleep,
+            )
         )
 
     drivers = [SinkDriver(s.send, name=type(s).__name__) for s in sinks]

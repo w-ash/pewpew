@@ -4,12 +4,13 @@
 
 **v0.2.x — Phase 1 host engine core** ([v0.2.x.md](v0.2.x.md)), sequenced
 into patches. v0.2.0 (render core + authoring contract), v0.2.1 (paced
-clock, ANSI + browser preview sinks, `python -m pewpew run`) and v0.2.2
-(typed params, enforced ranges, the param-liveness check) have landed.
-**Next up: v0.2.3 — live param controls on the preview page**, plus a
-per-pattern default `--map`; then v0.2.4 hot reload and user-file patterns,
-v0.2.5 DDP to stock WLED (hardware ordered 2026-08-22; unblocks and may jump
-the queue on arrival), v0.2.6 layer compositing.
+clock, ANSI + browser preview sinks, `python -m pewpew run`), v0.2.2 (typed
+params, enforced ranges, the param-liveness check) and v0.2.3 (live param
+sliders on the preview page, per-pattern default `--map`) have landed.
+**Next up: v0.2.4 — hot reload with state carry-over, plus running a pattern
+from a user's own file**; then v0.2.5 DDP to stock WLED (hardware ordered
+2026-08-22; unblocks and may jump the queue on arrival), v0.2.6 layer
+compositing.
 
 ## Also open
 

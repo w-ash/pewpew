@@ -58,6 +58,27 @@ class Sink(Protocol):
         ...
 
 
+@runtime_checkable
+class Controls(Protocol):
+    """The back-channel a sink offers a viewer: read the knobs, turn them.
+
+    Kept to two methods so a sink implementing it never imports `Renderer`
+    or `PacedLoop` — the runner supplies the object that knows about thread
+    discipline. `set` returns a refusal *reason* rather than raising because
+    it is called on a connection thread, and because that reason may cross
+    an unauthenticated socket: it must name the knob and the range and
+    never a source path (ADR-006 amendment; architecture §5 trust model).
+    """
+
+    def describe(self) -> list[dict]:
+        """Current declarations and values, in display order."""
+        ...
+
+    def set(self, name: str, value: object) -> str | None:
+        """Request a value. Returns None if accepted, else why it was not."""
+        ...
+
+
 def to_display_u8(frame: np.ndarray) -> np.ndarray:
     """Linear-light float frame -> display-ready `(N, 3)` uint8.
 

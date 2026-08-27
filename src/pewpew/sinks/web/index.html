@@ -7,17 +7,51 @@
 <style>
   html, body { margin: 0; height: 100%; background: #0b0b0e; color: #ddd;
                font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  body { display: flex; flex-direction: column; }
   #status { position: fixed; left: 0; right: 0; top: 0; padding: 6px 10px;
             background: #7f1d1d; color: #fff; display: none;
-            white-space: pre; overflow-x: auto; }
-  #meta { position: fixed; left: 10px; bottom: 8px; color: #666; }
-  canvas { display: block; width: 100vw; height: 100vh; }
+            white-space: pre; overflow-x: auto; z-index: 1; }
+  /* The canvas takes whatever the footer leaves; resize() reads its client
+     box, so no size is hard-coded here. */
+  canvas { display: block; flex: 1 1 auto; width: 100%; min-height: 0; }
+  /* Footer, in flow rather than fixed: the readout used to be pinned to the
+     viewport bottom, where the lever row now is, and overprinted it. */
+  #bar { flex: 0 0 auto; display: flex; align-items: center; gap: 1.4rem;
+         padding: 0.7rem 1rem; border-top: 1px solid #23232b; }
+  #meta { color: #666; white-space: nowrap; }
+  #levers { flex: 1 1 auto; display: flex; flex-wrap: wrap;
+            gap: 0.35rem 1.4rem; align-items: center; }
+  .lever { display: flex; align-items: center; gap: 0.55rem; font-size: 0.85em; }
+  .lever label { color: #888; }
+  .lever label span { color: #555; }
+  .lever output { color: #ddd; min-width: 5ch; text-align: right;
+                  font-variant-numeric: tabular-nums; }
+  .lever input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 110px; height: 3px;
+    background: #23232b; border-radius: 2px; cursor: pointer;
+  }
+  .lever input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: #ddd; border: none;
+  }
+  .lever input[type="range"]:active::-webkit-slider-thumb,
+  .lever input[type="range"]:focus-visible::-webkit-slider-thumb { background: #d99a2b; }
+  .lever input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%; background: #ddd; border: none;
+  }
+  #reset { margin-left: auto; padding: 0.25rem 0.7rem; font: inherit;
+           font-size: 0.85em; color: #888; background: none;
+           border: 1px solid #23232b; border-radius: 3px; cursor: pointer; }
+  #reset:hover { color: #ddd; }
 </style>
 </head>
 <body>
 <div id="status"></div>
 <canvas id="c"></canvas>
-<div id="meta">connecting…</div>
+<div id="bar">
+  <div id="meta">connecting…</div>
+  <div id="levers"></div>
+</div>
 <script>
 "use strict";
 // Colors arrive display-ready (gamma + quantize happen server-side, the
@@ -26,10 +60,28 @@ const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
 const metaEl = document.getElementById("meta");
+const leversEl = document.getElementById("levers");
 
 let layout = null;   // {px: Float32Array, py: Float32Array, n, radius}
 let hello = null;
 let last = null;     // latest frame bytes, redrawn on resize
+let socket = null;
+let engineError = null;     // the renderer's error, which outlives a refusal
+let refusalTimer = null;
+const levers = new Map();   // param name -> {input, out, spec, accepted}
+const dragging = new Set(); // names whose slider is under the pointer
+
+// The status bar carries two things: the renderer's error state, which
+// persists until the engine clears it, and a refusal, which is transient.
+// A refusal borrows the bar and hands it back rather than erasing an error
+// that is still true.
+function showStatus(refusal) {
+  clearTimeout(refusalTimer);
+  if (refusal) refusalTimer = setTimeout(showStatus, 4000);
+  const text = refusal || engineError || "";
+  statusEl.textContent = text;
+  statusEl.style.display = text ? "block" : "none";
+}
 
 function clear() {
   ctx.fillStyle = "#0b0b0e";
@@ -87,6 +139,55 @@ function makeLayout(h) {
   return { px, py, n, radius };
 }
 
+// One slider per declared Param. The engine sends the range and the step,
+// so a slider cannot reach a value the engine would refuse; `name` is the
+// caption and `label` is the unit that annotates it.
+function makeLevers(params) {
+  levers.clear();
+  dragging.clear();
+  leversEl.replaceChildren();
+  if (!params || !params.length) return;
+  for (const p of params) {
+    const el = document.createElement("span");
+    el.className = "lever";
+    el.innerHTML =
+      `<label for="lv-${p.name}">${p.name}${p.label ? ` <span>${p.label}</span>` : ""}</label>` +
+      `<input id="lv-${p.name}" type="range" min="${p.lo}" max="${p.hi}" step="${p.step}">` +
+      `<output></output>`;
+    const input = el.querySelector("input"), out = el.querySelector("output");
+    const lever = { input, out, spec: p, accepted: p.value };
+    levers.set(p.name, lever);
+    show(lever, p.value);
+    // Only sliders the user is actually holding are exempt from echoes;
+    // everything else follows whichever tab moved last.
+    input.addEventListener("pointerdown", () => dragging.add(p.name));
+    for (const ev of ["pointerup", "pointercancel", "blur"])
+      input.addEventListener(ev, () => dragging.delete(p.name));
+    input.addEventListener("input", () => {
+      out.textContent = (+input.value).toFixed(p.decimals);
+      if (socket && socket.readyState === WebSocket.OPEN)
+        socket.send(JSON.stringify({ type: "set", name: p.name, value: +input.value }));
+    });
+    leversEl.appendChild(el);
+  }
+  const reset = document.createElement("button");
+  reset.id = "reset";
+  reset.textContent = "reset";
+  reset.addEventListener("click", () => {
+    for (const [name, lv] of levers) {
+      show(lv, lv.spec.default);
+      if (socket && socket.readyState === WebSocket.OPEN)
+        socket.send(JSON.stringify({ type: "set", name, value: lv.spec.default }));
+    }
+  });
+  leversEl.appendChild(reset);
+}
+
+function show(lever, value) {
+  lever.input.value = value;
+  lever.out.textContent = (+value).toFixed(lever.spec.decimals);
+}
+
 function draw(bytes) {
   last = bytes;
   if (!layout) return;
@@ -110,6 +211,7 @@ function draw(bytes) {
 
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/`);
+  socket = ws;
   ws.binaryType = "arraybuffer";
   ws.onmessage = (ev) => {
     if (typeof ev.data === "string") {
@@ -118,10 +220,22 @@ function connect() {
       // one: redrawing it against the new layout reads past the buffer and
       // yields rgb(undefined,...), an invalid fillStyle that silently
       // leaves dots at their previous color.
-      if (msg.type === "hello") { hello = msg; last = null; resize(); }
-      else if (msg.type === "status") {
-        statusEl.textContent = msg.error || "";
-        statusEl.style.display = msg.error ? "block" : "none";
+      if (msg.type === "hello") { hello = msg; last = null; makeLevers(msg.params); resize(); }
+      else if (msg.type === "status") { engineError = msg.error || null; showStatus(); }
+      else if (msg.type === "params") {
+        // What the engine actually holds. A slider under the pointer keeps
+        // its position — yanking it mid-drag would fight the user — but its
+        // accepted value still tracks, so a refusal snaps back correctly.
+        for (const [name, value] of Object.entries(msg.values)) {
+          const lever = levers.get(name);
+          if (!lever) continue;
+          lever.accepted = value;
+          if (!dragging.has(name)) show(lever, value);
+        }
+      } else if (msg.type === "refused") {
+        const lever = levers.get(msg.name);
+        if (lever) show(lever, lever.accepted);   // back to what the engine holds
+        showStatus(msg.reason);
       }
     } else {
       draw(new Uint8Array(ev.data));
@@ -129,8 +243,8 @@ function connect() {
   };
   ws.onclose = () => {
     metaEl.textContent = "disconnected — retrying…";
-    statusEl.style.display = "none";         // the error died with its engine
-    statusEl.textContent = "";
+    engineError = null;                      // the error died with its engine
+    showStatus();
     setTimeout(connect, 1000);               // engine restarts are routine
   };
 }

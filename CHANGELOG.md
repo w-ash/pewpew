@@ -123,6 +123,16 @@ series (batch mode).
   no-argument run, the first thing anyone types, showed three of five patterns
   on geometry they were never designed against. An explicit `--map` still wins,
   and a pattern outside the table keeps the old default.
+- Add live parameter sliders to the preview page: one per declared `Param`,
+  bounded by its range and stepped by the engine's own quantization, driving
+  the running pattern over the existing websocket. The retired playground's
+  sliders drove JS reimplementations, so what a knob showed was not what
+  rendered — these drive the real engine. Every open tab follows whichever
+  one moved last, and a refused value snaps back with the reason.
+- Add the live-set half of the param-liveness check: each knob is turned
+  mid-sequence and the frames after it must diverge. The bind-time check
+  cannot see a knob that only takes effect at bind — a pattern precomputing
+  from one in `setup` passes that bar at rms 0.37 and fails this one at 0.
 
 ### Changed
 
@@ -137,6 +147,16 @@ series (batch mode).
 - Share one canonical (pattern, fixture) table from `pewpew.patterns`, which
   the golden, port-equivalence and liveness tests had each been re-deriving
   from the study runner by hand.
+- Keep a refusal free of source paths when it crosses the preview socket.
+  `ParamSet.check` supplies the reason (the knob and its range) and `hint`,
+  which names the file to widen, stays on the command line — the preview port
+  is unauthenticated by design and must not serve the layout of the disk.
+- Stop the preview server thread from raising when `stop()` closes the
+  listener before `serve_forever` has finished starting. Harmless but noisy,
+  and it surfaced as an intermittent unhandled thread exception once the
+  socket tests grew.
+- Move the preview page's readout out of a viewport-fixed position, where the
+  new lever row overprinted it, into the footer row itself.
 - Re-verify sections 1–2 and the quick-start cart of the hardware buying list
   against live listings, and add a vendor policy naming which suppliers to buy
   from. The N32R8V devkit and the TSL257-LF photodiode are obsolete, DigiKey's

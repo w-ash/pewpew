@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 
 from harness.goldens import LIVENESS_RMS, rms
-from pewpew import declared_params, render_sequence
+from pewpew import Renderer, declared_params, render_sequence
 from pewpew.patterns import STUDY_CASES
 
 SEED = 42
@@ -86,4 +86,47 @@ def test_param_changes_the_picture(
         f"range ({param.lo} -> {param.hi}) changed the {N_FRAMES}-frame sequence by "
         f"rms {observed:.3g}, under the {LIVENESS_RMS} bar. Either nothing reads it "
         f"in a way that reaches a pixel, or the range is too narrow to matter."
+    )
+
+
+def _sequence(renderer: Renderer, frames: int) -> np.ndarray:
+    """The next `frames` frames off a live renderer, on the same slot schedule
+    `render_sequence` uses — `t += 1/fps` by repeated addition, continued from
+    wherever the renderer already is so successive calls form one run."""
+    t = renderer.t
+    out = []
+    for _ in range(frames):
+        t += 1.0 / FPS
+        out.append(renderer.advance_to(t).copy())
+    return np.stack(out)
+
+
+@pytest.mark.parametrize("pattern_cls, mapping, name", _cases())
+def test_param_set_while_running_changes_the_picture(
+    pattern_cls: type, mapping: np.ndarray, name: str
+) -> None:
+    """The same bar, for a knob turned mid-show rather than set at bind.
+
+    ADR-006 left this open: "a live set only reaches a pattern that reads the
+    knob each frame — one precomputing from a knob in `setup` would ignore it
+    until the next bind. Not fixed here; a live-set liveness check is the
+    answer when a pattern makes it real." Live sets ship with the preview
+    page's sliders, so this is now buildable, and it catches the failure the
+    bind-time check above cannot see: a slider that moves and shows nothing.
+    """
+    param = declared_params(pattern_cls)[name]
+    half = N_FRAMES // 2
+
+    held = Renderer(pattern_cls(), mapping, {name: param.lo}, seed=SEED)
+    turned = Renderer(pattern_cls(), mapping, {name: param.lo}, seed=SEED)
+    before = (_sequence(held, half), _sequence(turned, half))
+    assert np.array_equal(*before), "the two runs must be identical until the knob moves"
+
+    turned.set_param(name, param.hi)
+    observed = rms(_sequence(held, half), _sequence(turned, half))
+    assert observed > LIVENESS_RMS, (
+        f"{pattern_cls.name}.{name} does not respond to a live set. Moving it from "
+        f"{param.lo} to {param.hi} after {half} frames changed the next {half} by "
+        f"rms {observed:.3g}, under the {LIVENESS_RMS} bar. A knob that only takes "
+        f"effect at bind cannot be driven from a control surface."
     )

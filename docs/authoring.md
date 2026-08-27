@@ -346,9 +346,18 @@ neither review nor golden frames noticed. If your knob fails it, either
 nothing reads it in a way that reaches a pixel, or the range is too narrow to
 matter — both are worth knowing.
 
+**Your knobs become sliders.** `python -m pewpew run <pattern> --preview`
+serves one slider per declared `Param`, bounded by `lo`/`hi` and stepped by
+the quantization the engine derives from them. They drive the real engine,
+so what a slider shows is what is being rendered; an out-of-range value is
+refused on the socket the same way it is on the command line, and every open
+tab follows whichever one moved last.
+
 One limit to keep in mind: a value set while the show runs only reaches a
 pattern that reads it every frame. Precompute a table from `self.scale` in
-`setup` and a live change will not be seen until the next bind.
+`setup` and a live change will not be seen until the next bind — which
+`test_param_liveness.py` now also checks, by turning each knob mid-sequence
+and requiring the frames after it to diverge.
 
 ## Reference
 
