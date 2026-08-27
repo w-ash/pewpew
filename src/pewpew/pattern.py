@@ -18,16 +18,18 @@ amendment 2026-07-27). Purity is what golden-frame testing and determinism
 rest on (architecture §8).
 
 Supersedes `bench/authoring/surface.py`, whose arithmetic this preserves
-bit-exactly. Of that prototype's two self-declared hacks, the module-global
-`time()` is resolved (frame-scoped in `kit.py`); `Param` still materializes
-to a plain float here, standing in for the typed parameter tree until
-ADR-006 lands.
+bit-exactly. Both of that prototype's self-declared hacks are resolved: the
+module-global `time()` is frame-scoped in `kit.py`, and `Param` declarations
+now outlive bind as a `ParamSet` (ADR-006 amendment 2026-08-22) rather than
+collapsing to floats that nothing could read back.
 """
 
 from __future__ import annotations
 
+import inspect
+import math
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 import numpy as np
 
@@ -40,20 +42,284 @@ import numpy as np
 _RESERVED_BUFFER_NAMES = frozenset({"n", "seed", "rng", "name", "pixels"})
 
 
-# ---- typed params (ADR-006 semantics, still prototype-minimal) --------------
+# ---- typed params (ADR-006, amended 2026-08-22) -----------------------------
+
+# How far outside its range a value may land and still be read as float noise
+# rather than a mistake, as a fraction of the range's own width.
+_SNAP_TOL = 1e-9
 
 
 class Param:
     """One-line typed knob: Param(default, lo, hi, label).
 
-    At bind the instance attribute becomes plain float(default), so pattern
-    code reads `self.speed` as a number. The typed tree that drives UI/OSC/
-    MIDI/modulation off these declarations is ADR-006's job; the declaration
-    shape here is what it will read.
+    `lo`/`hi` are a contract, not decoration: a value outside them is refused,
+    so a control surface can trust that a knob's declared endpoints bound every
+    value the engine will ever render. Widening the range is a one-line edit to
+    the declaration, which is the honest way to reach further — it moves the
+    slider's endpoints too.
+
+    `label` is the *unit*, not the name ("Rev/s", "Sparks/s per column"): a UI
+    captions from `name` and annotates with `label`.
+
+    At bind the instance attribute becomes a plain float, so pattern code reads
+    `self.speed` as a number with no indirection on the frame path. The
+    declarations stay readable off the class via `declared_params`, which is
+    what `ParamSet` and any control surface read.
     """
 
     def __init__(self, default: float, lo: float = 0.0, hi: float = 1.0, label: str = ""):
+        default, lo, hi = float(default), float(lo), float(hi)
+        if not (math.isfinite(lo) and math.isfinite(hi)):
+            raise ValueError(f"Param range must be finite, got {lo}..{hi}")
+        if lo >= hi:
+            raise ValueError(
+                f"Param range must have lo < hi, got {lo}..{hi} — "
+                "a knob that cannot move is dead by construction"
+            )
+        if not lo <= default <= hi:
+            raise ValueError(f"Param default {default} is outside its own range {lo}..{hi}")
         self.default, self.lo, self.hi, self.label = default, lo, hi, label
+        # Filled by __set_name__, which fires only for a Param assigned in a
+        # class body. One set onto a class afterwards never gets there, so
+        # every reader tolerates the blank.
+        self.name: str = ""
+        self.owner: type | None = None
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        self.name, self.owner = name, owner
+
+    def __repr__(self) -> str:
+        return f"Param({self.default}, {self.lo}, {self.hi}, {self.label!r})"
+
+    @property
+    def step(self) -> float:
+        """Slider granularity: ~200 divisions of the range, snapped to a 1/2/5
+        decade so the steps are round numbers.
+
+        Derived rather than declared, so ADR-006's one-line declaration form
+        stays intact and every control surface quantizes identically — the
+        retired playground hand-tuned this per knob and the browser was the
+        only thing that knew.
+        """
+        raw = (self.hi - self.lo) / 200.0
+        decade = 10.0 ** math.floor(math.log10(raw))
+        for mult in (1.0, 2.0, 5.0):
+            if raw <= mult * decade:
+                return mult * decade
+        return 10.0 * decade
+
+    @property
+    def decimals(self) -> int:
+        """Digits after the point for a value readout, derived from `step`."""
+        return max(0, -math.floor(math.log10(self.step)))
+
+
+def declared_params(cls: type) -> dict[str, Param]:
+    """Every `Param` declared on `cls` or inherited, in display order.
+
+    Two orderings, deliberately different. *Which* declaration supplies a name
+    is most-derived-wins, so a subclass can retune a base's knob. *Iteration*
+    is base-first, so a subclass adding knobs appends to a stable prefix rather
+    than reshuffling the row above it. That order is what a control surface
+    lays sliders out in, so it is a contract with a test on it.
+    """
+    found: dict[str, Param] = {}
+    for base in reversed(cls.__mro__):
+        for name, value in vars(base).items():
+            if isinstance(value, Param):
+                found[name] = value  # dict keeps the first insertion's position
+    return found
+
+
+class ParamSet:
+    """The declared knobs of one pattern class, plus their current values.
+
+    Not a tree: no paths, no nesting, no mount points. ADR-006's canonical
+    state tree is Phase 3, and this deliberately does not pre-spend its
+    vocabulary. What it owns is the pair a control surface needs — what knobs
+    exist (`describe`) and what they read right now (`snapshot`) — behind one
+    validated write path.
+
+    Threading. `check`, `snapshot` and `describe` are safe from any thread: the
+    key set is fixed at construction, so no rehash ever occurs and a concurrent
+    reader sees a consistent set of names with possibly one-tick-stale values.
+    `set` and `apply` mutate and belong to the loop thread — reach them through
+    `PacedLoop.call_soon`. Validate with `check` on the *calling* thread first:
+    an exception from a queued closure propagates out of `PacedLoop.run()`
+    (pace.py), so a raising setter reached over a socket is a way to kill the
+    show from a browser.
+    """
+
+    def __init__(self, pattern_cls: type, overrides: Mapping[str, float] | None = None) -> None:
+        self.declarations = declared_params(pattern_cls)
+        self._pattern = getattr(pattern_cls, "name", None) or pattern_cls.__name__
+        self._values: dict[str, float] = {
+            name: param.default for name, param in self.declarations.items()
+        }
+        if overrides:
+            self.set_many(overrides)
+
+    # ---- reads (any thread) --------------------------------------------
+
+    def __getitem__(self, name: str) -> float:
+        return self._values[name]
+
+    def __contains__(self, name: object) -> bool:
+        return name in self._values
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def __repr__(self) -> str:
+        return f"ParamSet({self._pattern}, {self._values})"
+
+    def snapshot(self) -> dict[str, float]:
+        """Current values; round-trips back in as `overrides`.
+
+        That round-trip is how hot reload carries values across a swap, so it
+        has a test rather than being an accident of both being plain floats.
+        """
+        return dict(self._values)
+
+    def describe(self) -> list[dict[str, Any]]:
+        """JSON-ready declarations in display order — the control-surface payload.
+
+        A list, not a dict, so display order survives transport. Built here and
+        not in a sink, so a field added to `Param` reaches every surface at once
+        instead of stopping at whichever one remembered to marshal it.
+        """
+        return [
+            {
+                "name": name,
+                "label": param.label,
+                "default": param.default,
+                "lo": param.lo,
+                "hi": param.hi,
+                "step": param.step,
+                "decimals": param.decimals,
+                "value": self._values[name],
+            }
+            for name, param in self.declarations.items()
+        ]
+
+    def check(self, name: str, value: Any) -> str | None:
+        """Why `value` would be refused for `name`, or None if it is acceptable.
+
+        Never raises, and is the single source of every refusal wording, so a
+        socket's synchronous reply and `set`'s exception can never describe the
+        same rejection differently.
+
+        Carries no file path: that is `hint`, kept separate so a refusal can be
+        sent to whoever can reach the preview port without serving them the
+        layout of the disk.
+        """
+        param = self.declarations.get(name)
+        if param is None:
+            known = ", ".join(self.declarations) or "(none)"
+            return f"{self._pattern} has no Param named {name!r}; declared params: {known}"
+        if isinstance(value, bool):
+            # float(True) is 1.0, so a JSON `true` would otherwise land as a
+            # legal-looking value nobody chose.
+            return f"{self._pattern}.{name} takes a number, got the bool {value!r}"
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return f"{self._pattern}.{name} takes a number, got {value!r}"
+        if not math.isfinite(number):
+            # json.loads accepts NaN and Infinity literals by default, so both
+            # arrive over the wire. Caught here for its own message: every
+            # comparison with NaN is False, so the range check below would
+            # report it as out of range, which reads as nonsense.
+            return f"{self._pattern}.{name} must be a finite number, got {number}"
+        if _snap(param, number) is None:
+            return f"{self._pattern}.{name} must be within {param.lo}..{param.hi}, got {number}"
+        return None
+
+    def hint(self, name: str) -> str:
+        """Where to edit the declaration, or "" when there is nothing to point at.
+
+        Deliberately not part of `check`: the CLI wants this line and a browser
+        must not receive it.
+        """
+        param = self.declarations.get(name)
+        if param is None or param.owner is None:
+            return ""
+        try:
+            where = inspect.getsourcefile(param.owner) or param.owner.__name__
+        except TypeError:  # a class with no source (built dynamically, REPL)
+            where = param.owner.__name__
+        return f"widen the {name!r} Param in {where}, or pick a value in range"
+
+    # ---- writes (loop thread) -------------------------------------------
+
+    def set(self, name: str, value: Any) -> bool:
+        """Set one knob; returns whether the value actually changed.
+
+        Raises ValueError if refused — that is the CLI and authoring contract.
+        A caller on another thread should `check` first rather than catch this;
+        see the class docstring for why that is not a style preference.
+        """
+        reason = self.check(name, value)
+        if reason is not None:
+            raise ValueError(self._refusal(name, reason))
+        number = _snap(self.declarations[name], float(value))
+        assert number is not None  # check() already proved it lands in range
+        changed = self._values[name] != number
+        self._values[name] = number
+        return changed
+
+    def set_many(self, values: Mapping[str, float]) -> list[str]:
+        """Set several knobs atomically; returns the names that changed.
+
+        Validate all, then apply, so a partial write can never leave a pattern
+        running a mix of old and new values. Hot reload's carry-over and a UI's
+        "reset all" are both this, and without it each would invent its own
+        partial-failure semantics.
+        """
+        refusals = [
+            self._refusal(name, reason)
+            for name, value in values.items()
+            if (reason := self.check(name, value)) is not None
+        ]
+        if refusals:
+            raise ValueError("; ".join(refusals))
+        return [name for name, value in values.items() if self.set(name, value)]
+
+    def apply(self, pattern: Pattern) -> None:
+        """Materialize current values as plain floats on the pattern instance.
+
+        Runs once per bind, before `setup`, so pattern code reads `self.speed`
+        as a number. The declaration wins over anything `__init__` assigned to
+        the same name.
+        """
+        for name, value in self._values.items():
+            setattr(pattern, name, value)
+
+    def _refusal(self, name: str, reason: str) -> str:
+        hint = self.hint(name)
+        return f"{reason}. {hint}" if hint else reason
+
+
+def _snap(param: Param, value: float) -> float | None:
+    """`value` moved onto the declared range, or None if it is truly outside it.
+
+    Only float noise moves. A slider stepping `lo + i*step` can land an ulp
+    above `hi`, and refusing a knob dragged to its own maximum would be absurd.
+    Anything further out stays refused — this is a snap, not a clamp, and the
+    difference is the whole point of the range decision: a clamp would render
+    one value while the surface displayed another.
+    """
+    if param.lo <= value <= param.hi:
+        return value
+    tol = (param.hi - param.lo) * _SNAP_TOL
+    if param.lo - tol <= value < param.lo:
+        return param.lo
+    if param.hi < value <= param.hi + tol:
+        return param.hi
+    return None
 
 
 # ---- the buffer registry (ADR-005 amendment 2026-07-27) ---------------------
@@ -192,7 +458,7 @@ class Pattern:
         z: np.ndarray,
         index: np.ndarray,
         seed: int = 0,
-        params: dict[str, float] | None = None,
+        params: ParamSet | Mapping[str, float] | None = None,
     ) -> None:
         """Engine-side binding of this instance to one mapping.
 
@@ -201,37 +467,23 @@ class Pattern:
         `setup` with buffer declaration enabled. Re-binding re-runs all of it:
         buffers are reallocated and re-zeroed, the RNG is reseeded from the
         same seed, and `setup` runs again.
+
+        `params` is the renderer's `ParamSet`; a plain mapping (or nothing) is
+        accepted so a pattern can be bound directly in a test.
         """
         self.n = int(n)
         self.seed = seed
         self.rng = np.random.default_rng(seed)
 
-        # Param materialization, verbatim from surface.py::Pattern._setup: MRO
-        # order means the most-derived declaration wins, and the isinstance
-        # guard is what makes that true (a base's Param sees a float already).
-        declared: set[str] = set()
-        for cls in type(self).__mro__:
-            for k, val in vars(cls).items():
-                if not isinstance(val, Param):
-                    continue
-                declared.add(k)
-                if not isinstance(getattr(self, k), float):
-                    setattr(self, k, float(val.default))
-        for k, v in (params or {}).items():
-            # An override that lands on an undeclared name is a dead knob: it
-            # sets an attribute nothing reads, and nothing complains. That is
-            # precisely the failure mode the sdf3d dead-`spin` addendum
-            # records (bench/results/authoring-2026-07-16.md) — a parameter
-            # that appears to work and provably does nothing. Refuse it here
-            # rather than let it reach a stage where only a liveness check
-            # could catch it.
-            if k not in declared:
-                known = ", ".join(sorted(declared)) or "(none)"
-                raise ValueError(
-                    f"{type(self).__name__} has no Param named {k!r}; "
-                    f"declared params: {known}"
-                )
-            setattr(self, k, float(v))
+        # The ParamSet owns declaration, validation and current values; this
+        # only materializes them. An override naming an undeclared knob, or
+        # landing outside a declared range, was already refused when the set
+        # was built — both are dead knobs, and the sdf3d `spin` addendum
+        # (bench/results/authoring-2026-07-16.md) is what a dead knob costs
+        # when nothing refuses it.
+        if not isinstance(params, ParamSet):
+            params = ParamSet(type(self), params)
+        params.apply(self)
 
         self._buffers = {}
         self._declare("pixels", (self.n, 3), np.float32, 0.0)

@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from harness.clock import FakeClock
-from harness.goldens import assert_matches_golden, rms
+from harness.goldens import LIVENESS_RMS, assert_matches_golden, rms
 from harness.pattern import line_mapping
 from harness.patterns.solid_pulse import SolidPulse
 
@@ -52,4 +52,6 @@ def test_seed_changes_output() -> None:
     mapping = line_mapping(N_PIXELS)
     a = pattern.render(0.5, mapping, {}, seed=1)
     b = pattern.render(0.5, mapping, {}, seed=2)
-    assert rms(a, b) > 1e-3
+    # Same bar tests/test_param_liveness.py holds parameters to: an input that
+    # does not change the picture is not an input.
+    assert rms(a, b) > LIVENESS_RMS

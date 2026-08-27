@@ -2,28 +2,24 @@
 
 ## Current
 
-**v0.1.x — Phase 0 de-risk** (build plan: `research/synthesis/architecture.md` §11).
-Settle the riskiest bets — NumPy throughput (R-9/ADR-011), the vectorized
-authoring surface (ADR-005), and host pacing (ADR-010) — and stand up the bench
-core (ADR-018) before any engine code hardens. All three benchmarks have
-desktop verdicts on Apple M5 Pro: throughput 52× the R-9 target (2026-07-15),
-authoring GO conditional on idiom-kit additions (2026-07-16), pacing PASS with
-p99 cadence error 3.78 ms (2026-07-27). Each wants a rerun on the deployed
-host; the bench core is unbought.
+**v0.2.x — Phase 1 host engine core** ([v0.2.x.md](v0.2.x.md)), sequenced
+into patches. v0.2.0 (render core + authoring contract), v0.2.1 (paced
+clock, ANSI + browser preview sinks, `python -m pewpew run`) and v0.2.2
+(typed params, enforced ranges, the param-liveness check) have landed.
+**Next up: v0.2.3 — live param controls on the preview page**, plus a
+per-pattern default `--map`; then v0.2.4 hot reload and user-file patterns,
+v0.2.5 DDP to stock WLED (hardware ordered 2026-08-22; unblocks and may jump
+the queue on arrival), v0.2.6 layer compositing.
 
-## Next
+## Also open
 
-**v0.2.x — Phase 1 host engine core**, in progress ([v0.2.x.md](v0.2.x.md)).
-All three Phase-0 gates now have desktop verdicts (item 2 GO, item 1 PASS at
-52×, item 13 PASS) — each wants a rerun on whichever host gets deployed, but
-none blocks the work. The Authoring-surface epic is complete as of 2026-07-27:
-the render core, idiom kit, authoring docs, and the stumble-#17 contract
-decision all landed, so item 2's GO is no longer conditional. The paced clock
-(ADR-010) and the sink story (Sink protocol, ANSI + browser preview,
-`python -m pewpew run`, playground retirement, ADR-020) both landed
-2026-08-20. Remaining: hot reload, DDP, param-liveness. Only the DDP-sink
-story is hard blocked, on a receiver + strip. Later phases live in
-`unscheduled.md` until promoted.
+**v0.1.x — Phase 0 long tail** ([v0.1.x.md](v0.1.x.md)). The three de-risk
+gates all passed on desktop (throughput 52×, authoring GO, pacing PASS) and
+Phase 1 is underway on their strength. Remaining: the Pi-5/deployed-host
+reruns (hardware-dependent), the unbought ADR-018 bench core, and the
+research-tree-debt stories (archive captures, snapshot refreshes, source
+pins, freshness follow-ups). Later phases live in `unscheduled.md` until
+promoted.
 
 ## Version matrix
 

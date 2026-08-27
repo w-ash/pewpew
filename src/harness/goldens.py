@@ -18,6 +18,11 @@ import numpy as np
 # the color pipeline lands (ADR-001).
 DEFAULT_RMS_TOLERANCE = 1e-5
 
+# The other side of the same scale: the bar an input must clear to count as
+# having changed the picture at all. Used wherever a test asserts that wiggling
+# something (a seed, a parameter) is not a no-op.
+LIVENESS_RMS = 1e-3
+
 
 def save_golden(path: Path, frames: np.ndarray) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)

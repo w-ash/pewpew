@@ -7,10 +7,35 @@ prototype's arithmetic bit-exactly; see tests/test_port_equivalence.py.
 
 from __future__ import annotations
 
+import numpy as np
+
+from pewpew.mapping import grid, lattice, line
 from pewpew.patterns.comet import Comet
 from pewpew.patterns.fire import Fire
 from pewpew.patterns.geq import Geq
 from pewpew.patterns.plasma import Plasma
 from pewpew.patterns.sdf3d import Sdf3d
 
-__all__ = ["Plasma", "Comet", "Geq", "Fire", "Sdf3d"]
+# Each pattern paired with the fixture it was written against, from the
+# authoring study (bench/bench_authoring.py::STUDY). One home for a triple that
+# was hand-copied into three test files, each re-deriving it from the study
+# runner. Frame counts stay with the callers — those legitimately differ.
+#
+# Read-only because the table is shared: the engine treats a mapping as
+# immutable (render.py locks its column views for the same reason), and a
+# module-level fixture that one test could scribble on would leak into every
+# other.
+def _frozen(mapping: np.ndarray) -> np.ndarray:
+    mapping.setflags(write=False)
+    return mapping
+
+
+STUDY_CASES: tuple[tuple[type, np.ndarray], ...] = (
+    (Plasma, _frozen(line(300))),
+    (Comet, _frozen(line(300))),
+    (Geq, _frozen(grid(16, 16))),
+    (Fire, _frozen(grid(16, 32))),
+    (Sdf3d, _frozen(lattice(10))),
+)
+
+__all__ = ["Plasma", "Comet", "Geq", "Fire", "Sdf3d", "STUDY_CASES"]

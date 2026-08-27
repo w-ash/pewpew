@@ -35,7 +35,7 @@ from pewpew.features import FakeFeatures, FeatureFrame
 from pewpew.kit import TWO_PI, bins, fade, hash01, hsv, sample2d, square, time, triangle, wave
 from pewpew.mapping import grid, lattice, line
 from pewpew.pace import PacedLoop, PaceStats, SinkDriver
-from pewpew.pattern import Param, Pattern
+from pewpew.pattern import Param, ParamSet, Pattern, declared_params
 from pewpew.render import PatternError, Renderer, render_sequence
 from pewpew.sinks import AnsiSink, PreviewSink, Sink
 
@@ -43,6 +43,8 @@ __all__ = [
     # authoring contract
     "Pattern",
     "Param",
+    "ParamSet",
+    "declared_params",
     # idiom kit
     "TWO_PI",
     "time",

@@ -96,9 +96,33 @@ series (batch mode).
 - Add the `python -m pewpew run <pattern>` entry point wiring renderer,
   paced loop, and driver-wrapped sinks: `--map line:64|grid:16x16|lattice:8`,
   `--ansi`, `--preview [PORT]`, `--param k=v`, `--frames N`.
+- Make typed params real (ADR-006 amendment): `Param` declarations now
+  outlive bind as a `ParamSet` that reports what knobs a pattern has, their
+  ranges, units and current values. Declared `lo`/`hi` are enforced rather
+  than decorative — an out-of-range value is refused with the range and the
+  file to widen, never clamped — and validation (`check`) is separable from
+  mutation (`set`) so a control surface can reject a bad value on its own
+  thread instead of killing the render loop.
+- Add the param-liveness check (`tests/test_param_liveness.py`): every
+  declared knob is moved across its full range and must change the rendered
+  sequence. Catches the class of bug that shipped `sdf3d`'s `spin`, a
+  parameter that was a mathematical no-op nothing caught — it now fails at
+  rms 2.65e-08 against a 1e-3 bar, and is carried as a strict `xfail` so the
+  exemption cannot outlive the bug.
 
 ### Changed
 
+- Refuse pattern parameter values outside their declared range. Previously
+  `lo`/`hi` were read by nothing and `{"speed": 1e9}` bound silently, so a
+  control surface could never trust that a knob's endpoints bounded what the
+  engine rendered.
+- Let a `Param` declaration win over an `__init__` assignment to the same
+  name. The prototype's materialization loop skipped any attribute already
+  holding a float, so a pattern could shadow its own declared default and no
+  surface would know.
+- Share one canonical (pattern, fixture) table from `pewpew.patterns`, which
+  the golden, port-equivalence and liveness tests had each been re-deriving
+  from the study runner by hand.
 - Accept ADR-005 (pattern authoring model) — the Phase-0 item-2 study
   confirmed the vectorized-authoring bet, conditional on idiom-kit additions.
 - Pin every ADR-cited code source to the commit that was actually read, so

@@ -18,8 +18,8 @@ import numpy as np
 import pytest
 
 from harness.goldens import assert_matches_golden, rms
-from pewpew import grid, lattice, line, render_sequence
-from pewpew.patterns import Comet, Fire, Geq, Plasma, Sdf3d
+from pewpew import render_sequence
+from pewpew.patterns import STUDY_CASES
 
 GOLDENS = Path(__file__).parent / "goldens"
 
@@ -27,13 +27,9 @@ SEED = 42
 FPS = 60.0
 N_FRAMES = 30
 
-CASES = [
-    pytest.param(Plasma, line(300), id="plasma"),
-    pytest.param(Comet, line(300), id="comet"),
-    pytest.param(Geq, grid(16, 16), id="geq"),
-    pytest.param(Fire, grid(16, 32), id="fire"),
-    pytest.param(Sdf3d, lattice(10), id="sdf3d"),
-]
+# Each pattern on the fixture it was written for; the frame count above is
+# this file's own (the study ran 120).
+CASES = [pytest.param(cls, mapping, id=cls.name) for cls, mapping in STUDY_CASES]
 
 
 def _render(pattern_cls, mapping: np.ndarray) -> np.ndarray:

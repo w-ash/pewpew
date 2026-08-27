@@ -299,6 +299,57 @@ lit = spark > 0.995
 If you write a hash or threshold comparison by hand instead, cast to
 `float64` before the comparison, not after.
 
+## 7. Params are a contract, not a suggestion
+
+Declare a knob in one line, anywhere in the class body:
+
+```python
+class Plasma(Pattern):
+    name = "plasma"
+    speed = Param(0.5, 0.0, 2.0, "Speed")     # default, lo, hi, label
+    scale = Param(4.0, 1.0, 10.0, "Scale")
+```
+
+At bind the engine writes plain floats onto the instance, so `self.speed`
+reads as a number with no indirection on the frame path. The declaration
+itself survives, which is what lets the runner, the preview page, and the
+liveness check all ask a pattern what knobs it has.
+
+**`lo` and `hi` are enforced.** A value outside them is refused, on the
+command line and everywhere else:
+
+```
+$ python -m pewpew run plasma --param speed=5
+plasma.speed must be within 0.0..2.0, got 5.0. widen the 'speed' Param in
+src/pewpew/patterns/plasma.py, or pick a value in range
+```
+
+Widening the declaration is the intended way to go further, and it is a
+better answer than it looks: the range is what a slider's endpoints are
+built from, so widening it moves the slider too. The engine does not clamp,
+because a clamp renders one value while every surface displays another —
+which is the dead-knob problem this contract exists to prevent.
+
+**`label` is the unit, not the name.** `"Rev/s"`, `"Sparks/s per column"`.
+The attribute name is what a control surface captions with; the label is
+what it annotates with. Write it as a unit and it stays useful.
+
+**The declaration wins over `__init__`.** Assigning `self.speed` in
+`__init__` does not change the knob's starting value — the engine overwrites
+it at bind. Set the value you want as the `Param` default.
+
+**A knob that changes nothing fails the build.** `tests/test_param_liveness.py`
+moves every declared param from `lo` to `hi` and requires the rendered
+sequence to change. It exists because `sdf3d`'s `spin` was a mathematical
+no-op that shipped: the pattern animated convincingly from other motion, and
+neither review nor golden frames noticed. If your knob fails it, either
+nothing reads it in a way that reaches a pixel, or the range is too narrow to
+matter — both are worth knowing.
+
+One limit to keep in mind: a value set while the show runs only reaches a
+pattern that reads it every frame. Precompute a table from `self.scale` in
+`setup` and a live change will not be seen until the next bind.
+
 ## Reference
 
 | Helper | Signature | What it's for |
@@ -313,6 +364,7 @@ If you write a hash or threshold comparison by hand instead, cast to
 | `sample2d(field, x, y)` | `sample2d(field, x, y) -> array` | nearest-cell lookup into an internal field (§1) |
 | `hash01(x, seed, salt)` | `hash01(x, seed, salt) -> array` | stable per-pixel pseudo-random value, float64 (§6) |
 | `self.buffer(name, shape, dtype=np.float32, fill=0.0)` | called in `setup` only | declare engine-managed persistent state (§1, §2) |
+| `Param(default, lo, hi, label)` | class attribute | declare a knob; `lo`/`hi` are enforced, `label` is the unit (§7) |
 
 Every example above runs against the real engine (`src/pewpew/`), not the
 frozen `bench/authoring/` prototype — verify a new API against the source

@@ -32,7 +32,7 @@ import numpy as np
 
 from pewpew import kit
 from pewpew.features import FakeFeatures
-from pewpew.pattern import Pattern
+from pewpew.pattern import ParamSet, Pattern
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,12 @@ class Renderer:
                 "pass Cls() here, or use render_sequence(Cls, ...)"
             )
         self.pattern = pattern
-        self.params = dict(params or {})
+        # Built once here and never replaced, so an out-of-range or undeclared
+        # `--param` is refused before the first frame, exactly as it was when
+        # `_bind` owned this. Identity is a contract: a control surface holds a
+        # reference to this set across rebinds, and swapping the object would
+        # leave that surface driving a set nothing reads.
+        self._params = ParamSet(type(pattern), params)
         self.seed = seed
         # Until the ADR-009 feature bus exists, an unspecified feature source
         # is the seeded fake — deterministic, and seeded from the same seed so
@@ -109,6 +114,39 @@ class Renderer:
     @property
     def n(self) -> int:
         return self._n
+
+    @property
+    def params(self) -> ParamSet:
+        """The pattern's declared knobs and their current values.
+
+        The same object for this renderer's whole life, `rebind` included.
+        """
+        return self._params
+
+    def set_param(self, name: str, value: float) -> bool:
+        """Set one knob on the running pattern; returns whether it changed.
+
+        Belongs to the loop thread. Reach it from anywhere else through
+        `PacedLoop.call_soon`, having called `self.params.check(name, value)`
+        on the calling thread first — this raises on a refused value, and an
+        exception from a queued closure propagates out of `PacedLoop.run()`,
+        which is a way to stop a show from a browser.
+
+        Writes the instance attribute as well as the set, because `apply` runs
+        only at bind. That is safe for exactly one reason: `call_soon` drains
+        at the top of a tick, before `advance_to`, so a value can never change
+        between a pattern's `before_render` and its `render` (plasma reads
+        `speed` in the first and `scale` in the second).
+
+        Only reaches a pattern that *reads* the knob per frame. All five built
+        in patterns do; one precomputing a table from a knob in `setup` would
+        need a rebind to notice, and the liveness check cannot see that because
+        `render_sequence` binds fresh every time.
+        """
+        changed = self._params.set(name, value)
+        if changed:
+            setattr(self.pattern, name, self._params[name])
+        return changed
 
     @property
     def error(self) -> PatternError | None:
@@ -155,7 +193,7 @@ class Renderer:
         # happened, so it is poisoned until a later bind succeeds.
         self._bind_failed = True
         self.pattern._bind(
-            self._n, self._x, self._y, self._z, self._index, seed=self.seed, params=self.params
+            self._n, self._x, self._y, self._z, self._index, seed=self.seed, params=self._params
         )
         self._bind_failed = False
 

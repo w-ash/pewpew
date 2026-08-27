@@ -33,19 +33,21 @@ from authoring.geq import Geq as StudyGeq  # noqa: E402
 from authoring.plasma import Plasma as StudyPlasma  # noqa: E402
 from authoring.sdf3d import Sdf3d as StudySdf3d  # noqa: E402
 
-from pewpew import grid, lattice, line, render_sequence
-from pewpew.patterns import Comet, Fire, Geq, Plasma, Sdf3d
+from pewpew import render_sequence
+from pewpew.patterns import STUDY_CASES
 
 SEED = study_runner.SEED  # 42
 FPS = study_runner.FPS  # 60.0
 FRAMES = study_runner.FRAMES  # 120
 
+# The study class zipped onto the shared (port, fixture) table: pairing a
+# prototype with its port is this file's whole subject, so only that pairing
+# lives here. Order follows pewpew.patterns.STUDY_CASES.
+STUDY_CLASSES = [StudyPlasma, StudyComet, StudyGeq, StudyFire, StudySdf3d]
+
 CASES = [
-    pytest.param(StudyPlasma, Plasma, line(300), id="plasma"),
-    pytest.param(StudyComet, Comet, line(300), id="comet"),
-    pytest.param(StudyGeq, Geq, grid(16, 16), id="geq"),
-    pytest.param(StudyFire, Fire, grid(16, 32), id="fire"),
-    pytest.param(StudySdf3d, Sdf3d, lattice(10), id="sdf3d"),
+    pytest.param(study, port, mapping, id=port.name)
+    for study, (port, mapping) in zip(STUDY_CLASSES, STUDY_CASES, strict=True)
 ]
 
 

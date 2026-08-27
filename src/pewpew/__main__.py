@@ -34,7 +34,7 @@ from typing import Callable, Iterator, TextIO
 import numpy as np
 
 import pewpew.patterns as gallery
-from pewpew import PacedLoop, Renderer, SinkDriver, grid, lattice, line
+from pewpew import PacedLoop, ParamSet, Renderer, SinkDriver, grid, lattice, line
 from pewpew.sinks import AnsiSink, PreviewSink
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,16 @@ def _mapping(spec: str) -> np.ndarray:
     raise SystemExit(f"bad --map {spec!r}; expected line:64, grid:16x16, or lattice:8")
 
 
-def _params(pairs: list[str]) -> dict[str, float]:
+def _params(pairs: list[str], pattern_cls: type) -> dict[str, float]:
+    """Parse `--param NAME=VALUE` and validate it against the declarations.
+
+    Validated here rather than by catching what `Renderer` raises, because that
+    constructor also raises for a bad mapping and propagates whatever `setup`
+    raises. Binding is deliberately loud (render.py) and a blanket except would
+    reduce an author's traceback to one line on the primary dev loop, so only
+    knob errors are turned into a clean exit.
+    """
+    knobs = ParamSet(pattern_cls)
     out: dict[str, float] = {}
     for pair in pairs:
         key, sep, value = pair.partition("=")
@@ -77,6 +86,10 @@ def _params(pairs: list[str]) -> dict[str, float]:
             out[key] = float(value)
         except ValueError:
             raise SystemExit(f"bad --param value in {pair!r}; expected a number") from None
+        reason = knobs.check(key, out[key])
+        if reason is not None:
+            hint = knobs.hint(key)
+            raise SystemExit(f"{reason}. {hint}" if hint else reason)
     return out
 
 
@@ -166,8 +179,9 @@ def main(
     args = parser.parse_args(argv)
 
     mapping = _mapping(args.map_spec)
+    pattern_cls = _pattern_class(args.pattern)
     renderer = Renderer(
-        _pattern_class(args.pattern)(), mapping, params=_params(args.param), seed=args.seed
+        pattern_cls(), mapping, params=_params(args.param, pattern_cls), seed=args.seed
     )
     status = _status_of(renderer)
 
