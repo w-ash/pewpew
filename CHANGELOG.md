@@ -133,6 +133,25 @@ series (batch mode).
   mid-sequence and the frames after it must diverge. The bind-time check
   cannot see a knob that only takes effect at bind — a pattern precomputing
   from one in `setup` passes that bar at rms 0.37 and fails this one at 0.
+- Run a pattern from your own file: `python -m pewpew run effects/mine.py`,
+  `mine.py:ClassName` when the file defines several, or a bare name resolved
+  through `--patterns DIR` before the gallery. The ADR-005 contract was
+  already the extension point — `Renderer` takes any subclass — but the tool
+  could only name the five built-ins, so a custom effect was a library call
+  and not a command. A bare name is never the working directory, and a load
+  error names the line but never leaks a path past the CLI.
+- Hot reload with the show's state kept: while `run` is up, a save re-executes
+  the pattern file and swaps the new class in between two frames (`--no-reload`
+  opts out; gallery files reload too). Engine time, parameter values (kept when
+  they still fit, else reset to the new default per ADR-006), `self.pixels` and
+  every `self.buffer` with a matching name and shape, the RNG stream, and plain
+  scalar state of the same name and type all continue — a swap to the same
+  source is bit-identical to no swap for all five gallery patterns. A save that
+  does not load keeps the last-good pattern running and shows why on the
+  terminal status line and the preview banner; fixing it clears the banner. The
+  preview page rebuilds its sliders when a reload changes the knobs.
+  `watchfiles` becomes the third runtime dependency (architecture §9,
+  ADR-020).
 
 ### Changed
 

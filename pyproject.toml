@@ -5,6 +5,7 @@ description = "pewpew LED engine and its test harness — golden frames, fake cl
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
+    "watchfiles>=1.0",
     "websockets>=17",
 ]
 

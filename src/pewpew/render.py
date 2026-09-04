@@ -26,13 +26,13 @@ from __future__ import annotations
 import logging
 import traceback
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 import numpy as np
 
 from pewpew import kit
 from pewpew.features import FakeFeatures
-from pewpew.pattern import ParamSet, Pattern
+from pewpew.pattern import Inheritance, ParamSet, Pattern, pattern_name
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,16 @@ logger = logging.getLogger(__name__)
 # never be mistaken for "the pattern is just dark right now" [S660].
 _ERROR_PULSE_HZ = 2.0
 _ERROR_FLOOR = 0.25
+
+
+@dataclass(frozen=True)
+class SwapReport:
+    """What `Renderer.swap` kept and what it reset — for the reload log line."""
+
+    reset_params: tuple[str, ...]  # knobs whose live value no longer fit; now at the new default
+    buffers: tuple[str, ...]  # registered buffers the new pattern inherited (pixels included)
+    scalars: tuple[str, ...]  # plain instance attributes the new pattern inherited
+    skipped: tuple[str, ...]  # old instance attributes that did not qualify and started fresh
 
 
 @dataclass(frozen=True)
@@ -92,10 +102,11 @@ class Renderer:
         self._t = 0.0
         self._frame = 0
         self._error: PatternError | None = None
-        # Deliberately never cleared. Clearing on a good frame reintroduces the
-        # flood for the intermittent case — a pattern failing on alternate
-        # frames would re-log a full traceback 30 times a second forever. Bound
-        # by the number of distinct failure sites, not by time.
+        # Never cleared by a frame — only by `swap`, which installs new code.
+        # Clearing on a good frame reintroduces the flood for the intermittent
+        # case — a pattern failing on alternate frames would re-log a full
+        # traceback 30 times a second forever. Bound by the number of distinct
+        # failure sites, not by time.
         self._logged: set[tuple] = set()
         self._diagnostics: list[str] = []
         self._bind_mapping(mapping)
@@ -192,10 +203,58 @@ class Renderer:
         # renderer must not go on rendering from that wreck as if nothing
         # happened, so it is poisoned until a later bind succeeds.
         self._bind_failed = True
-        self.pattern._bind(
-            self._n, self._x, self._y, self._z, self._index, seed=self.seed, params=self._params
-        )
+        self._bind_pattern(self.pattern, self._params)
         self._bind_failed = False
+
+    def _bind_pattern(
+        self,
+        pattern: Pattern,
+        params: ParamSet | Mapping[str, float],
+        inherit: Inheritance | None = None,
+    ) -> None:
+        """Bind one instance to the current geometry. No poison bookkeeping
+        here: `swap` binds a *candidate* through this and must leave the live
+        pattern's state untouched if the candidate's `setup` raises."""
+        pattern._bind(
+            self._n, self._x, self._y, self._z, self._index,
+            seed=self.seed, params=params, inherit=inherit,
+        )
+
+    def swap(self, pattern: Pattern) -> SwapReport:
+        """Replace the running pattern with `pattern`, keeping the show's state.
+
+        The hot-reload primitive. Belongs to the loop thread (reach it through
+        `PacedLoop.call_soon`). Strong exception guarantee: the candidate is
+        bound *before* anything on this renderer changes, so a raising `setup`
+        propagates — bind failures are loud, as in `rebind` — with the old
+        pattern still running and untouched.
+
+        On success, engine time and the frame counter continue; the `ParamSet`
+        keeps its identity and takes the values `inherit` chose (ADR-006:
+        values that still fit are kept, the rest reset to the new default);
+        and the candidate is bound with an `Inheritance` of the old instance —
+        buffers by name and spec, the RNG stream, and `__init__` scalars by
+        name and family — see `pewpew.pattern.Inheritance` for the rules.
+
+        `error` is left alone: the next healthy frame clears it, and that is
+        the very next thing after the `call_soon` drain. The once-per-site log
+        guard *is* reset, because its keys include file and line, which an
+        edit usually preserves — a site fixed and then broken again must log
+        again.
+        """
+        if isinstance(pattern, type):
+            raise TypeError("swap takes a Pattern instance, not a class — pass Cls() here")
+        values, reset = self._params.inherit(type(pattern))
+        inheritance = Inheritance(self.pattern)
+        self._bind_pattern(pattern, values, inheritance)  # may raise; nothing has changed yet
+        self.pattern = pattern
+        self._params.redeclare(type(pattern), values)
+        self._bind_failed = False  # a full bind against the current geometry just succeeded
+        self._logged.clear()
+        self._diagnostics.clear()
+        return SwapReport(
+            tuple(reset), tuple(inheritance.buffers), tuple(inheritance.scalars), tuple(inheritance.skipped)
+        )
 
     # ---- the frame path -------------------------------------------------
 
@@ -251,7 +310,7 @@ class Renderer:
             # would otherwise escape containment downstream. dtype is checked as
             # well as shape because `pattern.pixels` is a registered buffer: a
             # float64 frame would make the array disagree with its own
-            # BufferSpec, which is the unit hot reload carries state across by.
+            # BufferSpec, which is the unit hot reload hands state over by.
             # Finiteness and [0,1] range are deliberately NOT checked here —
             # both are O(N) scans on the 60 fps path, and the L1 goldens and
             # bench/bench_authoring.py already gate them off the hot loop.
@@ -299,7 +358,7 @@ class Renderer:
         # formatted text above is what the error record actually needs.
         exc.__traceback__ = None
         self._error = PatternError(
-            pattern=getattr(self.pattern, "name", type(self.pattern).__name__),
+            pattern=pattern_name(type(self.pattern)),
             phase=phase,
             exception=exc,
             traceback=formatted,

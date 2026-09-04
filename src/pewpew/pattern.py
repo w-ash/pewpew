@@ -29,7 +29,8 @@ from __future__ import annotations
 import inspect
 import math
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping
+from pathlib import Path
+from typing import Any, Iterable, Mapping, NamedTuple
 
 import numpy as np
 
@@ -151,38 +152,45 @@ class ParamSet:
     """
 
     def __init__(self, pattern_cls: type, overrides: Mapping[str, float] | None = None) -> None:
-        self.declarations = declared_params(pattern_cls)
-        self._pattern = getattr(pattern_cls, "name", None) or pattern_cls.__name__
-        self._values: dict[str, float] = {
-            name: param.default for name, param in self.declarations.items()
-        }
+        self._state = _ParamState.of(pattern_cls, None)
         if overrides:
             self.set_many(overrides)
+
+    # One tuple, swapped in a single attribute store by `redeclare`, so a
+    # reader on another thread can never pair new declarations with old
+    # values — `describe` iterating one dict and indexing the other across a
+    # hot reload would otherwise KeyError on a sink worker. Every reader
+    # takes `self._state` once and works from that one tuple.
+
+    @property
+    def declarations(self) -> dict[str, Param]:
+        return self._state.declarations
 
     # ---- reads (any thread) --------------------------------------------
 
     def __getitem__(self, name: str) -> float:
-        return self._values[name]
+        return self._state.values[name]
 
     def __contains__(self, name: object) -> bool:
-        return name in self._values
+        return name in self._state.values
 
     def __iter__(self):
-        return iter(self._values)
+        return iter(self._state.values)
 
     def __len__(self) -> int:
-        return len(self._values)
+        return len(self._state.values)
 
     def __repr__(self) -> str:
-        return f"ParamSet({self._pattern}, {self._values})"
+        _, values, pattern = self._state
+        return f"ParamSet({pattern}, {values})"
 
     def snapshot(self) -> dict[str, float]:
         """Current values; round-trips back in as `overrides`.
 
-        That round-trip is how hot reload carries values across a swap, so it
-        has a test rather than being an accident of both being plain floats.
+        That round-trip is what `inherit` builds on, so it has a test rather
+        than being an accident of both being plain floats.
         """
-        return dict(self._values)
+        return dict(self._state.values)
 
     def describe(self) -> list[dict[str, Any]]:
         """JSON-ready declarations in display order — the control-surface payload.
@@ -191,6 +199,7 @@ class ParamSet:
         not in a sink, so a field added to `Param` reaches every surface at once
         instead of stopping at whichever one remembered to marshal it.
         """
+        declarations, values, _ = self._state
         return [
             {
                 "name": name,
@@ -200,10 +209,34 @@ class ParamSet:
                 "hi": param.hi,
                 "step": param.step,
                 "decimals": param.decimals,
-                "value": self._values[name],
+                "value": values[name],
             }
-            for name, param in self.declarations.items()
+            for name, param in declarations.items()
         ]
+
+    def inherit(self, pattern_cls: type) -> tuple[dict[str, float], list[str]]:
+        """The values a swap to `pattern_cls` would start from, and which
+        knobs reset.
+
+        ADR-006's reload policy: a current value that still lands in the new
+        declaration's range is kept; one that no longer fits resets to the
+        *new default*, never a clamp — the author just edited that
+        declaration, so their default is the intended answer. Knobs the new
+        class does not declare are dropped; new knobs start at their default.
+        Pure and safe from any thread; `redeclare` is the write.
+        """
+        declarations, values, _ = self._state
+        out: dict[str, float] = {}
+        reset: list[str] = []
+        for name, param in declared_params(pattern_cls).items():
+            kept = _snap(param, values[name]) if name in values else None
+            if kept is None:
+                out[name] = param.default
+                if name in values:
+                    reset.append(name)
+            else:
+                out[name] = kept
+        return out, reset
 
     def check(self, name: str, value: Any) -> str | None:
         """Why `value` would be refused for `name`, or None if it is acceptable.
@@ -216,26 +249,27 @@ class ParamSet:
         sent to whoever can reach the preview port without serving them the
         layout of the disk.
         """
-        param = self.declarations.get(name)
+        declarations, _, pattern = self._state
+        param = declarations.get(name)
         if param is None:
-            known = ", ".join(self.declarations) or "(none)"
-            return f"{self._pattern} has no Param named {name!r}; declared params: {known}"
+            known = ", ".join(declarations) or "(none)"
+            return f"{pattern} has no Param named {name!r}; declared params: {known}"
         if isinstance(value, bool):
             # float(True) is 1.0, so a JSON `true` would otherwise land as a
             # legal-looking value nobody chose.
-            return f"{self._pattern}.{name} takes a number, got the bool {value!r}"
+            return f"{pattern}.{name} takes a number, got the bool {value!r}"
         try:
             number = float(value)
         except (TypeError, ValueError):
-            return f"{self._pattern}.{name} takes a number, got {value!r}"
+            return f"{pattern}.{name} takes a number, got {value!r}"
         if not math.isfinite(number):
             # json.loads accepts NaN and Infinity literals by default, so both
             # arrive over the wire. Caught here for its own message: every
             # comparison with NaN is False, so the range check below would
             # report it as out of range, which reads as nonsense.
-            return f"{self._pattern}.{name} must be a finite number, got {number}"
+            return f"{pattern}.{name} must be a finite number, got {number}"
         if _snap(param, number) is None:
-            return f"{self._pattern}.{name} must be within {param.lo}..{param.hi}, got {number}"
+            return f"{pattern}.{name} must be within {param.lo}..{param.hi}, got {number}"
         return None
 
     def hint(self, name: str) -> str:
@@ -247,10 +281,7 @@ class ParamSet:
         param = self.declarations.get(name)
         if param is None or param.owner is None:
             return ""
-        try:
-            where = inspect.getsourcefile(param.owner) or param.owner.__name__
-        except TypeError:  # a class with no source (built dynamically, REPL)
-            where = param.owner.__name__
+        where = source_file_of(param.owner) or param.owner.__name__
         return f"widen the {name!r} Param in {where}, or pick a value in range"
 
     # ---- writes (loop thread) -------------------------------------------
@@ -265,17 +296,18 @@ class ParamSet:
         reason = self.check(name, value)
         if reason is not None:
             raise ValueError(self._refusal(name, reason))
-        number = _snap(self.declarations[name], float(value))
+        declarations, values, _ = self._state
+        number = _snap(declarations[name], float(value))
         assert number is not None  # check() already proved it lands in range
-        changed = self._values[name] != number
-        self._values[name] = number
+        changed = values[name] != number
+        values[name] = number
         return changed
 
     def set_many(self, values: Mapping[str, float]) -> list[str]:
         """Set several knobs atomically; returns the names that changed.
 
         Validate all, then apply, so a partial write can never leave a pattern
-        running a mix of old and new values. Hot reload's carry-over and a UI's
+        running a mix of old and new values. Hot reload's `inherit` and a UI's
         "reset all" are both this, and without it each would invent its own
         partial-failure semantics.
         """
@@ -295,12 +327,52 @@ class ParamSet:
         as a number. The declaration wins over anything `__init__` assigned to
         the same name.
         """
-        for name, value in self._values.items():
+        for name, value in self._state.values.items():
             setattr(pattern, name, value)
+
+    def redeclare(self, pattern_cls: type, values: Mapping[str, float]) -> None:
+        """Become the set for `pattern_cls`, holding `values` — the write half
+        of a hot reload, after `inherit` chose the values and the new pattern
+        bound against them. One attribute store, so it is atomic to readers.
+        Identity is preserved: a control surface holding this object keeps
+        driving the live pattern.
+        """
+        self._state = _ParamState.of(pattern_cls, values)
 
     def _refusal(self, name: str, reason: str) -> str:
         hint = self.hint(name)
         return f"{reason}. {hint}" if hint else reason
+
+
+class _ParamState(NamedTuple):
+    """Everything a `ParamSet` holds for one pattern class, as one value."""
+
+    declarations: dict[str, Param]
+    values: dict[str, float]
+    pattern: str
+
+    @classmethod
+    def of(cls, pattern_cls: type, values: Mapping[str, float] | None) -> "_ParamState":
+        """The state for `pattern_cls`, at `values` or at the defaults."""
+        declarations = declared_params(pattern_cls)
+        if values is None:
+            values = {name: param.default for name, param in declarations.items()}
+        return cls(declarations, dict(values), pattern_name(pattern_cls))
+
+
+def pattern_name(pattern_cls: type) -> str:
+    """The display name of a pattern class: its `name` attribute, else the class name."""
+    return getattr(pattern_cls, "name", None) or pattern_cls.__name__
+
+
+def source_file_of(cls: type) -> Path | None:
+    """The file `cls` was defined in, or None for a class with no source
+    (built dynamically, REPL)."""
+    try:
+        file = inspect.getsourcefile(cls)
+    except TypeError:
+        return None
+    return Path(file) if file else None
 
 
 def _snap(param: Param, value: float) -> float | None:
@@ -335,8 +407,8 @@ class BufferSpec:
     `getattr(pattern, name)` fresh whenever it needs the current value.
     Identity tracking would silently stop tracking on the first rebind.
 
-    The spec is also the unit hot reload will carry buffers across by
-    (name + shape, ADR-005 amendment).
+    The spec is also the unit hot reload hands buffers over by (name +
+    shape, ADR-005 amendment; `Renderer.swap`).
     """
 
     shape: tuple[int, ...]
@@ -348,6 +420,97 @@ def _normalize_shape(shape: int | Iterable[int]) -> tuple[int, ...]:
     if isinstance(shape, (int, np.integer)):
         return (int(shape),)
     return tuple(int(s) for s in shape)
+
+
+# ---- what a new instance takes from the one it replaces ----------------------
+
+# Instance state the engine itself sets at bind; never inherited as if it
+# were the author's.
+_ENGINE_ATTRS = _RESERVED_BUFFER_NAMES | {"_buffers", "_buffers_open", "_inherit"}
+
+
+def _scalar_kind(value: Any) -> str | None:
+    """The family a plain attribute belongs to for inheritance, or None.
+
+    Numbers are one family: `self.phase = 0` in `__init__` and the float it
+    has become after ten frames must match, or every save would reset the
+    animation. `bool` is checked first because it subclasses `int`.
+    """
+    if isinstance(value, (bool, np.bool_)):
+        return "bool"
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return "number"
+    if isinstance(value, str):
+        return "str"
+    return None
+
+
+class Inheritance:
+    """What a new pattern instance takes from the one it replaces (hot reload).
+
+    Built from the old instance and handed to `_bind`, which consults it at
+    the two moments that matter: plain scalar state is applied *before*
+    `setup`, so anything `setup` assigns is the new code's own; and each
+    buffer is taken over at the moment `self.buffer(...)` declares it, so a
+    view or derived array `setup` builds from it refers to the inherited
+    data. Buffers match on name and full `BufferSpec` (shape, dtype, fill)
+    and are *copied* — one O(N) copy per reload, in exchange for a strong
+    guarantee: a candidate whose `setup` writes into a buffer and then raises
+    has touched nothing the old pattern still owns. The RNG stream continues
+    from the old generator's state.
+
+    Records what it did (`buffers`, `scalars`, `skipped`) for the reload log.
+    """
+
+    def __init__(self, old: "Pattern") -> None:
+        self._arrays = {
+            name: (spec, getattr(old, name, None)) for name, spec in old._buffers.items()
+        }
+        excluded = _ENGINE_ATTRS | set(old._buffers) | set(declared_params(type(old)))
+        self._scalars: dict[str, Any] = {}
+        self._rng_state = old.rng.bit_generator.state if hasattr(old, "rng") else None
+        self.buffers: list[str] = []
+        self.scalars: list[str] = []
+        self.skipped: list[str] = []
+        for name, value in vars(old).items():
+            if name in excluded:
+                continue
+            if _scalar_kind(value) is None:
+                self.skipped.append(name)
+            else:
+                self._scalars[name] = value
+
+    def buffer(self, name: str, spec: BufferSpec) -> np.ndarray | None:
+        """A copy of the old buffer for `name` if its spec still matches, else None."""
+        old_spec, array = self._arrays.get(name, (None, None))
+        if (
+            old_spec == spec
+            and isinstance(array, np.ndarray)
+            and array.shape == spec.shape
+            and array.dtype == spec.dtype
+        ):
+            self.buffers.append(name)
+            return array.copy()
+        return None
+
+    def apply_scalars(self, new: "Pattern") -> None:
+        """Set old scalar values onto `new` where `__init__` gave it the same
+        name in the same family; a name declared as a `Param` on the new class
+        is never touched, so a knob demoted to a constant takes the constant."""
+        fresh = vars(new)
+        params = declared_params(type(new))
+        for name, value in self._scalars.items():
+            if name in params:
+                continue
+            if name in fresh and _scalar_kind(fresh[name]) == _scalar_kind(value):
+                setattr(new, name, value)
+                self.scalars.append(name)
+            else:
+                self.skipped.append(name)
+
+    def apply_rng(self, new: "Pattern") -> None:
+        if self._rng_state is not None:
+            new.rng.bit_generator.state = self._rng_state
 
 
 # ---- the pattern base -------------------------------------------------------
@@ -369,6 +532,7 @@ class Pattern:
     # replaced it with a per-instance dict, so this shared dict stays empty.
     _buffers: dict[str, BufferSpec] = {}
     _buffers_open: bool = False
+    _inherit: Inheritance | None = None
 
     # ---- author hooks -------------------------------------------------
 
@@ -443,9 +607,12 @@ class Pattern:
     def _declare(
         self, name: str, shape: int | Iterable[int], dtype: Any, fill: float
     ) -> np.ndarray:
-        """Single allocation path, shared by `buffer()` and `self.pixels`."""
+        """Single allocation path, shared by `buffer()` and `self.pixels`.
+        During a hot reload the inherited array takes the place of a fresh one."""
         spec = BufferSpec(_normalize_shape(shape), np.dtype(dtype), float(fill))
-        array = np.full(spec.shape, spec.fill, dtype=spec.dtype)
+        array = self._inherit.buffer(name, spec) if self._inherit is not None else None
+        if array is None:
+            array = np.full(spec.shape, spec.fill, dtype=spec.dtype)
         setattr(self, name, array)
         self._buffers[name] = spec
         return array
@@ -459,12 +626,15 @@ class Pattern:
         index: np.ndarray,
         seed: int = 0,
         params: ParamSet | Mapping[str, float] | None = None,
+        inherit: Inheritance | None = None,
     ) -> None:
         """Engine-side binding of this instance to one mapping.
 
         Order is contractual: engine state, then params (so `setup` sees final
-        values), then the registry with `self.pixels` in it, then the author's
-        `setup` with buffer declaration enabled. Re-binding re-runs all of it:
+        values), then inherited scalars and RNG state if this is a hot-reload
+        swap, then the registry with `self.pixels` in it, then the author's
+        `setup` with buffer declaration enabled — each declaration taking the
+        inherited array when there is one. Re-binding re-runs all of it:
         buffers are reallocated and re-zeroed, the RNG is reseeded from the
         same seed, and `setup` runs again.
 
@@ -484,15 +654,19 @@ class Pattern:
         if not isinstance(params, ParamSet):
             params = ParamSet(type(self), params)
         params.apply(self)
+        if inherit is not None:
+            inherit.apply_scalars(self)
+            inherit.apply_rng(self)
 
         self._buffers = {}
-        self._declare("pixels", (self.n, 3), np.float32, 0.0)
-
-        self._buffers_open = True
+        self._inherit = inherit
         try:
+            self._declare("pixels", (self.n, 3), np.float32, 0.0)
+            self._buffers_open = True
             self.setup(self.n, x, y, z, index)
         finally:
             self._buffers_open = False
+            self._inherit = None
 
     def _lock_buffers(self) -> tuple[list[np.ndarray], list[str]]:
         """Flip every registered buffer read-only for the duration of `render`.

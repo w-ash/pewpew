@@ -187,6 +187,50 @@ def test_accepted_set_reaches_the_controls_and_echoes_to_every_client():
             assert next_text(setter) == echo
 
 
+def test_a_change_of_declarations_rebuilds_the_levers_then_fills_them():
+    """A hot reload that adds or retunes a knob. The client gets a `declare`
+    (value-free) and then the `params` echo *even though* its text is the
+    same as the last one sent — the rebuilt sliders are empty until it lands.
+    An unchanged frame sends neither."""
+    from pewpew import Param
+
+    class Retuned(Plasma):
+        gain = Param(0.5, 0.0, 1.0, "Gain")
+
+    n = 4
+    frame = np.zeros((n, 3), dtype=np.float32)
+    controls = FakeControls()
+    with make_sink(line(n), controls=controls) as sink:
+        ws, hello = client_for(sink)
+        with ws:
+            wait_until(lambda: len(sink._clients) == 1)
+            # One frame at a time: back-to-back sends coalesce in the client's
+            # driver (newest wins), which is not what is under test here.
+            sink.send(0.0, frame)
+            assert not isinstance(ws.recv(timeout=5.0), str)
+            sink.send(1 / 60, frame)
+            assert not isinstance(ws.recv(timeout=5.0), str)
+            # Same declarations, same values: nothing but frames so far.
+            with pytest.raises(TimeoutError):
+                ws.recv(timeout=0.2)
+
+            controls.params = ParamSet(Retuned)  # what Renderer.swap does, in place
+            sink.send(2 / 60, frame)
+            assert not isinstance(ws.recv(timeout=5.0), str)
+            declare = next_text(ws)
+            assert declare["type"] == "declare"
+            assert [p["name"] for p in declare["params"]] == ["speed", "scale", "gain"]
+            assert all("value" not in p for p in declare["params"])
+            assert declare["params"][2]["label"] == "Gain"
+            echo = next_text(ws)
+            assert echo == {"type": "params", "values": {"speed": 0.5, "scale": 4.0, "gain": 0.5}}
+            # Steady state again: the next frame brings no text.
+            sink.send(3 / 60, frame)
+            assert not isinstance(ws.recv(timeout=5.0), str)
+            with pytest.raises(TimeoutError):
+                ws.recv(timeout=0.2)
+
+
 def test_refused_set_names_the_range_but_never_a_source_path():
     controls = FakeControls()
     with make_sink(line(4), controls=controls) as sink:

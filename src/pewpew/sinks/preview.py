@@ -18,6 +18,10 @@ Wire protocol (§8: serve map positions once, stream compact buffers):
 - text `{"type": "params", "values": {name: value}}` to every client when
   a set is accepted, so a second tab's sliders follow the one that moved
   (architecture §5: last-write-wins, server pushes merged state);
+- text `{"type": "declare", "params": [...]}` — the hello's `params` minus
+  the values — when the declarations themselves change, which a hot reload
+  that adds, drops or retunes a knob does; the client rebuilds its sliders
+  and the `params` echo that follows fills them in;
 - text `{"type": "refused", "name", "reason"}` to the client that asked,
   when `controls.set` declines. The reason names the knob and its range
   and never a source path — this port is unauthenticated by design;
@@ -57,14 +61,23 @@ from pewpew.sinks.base import Controls, RateGate, to_display_u8
 
 logger = logging.getLogger(__name__)
 
-# (frame bytes, current status, current param echo) — see the module
-# docstring on why the last two are absolute state, not deltas.
-_Payload = tuple[bytes, "str | None", "str | None"]
+# (frame bytes, current status, current param echo, current declarations) —
+# see the module docstring on why the last three are absolute state, not
+# deltas.
+_Payload = tuple[bytes, "str | None", "str | None", "str | None"]
 
 
 def _params_message(declared: list[dict]) -> str:
     """The `params` echo for a set of declarations, as wire text."""
     return json.dumps({"type": "params", "values": {p["name"]: p["value"] for p in declared}})
+
+
+def _declare_message(declared: list[dict]) -> str:
+    """The value-free declarations as wire text — both the `declare` message
+    and the signature a client compares to notice a change."""
+    return json.dumps(
+        {"type": "declare", "params": [{k: v for k, v in p.items() if k != "value"} for p in declared]}
+    )
 
 
 class _Client:
@@ -80,14 +93,24 @@ class _Client:
         self.conn = conn
         self.last_status: str | None = None
         self.last_params: str | None = None
+        self.last_declare: str | None = None
         self.driver: SinkDriver[_Payload] = SinkDriver(self._send, name=name)
 
     def _send(self, t: float, payload: _Payload) -> None:
-        data, status, params = payload
+        data, status, params, declare = payload
         self.conn.send(data)
         if status != self.last_status:
             self.last_status = status
             self.conn.send(json.dumps({"type": "status", "error": status}))
+        if declare != self.last_declare:
+            # New sliders, built empty. The values echo must follow even when
+            # its text is identical to the last one sent: a reload that keeps
+            # every value still leaves the rebuilt levers to be filled in.
+            # `declare` is a str here: it is None only when no controls are
+            # wired, and then `last_declare` was seeded None too.
+            self.last_declare = declare
+            self.last_params = None
+            self.conn.send(declare)
         if params != self.last_params:
             self.last_params = params
             self.conn.send(params)
@@ -227,18 +250,19 @@ class PreviewSink:
         # value has not moved yet and an echo built then would ship the old
         # one. Reading current truth here is 2 us, on this worker thread, and
         # never touches the render loop. Clients see it only on a change.
-        params = self._echo()
+        params, declare = self._echo()
         with self._lock:
             clients = list(self._clients.values())
         for client in clients:
-            client.driver.submit(t, (data, status, params))
+            client.driver.submit(t, (data, status, params, declare))
 
-    def _echo(self) -> str | None:
-        """The current knob state as a `params` message, or None if no
-        controls are wired."""
+    def _echo(self) -> tuple[str | None, str | None]:
+        """The current knob state as a (`params`, `declare`) message pair from
+        one `describe()` call, or (None, None) if no controls are wired."""
         if self._controls is None:
-            return None
-        return _params_message(self._controls.describe())
+            return None, None
+        declared = self._controls.describe()
+        return _params_message(declared), _declare_message(declared)
 
     # -- server side (per-connection threads) ---------------------------------
 
@@ -263,6 +287,7 @@ class PreviewSink:
         # not news to this client — same seeding as `last_status`. If a set
         # lands before the next frame, that frame's echo corrects it.
         client.last_params = _params_message(declared) if self._controls is not None else None
+        client.last_declare = _declare_message(declared) if self._controls is not None else None
         client.driver.start()
         with self._lock:
             self._clients[conn] = client

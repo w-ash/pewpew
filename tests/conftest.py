@@ -17,6 +17,20 @@ def regen_goldens(request: pytest.FixtureRequest) -> bool:
     return bool(request.config.getoption("--regen-goldens"))
 
 
+class FakeCallSoon:
+    """Stands in for `PacedLoop.call_soon`, without a running loop."""
+
+    def __init__(self) -> None:
+        self.queued: list = []
+
+    def __call__(self, fn) -> None:
+        self.queued.append(fn)
+
+    def drain(self) -> None:
+        while self.queued:
+            self.queued.pop(0)()
+
+
 class FakeTime:
     """Wall-time fake for pacing tests: a perfect sleeper whose sleep(s)
     advances the clock by exactly s. The pacing counterpart of the

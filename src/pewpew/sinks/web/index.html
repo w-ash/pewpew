@@ -155,9 +155,10 @@ function makeLevers(params) {
       `<input id="lv-${p.name}" type="range" min="${p.lo}" max="${p.hi}" step="${p.step}">` +
       `<output></output>`;
     const input = el.querySelector("input"), out = el.querySelector("output");
-    const lever = { input, out, spec: p, accepted: p.value };
+    const value = p.value ?? p.default;   // `declare` has no values
+    const lever = { input, out, spec: p, accepted: value };
     levers.set(p.name, lever);
-    show(lever, p.value);
+    show(lever, value);
     // Only sliders the user is actually holding are exempt from echoes;
     // everything else follows whichever tab moved last.
     input.addEventListener("pointerdown", () => dragging.add(p.name));
@@ -222,6 +223,9 @@ function connect() {
       // leaves dots at their previous color.
       if (msg.type === "hello") { hello = msg; last = null; makeLevers(msg.params); resize(); }
       else if (msg.type === "status") { engineError = msg.error || null; showStatus(); }
+      // A hot reload changed the knobs themselves; the `params` echo that
+      // follows fills the rebuilt sliders in.
+      else if (msg.type === "declare") makeLevers(msg.params);
       else if (msg.type === "params") {
         // What the engine actually holds. A slider under the pointer keeps
         // its position — yanking it mid-drag would fight the user — but its

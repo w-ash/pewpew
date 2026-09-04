@@ -142,13 +142,12 @@ inside `setup`; `shape` is free-form (`n` for one value per pixel, `(H, W)`
 for a field as in §1 — same mechanism, either use). Any name that already
 exists on the class is refused, which covers engine state (`n`, `seed`,
 `rng`, `pixels`), the hooks themselves, and your own `Param`s. Buffers are
-zeroed on rebind and reallocated when the mapping changes; carrying them
-across hot reload is what the registry's name+shape keying is *for*, but
-hot reload itself is not built yet (`docs/backlog/v0.2.x.md`). Inside
-`render`, every buffer — `self.pixels`
-included — is a read-only view; writing to one raises `ValueError`, not a
-silent no-op, so a stray write in `render` fails loudly during development
-rather than corrupting state in production.
+zeroed on rebind and reallocated when the mapping changes; keeping them
+across a hot reload is what the registry's name+shape keying is *for* (§9).
+Inside `render`, every buffer — `self.pixels` included — is a read-only
+view; writing to one raises `ValueError`, not a silent no-op, so a stray
+write in `render` fails loudly during development rather than corrupting
+state in production.
 
 ## 3. `np.where` runs both branches — always
 
@@ -359,6 +358,72 @@ pattern that reads it every frame. Precompute a table from `self.scale` in
 `test_param_liveness.py` now also checks, by turning each knob mid-sequence
 and requiring the frames after it to diverge.
 
+## 8. Running your own pattern
+
+The runner takes a file as readily as a gallery name:
+
+```
+$ python -m pewpew run effects/mine.py --map line:64 --preview
+$ python -m pewpew run effects/mine.py:Spark      # the file defines several
+$ python -m pewpew run mine --patterns effects/   # effects/mine.py, then the gallery
+$ python -m pewpew run comet                      # always the gallery, never ./comet.py
+```
+
+A file must define exactly one `Pattern` subclass of its own, or name the one
+you mean with `:ClassName`. A base class imported from a sibling module does
+not count, and sibling imports work as they would for a script: the file's
+directory is put on `sys.path`. A bare name is the gallery unless `--patterns`
+names a directory holding `<name>.py`; the working directory is never searched,
+so a stray `comet.py` next to your shell cannot shadow the built-in.
+
+Loading a file runs it. That is what a local dev tool does; it is also why
+nothing on the preview socket can ask the engine to load one.
+
+## 9. Save the file; the show keeps running
+
+While `run` is up, the pattern's source file is watched (`--no-reload` turns
+that off; gallery files are watched too, so editing
+`src/pewpew/patterns/comet.py` reloads it). A save re-executes the file and
+swaps the new class in between two frames. The show does not restart:
+
+- **Engine time** continues. `time()` and every `dt` are what they would have
+  been without the save.
+- **Parameter values** are kept when they still fit the new declaration. A
+  value outside a narrowed range resets to the *new default*, never a clamp
+  (ADR-006). A knob you removed disappears from the sliders; one you added
+  appears at its default. The preview page rebuilds its sliders on the spot.
+- **Buffers** — `self.pixels` and everything from `self.buffer` — are handed
+  to the new instance when the name, shape and dtype still match. Each one
+  is taken over at the moment `setup` declares it, so a view or derived
+  array `setup` builds from it refers to the kept data. A buffer whose shape
+  or dtype changed starts from its fill value; nothing is resampled.
+- **The RNG stream** continues from where it was.
+- **Plain scalar state** set in `__init__` (`self.head`, `self.phase`, a
+  counter, a flag, a string) is kept when the new instance has an attribute
+  of the same name and the same family after its own `__init__` ran. Numbers
+  are one family, so `self.phase = 0` that has become `12.7` is kept. Lists,
+  tuples and arrays you manage yourself start fresh; per-pixel state that
+  must survive a save belongs in `self.buffer`.
+- **`setup` runs again**, against the kept buffers, after the scalars above
+  are in place. Whatever `setup` assigns is the new code's own, so editing a
+  constant set there takes effect on save.
+
+Two consequences worth knowing. A `Param` default or an `__init__` constant
+you edit is not what a *kept* value reads — the live value wins, so press
+**reset** on the preview (params) or rename the attribute (scalars) to see
+the new number. And a value kept from the old code is only as meaningful as
+the new code's use of it: rename an attribute when its meaning changes, and
+it starts fresh by construction.
+
+A save that does not load — a syntax error, an import that fails, a `setup`
+that raises, a second `Pattern` class with no `:ClassName` to choose it —
+keeps the last-good pattern running and shows why on the status line under
+the terminal grid and the preview page's banner (with the line number and
+never the path). Fix the file and save again; the error clears. The `run`
+log has the full traceback once the terminal is handed back. Only the entry
+file is watched: an edit to a sibling module it imports, or to the engine,
+needs a restart.
+
 ## Reference
 
 | Helper | Signature | What it's for |
@@ -374,6 +439,7 @@ and requiring the frames after it to diverge.
 | `hash01(x, seed, salt)` | `hash01(x, seed, salt) -> array` | stable per-pixel pseudo-random value, float64 (§6) |
 | `self.buffer(name, shape, dtype=np.float32, fill=0.0)` | called in `setup` only | declare engine-managed persistent state (§1, §2) |
 | `Param(default, lo, hi, label)` | class attribute | declare a knob; `lo`/`hi` are enforced, `label` is the unit (§7) |
+| `python -m pewpew run <spec>` | name, `file.py`, `file.py:Class`, `--patterns DIR` | run a gallery or user pattern live; the file is hot-reloaded on save (§8, §9) |
 
 Every example above runs against the real engine (`src/pewpew/`), not the
 frozen `bench/authoring/` prototype — verify a new API against the source

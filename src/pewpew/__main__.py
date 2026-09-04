@@ -6,8 +6,9 @@ dev path (§8) is one command:
     uv run python -m pewpew run comet --map line:64 --ansi
     uv run python -m pewpew run fire --map grid:16x16 --preview
 
-Deliberately minimal — argparse only; the hot-reload story extends this,
-it does not replace it.
+Deliberately minimal — argparse only. The pattern comes from `pewpew.load`
+(a gallery name, a file, or `--patterns DIR`), and `pewpew.reload` watches
+its source so a save swaps the new class in while the show runs.
 
 The library logs and the application presents. `pewpew.*` modules only ever
 `getLogger(__name__)`; this is the one place that installs a handler, and
@@ -29,12 +30,15 @@ import shutil
 import sys
 import time
 from collections import deque
-from typing import Callable, Iterator, TextIO
+from pathlib import Path
+from typing import Any, Callable, Iterator, TextIO
 
 import numpy as np
 
 import pewpew.patterns as gallery
-from pewpew import PacedLoop, ParamSet, Pattern, Renderer, SinkDriver, grid, lattice, line
+from pewpew import PacedLoop, ParamSet, Renderer, SinkDriver, grid, lattice, line
+from pewpew.load import LoadedPattern, LoadError, resolve
+from pewpew.reload import Reloader, Watch
 from pewpew.sinks import AnsiSink, PreviewSink
 
 logger = logging.getLogger(__name__)
@@ -42,21 +46,17 @@ logger = logging.getLogger(__name__)
 _GRACE = 2.0  # extra seconds to wait on a mid-send worker before releasing
 
 
-def _pattern_class(name: str) -> type:
-    # Pattern subclasses only. The gallery's __all__ is its public API, which
-    # is wider than its runnable patterns — reflecting over all of it once
-    # offered `study_cases` as a pattern name and failed at construction.
-    by_name = {
-        cls_name.lower(): obj
-        for cls_name in gallery.__all__
-        if isinstance(obj := getattr(gallery, cls_name), type) and issubclass(obj, Pattern)
-    }
+def _load(spec: str, search_dir: Path | None = None) -> LoadedPattern:
+    """Resolve the `pattern` argument, turning every load failure into one
+    clean exit line. The path is prefixed here and nowhere else: `LoadError`
+    text is path-free by contract so the same wording can cross the preview
+    socket as a reload status (pewpew.load)."""
     try:
-        return by_name[name.lower()]
-    except KeyError:
-        raise SystemExit(
-            f"unknown pattern {name!r}; available: {', '.join(sorted(by_name))}"
-        ) from None
+        return resolve(spec, search_dir=search_dir)
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from None
+    except LoadError as exc:
+        raise SystemExit(f"{exc.path}: {exc}" if exc.path is not None else str(exc)) from None
 
 
 def _mapping(spec: str) -> np.ndarray:
@@ -113,18 +113,24 @@ def _params(pairs: list[str], pattern_cls: type) -> dict[str, float]:
     return out
 
 
-def _status_of(renderer: Renderer) -> Callable[[], str | None]:
-    """The `status` supplier both sinks take, reading one renderer.
+def _status_of(*sources: Any) -> Callable[[], str | None]:
+    """The `status` supplier both sinks take: the first `.error` that is set,
+    in the order given. The reloader goes first — its outcome is the freshest
+    thing the author acted on; if the old pattern is broken *and* the fix has
+    a SyntaxError, the SyntaxError is what they need to see.
 
-    Snapshots `renderer.error` once: this runs on a SinkDriver worker while
-    the loop thread clears the error on the first healthy frame, so testing
-    the attribute and then formatting it would race — a pattern that heals
+    Snapshots each `.error` once: this runs on a SinkDriver worker while the
+    loop thread clears the error on the first healthy frame, so testing the
+    attribute and then formatting it would race — a pattern that heals
     between the two reads would paint a red status line reading `None`.
     """
 
     def status() -> str | None:
-        err = renderer.error
-        return str(err) if err else None
+        for source in sources:
+            err = source.error
+            if err:
+                return str(err)
+        return None
 
     return status
 
@@ -210,11 +216,22 @@ def main(
     ansi_stream: TextIO | None = None,
     now: Callable[[], float] = time.perf_counter,
     sleep: Callable[[float], None] = time.sleep,
+    watch: Watch | None = None,
 ) -> int:
     parser = argparse.ArgumentParser(prog="python -m pewpew")
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", help="render a pattern live to one or more sinks")
-    run.add_argument("pattern", help="gallery pattern name (comet, fire, ...)")
+    run.add_argument(
+        "pattern",
+        help="gallery name (comet, fire, ...), path/to/file.py, or file.py:ClassName",
+    )
+    run.add_argument(
+        "--patterns",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help="also resolve a bare name as DIR/<name>.py (before the gallery)",
+    )
     run.add_argument(
         "--map",
         default=None,
@@ -236,14 +253,23 @@ def main(
     run.add_argument("--seed", type=int, default=0)
     run.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     run.add_argument("--frames", type=int, default=None, help="stop after N frames (default: run until ^C)")
+    run.add_argument(
+        "--no-reload",
+        action="store_true",
+        help="do not watch the pattern's source file for edits (default: hot reload on)",
+    )
     args = parser.parse_args(argv)
 
-    pattern_cls = _pattern_class(args.pattern)
+    loaded = _load(args.pattern, args.patterns)
+    pattern_cls = loaded.cls
     mapping = _default_mapping(pattern_cls) if args.map_spec is None else _mapping(args.map_spec)
     renderer = Renderer(
         pattern_cls(), mapping, params=_params(args.param, pattern_cls), seed=args.seed
     )
-    status = _status_of(renderer)
+    # `loop` is assigned further down; no watcher runs until reloader.start(),
+    # so the late binding is safe (same reasoning as the preview's controls).
+    reloader = Reloader(renderer, loaded, lambda fn: loop.call_soon(fn), watch=watch)
+    status = _status_of(reloader, renderer)
 
     sinks: list = []
     ansi: AnsiSink | None = None
@@ -300,10 +326,13 @@ def main(
                         )
                 for driver in drivers:
                     driver.start()
+                if not args.no_reload:
+                    reloader.start()
                 loop.run(frames=args.frames)
             except KeyboardInterrupt:
                 pass
             finally:
+                reloader.stop()
                 _teardown(drivers, sinks)
     finally:
         deferred.replay(sys.stderr)
