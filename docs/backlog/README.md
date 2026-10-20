@@ -9,7 +9,7 @@ params, enforced ranges, the param-liveness check), v0.2.3 (live param
 sliders on the preview page, per-pattern default `--map`) and v0.2.4 (run a
 pattern from any file; hot reload with `t`, params, buffers and scalar state
 kept across the swap) have landed. **Next up: v0.2.5 DDP to stock WLED**
-(hardware ordered 2026-08-22; blocked until it arrives), else v0.2.6 layer
+(its hardware arrived, confirmed 2026-10-19), then v0.2.6 layer
 compositing (gated on its ADR). Also open: the ADR-010 GC retest, now that
 all three of its triggers have landed.
 
