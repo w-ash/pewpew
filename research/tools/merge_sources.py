@@ -39,6 +39,7 @@ BLOCKS = [
     (1100, 1149, "Block S1100–S1149 — RA-19 Embedded test loops (sim/emulation/HIL)"),
     (1150, 1199, "Block S1150–S1199 — RA-20 Agentic feedback loops"),
     (1200, 1249, "Block S1200–S1249 — RA-21 Fleet resilience"),
+    (1250, 1299, "Block S1250–S1299 — RA-22 First installation"),
 ]
 
 ENTRY_RE = re.compile(r"^### \[S(\d+)\]")

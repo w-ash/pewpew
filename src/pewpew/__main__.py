@@ -5,6 +5,12 @@ dev path (§8) is one command:
 
     uv run python -m pewpew run comet --map line:64 --ansi
     uv run python -m pewpew run fire --map grid:16x16 --preview
+    uv run python -m pewpew run comet --map line:3840 \
+        --ddp 10.0.0.11=0+1280 --ddp 10.0.0.12=1280+1280 --ddp 10.0.0.13=2560+1280 --dry-run
+
+`--ddp` streams to real boards, which is tier-1 bench actuation (CLAUDE.md
+T-7): `--dry-run` prints the per-board plan and sends nothing, and every
+real start appends a record to the audit log (`pewpew.audit`) first.
 
 Deliberately minimal — argparse only. The pattern comes from `pewpew.load`
 (a gallery name, a file, or `--patterns DIR`), and `pewpew.reload` watches
@@ -36,10 +42,10 @@ from typing import Any, Callable, Iterator, TextIO
 import numpy as np
 
 import pewpew.patterns as gallery
-from pewpew import PacedLoop, ParamSet, Renderer, SinkDriver, grid, lattice, line
+from pewpew import PacedLoop, ParamSet, Renderer, SinkDriver, audit, grid, lattice, line
 from pewpew.load import LoadedPattern, LoadError, resolve
 from pewpew.reload import Reloader, Watch
-from pewpew.sinks import AnsiSink, PreviewSink
+from pewpew.sinks import AnsiSink, DdpSink, PreviewSink, parse_board
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +117,23 @@ def _params(pairs: list[str], pattern_cls: type) -> dict[str, float]:
             hint = knobs.hint(key)
             raise SystemExit(f"{reason}. {hint}" if hint else reason)
     return out
+
+
+def _ddp_sink(
+    specs: list[str],
+    n_pixels: int,
+    fps: float,
+    now: Callable[[], float],
+    sleep: Callable[[float], None],
+) -> DdpSink | None:
+    """Parse and validate `--ddp` against the map; one clean line on error."""
+    if not specs:
+        return None
+    try:
+        boards = [parse_board(spec) for spec in specs]
+        return DdpSink(boards, n_pixels, max_fps=fps, now=now, sleep=sleep)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
 
 
 def _status_of(*sources: Any) -> Callable[[], str | None]:
@@ -250,6 +273,19 @@ def main(
         metavar="PORT",
         help="browser preview sink on PORT (default 7447)",
     )
+    run.add_argument(
+        "--ddp",
+        action="append",
+        default=[],
+        metavar="HOST=START+COUNT",
+        help="stream DDP to a WLED board (HOST or HOST:PORT); repeat once per board",
+    )
+    run.add_argument("--ddp-fps", type=float, default=40.0, help="DDP output rate (default 40)")
+    run.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the DDP plan and exit without sending",
+    )
     run.add_argument("--seed", type=int, default=0)
     run.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     run.add_argument("--frames", type=int, default=None, help="stop after N frames (default: run until ^C)")
@@ -259,10 +295,19 @@ def main(
         help="do not watch the pattern's source file for edits (default: hot reload on)",
     )
     args = parser.parse_args(argv)
+    if args.ddp and args.ddp_fps <= 0.0:
+        raise SystemExit(f"bad --ddp-fps {args.ddp_fps:g}; expected a positive rate")
 
     loaded = _load(args.pattern, args.patterns)
     pattern_cls = loaded.cls
     mapping = _default_mapping(pattern_cls) if args.map_spec is None else _mapping(args.map_spec)
+    # The loop feeds the sink at most `--fps` frames a second.
+    ddp = _ddp_sink(args.ddp, len(mapping), min(args.fps, args.ddp_fps), now=now, sleep=sleep)
+    if args.dry_run:
+        if ddp is None:
+            raise SystemExit("--dry-run needs at least one --ddp target")
+        print("dry run: nothing sent", *ddp.plan(), sep="\n")
+        return 0
     renderer = Renderer(
         pattern_cls(), mapping, params=_params(args.param, pattern_cls), seed=args.seed
     )
@@ -273,7 +318,7 @@ def main(
 
     sinks: list = []
     ansi: AnsiSink | None = None
-    if args.ansi or args.preview is None:
+    if args.ansi or (args.preview is None and ddp is None):
         # The terminal budget is sniffed here, never in the sink: keeping
         # AnsiLayout's defaults fixed is what keeps render_frame pure and
         # the exact-string goldens valid. Only a real stdout is measured.
@@ -303,6 +348,9 @@ def main(
             )
         )
 
+    if ddp is not None:
+        sinks.append(ddp)
+
     drivers = [SinkDriver(s.send, name=type(s).__name__) for s in sinks]
     loop = PacedLoop(renderer, fps=args.fps, on_frame=drivers)
 
@@ -317,6 +365,9 @@ def main(
         with _cli_logging(handler):
             try:
                 for sink in sinks:
+                    if isinstance(sink, DdpSink):
+                        _start_ddp(sink, sys.argv[1:] if argv is None else argv)
+                        continue
                     sink.start()
                     if isinstance(sink, PreviewSink):
                         print(
@@ -337,6 +388,24 @@ def main(
     finally:
         deferred.replay(sys.stderr)
     return 0
+
+
+def _start_ddp(sink: DdpSink, argv: list[str]) -> None:
+    """Audit, then open the socket. Real boards are tier-1 hardware: no
+    packet goes out unless the record was written first."""
+    try:
+        path = audit.record(
+            "ddp-stream",
+            argv=argv,
+            targets=[b.spec for b in sink.boards],
+            fps=sink.max_fps,
+        )
+        sink.start()
+    except OSError as exc:
+        raise SystemExit(f"ddp: {exc}") from None
+    for plan_line in sink.plan():
+        print(plan_line, file=sys.stderr, flush=True)
+    print(f"audit record appended to {path}", file=sys.stderr, flush=True)
 
 
 def _teardown(drivers: list[SinkDriver], sinks: list) -> None:

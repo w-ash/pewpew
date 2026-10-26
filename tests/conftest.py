@@ -58,3 +58,22 @@ class Oversleeper(FakeTime):
     def sleep(self, s: float) -> None:
         self.sleeps.append(s)
         self.t += s + self.overshoot
+
+
+class UdpRecorder:
+    """A UDP socket stand-in that keeps every datagram it is asked to send;
+    sends to `fail_for` raise as an unreachable host would."""
+
+    def __init__(self, fail_for: str | None = None) -> None:
+        self.sent: list[tuple[bytes, tuple[str, int]]] = []
+        self.closed = 0
+        self.fail_for = fail_for
+
+    def sendto(self, data: bytes, address: tuple[str, int]) -> int:
+        if address[0] == self.fail_for:
+            raise OSError(65, "No route to host")
+        self.sent.append((bytes(data), address))
+        return len(data)
+
+    def close(self) -> None:
+        self.closed += 1

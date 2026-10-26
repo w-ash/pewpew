@@ -4427,3 +4427,438 @@ is removed.
 - accessed: 2026-07-09
 - archive: https://web.archive.org/web/20260710090028/https://cdn.prod.website-files.com/6526c8266f9d6acac8ef145f/661d4804085c9f0866d03279_PixLite%2016%20Plug%20And%20Play%20Mk2%20User%20Manual_20230823.pdf
 - relevance: professional outdoor-pixel install practice: IP67 screw-lock connectors with gold pins, warning that poor waterproofing lets rain short supply onto data lines, ≤15 m controller-to-first-pixel rule
+
+## Block S1250–S1299 — RA-22 First installation
+
+### [S1250] WLED source at tag v16.0.1
+- type: code
+- url: https://github.com/wled/WLED/tree/v16.0.1
+- pinned: wled/WLED@29b389df1c1aaec6ff53aea742d17063b985906c
+- author: WLED contributors
+- license: EUPL-1.2 (GitHub API, 2026-10-26)
+- published: tag commit 2026-06-30; release 2026-07-07
+- accessed: 2026-10-19
+- relevance: the firmware the first-installation boards run. DDP bytes per pixel (`wled00/e131.cpp#L54-L57`), auto-white on streamed data (`wled00/bus_manager.cpp#L275`, `#L102-L125`), the 15 ms show gate (`wled00/udp.cpp#L477`), Wi-Fi sleep off on ESP32 (`wled00/wled.h#L372`), DDP unicast only (`wled00/wled.cpp#L875`), 4 RMT outputs on S3 (`wled00/const.h#L88`), settings-PIN scope, config backup files. S001 and S645 pin earlier commits.
+
+### [S1251] Espressif — ESP32-S3 Wi-Fi performance guide and product page
+- type: docs
+- url: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/wifi-driver/wifi-performance-and-power-save.html
+- also: https://www.espressif.com/en/products/socs/esp32-s3
+- author: Espressif Systems
+- accessed: 2026-10-19 (performance table rechecked 2026-10-26)
+- relevance: S3 iperf UDP RX 30 Mbit/s over the air in lab (88 Mbit/s shielded); modem sleep can delay RX by a DTIM cycle; the S3 is 2.4 GHz only. S1004 is the classic-ESP32 page of the same guide.
+
+### [S1252] LedFx hosted docs — performance tips and API reference
+- type: docs
+- url: https://docs.ledfx.app/en/latest/howto/tips.html
+- also: https://ledfx.readthedocs.io/en/v2.0.58/api.html
+- author: LedFx contributors
+- accessed: 2026-10-19
+- relevance: LED-wire frame-time formula and a measured WLED Dig-Octa fps fall-off above ~1,400 LEDs; LedFx segment form `[device,start,end,invert]`.
+
+### [S1253] WLED GitHub issues — realtime stutter and lag reports
+- type: forum
+- url: https://github.com/wled/WLED/issues/4320
+- also: https://github.com/wled/WLED/issues/5575, https://github.com/wled/WLED/issues/5596, https://github.com/wled/WLED/issues/3411
+- author: WLED users and maintainers
+- published: #4320 2024-11-25 (closed not planned 2025-07-27); #5575 2026-05-07 (open); #5596 2026-05-11 (closed not planned); #3411 2023-10-02 (closed not planned)
+- accessed: 2026-10-19 (states rechecked 2026-10-26)
+- relevance: #4320 DDP stutter building over hours, cured by reboot; #5575 ~1 s lag on v16.0.0; #5596 maintainer DedeHai: live-mode stutter "is related to wifi signal. you need a clean wifi channel with no other traffic on it"; #3411 full-`/json` polling by Home Assistant stalls output every 10 s.
+
+### [S1254] WLED GitHub — DDP protocol handling changes in the v16 line
+- type: code
+- url: https://github.com/wled/WLED/issues/5532
+- also: https://github.com/wled/WLED/issues/5412, https://github.com/wled/WLED/pull/5547, https://github.com/wled/WLED/pull/5554, https://github.com/wled/WLED/pull/5896
+- author: WLED contributors (softhack007, DedeHai, dustinreed-info)
+- license: EUPL-1.2
+- published: #5412 2026-03-09; #5532 2026-04-24; #5554 merged to 16_x 2026-05-01; #5547 merged to main 2026-05-13; #5896 opened 2026-10-09 (open)
+- accessed: 2026-10-19 (rechecked 2026-10-26)
+- relevance: "skip out-of-sequence" assumes ≤4 packets per frame (#5412); v16 nightlies rejected undefined DDP data types (#5532), relaxed on 16_x by #5554 ("basically the same as #5547"), which is in the v16.0.0 and v16.0.1 tags; stale sequence numbers after a sender restart (#5896, unmerged).
+
+### [S1255] W5500 Ethernet options for WLED on ESP32-S3
+- type: forum
+- url: https://github.com/wled/WLED/issues/5478
+- also: https://github.com/MoonModules/WLED-MM/pull/320, https://maker.wiznet.io/Benjamin/projects/thebreeze-w5500-ethernet-ddp-receiver-for-wled/
+- author: softhack007 (WLED); troyhacks (WLED-MM PR); WIZnet maker community
+- published: #5478 comment 2026-04-05; WLED-MM PR #320 opened 2026-01-15 (open)
+- accessed: 2026-10-19 (rechecked 2026-10-26)
+- relevance: "normal WLED does not support W5500 ethernet"; the WLED-MM PR is "largely untested except by author" (softhack007 in #5478); a single-commit third-party usermod exists. Grounds "no wired fallback on stock WLED S3".
+
+### [S1256] WLED per-output pixel caps across releases
+- type: code
+- url: https://github.com/wled/WLED/pull/5267
+- also: https://newreleases.io/project/github/wled/WLED/release/v0.15.0-b4
+- author: WLED contributors
+- license: EUPL-1.2
+- published: PR #5267 opened 2026-01-03, closed unmerged 2026-01-19
+- accessed: 2026-10-19 (PR state checked 2026-10-26)
+- relevance: 0.15.0-b4 caps parallel I2S at 300 LEDs per output; the S3 PR that used 600 was closed without merging.
+
+### [S1257] WLED v16 brownout and boot-failure reports
+- type: forum
+- url: https://github.com/wled/WLED/issues/5570
+- also: https://wled.discourse.group/t/16-x-problems-with-early-quinled-esp32s/15450
+- author: WLED users and maintainers
+- published: #5570 2026-05-05 (open, reopened)
+- accessed: 2026-10-19
+- relevance: v16 crashes on weak 3.3 V supplies; reported fixes are a capacitor on 3V3, TX power ≤8.5 dBm and stable USB power; reports run through 2026-10-12.
+
+### [S1258] WLED Discourse — scale, network and realtime-handover threads
+- type: forum
+- url: https://wled.discourse.group/t/12-16-x-16-panels-esp32-ddp-laggy-not-sure-best-way-to-drive-all-12-panels/12974
+- also: https://wled.discourse.group/t/all-my-wled-is-offline-unifi-6/14143, https://wled.discourse.group/t/dmx-e1-31-effect-control/3283
+- author: WLED community
+- published: 14143 2025-03-03
+- accessed: 2026-10-19
+- relevance: ~4k px on 5 ESP32s over DDP "no lag on wifi" (no fps or version); client isolation and auto channel selection took nodes offline; WLED resumes local control ~2.5 s after realtime stops.
+
+### [S1259] RFC 9119 — Multicast Considerations over IEEE 802 Wireless Media
+- type: spec
+- url: https://www.rfc-editor.org/rfc/rfc9119.html
+- author: C. Perkins, M. McBride, D. Stanley, W. Kumari, JC. Zúñiga (IETF)
+- published: 2021-10
+- accessed: 2026-10-19
+- relevance: Wi-Fi multicast "is generally transmitted at the slowest rate of all the connected devices" (§3.1.2) with "no ACKs" (§3.1.1) (rechecked 2026-10-26).
+
+### [S1260] Wi-Fi deployment practice for realtime LED streams
+- type: article
+- url: https://quinled.info/quinled-dig-octa-system-usage-examples/
+- also: https://intel.vn/content/www/vn/vi/support/network-and-i-o/wireless-networking/000005799.html, https://esp32.com/viewtopic.php?p=119475
+- author: QuinLED; Intel support; esp32.com forum
+- accessed: 2026-10-19
+- relevance: Wi-Fi is a shared medium where one device receives at a time, so QuinLED recommends Ethernet for realtime; use channels 1/6/11 at 20 MHz in 2.4 GHz; the DevKitC-1U variant has a U.FL antenna connector.
+
+### [S1261] WLED knowledge base — boot-loop recovery and wiring
+- type: docs
+- url: https://kno.wled.ge/advanced/bootloop-recovery/
+- also: https://kno.wled.ge/advanced/wiring/
+- author: WLED contributors
+- accessed: 2026-10-19 (boot-loop page rechecked 2026-10-26)
+- relevance: after 5 crashes in a 2-minute window WLED restores the backup config, then resets config, then (ESP32) rolls back firmware, one step per boot; fuse each supply close to it.
+
+### [S1262] WLED knowledge base — segments, multi-strip, MQTT, macros
+- type: docs
+- url: https://kno.wled.ge/features/segments/
+- also: https://kno.wled.ge/features/multi-strip/, https://kno.wled.ge/interfaces/mqtt/, https://kno.wled.ge/features/macros/
+- author: WLED contributors
+- accessed: 2026-10-19
+- relevance: segment grouping; 512 LEDs per pin on 4 outputs given as "perfect performance"; MQTT has no TLS; button/PIR preset triggers on the board.
+
+### [S1263] WLED-MM docs — settings and PIR sensor usermod pages
+- type: docs
+- url: https://mm.kno.wled.ge/features/settings/
+- also: https://mm.kno.wled.ge/usermods/PIRsensorSwitch/
+- author: MoonModules / WLED contributors
+- accessed: 2026-10-19
+- relevance: the current limiter is one estimate for all outputs and still applies to "Force max brightness" streams; WLED brightness scales incoming realtime data unless that option is set; PIR usermod runs an off-preset after a timeout. S005 is this doc site's root.
+
+### [S1264] QLC+ documentation — Grand Master, kiosk mode, web interface, input profiles
+- type: docs
+- url: https://qlcplus.org/docs/html_en_EN/concept.html
+- also: https://docs.qlcplus.org/v4/advanced/kiosk-mode, https://qlcplus.org/docs/html_en_EN/webinterface.html, https://docs.qlcplus.org/v5/input-output/input-profiles
+- author: Massimo Callegari and QLC+ contributors
+- published: webinterface page 2022-08-28
+- accessed: 2026-10-19
+- relevance: Grand Master "Reduce" vs "Limit"; kiosk/operate mode with the web login limited to the Virtual Console; the web page lacks Grand Master and crossfade sliders (2022 doc); input profiles map MIDI/OSC to controls.
+
+### [S1265] Chromatik Guide — snapshots, performance mode, palette, model definition, modulation
+- type: docs
+- url: https://chromatik.co/guide/snapshots/
+- also: https://chromatik.co/guide/performance-mode/, https://chromatik.co/guide/color-palette/, https://chromatik.co/guide/application-overview/, https://chromatik.co/guide/model-definition/, https://chromatik.co/guide/modulation/
+- author: Heron Arts / Mark Slee
+- published: n/a (living docs)
+- accessed: 2026-10-19
+- relevance: snapshots toggle what they store, carry a transition time and an auto-cycle flag, finish a fade on re-recall; Performance Mode; global palette swatches; tags drive views and `.lxm` reload; triggers fire on change only. S309 (custom fixtures) and S555 (OSC) are sibling pages.
+
+### [S1266] LedFx repository docs — scenes, playlists, silence scene
+- type: code
+- url: https://github.com/LedFx/LedFx/tree/main/docs
+- pinned: LedFx/LedFx@ccd299502b2d12621b6eba4a75b9eeadc410af64
+- author: LedFx contributors
+- license: GPL-3.0
+- published: playlists.md 2025-12-28; silence_scene.md 2026-10-12
+- accessed: 2026-10-19
+- relevance: `docs/settings/scenes.md` (per-output activate/ignore/force black/stop), `docs/settings/playlists.md` (sequence/shuffle, duration variation), `docs/developer/silence_scene.md` (journal state, switch, restore). S011 pins an earlier commit.
+
+### [S1267] LedFx releases — v2.1.8 and v2.2.1
+- type: release
+- url: https://github.com/LedFx/LedFx/releases
+- author: LedFx contributors
+- published: v2.1.8 2026-04-21; v2.2.1 2026-10-04
+- accessed: 2026-10-19 (dates rechecked 2026-10-26)
+- relevance: startup playlist (v2.1.8); scene REST, Launchpad and Home Assistant event inputs (v2.2.1).
+
+### [S1268] ElectroMage docs — Pixelblaze user interface and websocket API
+- type: docs
+- url: https://electromage.com/docs/user-interface
+- also: https://electromage.com/docs/websockets-api
+- author: ElectroMage (Ben Hencke)
+- accessed: 2026-10-19
+- relevance: "Limit Brightness" as a hard cap; `setVars` over websocket port 81 as an event path.
+
+### [S1269] Lighting console manuals — grandMA3, ETC Ion, Avolites
+- type: docs
+- url: https://help.malighting.com/grandMA3/2.5/ (pages ws_masters_window, masters_speed, keyword_oops)
+- also: ETC Ion help Grandmaster_Configuration.htm; https://community.etcconnect.com (thread 5007); https://manual.avolites.com/docs/palettes/timing-with-palettes
+- author: MA Lighting; ETC; Avolites
+- accessed: 2026-10-19
+- relevance: speed masters with tap/×2/÷2 and Oops undo; ETC hardware blackout needs two keys while the on-screen one fires on one touch; a typed fade time overrides the stored one. Page names as given in the 2026-10-19 report; full paths not re-resolved.
+
+### [S1270] Open Stage Control — docs, forum and releases
+- type: docs
+- url: https://openstagecontrol.ammd.net/ (pages server-configuration, client-options; v1.31.0)
+- also: https://openstagecontrol.discourse.group/t/3182; https://github.com/jean-emmanuel/open-stage-control/releases
+- author: Jean-Emmanuel Doucet
+- published: v1.31.0 2026-09-23
+- accessed: 2026-10-19 (release date rechecked 2026-10-26)
+- relevance: `read-only` and `remote-saving` server options; users ask to turn off client sync (`clientSync=0`); sends OSC.
+
+### [S1271] Touch-target size and thumb-reach guidance
+- type: article
+- url: https://frontendchecklist.io/rules/accessibility/touch-targets
+- also: https://alistapart.com/article/how-we-hold-our-gadgets/
+- author: Front-End Checklist; Steven Hoober (A List Apart)
+- published: A List Apart 2015
+- accessed: 2026-10-19
+- relevance: 24 CSS px WCAG AA floor and 44 px common target; ~75% of phone use is thumb-driven, bottom third most reachable.
+
+### [S1272] MDN — Service Worker API
+- type: docs
+- url: https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API
+- author: Mozilla contributors
+- published: last modified 2026-08-15
+- accessed: 2026-10-19
+- relevance: service workers need a secure context (HTTPS or localhost), so a phone on `http://<laptop-ip>` gets no offline cache.
+
+### [S1273] Epilepsy Society — Photosensitive epilepsy factsheet
+- type: article
+- url: https://epilepsysociety.org.uk (PhotosensitiveepilepsyJuly2023.pdf; full path as given in the 2026-10-19 report not recorded)
+- author: Epilepsy Society (UK)
+- published: 2023-07
+- accessed: 2026-10-19
+- relevance: flashes at 3–30 per second are the common trigger range for photosensitive seizures.
+
+### [S1274] AusChristmasLighting forum — xSchedule status and channel-gap warning threads
+- type: forum
+- url: https://auschristmaslighting.com/goto/post?id=146337
+- also: https://auschristmaslighting.com/threads/warn-gap-in-models-on-pixel-port-1-channel.17225
+- author: AusChristmasLighting community
+- published: post 146337 2026-04-02
+- accessed: 2026-10-19
+- relevance: xSchedule reportedly discontinued with EZPlayer replacing it; xLights allocates channels contiguously, so inserting a model mid-port shifts the rest.
+
+### [S1275] Resolume — OSC support and pixel-mapping article
+- type: docs
+- url: https://resolume.com/support/en/osc
+- also: https://resolume.com/article/27
+- author: Resolume
+- accessed: 2026-10-19
+- relevance: OSC input on port 7000 with fixed addresses and a 200-message monitor; build the pixel map in advance and assign the node on site.
+
+### [S1276] MadMapper documentation — DMX fixtures, LED scanner, Cue Scheduler
+- type: docs
+- url: https://docs.madmapper.com/ (pages dmx-fixtures, tools-led-scanner)
+- also: https://madmapper.com/files/07-Cue%20Scheduler.pdf
+- author: GarageCube
+- accessed: 2026-10-19
+- relevance: 16 scan orders and `avoidCrossUniversePixels`; camera LED scanner for build day; cue scheduling.
+
+### [S1277] heronarts/GLX — UIPointCloud.java
+- type: code
+- url: https://github.com/heronarts/GLX/blob/master/src/main/java/heronarts/glx/ui/component/UIPointCloud.java
+- pinned: heronarts/GLX@9abda8dbe1ff401637aceb67e7d7a63593efa7e8
+- author: Mark C. Slee / Heron Arts
+- license: CHROMATIK / LX SOFTWARE LICENSE AND DISTRIBUTION AGREEMENT (custom, not OSI; LICENSE header read 2026-10-26)
+- published: file last changed 2026-07-10
+- accessed: 2026-10-19
+- relevance: Chromatik's point-cloud preview controls: point size, feather, sparkle, contrast, gamma and floor, LED textures, alpha blend.
+
+### [S1278] xLights manual — layout, models, controller visualizer, testing
+- type: docs
+- url: https://manual.xlights.org/ (pages moving-model-objects, models, keyboard-shortcuts, objects, controller-visualizer, layout, layer-settings, quick-start testing)
+- also: https://xlights.org/tip-of-the-day-040 (2017-11-15)
+- author: xLights contributors
+- accessed: 2026-10-19
+- relevance: layout editing (drag, rotate, align to first selected, lock, nudge, groups); background brightness; "Single Line as a Pixel"; overlap checks; visualizer refuses upload on errors; green start / blue end markers; pixel size and blended-circle preview; test mode. Page names as given in the 2026-10-19 report. S506 is the manual root.
+
+### [S1279] xLights source — ruler, model keys, WLED controller limits
+- type: code
+- url: https://github.com/xLightsSequencer/xLights
+- pinned: xLightsSequencer/xLights@8acb3714eb7f92dc5b1c7bb66a1ab0c8e74c6dac
+- author: xLights contributors
+- license: GPL-3.0
+- accessed: 2026-10-19 (pin = last commit on master at 2026-10-19, resolved 2026-10-26)
+- relevance: `src-core/models/RulerObject.h` (two-point ruler sets units and real length), `src-core/XmlSerializer/XmlNodeKeys.h` and `src-ui-wx/modelproperties/ModelPropertyAdapter.cpp` (model attributes, Model Chain), `resources/controllers/wled.xcontroller` (ESP32 `MaxPixelPortChannels` 3600). S026 pins an earlier commit.
+
+### [S1280] FastLED — ScreenMap header
+- type: docs
+- url: https://fastled.io/docs/screenmap_8h_source.html (the report gives fastled.io screenmap_8h_source.html; `/docs/` prefix inferred from S503)
+- author: FastLED contributors
+- published: FastLED 3.9.15 docs
+- accessed: 2026-10-19
+- relevance: ScreenMap is x[], y[] and a dot diameter (0.5 for 5 mm LEDs) for browser preview.
+
+### [S1281] isocorDev/EasyLEDMap
+- type: code
+- url: https://github.com/isocorDev/EasyLEDMap
+- pinned: isocorDev/EasyLEDMap@85801afb14dc86e0aa8475234a509740d1f88b36
+- author: isocorDev
+- license: MIT
+- published: repo created 2026-10-08 (v0.1)
+- accessed: 2026-10-19
+- relevance: traces the data path over a photo of the install; new and early.
+
+### [S1282] mic159/wled-mapper
+- type: code
+- url: https://github.com/mic159/wled-mapper
+- pinned: mic159/wled-mapper@157e620fee919943fef8186788022f46fb506c06
+- author: mic159
+- license: none stated (GitHub API reports no license, 2026-10-26)
+- published: last commit 2023-01-10; last push 2023-07-12
+- accessed: 2026-10-19
+- relevance: drag-and-drop WLED mapping that lights the current LED to identify it. Not the same project as S314 (Vitminee/wled-mapper).
+
+### [S1283] python-osc
+- type: code
+- url: https://github.com/attwad/python-osc
+- pinned: attwad/python-osc@e91ace85525bd25858a5cea77528d0159cb5ff14
+- author: attwad and contributors
+- license: Unlicense
+- published: v1.10.2 2026-04-02 (tag commit)
+- accessed: 2026-10-19
+- relevance: pure-Python OSC server/client; handlers can receive the sender address, which an allowlist needs. Candidate runtime dependency for OSC event input.
+
+### [S1284] OSC control-surface releases — TouchOSC and Bitfocus Companion
+- type: release
+- url: https://hexler.net/touchosc/releases
+- also: https://github.com/bitfocus/companion/releases; https://github.com/bitfocus/companion-module-generic-osc
+- pinned: bitfocus/companion-module-generic-osc@44de2d14c6d7a23ef9b684a40cda5d92a361a536 (module only)
+- author: hexler; Bitfocus
+- license: generic-osc module MIT
+- published: TouchOSC 1.5.3 2026-09-27; Companion v5.1.0 2026-10-11
+- accessed: 2026-10-19 (Companion date rechecked 2026-10-26)
+- relevance: current, maintained OSC senders an operator can use (Companion drives a Stream Deck).
+
+### [S1285] shells-dw/StreamDeck-OSC
+- type: code
+- url: https://github.com/shells-dw/StreamDeck-OSC
+- pinned: shells-dw/StreamDeck-OSC@47ce42787ab2dc2cd79fdbac8a950c5da72f1319
+- author: shells-dw
+- license: MIT
+- accessed: 2026-10-19
+- relevance: community Stream Deck plugin that sends OSC directly.
+
+### [S1286] Home Assistant docs — RESTful Command and automation modes
+- type: docs
+- url: https://www.home-assistant.io/integrations/rest_command/
+- also: https://www.home-assistant.io/docs/automation/modes/
+- author: Home Assistant contributors
+- accessed: 2026-10-19
+- relevance: `rest_command` is HTTP-only, so Home Assistant reaches pewpew over HTTP, not OSC; single/restart/queued automation modes are precedents for event arbitration.
+
+### [S1287] home-assistant/core — WLED integration constants
+- type: code
+- url: https://github.com/home-assistant/core/blob/dev/homeassistant/components/wled/const.py
+- pinned: home-assistant/core@9b4cd3839f905ef55ddafbfebf5202d033a96aa8
+- author: Home Assistant contributors
+- license: Apache-2.0
+- accessed: 2026-10-19 (pinned and checked 2026-10-26)
+- relevance: `SCAN_INTERVAL = timedelta(seconds=10)` (`homeassistant/components/wled/const.py#L14`): the polling interval a widely deployed WLED client uses.
+
+### [S1288] ESPHome component docs — HTTP request, UDP, LD2410/LD2450, sound level, binary sensor
+- type: docs
+- url: https://esphome.io/components/http_request/
+- also: https://esphome.io/components/udp/, https://esphome.io/changelog/2025.5.0/, https://esphome.io/components/sensor/ld2410/, https://esphome.io/components/sensor/ld2450/, https://esphome.io/components/sensor/sound_level/, https://esphome.io/components/binary_sensor/
+- author: ESPHome contributors
+- published: http_request page at ESPHome 2026.9.1
+- accessed: 2026-10-19
+- relevance: `http_request` runs on the main loop with a 4.5 s default timeout; `udp.write` sends raw bytes; LD2410 gates, timeouts and engineering mode; LD2450 3-target tracking and filter zones; `sound_level` needs an I²S mic; `delayed_on`/`delayed_off` debounce.
+
+### [S1289] Mosquitto — Migrating to 2.0
+- type: docs
+- url: https://mosquitto.org/documentation/migrating-to-2-0/
+- author: Eclipse Mosquitto
+- accessed: 2026-10-19
+- relevance: Mosquitto 2.0 binds to localhost until configured and then requires authentication; MQTT adds a broker to run.
+
+### [S1290] Network MIDI 2.0 — MIDI Association spec page and Microsoft transport notes
+- type: spec
+- url: https://midi.org/network-midi-2-0
+- also: https://microsoft.github.io/MIDI/kb/network-midi2-transport
+- author: MIDI Association; Microsoft
+- published: Network MIDI 2.0 ratified 2024-11
+- accessed: 2026-10-19
+- relevance: Network MIDI 2.0 is new; Microsoft's transport lacks authentication. Grounds deferring network MIDI.
+
+### [S1291] Presence-sensor field notes — mmWave, PIR, VL53L1X
+- type: article
+- url: https://help.inovelli.com/en/articles/13147206
+- also: https://matteralpha.com/explainer/mmwave-make-your-home-smarter; shillehtek.com HC-SR501 manual (path not recorded in the report); https://community.home-assistant.io/t/1022697; https://esp32.co.uk/?p=991425
+- author: Inovelli; Matter Alpha; ShillehTek; Home Assistant community; esp32.co.uk
+- accessed: 2026-10-19
+- relevance: mmWave false triggers from fans, curtains and airflow and through thin walls; PIR needs ~1 min warm-up and false-triggers on power-rail noise; VL53L1X has no native ESPHome support.
+
+### [S1292] PeterkoCZ91/HLK-LD2450-security
+- type: code
+- url: https://github.com/PeterkoCZ91/HLK-LD2450-security
+- pinned: PeterkoCZ91/HLK-LD2450-security@68dfa8ef84e176a74430ed30a9708e66ecc97503
+- author: PeterkoCZ91
+- license: MIT
+- accessed: 2026-10-19
+- relevance: field report of LD2450 ghost targets from furniture and metal.
+
+### [S1293] MediaPipe Pose Landmarker — Python guide
+- type: docs
+- url: https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/python
+- author: Google
+- accessed: 2026-10-19
+- relevance: live-stream mode drops frames to keep latency down; no latency figures published (not found).
+
+### [S1294] TouchDesigner docs — Trigger CHOP and OSC In DAT
+- type: docs
+- url: https://docs.derivative.ca/Trigger_CHOP
+- also: https://docs.derivative.ca/OSC_In_DAT
+- author: Derivative
+- accessed: 2026-10-19
+- relevance: trigger envelopes with re-trigger delay and minimum length, the model for one-shot events over an ambient look; OSC In filters by address, not sender. S213 is a different Derivative page.
+
+### [S1295] Interactive-installation precedents — NTU student installation; Hindle, "Hacking NIMEs"
+- type: article
+- url: https://nime.org/proc/nime2016_hindle/
+- also: https://oss.adm.ntu.edu.sg/a150112/?p=661
+- author: Abram Hindle (NIME 2016, pp. 359–364, doi:10.5281/zenodo.1176026); NTU ADM student blog
+- published: 2016 (NIME)
+- accessed: 2026-10-19 (NIME listing located 2026-10-26)
+- relevance: many NIMEs can be hacked from audience smartphones, and OSC has no authentication; a student installation fired its show after 15 s of sustained activity.
+
+### [S1296] macOS 27.0 manual pages — caffeinate(8), launchd.plist(5), pmset(1)
+- type: docs
+- url: n/a (local `man caffeinate`, `man launchd.plist`, `man pmset` on macOS 27.0)
+- author: Apple
+- accessed: 2026-10-19
+- relevance: `caffeinate -i -s -w <pid>`; launchd restarts a job only when it exits, `KeepAlive {SuccessfulExit=false}`, `ThrottleInterval` 10 s default, unset `ProcessType` means throttled CPU and I/O, `LegacyTimers`; `pmset -c sleep 0 …`; `disablesleep` is absent from the 27.0 pmset page.
+
+### [S1297] Apple Support — FileVault auto-login and Focus
+- type: docs
+- url: https://support.apple.com/102316
+- also: https://support.apple.com/en-ca/guide/mac-help/mchl613dc43f/mac
+- author: Apple
+- accessed: 2026-10-19
+- relevance: automatic login is unavailable while FileVault is on; Do Not Disturb Focus.
+
+### [S1298] Third-party macOS unattended-operation articles
+- type: article
+- url: https://braindetox.kr/en/posts/electronic_clam_clamshell_agent_2026.html
+- also: https://eclecticlight.co/2025/11/06/how-tahoe-26-1-has-enabled-automatic-security-updates/, https://junian.dev/tech/macos-disable-auto-update/
+- author: braindetox.kr; Howard Oakley (The Eclectic Light Company); Junian
+- published: eclecticlight 2025-11-06
+- accessed: 2026-10-19
+- relevance: only `pmset disablesleep 1` stops lid-closed sleep and it persists until reverted; Background Security Improvements (Tahoe 26.1+) install silently; which update toggles to turn off.
+
+### [S1299] Community install-practice threads — power-up order and show spares
+- type: forum
+- url: https://forum.makerforums.info/t/first-led-is-broken-again-and-again-when-i-powered-up-my-stripe/62988
+- also: https://eplaya.burningman.org/viewtopic.php?p=354379
+- author: Maker Forums community; ePlaya community
+- accessed: 2026-10-19
+- relevance: community power-up order (ground, V+, then data; pixels before or with the controller); carry spare board, PSU and cable. No official power-up order found.

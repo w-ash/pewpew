@@ -109,6 +109,29 @@ cumulative drift and a histogram go to the JSON (T-5).
       allocates arrays, not gc-tracked containers — so ADR-010's GC worry is
       untested, not cleared.
 
+## bench_wifi.py — §12 item 14 for the first installation
+
+Wi-Fi ingest on the real rig: DDP through `DdpSink` to every board at once
+(default 1,280 px per board) at 40, 50 and 60 fps, k trials per rate, while a
+separate thread polls each board's `/json/info` (never the full `/json`) one
+board at a time. Per board per rate it reports `leds.fps` against the sent
+rate as min/p10/median/p90, the RSSI range, trials with a reboot and pass^k
+— a distribution, never a gate (T-5).
+
+```sh
+uv run python bench/bench_wifi.py HOST1 HOST2 HOST3 --dry-run   # plan only
+uv run python bench/bench_wifi.py HOST1 HOST2 HOST3 --label <rig> --note "<router settings>"
+```
+
+Streaming is tier-1 bench actuation: `--dry-run` first, and a real run
+appends an audit record (`pewpew.audit`, `$PEWPEW_AUDIT_LOG`). A run writes
+`results/wifi-<date>-<label>.{json,md}` and refuses to overwrite either.
+
+### Status
+
+- [ ] First run on the hotel rig (three ESP32-S3 boards, WLED v16.0.1), then
+      v0.15.4 for comparison (wled/WLED#5575).
+
 ## bench_authoring.py — §12 item 2 (gates ADR-005)
 
 Authoring-surface study: the five canonical patterns (plasma, comet, geq,

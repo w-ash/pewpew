@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import sys
 
 import pytest
-from conftest import FakeCallSoon, FakeTime
+from conftest import FakeCallSoon, FakeTime, UdpRecorder
 
 from pewpew import Renderer, line
 from pewpew.__main__ import _default_mapping, _load, _LoopControls, _status_of, main
 from pewpew.patterns import Plasma
+from pewpew.sinks import ddp
 
 
 def no_watch(source, stop):
@@ -243,3 +245,77 @@ def test_status_prefers_the_reload_error_over_the_pattern_error():
     assert _status_of(Src("reload failed"), Src("render raised"))() == "reload failed"
     assert _status_of(Src(None), Src("render raised"))() == "render raised"
     assert _status_of(Src(None), Src(None))() is None
+
+
+@pytest.fixture
+def audit_log(tmp_path, monkeypatch):
+    path = tmp_path / "audit.jsonl"
+    monkeypatch.setenv("PEWPEW_AUDIT_LOG", str(path))
+    return path
+
+
+@pytest.fixture
+def recorder(monkeypatch):
+    rec = UdpRecorder()
+    monkeypatch.setattr(ddp, "_udp_socket", lambda: rec)
+    return rec
+
+
+def test_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
+    argv = ["run", "comet", "--map", "line:3840", "--dry-run"]
+    for i in range(3):
+        argv += ["--ddp", f"10.0.0.1{i + 1}={1280 * i}+1280"]
+    assert run(argv)[0] == 0
+    out = capsys.readouterr().out
+    assert "nothing sent" in out
+    assert "ddp 10.0.0.12:4048  pixels 1280-2559 (1280)  3 packets/frame  154,800 B/s at 40 fps" in out
+    assert recorder.sent == []
+    assert not audit_log.exists()
+
+
+def test_real_run_audits_first_then_streams(audit_log, recorder, capsys):
+    argv = ["run", "comet", "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8", "--ddp-fps", "50"]
+    assert run(argv)[0] == 0
+    assert len(recorder.sent) == 3  # one packet per frame, last frame drained
+    assert {addr for _, addr in recorder.sent} == {("127.0.0.1", 4049)}
+    [entry] = [json.loads(s) for s in audit_log.read_text().splitlines()]
+    assert entry["action"] == "ddp-stream"
+    assert entry["argv"] == argv
+    assert entry["targets"] == ["127.0.0.1:4049=0+8"]
+    assert entry["fps"] == 50.0
+    assert entry["utc"].endswith("+00:00")
+    # DDP alone does not take over the terminal; the plan goes to stderr.
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "audit record appended" in captured.err
+
+
+def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
+    base = ["run", "comet", "--map", "line:8", "--fps", "30", "--ddp", "127.0.0.1=0+8", "--ddp-fps", "60"]
+    assert run([*base, "--dry-run"])[0] == 0
+    assert "at 30 fps" in capsys.readouterr().out
+    assert run([*base, "--frames", "2"])[0] == 0
+    [entry] = [json.loads(s) for s in audit_log.read_text().splitlines()]
+    assert entry["fps"] == 30.0
+
+
+def test_ddp_fps_is_not_checked_without_ddp():
+    assert run(["run", "comet", "--map", "line:8", "--frames", "1", "--ddp-fps", "0"])[0] == 0
+
+
+@pytest.mark.parametrize(
+    "extra, message",
+    [
+        (["--ddp", "10.0.0.11=0+9"], "do not fit the 8-pixel map"),
+        (["--ddp", "a=0+4", "--ddp", "b=3+4"], "overlap"),
+        (["--ddp", "a=0"], "bad DDP target"),
+        (["--ddp", "a=0+4", "--ddp-fps", "0"], "bad --ddp-fps"),
+        ([], "--dry-run needs at least one --ddp"),
+    ],
+)
+def test_cli_rejects_bad_targets_with_one_line(extra, message, audit_log, recorder):
+    with pytest.raises(SystemExit, match=message) as exc:
+        run(["run", "comet", "--map", "line:8", "--dry-run", *extra])
+    assert "\n" not in str(exc.value)
+    assert recorder.sent == []
+    assert not audit_log.exists()

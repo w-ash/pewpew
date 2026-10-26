@@ -152,6 +152,17 @@ series (batch mode).
   preview page rebuilds its sliders when a reload changes the knobs.
   `watchfiles` becomes the third runtime dependency (architecture §9,
   ADR-020).
+- Stream to stock WLED boards over DDP: `run --ddp HOST=START+COUNT` (one per
+  board) sends each board its pixel range as 8-bit RGB at `--ddp-fps`
+  (default 40), with PUSH on each board's last packet. `--dry-run` prints the
+  per-board plan and sends nothing; every real start appends a line to an
+  audit log outside the repo (`PEWPEW_AUDIT_LOG`).
+- Add the Wi-Fi ingest bench (`bench/bench_wifi.py`): streams to all boards
+  at 40, 50 and 60 fps for k trials while polling each board's `/json/info`,
+  and writes per-board distributions of delivered fps, signal and reboots.
+- Fold the 2026-10-19 first-installation research into the tree
+  (`research/verification/first-installation-2026-10.md`, sources
+  S1250–S1299).
 
 ### Changed
 

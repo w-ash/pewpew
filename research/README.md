@@ -113,6 +113,7 @@ another block.
 | S1100–S1149 | RA-19 Embedded test loops (sim/emulation/HIL) |
 | S1150–S1199 | RA-20 Agentic feedback loops |
 | S1200–S1249 | RA-21 Fleet resilience |
+| S1250–S1299 | RA-22 First installation |
 
 ## Topic docs
 

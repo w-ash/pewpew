@@ -1,8 +1,8 @@
 """The Sink protocol and the shared display-output helpers.
 
 A sink is the engine's edge: it takes the per-tick `(N, 3)` float32
-linear-light frame and puts it somewhere — a terminal, a browser, later a
-DDP socket. Sinks are blocking and fallible by design; the render loop is
+linear-light frame and puts it somewhere — a terminal, a browser, a DDP
+socket. Sinks are blocking and fallible by design; the render loop is
 neither, so a sink never runs on the loop thread directly. The composition
 is always:
 
@@ -86,8 +86,28 @@ def to_display_u8(frame: np.ndarray) -> np.ndarray:
     deliberately unchecked on the render path), apply display gamma, and
     quantize, so no client downstream ever applies its own curve.
     """
-    v = np.clip(np.nan_to_num(frame, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
-    v = np.power(v, 1.0 / DISPLAY_GAMMA)
+    return _quantize(np.power(_unit(frame), 1.0 / DISPLAY_GAMMA))
+
+
+def to_linear_u8(frame: np.ndarray) -> np.ndarray:
+    """Linear-light float frame -> linear `(N, 3)` uint8 for an LED wire.
+
+    The quantize-once point for 8-bit LED sinks: sanitize and quantize with
+    no curve. LED PWM duty is linear in emitted light, so linear code values
+    give the light the pattern asked for. `DISPLAY_GAMMA` is for screens and
+    must not reach an LED; the perceptual LUT and dithering of ADR-001/002
+    come in Phase 2.
+    """
+    return _quantize(_unit(frame))
+
+
+def _unit(frame: np.ndarray) -> np.ndarray:
+    """NaN and -inf -> 0, +inf -> 1, then clip to [0, 1]."""
+    return np.clip(np.nan_to_num(frame, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
+
+
+def _quantize(v: np.ndarray) -> np.ndarray:
+    """[0, 1] floats -> uint8, rounded once."""
     return (v * 255.0).round().astype(np.uint8)
 
 

@@ -10,10 +10,11 @@ sliders on the preview page, per-pattern default `--map`) and v0.2.4 (run a
 pattern from any file; hot reload with `t`, params, buffers and scalar state
 kept across the swap) have landed. **The series now carries the first
 installation** (re-planned 2026-10-19): one hotel room, build check-in
-2026-11-10, show 2026-11-13 to 16. **Next up: v0.2.5**, the DDP sink to
-three stock WLED boards and the Wi-Fi test on the real rig (hardware on
-hand). Then v0.2.6 (room map with 2D simulation, on-site control page,
-saved looks, show patterns) and v0.2.7 (room-event triggers, show health
+2026-11-10, show 2026-11-13 to 16. v0.2.5 (2026-10-26) landed the DDP sink
+to stock WLED boards and the Wi-Fi bench script; the Wi-Fi test run waits
+for the rig to be flashed and wired. **Next up: v0.2.6** (room map with 2D
+simulation, on-site control page,
+saved looks, show patterns), then v0.2.7 (room-event triggers, show health
 and restart safety, the soak that now includes the ADR-010 GC retest, a show
 checklist), all before check-in. Drag-to-arrange is v0.2.8; layer
 compositing moves to v0.2.9, after the show.
