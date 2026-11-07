@@ -3,7 +3,7 @@ import { shuffleLine } from "../aura/looks";
 import { armable } from "../aura/triggers";
 import { useStandingAura } from "../wire/store";
 import { IconButton } from "../design/Button";
-import { DisclosureNote, useDisclosure } from "../design/Disclosure";
+import { useDisclosure } from "../design/Disclosure";
 import { useDismiss } from "../design/useDismiss";
 import { useMedia, WIDE } from "../design/useMedia";
 import { Blackout } from "./Blackout";
@@ -12,7 +12,7 @@ import { FadeSelect } from "./FadeSelect";
 import { looksAbout, LooksGroup, MarkSign, useRecall } from "./Looks";
 import { Master } from "./Master";
 import { CuesOn, cuesAbout, CuesRow } from "./Triggers";
-import { Variety } from "./Variety";
+import { MadeRow } from "./Variety";
 
 interface Props {
   /** Whether the list of every look is open, in the slot. */
@@ -41,7 +41,6 @@ export function Deck({ allOpen, onAll }: Props) {
   const moreNote = useRef<HTMLDivElement>(null);
   const looksNote = useDisclosure();
   const recall = useRecall();
-  const madeNote = useDisclosure();
   const [fade, setFade] = useFade();
   const [more, setMore] = useState(false);
   // Closing it on Esc or a press elsewhere hands focus from inside it back to its "⋯".
@@ -117,14 +116,7 @@ export function Deck({ allOpen, onAll }: Props) {
       more={moreWell}
     />
   );
-  const made = looks && (
-    <div key="made" className="deck-group">
-      <div className="row made-row">
-        <Variety aura={aura} looks={looks} note={madeNote} />
-      </div>
-      <DisclosureNote disclosure={madeNote} live />
-    </div>
-  );
+  const made = looks && <MadeRow key="made" aura={aura} looks={looks} />;
   const cueRow = <CuesRow key="cues" triggers={triggers} />;
   const blackoutRow = (
     <div key="blackout" className="row blackout-row">

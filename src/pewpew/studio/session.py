@@ -50,8 +50,8 @@ from pewpew.compose import Look
 from pewpew.lab.check import ready
 from pewpew.mapping import grid
 from pewpew.power import PowerLimiter
-from pewpew.sinks.base import to_display_u8
 from pewpew.sinks.preview import FRAME_HEADER, StateTexts, refusal
+from pewpew.sinks.sink import to_display_u8
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import shutil
 import pytest
 
 from pewpew.rig import EXAMPLES, RigError, compile_rig, load_arrangement, load_catalog, read_catalog
-from pewpew.rig.catalog import DATA_ROOT
+from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
 from pewpew.rig.electrical import has_conductors, max_px
 from pewpew.rig.wiring import lowest_loss_cable
 
@@ -53,7 +53,7 @@ def golden(catalog=None, **options):
 def brighter_wled():
     """WLED set to Brighter auto-white: an RGB frame then reaches every channel
     of a bar, so a PSU's load is its feeds' every-channel current."""
-    wled = json.loads((DATA_ROOT / "firmware/wled-16.0.1.json").read_text())
+    wled = json.loads((CATALOG_ENTRIES_DIR / "firmware/wled-16.0.1.json").read_text())
     return {**wled, "ingest": {**wled["ingest"], "auto_white": "brighter"}}
 
 
@@ -61,7 +61,7 @@ def brighter_wled():
 def brighter(tmp_path_factory):
     """The bundled catalog with `brighter_wled`, for the PSU-packing tests written at every-channel loads."""
     root = tmp_path_factory.mktemp("brighter") / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     (root / "firmware/wled-16.0.1.json").write_text(json.dumps(brighter_wled()))
     return read_catalog(root)
 
@@ -131,7 +131,7 @@ def test_runs_split_by_pixel_format_and_led_type_groups(tmp_path):
     rig = compiled(auto(fixtures))
     assert [(s.controller, s.output, s.led_type) for s in rig.slices] == [("c1", "rmt0", 30), ("c1", "rmt1", 22)]
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / "controller" / f"{S3}.json"
     obj = json.loads(path.read_text())
     obj["groups"]["rmt"]["same_led_type"] = True
@@ -230,13 +230,13 @@ def test_auto_wiring_is_deterministic():
 
 
 def bundled(rel):
-    return json.loads((DATA_ROOT / rel).read_text())
+    return json.loads((CATALOG_ENTRIES_DIR / rel).read_text())
 
 
 def catalog_with(tmp_path, files):
     """The bundled catalog with `files` ({path under data/: entity}) written over it."""
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     for rel, obj in files.items():
         (root / rel).write_text(json.dumps(obj))
     return read_catalog(root)

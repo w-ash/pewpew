@@ -32,7 +32,7 @@ from pathlib import Path
 import numpy as np
 
 from bench.common import GOLDEN, TWO_PI, gather_meta, make_mapping, plasma_numpy
-from harness.clock import FakeClock
+from pewpew.testing.clock import FakeClock
 
 try:
     from numba import njit

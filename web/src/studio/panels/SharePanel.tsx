@@ -1,7 +1,7 @@
 import { Block } from "../../design/Block";
 import { Button } from "../../design/Button";
 import { useRef, useState } from "react";
-import { ApiError } from "../api/client";
+import { ApiError } from "../api/fetch";
 import { saveArrangement } from "../api/endpoints";
 import type { Issue } from "../api/types";
 import { useDoc } from "../store/doc";
@@ -18,7 +18,7 @@ async function writeClipboard(text: string): Promise<boolean> {
   }
 }
 
-export function shareUrl(id: string, origin = window.location.origin) {
+function shareUrl(id: string, origin = window.location.origin) {
   return `${origin}/a/${id}`;
 }
 

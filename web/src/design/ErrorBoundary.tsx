@@ -5,6 +5,8 @@ interface Props {
   readonly children: ReactNode;
   /** A new value tries the children again. */
   readonly resetKey?: unknown;
+  /** Hears what the children threw. */
+  readonly onError?: (message: string) => void;
 }
 
 interface State {
@@ -23,6 +25,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
     return Object.is(props.resetKey, state.resetKey) ? null : { failed: false, resetKey: props.resetKey };
+  }
+
+  override componentDidCatch(error: unknown): void {
+    this.props.onError?.(error instanceof Error ? error.message : String(error));
   }
 
   override render(): ReactNode {

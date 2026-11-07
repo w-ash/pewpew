@@ -1,4 +1,4 @@
-import type { CompiledRig } from "../api/types";
+import type { CompiledRig } from "../../../src/studio/api/types";
 
 /**
  * A hand-written compiled rig: three bars of 64 pixels in a row along x,

@@ -1,4 +1,8 @@
 import { Button, ToggleButton } from "../../design/Button";
+import { ErrorBoundary } from "../../design/ErrorBoundary";
+import { Segments } from "../../design/Segments";
+import type { SelectItem } from "../../design/Select";
+import { useMedia } from "../../design/useMedia";
 import { useWire } from "../../wire/store";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -16,7 +20,6 @@ import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 import { assembliesFor, missingAssemblies } from "./instances";
 import { Rig } from "./Rig";
-import { RigBoundary } from "./RigBoundary";
 import {
   type Bounds,
   FOV,
@@ -26,15 +29,17 @@ import {
   type ViewName,
 } from "./views";
 
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-const VIEW_LABELS: Record<ViewName, string> = {
-  angle: "Angle",
-  top: "Top",
-  side: "Side",
-};
+const VIEW_ITEMS: readonly SelectItem[] = [
+  { value: "angle", label: "Angle" },
+  { value: "top", label: "Top" },
+  { value: "side", label: "Side" },
+];
+const GIZMO_ITEMS: readonly SelectItem[] = [
+  { value: "translate", label: "Move" },
+  { value: "rotate", label: "Rotate" },
+];
 
 /** Seconds per orbit at 60 fps: three-stdlib's OrbitControls turns 2π/3600·speed per frame. */
 const SPIN_SPEED = 1;
@@ -73,6 +78,7 @@ function CameraRig({
   ) as unknown as OrbitControlsImpl | null;
   const size = useThree((s) => s.size);
   const tween = useRef<Tween | null>(null);
+  const still = useMedia(REDUCED_MOTION);
   const tmp = useMemo(() => new Vector3(), []);
 
   // A view button press re-runs this through `generation`.
@@ -84,7 +90,7 @@ function CameraRig({
         fitDistance(bounds.radius, size.width / Math.max(1, size.height)),
       )
       .add(bounds.center);
-    if (prefersReducedMotion()) {
+    if (still) {
       camera.position.copy(to);
       controls.target.copy(bounds.center);
       controls.update();
@@ -134,7 +140,7 @@ function CameraRig({
   return null;
 }
 
-export interface StageProps {
+interface StageProps {
   rig: CompiledRig | null;
   catalog: Catalog | null;
 }
@@ -150,6 +156,7 @@ export function Stage({ rig, catalog }: StageProps) {
   const [spin, setSpin] = useState(false);
   const [mode, setMode] = useState<GizmoMode>("translate");
   const [space, setSpace] = useState<GizmoSpace>("world");
+  const still = useMedia(REDUCED_MOTION);
   // The page marks what is selected in its text colour (--text-1), as its
   // plan does; three converts the sRGB colour to its linear working space.
   const accent = useMemo(() => {
@@ -239,7 +246,7 @@ export function Stage({ rig, catalog }: StageProps) {
           makeDefault
           enableDamping
           dampingFactor={0.08}
-          autoRotate={spin && !prefersReducedMotion()}
+          autoRotate={spin && !still}
           autoRotateSpeed={SPIN_SPEED}
         />
         <CameraRig
@@ -248,7 +255,8 @@ export function Stage({ rig, catalog }: StageProps) {
           generation={generation}
           onUserMove={() => setView(null)}
         />
-        <RigBoundary key={`${modelKey}#${attempt}`} onError={onModelError}>
+        {/* A GLB that fails to load or parse takes only the rig down, not the canvas. */}
+        <ErrorBoundary key={`${modelKey}#${attempt}`} fallback={null} onError={onModelError}>
           <Suspense fallback={null}>
             {rig && catalog && (
               <Rig
@@ -263,7 +271,7 @@ export function Stage({ rig, catalog }: StageProps) {
               />
             )}
           </Suspense>
-        </RigBoundary>
+        </ErrorBoundary>
         {selection && pose && !readOnly && (
           <Gizmo
             pose={pose}
@@ -280,57 +288,43 @@ export function Stage({ rig, catalog }: StageProps) {
       </Canvas>
 
       <div className="studio-overlay">
-        <fieldset className="studio-segments" aria-label="Camera view">
-          {(["angle", "top", "side"] as const).map((name) => (
-            <ToggleButton
-              key={name}
-              variant="tertiary"
-              pressed={view === name}
-              onPressedChange={() => pickView(name)}
-            >
-              {VIEW_LABELS[name]}
-            </ToggleButton>
-          ))}
-        </fieldset>
+        <Segments
+          className="studio-veil"
+          label="Camera view"
+          items={VIEW_ITEMS}
+          value={view ?? ""}
+          onChange={(name) => pickView(name as ViewName)}
+        />
         <div className="studio-overlay-end">
           {selection && (
-            <fieldset className="studio-segments" aria-label="Gizmo">
+            <>
+              <Segments
+                className="studio-veil"
+                label="Gizmo"
+                items={GIZMO_ITEMS}
+                value={mode}
+                onChange={(m) => setMode(m as GizmoMode)}
+              />
               <ToggleButton
-                variant="tertiary"
-                pressed={mode === "translate"}
-                onPressedChange={() => setMode("translate")}
-              >
-                Move
-              </ToggleButton>
-              <ToggleButton
-                variant="tertiary"
-                pressed={mode === "rotate"}
-                onPressedChange={() => setMode("rotate")}
-              >
-                Rotate
-              </ToggleButton>
-              <ToggleButton
+                className="studio-veil"
                 variant="tertiary"
                 pressed={space === "local"}
-                onPressedChange={() =>
-                  setSpace(space === "world" ? "local" : "world")
-                }
+                onPressedChange={(local) => setSpace(local ? "local" : "world")}
                 title="Gizmo axes"
               >
                 {space === "world" ? "World" : "Local"}
               </ToggleButton>
-            </fieldset>
+            </>
           )}
-          <div className="studio-segments">
-            <ToggleButton
-              variant="tertiary"
-              pressed={spin}
-              onPressedChange={setSpin}
-              title="Spin slowly"
-            >
-              Spin
-            </ToggleButton>
-          </div>
+          <ToggleButton
+            className="studio-veil"
+            variant="tertiary"
+            pressed={spin}
+            onPressedChange={setSpin}
+            title="Spin slowly"
+          >
+            Spin
+          </ToggleButton>
         </div>
       </div>
       <StageStatus

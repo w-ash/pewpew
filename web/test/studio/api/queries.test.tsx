@@ -34,7 +34,20 @@ test("useCompiled compiles once after a run of quick edits", async () => {
   const asked = mockApi();
   const { result, rerender } = await renderCompiled();
   await vi.waitFor(() => expect(result.current.current).toBe(true));
-  for (const name of ["g", "go", "gol", "gold"]) await rerender({ arrangement: { ...DEFAULT_ARRANGEMENT, name } });
+  for (const level of [0.2, 0.4, 0.6, 0.8]) {
+    await rerender({ arrangement: { ...DEFAULT_ARRANGEMENT, power: { max_brightness: level } } });
+  }
   await vi.waitFor(() => expect(result.current.current).toBe(true));
   expect(asked.filter((path) => path === "/api/compile")).toHaveLength(2);
+});
+
+test("useCompiled compiles nothing for a new name: the compile never reads it", async () => {
+  const asked = mockApi();
+  const { result, rerender } = await renderCompiled();
+  await vi.waitFor(() => expect(result.current.current).toBe(true));
+  const rig = result.current.rig;
+  await rerender({ arrangement: { ...DEFAULT_ARRANGEMENT, name: "gold" } });
+  await vi.waitFor(() => expect(result.current.current).toBe(true));
+  expect(result.current.rig).toBe(rig);
+  expect(asked.filter((path) => path === "/api/compile")).toHaveLength(1);
 });

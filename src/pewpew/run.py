@@ -92,9 +92,9 @@ from pewpew.room.blink import Blink
 from pewpew.room.live import RoomLive
 from pewpew.room.map import RoomMap, load_room
 from pewpew.sinks.ansi import AnsiSink
-from pewpew.sinks.base import Sink, SinkDriver
 from pewpew.sinks.ddp import DdpSink, parse_board
 from pewpew.sinks.preview import PreviewSink
+from pewpew.sinks.sink import Sink, SinkDriver
 from pewpew.watchdog import TIMEOUT_S as WATCHDOG_S
 from pewpew.watchdog import Watchdog, marker_path, take_marker
 

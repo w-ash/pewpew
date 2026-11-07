@@ -10,7 +10,7 @@ import type { Gradient, HSV, PaletteParam } from "../../src/params/schema";
 import type { ClientMessage } from "../../src/wire/protocol";
 import { param, record } from "../fixtures/describe";
 import { first, GREETING, refused, AURA } from "../fixtures/messages";
-import { Layers, pastDoubleTap, renderWired } from "./harness";
+import { Layers, pastDoubleTap, renderWired } from "../harness";
 
 type SetMessage = Extract<ClientMessage, { type: "set" }>;
 const sets = (sent: ClientMessage[]) => sent.filter((m): m is SetMessage => m.type === "set");

@@ -45,7 +45,7 @@ from pewpew.audio import wire
 from pewpew.audio.analysis import restart_gap
 from pewpew.audio.net import NetSource, Trace, TraceSource, node_source
 from pewpew.audio.wire import Packet
-from pewpew.command import add_allow_host, positive
+from pewpew.cli_args import add_allow_host, positive
 from pewpew.render import SlotClock
 
 FPS = 60.0

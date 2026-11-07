@@ -47,7 +47,7 @@ from pewpew.audio.features import LEVELS, MODES, AudioFeatures, FeatureLog, beat
 from pewpew.audio.inputs import NET, wav_source
 from pewpew.audio.net import NodeInfo, find_nodes, node_lines
 from pewpew.boards import parse_subnet
-from pewpew.command import OK, PROBLEMS, parsed_by, positive
+from pewpew.cli_args import OK, PROBLEMS, parsed_by, positive
 from pewpew.errors import describe_exception
 
 HELP = """\

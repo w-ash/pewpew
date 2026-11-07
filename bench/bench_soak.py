@@ -384,7 +384,7 @@ class Recorder:
     def probe_class(self):
         """A `PacedLoop` that also calls `frame` and hands itself over."""
         from pewpew.pace import PacedLoop
-        from pewpew.sinks.base import SinkDriver
+        from pewpew.sinks.sink import SinkDriver
 
         rec = self
 

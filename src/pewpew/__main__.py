@@ -11,7 +11,7 @@ sends a look to an engine on this machine (tier 1, `pewpew.remote.control`),
 the other `fx` verbs and `verify looks` check, render and gate looks
 offline (`pewpew.lab.cli`), `audio analyse` reports the tempo, beats and
 levels of a WAV file (`pewpew.audio.cli`), and `mcp` serves these tools to
-an AI agent (`pewpew.agent`).
+an AI agent (`pewpew.mcp_cli`).
 Each module adds its own subcommand (`add_parser`) and its handler
 (`set_defaults(cli=...)`); `run` alone is served here. `run --help` lists
 the options, and docs/authoring.md and docs/unattended-checklist.md show their
@@ -31,10 +31,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
-from pewpew import agent, boards, provision, studio
+from pewpew import boards, mcp_cli, provision, studio
 from pewpew.audio import cli as audio_cli
 from pewpew.audio.inputs import NET, REPLAY
-from pewpew.command import add_allow_host, number, parsed_by, port, positive, whole
+from pewpew.cli_args import add_allow_host, number, parsed_by, port, positive, whole
 from pewpew.fx import cli as fx_cli
 from pewpew.lab import cli as lab_cli
 from pewpew.mapping import DEFAULT_MAP, parse_map
@@ -87,7 +87,7 @@ def _conflict(args: argparse.Namespace) -> str | None:
     if args.cmd == "wifi":
         return "--keychain needs --ssid" if args.keychain and not args.ssid else None
     if args.cmd == "mcp":
-        return agent.conflict(args)
+        return mcp_cli.conflict(args)
     if args.cmd != "run":
         return None
     if not args.preview:
@@ -233,7 +233,7 @@ def _parser() -> argparse.ArgumentParser:
     remote_control.add_parser(sub)
     lab_cli.add_parser(sub, fx_cli.add_parser(sub))
     audio_cli.add_parser(sub)
-    agent.add_parser(sub)
+    mcp_cli.add_parser(sub)
     return parser
 
 

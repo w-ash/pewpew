@@ -42,7 +42,7 @@ from typing import Any, NoReturn
 from websockets.uri import parse_uri
 
 from pewpew import audit
-from pewpew.command import GONE, OK, PROBLEMS, REFUSED, STDIN, add_allow_host, number, parsed_by
+from pewpew.cli_args import GONE, OK, PROBLEMS, REFUSED, STDIN, add_allow_host, number, parsed_by
 from pewpew.compose import look_controls
 from pewpew.compose.controls import address_problem
 from pewpew.compose.stack import MAX_FADE, parse_fade

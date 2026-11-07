@@ -7,7 +7,7 @@ import { DisclosureButton, DisclosureNote, useDisclosure } from "../../src/desig
 import { Icon, ICON_NAMES } from "../../src/design/Icon";
 import { ArmStatus } from "../../src/design/press";
 import { Tile } from "../../src/design/Tile";
-import { pastDoubleTap, renderWired } from "./harness";
+import { pastDoubleTap, renderWired } from "../harness";
 
 // The colours the components draw in, as the browser reports them (theme.css).
 const ACCENT = "rgb(217, 154, 43)";

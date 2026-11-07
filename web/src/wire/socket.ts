@@ -49,7 +49,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
   private readonly pending = new Map<string, ClientMessage>();
   private flushing = false;
   /** Each request `ask` sent that the engine has not answered, by its id. */
-  private readonly asked = new Map<RequestId, () => void>();
+  private readonly asked = new Map<RequestId, (took: boolean) => void>();
   private nextId = 1;
   private readonly WS: typeof WebSocket;
   private readonly requestFrame: (cb: () => void) => void;
@@ -90,7 +90,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
         else if (msg?.type === "hello" && this.build && msg.build && msg.build !== this.build) this.reload();
         else if (msg) {
           this.store.receive(msg);
-          if ((msg.type === "ack" || msg.type === "refused") && msg.id !== null) this.answered(msg.id);
+          if ((msg.type === "ack" || msg.type === "refused") && msg.id !== null) this.answered(msg.id, msg.type === "ack");
         }
       } else if (ev.data instanceof ArrayBuffer) {
         this.store.receiveFrame(parseFrame(ev.data), this.now());
@@ -100,7 +100,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
       if (this.ws !== ws) return;
       this.ws = null;
       this.pending.clear();
-      for (const settle of this.asked.values()) settle();
+      for (const settle of this.asked.values()) settle(false);
       this.asked.clear();
       this.store.disconnected();
       this.options.onClose?.();
@@ -108,11 +108,14 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
     };
   }
 
-  /** Close the connection for good: no reconnect follows. */
+  /** Close the connection for good: no reconnect follows. What it asked settles now, untaken: a `start`
+   * before the close event comes opens a new connection, which answers none of it. */
   stop(): void {
     this.stopped = true;
     if (this.retry) clearTimeout(this.retry);
     this.ws?.close();
+    for (const settle of this.asked.values()) settle(false);
+    this.asked.clear();
   }
 
   /** Send now, after anything held, so the engine sees requests in the order made. */
@@ -121,16 +124,16 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
     this.write(msg);
   }
 
-  ask(msg: ClientMessage): Promise<void> {
+  ask(msg: ClientMessage): Promise<boolean> {
     const id = this.nextId++;
-    const answer = new Promise<void>((resolve) => this.asked.set(id, resolve));
+    const answer = new Promise<boolean>((resolve) => this.asked.set(id, resolve));
     this.flush();
-    if (!this.write(msg, id)) this.answered(id); // not sent, so nothing will answer it
+    if (!this.write(msg, id)) this.answered(id, false); // not sent, so nothing will answer it
     return answer;
   }
 
-  private answered(id: RequestId): void {
-    this.asked.get(id)?.();
+  private answered(id: RequestId, took: boolean): void {
+    this.asked.get(id)?.(took);
     this.asked.delete(id);
   }
 

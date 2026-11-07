@@ -41,15 +41,13 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      # tsc, the unit tests in the two browsers they run in, and both pages'
-      # builds.
+      # The browsers the unit tests run in, then the recipe a laptop runs:
+      # tsc, the unit tests and both pages' builds.
       - name: Web checks, tests and builds
         run: |
           pnpm install --frozen-lockfile
           pnpm -C web exec playwright install --with-deps chromium webkit
-          pnpm -C web check
-          pnpm -C web test
-          pnpm -C web build
+          uv run just web
 
       - name: Docker build
         run: docker build .

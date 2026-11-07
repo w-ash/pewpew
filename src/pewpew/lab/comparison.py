@@ -38,7 +38,7 @@ from pewpew.mapping import DEFAULT_MAP
 from pewpew.metrics import measure, rms
 from pewpew.result import Result
 from pewpew.sheet import compare_sheet as draw_pair
-from pewpew.sinks.base import sanitize
+from pewpew.sinks.sink import sanitize
 
 # One side of a comparison: a render, its handle, or a look.
 Side = Rendered | LookDoc

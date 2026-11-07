@@ -17,7 +17,6 @@ import pytest
 
 from audio_signals import RATE, JitterSource, frame_bytes, kick_loop, noise, sine, ticks, write_wav
 from fakes import build, looks_file, run_python
-from harness.goldens import assert_matches_golden
 from pewpew.__main__ import main, parse
 from pewpew.audio import ArraySource, AudioFeatures, Block, FeatureLog, ReplayFeatures
 from pewpew.audio.analysis import SILENT
@@ -30,6 +29,7 @@ from pewpew.fx.ops import OPS
 from pewpew.fx.ops.signal import SignalOp
 from pewpew.params import ParamSet
 from pewpew.render import SlotClock
+from pewpew.testing.goldens import assert_matches_golden
 
 GOLDENS = Path(__file__).parent / "goldens" / "audio"
 # Stripes that stand still unless the bass band moves them: its frames change with the audio alone.

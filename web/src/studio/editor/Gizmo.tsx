@@ -4,8 +4,8 @@ import { Group, Matrix4 } from "three";
 import { dragPreview } from "../viewer/dragPreview";
 import { canonicalQuat, type PoseQ, roundVec } from "./pose";
 
-export const TRANSLATION_SNAP_M = 0.01;
-export const ROTATION_SNAP_RAD = Math.PI / 180;
+const TRANSLATION_SNAP_M = 0.01;
+const ROTATION_SNAP_RAD = Math.PI / 180;
 
 export type GizmoMode = "translate" | "rotate";
 export type GizmoSpace = "world" | "local";

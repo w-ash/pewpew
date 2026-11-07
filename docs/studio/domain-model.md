@@ -262,7 +262,7 @@ Every part declares how it glows:
 ```
 `taper_to: 0` maps to manifold3d's `extrude(..., scale_top=(0,0))`, which gives a cone with its apex on the diffuser axis ([manifold3d.cpp L453-L462](https://github.com/elalish/manifold/blob/v3.5.4/bindings/python/manifold3d.cpp#L453-L462)). The eye is the same collar plus an `xy`-plane blade with a slot cut through it, following docs/studio/prototype/golden-tubes-3d.html:354-378.
 
-**How the browser learns what glows.** The GLB carries part `extras` {glow, gain} and a root `pixel_axis` {y0, span, count}. Each frame, the browser fills one RGB u8 DataTexture by reading `frame[rows[f,j]]`. It uses the frames the preview protocol already sends display-ready (src/pewpew/sinks/preview.py:8-29; `to_display_u8` at src/pewpew/sinks/base.py:82-91, gamma 2.2 at src/pewpew/sinks/base.py:37). The studio raises the preview's pixel cap so nothing is decimated (src/pewpew/sinks/preview.py:31-34).
+**How the browser learns what glows.** The GLB carries part `extras` {glow, gain} and a root `pixel_axis` {y0, span, count}. Each frame, the browser fills one RGB u8 DataTexture by reading `frame[rows[f,j]]`. It uses the frames the preview protocol already sends display-ready (src/pewpew/sinks/preview.py:8-29; `to_display_u8` at src/pewpew/sinks/sink.py:82-91, gamma 2.2 at src/pewpew/sinks/sink.py:37). The studio raises the preview's pixel cap so nothing is decimated (src/pewpew/sinks/preview.py:31-34).
 
 **Why the server emits GLB instead of the browser extruding profiles.**
 - There is one geometry implementation. The cut-outs, the cone apex and the eye slot would otherwise need a JS copy, and pewpew retired its JS mirrors because they drifted (backlog story "Keep preview ports honest", `docs/backlog/v0.2.x.md`).
@@ -324,15 +324,15 @@ schemas/arrangement.v1.json, catalog.v1.json (generated, committed)
 
 ```diff
 # INV-002: no .py changes
-+ rig/data/fixture_type/clen-360-tube-1500.json      (section 2)
-+ rig/data/chipset/ucs1903n.json  {"kind":"chipset","id":"ucs1903n","bit_s":1.25e-6,"bits_per_channel":8,
++ rig/catalog_entries/fixture_type/clen-360-tube-1500.json      (section 2)
++ rig/catalog_entries/chipset/ucs1903n.json  {"kind":"chipset","id":"ucs1903n","bit_s":1.25e-6,"bits_per_channel":8,
 +     "reset_s":{"v":2.4e-5,"status":"stated","src":"UCS1903N datasheet (ledco.sk) p.5 (>24 µs)"}}
-  rig/data/firmware/wled-16.0.1.json  led_types:
+  rig/catalog_entries/firmware/wled-16.0.1.json  led_types:
 +   {"chipset":"ucs1903n","channels":"RGB","type":22,"label":"WS281x RGB"}
 ```
 ```diff
 # New controller
-+ rig/data/controller/quinled-dig-octa-32-8l.json {"kind":"controller","id":"quinled-dig-octa-32-8l","firmware":"wled-16.0.1",
++ rig/catalog_entries/controller/quinled-dig-octa-32-8l.json {"kind":"controller","id":"quinled-dig-octa-32-8l","firmware":"wled-16.0.1",
 +   "outputs":[{"id":"o1","group":"rmt"}, … ,{"id":"o8","group":"rmt"}],"data_out_v":5.12,
 +   "max_px_advised":2000,"network":["ethernet","wifi"],
 +   "src":"https://quinled.info/quinled-dig-octa-brainboard-32-8l-specifications/"}
@@ -340,7 +340,7 @@ schemas/arrangement.v1.json, catalog.v1.json (generated, committed)
 The Dig-Octa page lists an ESP32-WROOM-32UE, 8 level-shifted RMT outputs at 5.12 V, LAN8720A Ethernet and about 2,000 LEDs advised for WLED. Classic ESP32 builds of WLED have 8 RMT channels ([const.h L92-L93](https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L92-L93)).
 ```diff
 # New chipset (if the bench shows the tubes run at 400 kbps; RES-015, RES-029)
-+ rig/data/chipset/ucs1903-400k.json {"kind":"chipset","id":"ucs1903-400k","bit_s":2.5e-6,"bits_per_channel":8,
++ rig/catalog_entries/chipset/ucs1903-400k.json {"kind":"chipset","id":"ucs1903-400k","bit_s":2.5e-6,"bits_per_channel":8,
 +     "reset_s":{"v":2.4e-5,"status":"stated","src":"UCS1903 datasheet (Superlighting) p.3"}}
 + firmware led_types: {"chipset":"ucs1903-400k","channels":"RGB","type":24,"label":"400kHz RGB",
 +     "src":"https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L326"}
@@ -397,7 +397,7 @@ The 2.5 µs bit time is 1/400 kbps (arithmetic); the low-speed mode is on p. 1-2
 - pewpew source:
   - `src/pewpew/render.py`: 175-183, 185-207, 197
   - `src/pewpew/pattern.py`: 6-11
-  - `src/pewpew/sinks/base.py`: 37, 82-91
+  - `src/pewpew/sinks/sink.py`: 37, 82-91
   - `src/pewpew/sinks/preview.py`: 8-34, 148-154
   - `src/pewpew/__main__.py`: 62-74
   - `src/pewpew/mapping.py`: 1-9

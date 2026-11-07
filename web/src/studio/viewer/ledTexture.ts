@@ -3,7 +3,7 @@
  * RGBA u8 tagged sRGB.
  *
  * Frames arrive display-ready (gamma and quantization happen on the server,
- * `to_display_u8` in src/pewpew/sinks/base.py:82-91). Tagging the texture
+ * `to_display_u8` in src/pewpew/sinks/sink.py:82-91). Tagging the texture
  * sRGB makes the GPU decode on sampling, so the diffuser blends neighbors in
  * linear light, and the material's `colorspace_fragment` encodes once on
  * output: the bytes come back unchanged at texel centers. three.js only

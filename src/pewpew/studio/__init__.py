@@ -12,7 +12,7 @@ import argparse
 import os
 from pathlib import Path
 
-from pewpew.command import port
+from pewpew.cli_args import port
 
 
 def add_parser(sub: argparse._SubParsersAction) -> None:

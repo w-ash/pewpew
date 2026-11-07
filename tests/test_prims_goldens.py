@@ -14,10 +14,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from harness.goldens import assert_matches_golden
 from pewpew.fx.prims import grid, knn, noise, sample, sdf, space
 from pewpew.mapping import grid as panel
 from pewpew.mapping import lattice, line
+from pewpew.testing.goldens import assert_matches_golden
 
 GOLDEN = Path(__file__).parent / "goldens" / "prims.npz"
 

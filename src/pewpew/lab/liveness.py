@@ -54,7 +54,7 @@ from pewpew.params import ParamSet
 from pewpew.params.probes import probes
 from pewpew.problems import Refused
 from pewpew.result import Result
-from pewpew.sinks.base import sanitize
+from pewpew.sinks.sink import sanitize
 
 LIVENESS_FPS = 30.0
 LIVENESS_WARMUP = 15  # frames rendered before the ones compared

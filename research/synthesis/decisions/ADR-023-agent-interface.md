@@ -118,7 +118,7 @@ renamed its server class to `MCPServer`.
   `black_fraction`, `clip_fraction`, `nonfinite`, `motion_energy`,
   `frozen_fraction`, `spatial_detail`, `palette_spread` (chroma-weighted,
   in OKLab) and `hue_clusters`. Every number but `nonfinite` is read from
-  the frames as a sink shows them (`pewpew.sinks.base.sanitize`), and
+  the frames as a sink shows them (`pewpew.sinks.sink.sanitize`), and
   `Metrics.flash_safe` checks WCAG's 3 flashes a second. Liveness needs
   extra renders, so `lab.metrics(..., liveness=True)` adds it with the
   method of `tests/test_param_liveness.py`. Color-difference and

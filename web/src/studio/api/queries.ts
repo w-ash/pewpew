@@ -1,11 +1,11 @@
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ApiError } from "./client";
+import { ApiError } from "./fetch";
 import { compileArrangement, getCatalog, getLooks } from "./endpoints";
 import type { Arrangement, CompiledRig } from "./types";
 
 /** Quiet time after an edit before it compiles, so typing sends one compile. */
-export const COMPILE_DEBOUNCE_MS = 200;
+const COMPILE_DEBOUNCE_MS = 200;
 
 export function createQueryClient() {
   return new QueryClient({
@@ -27,7 +27,7 @@ export function useLooks() {
 }
 
 /** `value`, once it has stopped changing for `ms`. */
-export function useDebounced<T>(value: T, ms: number): T {
+function useDebounced<T>(value: T, ms: number): T {
   const [settled, setSettled] = useState(value);
   useEffect(() => {
     const timer = setTimeout(() => setSettled(value), ms);
@@ -41,12 +41,14 @@ export function useDebounced<T>(value: T, ms: number): T {
  *
  * `rig` is the last compile that succeeded, so the view keeps it while a new
  * compile is in flight and after one fails. `current` is true only when `rig`
- * is the compile of `arrangement` itself.
+ * is the compile of `arrangement` itself; `answered`, when the server has
+ * answered for `arrangement` itself, with its compile or a refusal.
  */
 export function useCompiled(arrangement: Arrangement, enabled = true) {
   const settled = useDebounced(arrangement, COMPILE_DEBOUNCE_MS);
   const query = useQuery({
-    queryKey: ["compile", settled],
+    // The compile never reads the name, so a rename compiles nothing.
+    queryKey: ["compile", { ...settled, name: undefined }],
     queryFn: ({ signal }) => compileArrangement(settled, signal),
     placeholderData: keepPreviousData,
     enabled,
@@ -61,5 +63,6 @@ export function useCompiled(arrangement: Arrangement, enabled = true) {
     query,
     rig: fresh ? query.data : lastGood,
     current: fresh && settled === arrangement,
+    answered: settled === arrangement && (fresh || query.isError),
   };
 }

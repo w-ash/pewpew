@@ -4,26 +4,8 @@ import { setParam } from "../../src/wire/protocol";
 import { RECONNECT_MS, Socket } from "../../src/wire/socket";
 import { WireStore } from "../../src/wire/store";
 import { record } from "../fixtures/describe";
+import { FakeWebSocket } from "../fixtures/fakeWebSocket";
 import { hello } from "../fixtures/messages";
-
-class FakeWebSocket {
-  static readonly OPEN = 1;
-  static made: FakeWebSocket[] = [];
-  readyState = 1;
-  binaryType = "blob";
-  sent: unknown[] = [];
-  onmessage: ((ev: { data: unknown }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  constructor(readonly url: string) {
-    FakeWebSocket.made.push(this);
-  }
-  send(text: string) {
-    this.sent.push(JSON.parse(text));
-  }
-  close() {
-    this.onclose?.();
-  }
-}
 
 function setup(build: string | null = null, reload = () => {}) {
   FakeWebSocket.made = [];
@@ -39,6 +21,7 @@ function setup(build: string | null = null, reload = () => {}) {
   });
   socket.start();
   const ws = FakeWebSocket.made[0]!;
+  ws.open();
   const flush = () => frames.splice(0).forEach((f) => f());
   return { store, socket, ws, flush };
 }
@@ -130,14 +113,14 @@ test("nothing is sent while the socket is not open", () => {
   expect(ws.sent).toEqual([]);
 });
 
-test("an ask goes with an id and settles on the engine's answer to that id, or when the socket closes", async () => {
+test("an ask goes with an id and settles on the engine's answer to that id, taken on an ack, or untaken when the socket closes", async () => {
   const { socket, store, ws, flush } = setup();
   ws.onmessage!({ data: JSON.stringify(hello()) });
   const level = decodeParam(record("zoo_test", "level"));
   setParam(socket, level, 0.5);
   const settled: string[] = [];
-  void socket.ask({ type: "surprise", seed: null }).then(() => settled.push("surprise"));
-  void socket.ask({ type: "keep" }).then(() => settled.push("keep"));
+  void socket.ask({ type: "surprise", seed: null }).then((took) => settled.push(`surprise ${took}`));
+  void socket.ask({ type: "keep" }).then((took) => settled.push(`keep ${took}`));
   flush();
   expect(ws.sent).toEqual([
     { type: "set", name: "level", value: 0.5 },
@@ -147,23 +130,32 @@ test("an ask goes with an id and settles on the engine's answer to that id, or w
   ws.onmessage!({ data: JSON.stringify({ type: "ack", id: 9, control: "surprise" }) });
   ws.onmessage!({ data: JSON.stringify({ type: "refused", control: "keep", name: null, id: 2, reason: "no looks file" }) });
   await Promise.resolve();
-  expect(settled).toEqual(["keep"]);
+  expect(settled).toEqual(["keep false"]);
   expect(store.getState().refusals.keep?.reason).toBe("no looks file"); // a refusal still reaches the store
   ws.onmessage!({ data: JSON.stringify({ type: "ack", id: 1, control: "surprise" }) });
   await Promise.resolve();
-  expect(settled).toEqual(["keep", "surprise"]);
-  void socket.ask({ type: "vary", strength: null, seed: null }).then(() => settled.push("vary"));
+  expect(settled).toEqual(["keep false", "surprise true"]);
+  void socket.ask({ type: "vary", strength: null, seed: null }).then((took) => settled.push(`vary ${took}`));
   ws.close();
   await Promise.resolve();
-  expect(settled.at(-1)).toBe("vary");
+  expect(settled.at(-1)).toBe("vary false");
 });
 
-test("an ask the socket cannot send settles at once", async () => {
+test("a stop settles what was asked, untaken, though a start comes before the close event", async () => {
+  const { socket, ws } = setup();
+  // A real socket's close event comes later.
+  ws.close = () => {};
+  const asked = socket.ask({ type: "surprise", seed: null });
+  socket.stop();
+  socket.start();
+  FakeWebSocket.made[1]!.open();
+  expect(await asked).toBe(false);
+});
+
+test("an ask the socket cannot send settles at once, not taken", async () => {
   const { socket, ws } = setup();
   ws.readyState = 0;
-  let settled = false;
-  await socket.ask({ type: "surprise", seed: null }).then(() => (settled = true));
-  expect(settled).toBe(true);
+  expect(await socket.ask({ type: "surprise", seed: null })).toBe(false);
   expect(ws.sent).toEqual([]);
 });
 
@@ -182,8 +174,8 @@ test("a page's own messages: its types go to it, not the store; it sends its own
     onClose: () => told.push("close"),
   });
   socket.start();
-  const ws = FakeWebSocket.made[0]! as FakeWebSocket & { onopen: () => void };
-  ws.onopen();
+  const ws = FakeWebSocket.made[0]!;
+  ws.open();
   ws.onmessage!({ data: JSON.stringify({ type: "hello", n: 64, fps: 30, capabilities: [] }) });
   ws.onmessage!({ data: JSON.stringify({ type: "bound", n: 64 }) });
   ws.onmessage!({ data: JSON.stringify({ type: "status", error: "x", source: "bind", path: null }) });

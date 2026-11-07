@@ -83,7 +83,7 @@ from pewpew.aura.control import wire_states
 from pewpew.errors import Refusal
 from pewpew.jsonfile import loads
 from pewpew.room.map import IMAGE_TYPES
-from pewpew.sinks.base import DISPLAY_GAMMA, Control, RateGate, SinkDriver, to_display_u8
+from pewpew.sinks.sink import DISPLAY_GAMMA, Control, RateGate, SinkDriver, to_display_u8
 
 logger = logging.getLogger(__name__)
 

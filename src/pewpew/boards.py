@@ -63,7 +63,7 @@ from typing import Any, Protocol, TextIO
 
 from pewpew import audit, wled
 from pewpew.audio.net import NodeInfo, node_lines
-from pewpew.command import parsed_by
+from pewpew.cli_args import parsed_by
 from pewpew.health import BoardHealth, extract
 from pewpew.jsonfile import loads, read_or_exit
 from pewpew.result import Result

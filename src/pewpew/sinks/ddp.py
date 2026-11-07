@@ -69,7 +69,7 @@ from typing import Protocol
 
 import numpy as np
 
-from pewpew.sinks.base import RateGate, to_linear_u8
+from pewpew.sinks.sink import RateGate, to_linear_u8
 
 logger = logging.getLogger(__name__)
 

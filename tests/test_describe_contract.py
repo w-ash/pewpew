@@ -14,7 +14,7 @@ from params_zoo import ZOO
 from pewpew.fx.ops import OPS
 from pewpew.params import ParamSet
 from pewpew.params.probes import leaves, probes
-from pewpew.sinks.base import DISPLAY_GAMMA
+from pewpew.sinks.sink import DISPLAY_GAMMA
 
 GOLDEN = Path(__file__).parent / "goldens" / "describe.json"
 with with_test_ops():  # the zoo leaves the registry again, so no catalog the suite checks lists it
