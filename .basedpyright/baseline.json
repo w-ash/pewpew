@@ -18,6 +18,32 @@
                 }
             }
         ],
+        "./tests/test_aura_control.py": [
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 22,
+                    "endColumn": 26,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 22,
+                    "endColumn": 26,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 22,
+                    "endColumn": 27,
+                    "lineCount": 1
+                }
+            }
+        ],
         "./tests/test_bench_soak.py": [
             {
                 "code": "reportOptionalSubscript",
@@ -488,16 +514,6 @@
                 "range": {
                     "startColumn": 18,
                     "endColumn": 78,
-                    "lineCount": 1
-                }
-            }
-        ],
-        "./tests/test_param_liveness.py": [
-            {
-                "code": "reportAttributeAccessIssue",
-                "range": {
-                    "startColumn": 28,
-                    "endColumn": 40,
                     "lineCount": 1
                 }
             }
@@ -1060,32 +1076,6 @@
                 "range": {
                     "startColumn": 11,
                     "endColumn": 40,
-                    "lineCount": 1
-                }
-            }
-        ],
-        "./tests/test_aura_control.py": [
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 26,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 26,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 27,
                     "lineCount": 1
                 }
             }
