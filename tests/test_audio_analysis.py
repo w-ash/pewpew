@@ -14,12 +14,14 @@ from hypothesis import strategies as st
 
 from audio_signals import RATE, clicks, noise, sine
 from fakes import FakeTime
-from pewpew import Pattern, Renderer, line
 from pewpew.audio import Analyser, Block
 from pewpew.audio.analysis import HOP_S, MAX_HOPS, Hop, band_edges, window_size
 from pewpew.audio.clock import READY_S, WINDOW_S, SampleClock
 from pewpew.features import N_BANDS
+from pewpew.mapping import line
 from pewpew.pace import PacedLoop
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 
 
 def fed(analyser: Analyser, samples: np.ndarray, *, start: int = 0, block: int | None = None) -> list[Hop]:

@@ -25,10 +25,11 @@ from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
 from fakes import FakeTime, bar, client_for, greet, next_of, next_text, peers, preview_sink, room, wait_until
-from pewpew import HSV, Bool, Color, Float, Int, Pattern, grid, line
 from pewpew.aura.master import Master
 from pewpew.errors import Refusal
-from pewpew.params import ParamSet
+from pewpew.mapping import grid, line
+from pewpew.params import HSV, Bool, Color, Float, Int, ParamSet
+from pewpew.pattern import Pattern
 from pewpew.room.map import compile_room
 from pewpew.sinks import preview
 from pewpew.sinks.base import DISPLAY_GAMMA, to_display_u8

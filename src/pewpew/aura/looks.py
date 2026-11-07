@@ -3,8 +3,8 @@ delete, the cycle flag, the idle cycle (pewpew.aura.director), the trigger
 holds, and looks made for the aura (pewpew.aura.variety): played unsaved,
 kept under a name they offer. The file format is `pewpew.aura.book`.
 
-A recall starts its layers through the deck (pewpew.aura.deck), so each
-runs exactly as a pick of the same pattern would, at the look's values.
+A recall starts its layers through the deck (pewpew.aura.deck), at the
+look's values.
 
 An override is journalled, not saved: it never changes `current` or the
 file, so a restart during one comes back in the operator's look. The
@@ -12,12 +12,12 @@ journal is the live stack when the first hold began (LedFx's silence scene
 [S1266]); later holds replace the look and the deadline but
 keep the journal, and a hold of the look already held only moves the
 deadline, so the look does not restart. An override never moves the
-master: the master stays the operator's. An operator recall, pick, save or
-layer edit during a hold ends it, and the aura does not return: the
+master: the master stays the operator's. An operator recall, save, sent
+look or layer edit during a hold ends it, and the aura does not return: the
 operator wins.
 
-After a pick no look is current: the room runs what the operator picked,
-not a look, so the page marks no look. The file still names the look last
+After a look a client sent no look is current: the room runs what the
+client sent, not a saved look, so the page marks no look. The file still names the look last
 recalled or saved, so a restart comes back in it. A made look plays the same way, unsaved (`play`),
 until a save with no name saves it, under the name it offers (`surprise
 7`), or that name with a number past the first one taken; a save under
@@ -54,7 +54,7 @@ from pewpew.jsonfile import write_atomic
 logger = logging.getLogger(__name__)
 
 # What an operator's edit changes in a running look: its layers (each
-# knob, pattern and mix), its signals' knobs and its front.
+# knob, node and mix), its signals' knobs and its front.
 Edited = tuple[tuple[Layer, ...], Graph | None, tuple[str, ...]]
 
 KEPT = "kept"  # what a save with no name names a look that was not made for the aura
@@ -125,8 +125,8 @@ class Looks:
     `hold` is the trigger override (pewpew.aura.triggers): a look held
     until an engine-time deadline, then a return to the journalled state.
     `recall` and `save` end a hold without returning (`release`); a layer
-    edit also drops a recall that waits (`edit`); a pick leaves every look
-    (`leave`).
+    edit also drops a recall that waits (`edit`); a sent look leaves every
+    look (`leave`).
 
     The idle cycle's fresh slots are made by `variety` (by default one of
     its own over `deck`), through `submit`, from the frame the director
@@ -230,7 +230,7 @@ class Looks:
 
     def changed(self) -> bool:
         """Whether the live state has moved off the look last recalled or
-        saved, or the made look that plays as it started: another pattern,
+        saved, or the made look that plays as it started: another node,
         param value or mix on a layer, or another master level when the
         look stores one. False while a trigger holds a look: the hold is
         not an edit, and the aura returns from it."""
@@ -329,7 +329,7 @@ class Looks:
 
     def play(self, made: Made) -> str | None:
         """Fade to a look made for the aura over its own fade, unsaved: as a
-        pick, no look is current, a waiting recall and a hold end, and a
+        sent look, no look is current, a waiting recall and a hold end, and a
         save with no name saves it under its label. An edit to it is `changed`, as an
         edit to a recalled look is. Returns why not, or None."""
         if (reason := fade_to(self._deck, made)) is not None:
@@ -439,7 +439,7 @@ class Looks:
         self._hold = self._pending = None
 
     def leave(self) -> None:
-        """The operator picked a pattern or sent a whole look: end a hold
+        """The operator sent a whole look: end a hold
         without returning, drop a recall that waits for the fade, clear the
         last recall's error, and make no look current or fading. The file
         keeps naming the last look (`_commit`)."""

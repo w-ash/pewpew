@@ -1,18 +1,10 @@
-"""Color math past `pewpew.hsv`: OKLab and gradients.
+"""Color math past `pewpew.kit.hsv`: OKLab and gradients.
 
 ADR-001 keeps linear RGB as the working space and allows OKLab as a
 blending helper that converts back to it. A `Palette` param's value is a
 `Gradient`; `gradient_lut` turns it into a table once (it is cached), and
-`sample` reads the table per pixel, which `Gradient.rgb` does in one call:
-
-    from pewpew import Palette, Pattern
-    from pewpew.color import EMBER, PRESETS
-
-    class Glow(Pattern):
-        palette = Palette(EMBER, presets=PRESETS)
-
-        def render(self, x, y, z, index):
-            return self.palette.rgb(x)
+`sample` reads the table per pixel, which `Gradient.rgb` does in one call
+(the `palette` op, pewpew.fx.ops.color).
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@ reads it.
 
 `catalog` gives one page of the records of a kind whose name, label or doc
 holds every word of a query, and `index` every record on one page. An item
-is concise by default: its kind (`op`, `pattern`, `blend`, `palette` or
+is concise by default: its kind (`op`, `blend`, `palette` or
 `kind`), name, label, first sentence, and an op's signature. With
 `detail="detailed"` each item also holds its whole record, params and
 examples included. A page holds at most `PAGE[detail]` items and ends with
@@ -95,7 +95,7 @@ def index() -> CatalogPage:
 
 
 def example_looks() -> tuple[dict[str, Any], dict[str, Any]]:
-    """Two looks an agent can start from: one gallery pattern
+    """Two looks an agent can start from: palette-colored stripes
     (`problems.EXAMPLE_LOOK`), and one layer, `base`, that runs the first
     example of op `EXAMPLE_OP`."""
     program = describe("op", EXAMPLE_OP)["examples"][0]["json"]

@@ -37,7 +37,6 @@ from pewpew.rig.models import (
     OutputSlice,
     RigError,
     WiringPlan,
-    fixture_grouping,
 )
 
 EXAMPLES = Path(__file__).with_name("examples")
@@ -97,7 +96,6 @@ __all__ = [
     "WiringPlan",
     "compile_rig",
     "contain",
-    "fixture_grouping",
     "load_arrangement",
     "load_catalog",
     "read_catalog",

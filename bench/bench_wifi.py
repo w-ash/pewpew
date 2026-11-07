@@ -6,9 +6,10 @@ actually shows. Wi-Fi is the scale question nobody has measured for stock
 WLED on an ESP32-S3 at this pixel count
 (docs/backlog/v0.2.x.md).
 
-The sender is the real pipeline: `Renderer(Comet)` -> `PacedLoop` ->
-`SinkDriver` -> `DdpSink`, at the rate under test. Comet moves every frame
-and keeps most pixels dark, so the bench does not load the LED supplies.
+The sender is the real pipeline: a `Renderer` of the program
+`lissajous().palette("ember")` -> `PacedLoop` -> `SinkDriver` -> `DdpSink`,
+at the rate under test. Its glowing heads move every frame and keep most
+pixels dark, so the bench does not load the LED supplies.
 
 The receiver side is each board's `GET /json/info`, one board at a time,
 each board every `--poll` seconds (default 6), on its own thread so a slow
@@ -49,10 +50,14 @@ from pathlib import Path
 import numpy as np
 
 from bench.common import gather_meta
-from pewpew import Renderer, audit, line
+from pewpew import audit
+from pewpew.fx.expr import lissajous
+from pewpew.fx.graph import Program
+from pewpew.fx.host import ProgramPattern
 from pewpew.health import extract
+from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.patterns import Comet
+from pewpew.render import Renderer
 from pewpew.sinks.base import SinkDriver
 from pewpew.sinks.ddp import Board, DdpSink, check_boards, is_ipv4, parse_board
 from pewpew.wled import TIMEOUT_S, fetch_info, sender_address
@@ -65,6 +70,8 @@ POLL_S = 6.0  # each board every 6 s: inside the story's 5-10 s band
 WARMUP_S = 2.0  # no polls this long into a cell; leds.fps is a running average
 HOLD = 0.9  # a trial holds a rate when the board's median leds.fps >= HOLD x sent fps
 RESULTS = Path(__file__).parent / "results"
+# What the bench streams: glowing heads that move every frame over a mostly dark strip.
+SENDER = ProgramPattern.of(Program.of(lissajous().palette("ember")))
 
 
 def parse_targets(specs: list[str], px: int) -> list[Board]:
@@ -141,11 +148,11 @@ class Poller:
 
 
 def stream_cell(boards: list[Board], rate: float, duration: float) -> dict:
-    """Stream Comet to every board at `rate` for `duration` seconds."""
+    """Stream `SENDER` to every board at `rate` for `duration` seconds."""
     n = max(b.stop for b in boards)
     sink = DdpSink(boards, n, max_fps=rate)
     driver = SinkDriver(sink.send, name="ddp")
-    loop = PacedLoop(Renderer(Comet(), line(n)), fps=rate, on_frame=[driver])
+    loop = PacedLoop(Renderer(SENDER(), line(n)), fps=rate, on_frame=[driver])
     sink.start()
     driver.start()
     try:

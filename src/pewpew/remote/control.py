@@ -10,9 +10,9 @@ amendment 2026-11-05) holds in this code, not in a tool's description:
   loopback (127.0.0.0/8 or ::1), unless `allow_hosts` names it. Those are
   IP addresses, so what they allow cannot move with DNS. The client
   connects to an address it checked and never resolves again.
-- A look is checked here first, as the engine checks it: each pattern
-  by its gallery name (`pewpew.lab.check_look`), and each knob value set
-  after it against the look's knobs; a set alone is checked for a knob address's form. A dry
+- A look is checked here first, as the engine checks it
+  (`pewpew.lab.check_look`), and each knob value set after it against the
+  look's knobs; a set alone is checked for a knob address's form. A dry
   run stops after the checks with the messages it would send, and opens
   no socket, so what only the engine knows (its map, `--accept-looks`,
   the knobs of the look it runs) is checked on a send alone. The look goes out as its document
@@ -43,7 +43,7 @@ from websockets.uri import parse_uri
 
 from pewpew import audit
 from pewpew.command import GONE, OK, PROBLEMS, REFUSED, STDIN, add_allow_host, number, parsed_by
-from pewpew.compose import controls_of
+from pewpew.compose import look_controls
 from pewpew.compose.controls import address_problem
 from pewpew.compose.stack import MAX_FADE, parse_fade
 from pewpew.errors import describe_exception
@@ -121,8 +121,8 @@ def push(
     address, to its value.
 
     `look` is a single look or a looks file, as `pewpew.lab.check_look`
-    takes it; `name` picks a look of a file. Each pattern resolves by name
-    in the gallery, and the engine checks the look again with its own.
+    takes it; `name` picks a look of a file. The engine checks the look
+    again.
     `argv` is the command line the audit record names. Raises Refused for
     problems with the look, `fade` or a set, Forbidden for a write tier 1
     rules out or the engine cannot take, Unreachable when the engine does
@@ -134,7 +134,7 @@ def push(
             raise Refused([problem(reason)])
     sets = dict(sets or {})
     staged = ready(look, name=name)
-    knobs = controls_of(staged.layers, staged.look.signals)
+    knobs = look_controls(staged.look)
     problems = [replace(problem(reason), path=path) for path, value in sets.items()
                 if (reason := knobs.parse(path, value)[1]) is not None]
     if problems:
@@ -156,7 +156,7 @@ def set_value(
     argv: Sequence[str] = (),
     timeout: float = TIMEOUT_S,
 ) -> Pushed:
-    """Set the knob at address `path` (`layers.base.comet.speed`) of the
+    """Set the knob at address `path` (`layers.base.osc.freq`) of the
     engine at `url` to `value`, a JSON value. `path` is checked here for a
     knob address's form; the engine checks that its look has the knob and
     that the knob takes the value. Raises as `push` does, but for the look."""
@@ -262,7 +262,7 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--fade", type=_fade, default=None, metavar="S",
                    help="fade over S seconds (default: the look's own fade)")
     p.add_argument("--set", dest="sets", type=_assignment, action="append", default=[], metavar="PATH=VALUE",
-                   help="then set the knob at PATH (layers.base.comet.speed) to VALUE, JSON or a choice key; "
+                   help="then set the knob at PATH (layers.base.osc.freq) to VALUE, JSON or a choice key; "
                    "repeat per knob")
     add_allow_host(p, "also write to the engine at IP, a bench machine (default: only an engine on this machine)")
     p.add_argument("--dry-run", action="store_true",
@@ -341,7 +341,7 @@ def _assignment(text: str) -> tuple[str, Any]:
     stay text."""
     path, sep, value = text.partition("=")
     if not sep or not path:
-        raise argparse.ArgumentTypeError(f"expected PATH=VALUE, such as layers.base.comet.speed=0.4; got {text!r}")
+        raise argparse.ArgumentTypeError(f"expected PATH=VALUE, such as layers.base.osc.freq=6; got {text!r}")
     try:
         return path, json.loads(value, parse_constant=_not_json)
     except ValueError:

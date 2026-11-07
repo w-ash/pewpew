@@ -15,12 +15,10 @@ fix it:
 - a node nothing reads;
 - with `dims`, an op that a map of that dimension does not support, and
   what to use instead;
-- with `resolve`, a pattern node's pattern and params, and the pattern
-  rules of a program (ADR-022): inside a program a pattern renders at the
-  program's points, so it must be a pixel-unit pattern, and a coord op may
-  warp only what can be read at other points (a warpable pattern, not the
-  frame below or the layer's last frame). A state op reads its input at
-  the map's own points, so a coord op above it warps nothing below it.
+- a coord op above what can be read only at the map's own points (the
+  frame below or the layer's last frame; ADR-022). A state op reads its
+  input at the map's own points, so a coord op above it warps nothing
+  below it.
 
 `closures` builds a checked program's closures bottom up, once per bind.
 A node read by more than one other shares one result per frame (a memo the
@@ -32,14 +30,12 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any
 
 import numpy as np
 
-from pewpew.classinfo import pattern_name
-from pewpew.errors import Worded, blame, describe_exception, unknown
-from pewpew.fx.graph import PATTERN, Graph, Node, Program
-from pewpew.fx.op import Op, Resolve
+from pewpew.errors import Worded, blame, unknown
+from pewpew.fx.graph import Graph, Node, Program
+from pewpew.fx.op import Op
 from pewpew.fx.ops import OPS, labels
 from pewpew.fx.types import ACCEPTS, Coords, Fn, Port, PortTy, Sig, Ty
 from pewpew.params import ParamSet
@@ -57,29 +53,12 @@ class Unrunnable(Worded):
     problem, each naming its node."""
 
 
-def is_pattern_program(program: Program) -> bool:
-    """Whether `program` is one pattern node and no mask: a layer that runs
-    its pattern directly, in the layer's own renderer."""
-    return len(program.graph) == 1 and program.output.op == PATTERN and program.alpha is None
-
-
-def check(
-    program: Program,
-    *,
-    where: str = "",
-    resolve: Resolve | None = None,
-    dims: int | None = None,
-    hosted: bool = False,
-) -> list[str]:
+def check(program: Program, *, where: str = "", dims: int | None = None) -> list[str]:
     """Every problem with `program` (module docstring), each prefixed by
-    its node's address `<where>.<nid>`. `resolve(spec)` gives a pattern
-    node's class, or None for a name nothing offers. `hosted` says the
-    program runs in a `ProgramPattern` even when it is one pattern node, so
-    that node renders at the program's points too. Never raises."""
+    its node's address `<where>.<nid>`. Never raises."""
     at = (lambda nid: f"{where}.{nid}") if where else (lambda nid: nid)
     problems: list[str] = []
     types = node_types(program)
-    direct = not hosted and is_pattern_program(program)
     for node in program.graph:
         cls = OPS.get(node.op)
         if cls is None:
@@ -90,14 +69,13 @@ def check(
             problems.append(f"{at(node.id)}: {node.op} is a signal, one number a frame, not a field; "
                             "put it in the look's signals and route it to a knob")
             continue
-        problems.extend(_args(node, cls, at(node.id), resolve, hosted=not direct))
+        problems.extend(_args(node, cls, at(node.id)))
         problems.extend(_ports(node, cls, at(node.id), types))
         if dims is not None and max(dims, 1) not in cls.dims:
             problems.append(_dims(cls, at(node.id), max(dims, 1)))
     problems.extend(_ends(program, where, types))
     problems.extend(_unread(program, at))
-    if not direct:
-        problems.extend(_warps(program, at, resolve))
+    problems.extend(_warps(program, at))
     return problems
 
 
@@ -128,7 +106,7 @@ def check_signals(graph: Graph, *, where: str = "signals") -> list[str]:
             problems.append(f"{at}: {node.op} is not a signal op; a look's signals run {', '.join(signal_ops())}, "
                             f"and {node.op} goes in a layer's program")
         else:
-            problems += [*_args(node, cls, at, None, hosted=False), *_ports(node, cls, at, types, noun="signal")]
+            problems += [*_args(node, cls, at), *_ports(node, cls, at, types, noun="signal")]
     return problems
 
 
@@ -145,73 +123,16 @@ def node_types(program: Program) -> dict[str, Ty]:
     return types
 
 
-def _args(node: Node, cls: type[Op], where: str, resolve: Resolve | None, *, hosted: bool) -> list[str]:
+def _args(node: Node, cls: type[Op], where: str) -> list[str]:
     """Why each of `node`'s args is refused."""
-    if node.op == PATTERN:
-        spec = node.args.get(PATTERN)
-        if not isinstance(spec, str) or not spec:
-            return [f"{where}: args: {PATTERN!r} is a pattern name"]
-        try:
-            knobs = cls.knob_class(node.args, resolve)
-        except Exception as exc:  # noqa: BLE001  a pattern file that does not load
-            return [f"{where}: pattern {spec!r} does not load: {describe_exception(exc)}"]
-        if knobs is None:
-            return [] if resolve is None else [f"{where}: unknown pattern {spec!r}"]
-        if hosted and (reason := _hosted(spec, knobs)) is not None:
-            return [f"{where}: {reason}"]
-    else:
-        knobs = cls.knob_class(node.args, resolve)
-        assert knobs is not None  # an op's knobs are its own params
-    values = cls.knob_values(node.args)
-    out: list[str] = []
-    if node.op == PATTERN:
-        from pewpew.fx.host import ProgramPattern, split_starts  # the host imports this module
-
-        if issubclass(knobs, ProgramPattern):
-            values, starts = split_starts(values)
-            out += _starts(starts, knobs.knob_classes(), where)
-    return out + _knobs(values, ParamSet(knobs, name=where), where)
-
-
-def _knobs(values: Mapping[str, Any], params: ParamSet, where: str) -> list[str]:
-    """Why each of `values` cannot be a knob of `params`, at `where`."""
+    params = ParamSet(cls, name=where)
     out = []
-    for name, value in values.items():
+    for name, value in node.args.items():
         if name not in params.declarations:
             out.append(f"{where}: {unknown('param', name, params.declarations, suggest=True)}")
         elif (reason := params.check(name, value)) is not None:
             out.append(reason)
     return out
-
-
-def _starts(starts: Mapping[str, Mapping[str, Any]], classes: Mapping[str, type], where: str) -> list[str]:
-    """Why each start of a pattern node at `where` that runs a program file
-    (`<nid>.<arg>`, pewpew.fx.host) is refused, each knob named by its
-    address, `<layer>.<nid>.<arg>`, as the stack names it."""
-    layer = where.rpartition(".")[0]
-    out = []
-    for nid, values in starts.items():
-        if nid not in classes:
-            out.append(f"{where}: {unknown('node', nid, classes, suggest=True)}")
-            continue
-        at = f"{layer}.{nid}" if layer else nid
-        out += _knobs(values, ParamSet(classes[nid], name=at), at)
-    return out
-
-
-
-def _hosted(spec: str, cls: type) -> str | None:
-    """Why pattern `spec` (class `cls`) cannot run inside a program, or None."""
-    from pewpew.fx.host import ProgramPattern  # the host imports this module
-
-    if issubclass(cls, ProgramPattern):
-        return f"pattern {spec!r} is a program; run it on a layer of its own"
-    if getattr(cls, "units", "pixel") != "pixel":
-        return (
-            f"pattern {spec!r} renders once per fixture, not at the program's points; "
-            "run it on a layer of its own"
-        )
-    return None
 
 
 def _ports(node: Node, cls: type[Op], where: str, types: Mapping[str, Ty], *, noun: str = "node") -> list[str]:
@@ -277,7 +198,7 @@ def upstream(program: Program, roots: Sequence[str], past: Callable[[Node], bool
     return seen
 
 
-def _warps(program: Program, at: Callable[[str], str], resolve: Resolve | None) -> list[str]:
+def _warps(program: Program, at: Callable[[str], str]) -> list[str]:
     """A coord op, or a modulate's `in`, above a node that cannot be read
     at other points. A state op reads its inputs at the map's own points
     before render, so a warp above it moves only where its state is read:
@@ -290,13 +211,9 @@ def _warps(program: Program, at: Callable[[str], str], resolve: Resolve | None) 
         for nid in sorted(upstream(program, node.inputs[:1], _warps_through)):
             reader = program.graph[nid]
             source = OPS.get(reader.op)
-            if source is None or _readable(source, reader.args, resolve):
+            if source is None or source.warpable:
                 continue
-            if reader.op == PATTERN:
-                why = (f"pattern {reader.args.get(PATTERN)!r} is not warpable; apply {node.op} to another source, "
-                       f"or run {nid!r} on a layer of its own")
-            else:
-                why = f"{reader.op} has a value only at the map's own points; apply {node.op} to a source instead"
+            why = f"{reader.op} has a value only at the map's own points; apply {node.op} to a source instead"
             out.append(f"{at(node.id)}: {node.op} warps what {nid!r} reads, and {why}")
     return out
 
@@ -306,13 +223,6 @@ def _warps_through(node: Node) -> bool:
     not for a state op (`_warps`)."""
     cls = OPS.get(node.op)
     return cls is None or cls.sig != Sig.STATE
-
-
-def _readable(cls: type[Op], args: Mapping[str, Any], resolve: Resolve | None) -> bool:
-    try:
-        return cls.warps(args, resolve)
-    except Exception:  # noqa: BLE001  a pattern that does not load is reported by _args
-        return True
 
 
 # ---- closures ------------------------------------------------------------------
@@ -407,20 +317,7 @@ def require_field(value: object, n: int, *, mask: bool = False) -> None:
         raise TypeError(f"{want} float32 field, got {got}")
 
 
-def knob_class(node: Node, resolve: Resolve | None) -> type:
-    """The class whose params `node`'s knobs are. Raises ValueError when it
-    cannot be known (a pattern nothing resolves)."""
-    found = OPS[node.op].knob_class(node.args, resolve)
-    if found is None:
-        raise ValueError(f"no pattern {node.args.get(PATTERN)!r} to run")
-    return found
-
-
-def label_of(node: Node, resolve: Resolve | None) -> str:
-    """What a page shows for `node`: its pattern's name for a pattern node,
-    else its op's label."""
-    if node.op == PATTERN:
-        found = OPS[PATTERN].knob_class(node.args, resolve)
-        return pattern_name(found) if found is not None else str(node.args.get(PATTERN))
+def label_of(node: Node) -> str:
+    """What a page shows for `node`: its op's label."""
     cls = OPS.get(node.op)
     return cls.label if cls is not None else node.op

@@ -1,6 +1,6 @@
 {
   "unknown op": [
-    "layers.base.fold: unknown op 'kaleidd' (did you mean 'kaleid'?); ops: add, attractor, below, blend, contrast, diff, diffuse, feedback, hue, kaleid, life, lissajous, metaballs, mirror, modulate, mult, noise, osc, palette, particles, pattern, polar, posterize, prev, quasicrystal, reaction, repeat, ripple, rotate, scale, shape, trails, tunnel, twist, voronoi"
+    "layers.base.fold: unknown op 'kaleidd' (did you mean 'kaleid'?); ops: add, attractor, below, blend, contrast, diff, diffuse, feedback, hue, kaleid, life, lissajous, metaballs, mirror, modulate, mult, noise, osc, palette, particles, polar, posterize, prev, quasicrystal, reaction, repeat, ripple, rotate, scale, shape, trails, tunnel, twist, voronoi"
   ],
   "unknown param": [
     "layers.base.waves: unknown param 'freqq' (did you mean 'freq'?); params: freq, sync, offset, axis"
@@ -48,12 +48,6 @@
   "twist on a panel": [
     "layers.base.twist: twist needs a map of 3 dimensions, and this map has 2; twist turns the slices of a volume; on a panel use rotate, on a strip scale"
   ],
-  "a fixture pattern in a program": [
-    "layers.base.p: pattern 'fixtureramp' renders once per fixture, not at the program's points; run it on a layer of its own"
-  ],
-  "a coord op over a pattern that is not warpable": [
-    "layers.base.fold: mirror warps what 'p' reads, and pattern 'solid' is not warpable; apply mirror to another source, or run 'p' on a layer of its own"
-  ],
   "a coord op over below": [
     "layers.base.fold: mirror warps what 'b' reads, and below has a value only at the map's own points; apply mirror to a source instead"
   ],
@@ -62,15 +56,6 @@
   ],
   "an attractor on a strip": [
     "layers.base.moth: attractor needs a map of 2 or 3 dimensions, and this map has 1; a strip shows only a line through it; use lissajous or particles"
-  ],
-  "a program in a program": [
-    "layers.base.p: pattern 'nested' is a program; run it on a layer of its own"
-  ],
-  "an unknown pattern": [
-    "layers.base.p: unknown pattern 'plasmo'"
-  ],
-  "a pattern's param": [
-    "layers.base.p: unknown param 'rde'; params: red, green, blue"
   ],
   "a signal op in a layer": [
     "layers.base.w: lfo is a signal, one number a frame, not a field; put it in the look's signals and route it to a knob"

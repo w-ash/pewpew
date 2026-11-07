@@ -71,7 +71,7 @@ def arrivals(countdown: np.ndarray, rate: float, dt: float, rng: np.random.Gener
     """How many events of a Poisson process of `rate` a second fall in the
     next `dt` seconds (at most `most`). `countdown[0]`, a node buffer,
     holds the events still due before the next one, so the process runs
-    on across frames and hot reloads; at 0, the first frame with a rate
+    on across frames; at 0, the first frame with a rate
     above 0 has one."""
     countdown[0] -= rate * dt
     count = 0

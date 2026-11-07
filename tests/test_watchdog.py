@@ -8,10 +8,12 @@ import numpy as np
 import pytest
 
 from fakes import FakeProcess, FakeTime
-from pewpew import Pattern, Renderer, line
 from pewpew import watchdog as watchdog_module
 from pewpew.awake import KeepAwake
+from pewpew.mapping import line
 from pewpew.pace import PacedLoop
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 from pewpew.watchdog import EXIT_STALL, MARKER_FRESH_S, Watchdog, marker_path, take_marker
 
 

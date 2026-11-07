@@ -9,20 +9,20 @@ routes into them, then steps its phases and samples its value
 (pewpew.fx.ops.signal), kept within its range. Then each route into a
 layer's knob moves it. A knob several routes reach moves by the sum of
 `depth` times each signal. A route moves a knob through its set's binding
-(`Bound.drive`): what the pattern or op reads moves, while the set keeps
+(`Bound.drive`): what the op reads moves, while the set keeps
 the operator's value, so a page shows it and a saved look stores it. Only
 route targets are driven, so a knob no route reaches costs nothing.
 
 A route finds its knob by address through the stack's `Controls`
-(`bind`), again whenever the stack's knobs change (a pick, a hot reload):
+(`bind`), again whenever the stack's knobs change (a layer edit):
 a route that cannot move its knob any more (the knob is gone, or its span
 is now less than the route's depth) rests, and a knob no route reaches any
 more reads its own value again. When the stack is built every route must
 reach a knob it can move, by at most the knob's span (`route_problems`);
 `signal_problems` judges the signal graph itself. `front` is layout only:
 a path that names no whole knob is left out, never refused, so a look
-whose pattern changed still recalls; one whose node a pick replaced gives
-its place to the first knob of what runs on its layer now. A look's checks
+whose program changed still recalls; one whose node is gone gives its
+place to the first knob of what runs on its layer now. A look's checks
 refuse such a path (`route_problems`). An operator sets the front whole
 (`set_front`).
 
@@ -111,8 +111,8 @@ def _knob_of(route: Route, controls: Controls) -> Parsed[tuple[Knob, Ranged[Any]
 
 def _shown(front: Sequence[str], controls: Controls) -> tuple[str, ...]:
     """The paths of `front` that name a whole knob among `controls`, in
-    order; one whose node is gone from a layer that still runs (a pick
-    replaced it) gives its place to that layer's first node knob, once."""
+    order; one whose node is gone from a layer that still runs gives its
+    place to that layer's first node knob, once."""
     shown: list[str] = []
     for path in front:
         if _front_problem(path, controls) is None:

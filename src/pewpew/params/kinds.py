@@ -101,14 +101,6 @@ class Param(ABC, Generic[T]):
         starts the refusal, for example "pulse.color".
         """
 
-    def fit(self, value: object) -> T | None:
-        """`value` if it is already this kind's native value and in range,
-        else None. A value of another kind does not fit, so a param whose
-        kind changed starts at its default."""
-        if type(value) is not self.native:
-            return None
-        return self.parse(self.name, value)[0]
-
     def to_json(self, value: T) -> object:
         """`value` in its JSON form."""
         return value

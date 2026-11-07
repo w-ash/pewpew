@@ -11,14 +11,21 @@ from pathlib import Path
 
 import pytest
 
-from fakes import filed, instant_looks, layered
+from fakes import filed, instant_looks
 from pewpew import lab
 from pewpew.__main__ import main
 from pewpew.fx import surprise
 
-LOOK = layered("comet", {"speed": 0.6}, seed=3)
-FASTER = layered("comet", {"speed": 1.2}, seed=3)
-BAD = layered("comt")
+
+def stripes(args: dict) -> dict:
+    """A look of stripes through a palette, its stripes node `waves` at `args`."""
+    return {"layers": [{"id": "base", "nodes": {"waves": {"op": "osc", "args": args},
+                                                "tint": {"op": "palette", "in": ["waves"]}}}], "seed": 3}
+
+
+LOOK = stripes({"freq": 4.0})
+FASTER = stripes({"freq": 8.0})
+BAD = stripes({"frek": 4.0})
 TIMING = ["--map", "line:64", "--seconds", "2", "--fps", "30"]
 RENDER = {"map_spec": "line:64", "seconds": 2.0, "fps": 30.0}
 
@@ -58,7 +65,7 @@ def test_sheet_metrics_and_compare_take_a_handle_or_a_file(files, tmp_path, caps
     assert code == 0 and json.loads(out) == lab.metrics(rendered, liveness=True).to_json()
     code, out, _ = run(["fx", "compare", rendered.handle, str(files["faster"]), "--json"], capsys)
     assert code == 0 and json.loads(out) == lab.compare(rendered, files["faster"]).to_json()
-    assert json.loads(out)["look_diff"] == [{"path": "layers.base.comet.speed", "a": 0.6, "b": 1.2}]
+    assert json.loads(out)["look_diff"] == [{"path": "layers.base.waves.freq", "a": 4.0, "b": 8.0}]
 
 
 def test_explain_json_is_the_explanation(files, capsys):
@@ -73,12 +80,12 @@ def test_verify_json_is_the_verification(files, capsys):
 
 def test_a_look_with_problems_exits_1_with_its_problems(files, capsys):
     code, out, err = run(["fx", "check", str(files["bad"])], capsys)
-    assert code == 1 and "did you mean 'comet'?" in out and "[bad-ref]" in out and err == ""
+    assert code == 1 and "(did you mean 'freq'?)" in out and "[unknown-key]" in out and err == ""
     code, out, err = run(["fx", "render", str(files["bad"]), *TIMING, "--json"], capsys)
     assert code == 1 and json.loads(out) == lab.check_look(files["bad"]).to_json()
     code, out, err = run(["fx", "render", str(files["bad"]), *TIMING], capsys)
-    assert code == 1 and out == "" and "fx render: look 'look': layers.base.comt: pattern 'comt'" in err
-    assert "\n  fix: set looks.look.layers.base.comt.pattern to 'comet'" in err
+    assert code == 1 and out == "" and "fx render: look 'look': layers.base.waves: unknown param 'frek'" in err
+    assert "\n  fix: rename 'frek' to 'freq'" in err
     code, _, _ = run(["verify", "looks", str(files["bad"]), *TIMING], capsys)
     assert code == 1
 
@@ -146,11 +153,11 @@ def test_vary_json_is_the_variations_and_out_writes_the_numbered_sheet(files, tm
     code, out, _ = run(["fx", "vary", "--seed", "4", "--n", "2", *TIMING, "--out", str(png), "--json"], capsys)
     assert code == 0 and json.loads(out) == lab.vary(None, 4, 2, **RENDER).to_json()
     assert png.read_bytes().startswith(b"\x89PNG")
-    code, out, _ = run(["fx", "vary", str(files["look"]), "--keep", "layers.base.comet", "--n", "1", *TIMING, "--json"],
+    code, out, _ = run(["fx", "vary", str(files["look"]), "--keep", "layers.base.waves", "--n", "1", *TIMING, "--json"],
                        capsys)
     made = json.loads(out)
-    assert code == 0 and made == lab.vary(files["look"], 0, 1, keep=["layers.base.comet"], **RENDER).to_json()
-    assert (made["strength"], made["keep"]) == (0.3, ["layers.base.comet"])
+    assert code == 0 and made == lab.vary(files["look"], 0, 1, keep=["layers.base.waves"], **RENDER).to_json()
+    assert (made["strength"], made["keep"]) == (0.3, ["layers.base.waves"])
 
 
 def test_vary_that_makes_nothing_exits_1_saying_why(monkeypatch, capsys):

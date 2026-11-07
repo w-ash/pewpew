@@ -8,12 +8,15 @@ import numpy as np
 import pytest
 
 from fakes import FakeTime, aura_rig, bar, next_text, room, serving
-from pewpew import Pattern, Renderer
 from pewpew.aura.control import REQUESTS
 from pewpew.aura.master import Master
 from pewpew.pace import PacedLoop
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 from pewpew.room.blink import DURATION, RATE, Blink
 from pewpew.room.map import compile_room
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 # Three 8-pixel bars a, b, c, chained on one output.
 ROOM = compile_room(room(*(

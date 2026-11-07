@@ -1,7 +1,7 @@
 """What the tests share: fakes of time, sockets, processes and the loop's
 call queue; a recorded DDP sink; socket helpers for the preview; room
-documents; and the patterns test looks name. Imported by test modules;
-conftest.py holds only hooks and fixtures."""
+documents; and the test ops test looks run (`fake_ops`). Imported by test
+modules; conftest.py holds only hooks and fixtures."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import tempfile
 import threading
 import time
 import warnings
-from collections.abc import Callable, Hashable, Iterator, Mapping
+from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import replace
 from pathlib import Path
@@ -27,26 +27,27 @@ from typing import Any, Self, TypeVar
 import numpy as np
 from websockets.sync.client import connect
 
-from pewpew import Float, Pattern, Renderer, audit, line, watchdog
+from params_zoo import define_zoo
+from pewpew import audit, watchdog
 from pewpew.__main__ import main, parse
 from pewpew.audio import keys
 from pewpew.aura.book import CycleConfig, LookBook
 from pewpew.aura.control import AuraControl
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.aura.variety import Made, at_once
-from pewpew.classinfo import pattern_name
-from pewpew.compose import Compositor, Layer, Look, Resolved, pattern_layer, pattern_of
+from pewpew.compose import Compositor, Layer, Look
 from pewpew.fx import expr, surprise
 from pewpew.fx.catalog import example as catalog_example
-from pewpew.fx.compile import is_pattern_program
 from pewpew.fx.expr import noise
-from pewpew.fx.graph import Program
+from pewpew.fx.graph import Graph, Node, Program
 from pewpew.fx.host import ProgramPattern
+from pewpew.fx.op import REGISTRY, Op
+from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.lab import handles
-from pewpew.load import Catalog
+from pewpew.mapping import line
 from pewpew.pace import Calls
-from pewpew.patterns import Pulse, Sparkle, Wave
-from pewpew.render import SlotClock
+from pewpew.params import Float
+from pewpew.render import Renderer, SlotClock
 from pewpew.run import Launch, Run
 from pewpew.sinks.ddp import Board, DdpSink
 from pewpew.sinks.preview import PreviewSink
@@ -269,93 +270,110 @@ def room(*fixtures: dict, boards: Mapping[str, str] | None = None) -> dict:
     return {"boards": dict(boards or {"A": "10.0.0.11"}), "fixtures": list(fixtures)}
 
 
-class Solid(Pattern):
-    """One colour everywhere, from three params."""
-
-    red = Float(1.0, 0.0, 1.0)
-    green = Float(0.0, 0.0, 1.0)
-    blue = Float(0.0, 0.0, 1.0)
-
-    def render(self, x, y, z, index):
-        out = np.empty((self.n, 3), dtype=np.float32)
-        out[:] = (self.red, self.green, self.blue)
-        return out
+# ---- the test ops ------------------------------------------------------------------------
 
 
-class PixelRamp(Pattern):
-    """Red rises along the pixels: index / n."""
+def _test_ops() -> tuple[type[Op], ...]:
+    """Define (and so register) the test ops: `solid_test`, one colour
+    everywhere from three knobs; `ramp_test`, red rising along the points;
+    `raises_test`, which raises as it renders; and `zoo_test`, one knob of
+    each param kind (params_zoo.py)."""
 
-    def render(self, x, y, z, index):
-        out = np.zeros((self.n, 3), dtype=np.float32)
-        out[:, 0] = index / self.n
-        return out
+    class SolidTest(Op, op="solid_test"):
+        """One colour everywhere, from three knobs."""
 
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        red = Float(1.0, 0.0, 1.0)
+        green = Float(0.0, 0.0, 1.0)
+        blue = Float(0.0, 0.0, 1.0)
 
-class FixtureRamp(PixelRamp):
-    """Blue rises along the fixtures; one value per fixture."""
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            def solid(c: Coords) -> np.ndarray:
+                out = np.empty((len(c.index), 3), dtype=np.float32)
+                out[:] = (self.red, self.green, self.blue)
+                return out
 
-    units = "fixture"
+            return solid
 
-    def render(self, x, y, z, index):
-        out = np.zeros((self.n, 3), dtype=np.float32)
-        out[:, 2] = (index + 1) / self.n
-        return out
+    class RampTest(Op, op="ramp_test"):
+        """Red rises along the points: index / n."""
 
+        sig = Sig.SOURCE
+        out = Ty.RGB
 
-class Raises(Solid):
-    def render(self, x, y, z, index):
-        raise RuntimeError("broken render")
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            def ramp(c: Coords) -> np.ndarray:
+                out = np.zeros((len(c.index), 3), dtype=np.float32)
+                out[:, 0] = c.index / np.float32(len(c.index))
+                return out
 
+            return ramp
 
-# The patterns a look in the tests may name, by pattern name.
-LOOK_CLASSES = {pattern_name(c): c for c in (Solid, PixelRamp, FixtureRamp, Raises, Pulse, Wave, Sparkle)}
+    class RaisesTest(SolidTest, op="raises_test"):
+        """Raises as it renders."""
 
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            def raises(c: Coords) -> np.ndarray:
+                raise RuntimeError("broken render")
 
-def look(pattern: str, params: Mapping | None = None, **kw) -> Look:
-    """A look of one layer, `base`, running `pattern` at `params`; `kw` are
-    the look's own fields (master, fade, cycle, seed)."""
-    return Look((pattern_layer("base", pattern, params),), **kw)
+            return raises
 
-
-def offered(monkeypatch, **sources: str) -> dict[str, type]:
-    """Add to the gallery (pewpew.load) the pattern class each of `sources`
-    defines, under its key: a test's own pattern, which a look names as it
-    names a gallery one. Returns the classes by name."""
-    import pewpew.load
-
-    classes = {}
-    for name, source in sources.items():
-        module = f"offered_{name}"
-        namespace: dict[str, Any] = {"__name__": module}
-        exec(compile(source, f"<{module}>", "exec"), namespace)  # noqa: S102  a test's own pattern source
-        (classes[name],) = (v for v in namespace.values()
-                            if isinstance(v, type) and issubclass(v, Pattern) and v.__module__ == module)
-    gallery = pewpew.load.gallery
-    monkeypatch.setattr(pewpew.load, "gallery", lambda: {**gallery(), **classes})
-    return classes
+    return SolidTest, RampTest, RaisesTest, define_zoo()
 
 
-# Where `pattern_looks` writes; removed when the process ends.
+@contextlib.contextmanager
+def with_test_ops() -> Iterator[None]:
+    """The test ops in the registry while the block runs (conftest.py's
+    `fake_ops` fixture), so no catalog the suite checks lists them."""
+    before = dict(REGISTRY)
+    _test_ops()
+    try:
+        yield
+    finally:
+        REGISTRY.clear()
+        REGISTRY.update(before)
+
+
+# Each test op's node id in a look `look` makes, so its knobs read as before:
+# `layers.base.solid.red`.
+NODE_IDS = {"solid_test": "solid", "ramp_test": "ramp", "raises_test": "raises"}
+
+
+def one_node(op: str, args: Mapping | None = None, *, node: str | None = None) -> Program:
+    """A program of one node of `op` at `args`, its id `node` (default: the
+    op's in `NODE_IDS`, else the op's name)."""
+    nid = node or NODE_IDS.get(op, op)
+    return Program(Graph((Node(nid, op, dict(args or {})),)), nid)
+
+
+def look(op: str, args: Mapping | None = None, *, node: str | None = None, **kw) -> Look:
+    """A look of one layer, `base`, running one node of `op` at `args`
+    (`one_node`); `kw` are the look's own fields (master, fade, cycle, seed)."""
+    return Look((Layer("base", one_node(op, args, node=node)),), **kw)
+
+
+# Where `looks_file` writes; removed when the process ends.
 _LOOKS_FOLDER = tempfile.TemporaryDirectory(prefix="pewpew-looks-")
 _LOOKS_MADE = itertools.count()
+# A look of built-in ops only, so a run in a new process plays it too.
+FLOW_LOOK = expr.look(expr.layer("base", noise(4).palette("aurora")))
 
 
-def pattern_looks(pattern: str = "comet", params: Mapping | None = None, **kw) -> str:
-    """The path, as text, of a new looks file whose one look, current, is
-    `look(pattern, params, **kw)`: what `run LOOKS` plays where a test runs
-    one gallery pattern."""
-    path = Path(_LOOKS_FOLDER.name) / f"{next(_LOOKS_MADE)}-{pattern}.look.json"
-    path.write_bytes(LookBook({pattern: look(pattern, params, **kw)}, pattern).to_bytes())
+def looks_file(start: Look | None = None, name: str = "look") -> str:
+    """The path, as text, of a new looks file whose one look, `name` and
+    current, is `start` (default `FLOW_LOOK`): what `run LOOKS` plays."""
+    path = Path(_LOOKS_FOLDER.name) / f"{next(_LOOKS_MADE)}-{name}.look.json"
+    path.write_bytes(LookBook({name: start or FLOW_LOOK}, name).to_bytes())
     return str(path)
 
 
-def layered(pattern: str, args=None, *, node: str | None = None, **fields) -> dict:
-    """`look(pattern, args, **fields)` as a looks file holds it, its node
-    id `node` (default: `pattern`, which a path is not). `args` that is not
-    an object goes in as it is, without the pattern."""
-    body = {"op": "pattern", "args": {"pattern": pattern, **(args or {})} if args is None or isinstance(args, Mapping)
-            else args}
-    return {"layers": [{"id": "base", "nodes": {node or pattern: body}}], **fields}
+def layered(op: str, args=None, *, node: str | None = None, **fields) -> dict:
+    """`look(op, args, **fields)` as a looks file holds it, its node id
+    `node` (default as `one_node`). `args` that is not an object goes in as
+    it is."""
+    nid = node or NODE_IDS.get(op, op)
+    return {"layers": [{"id": "base", "nodes": {nid: {"op": op, "args": {} if args is None else args}}}], **fields}
 
 
 def filed(look: Mapping) -> str:
@@ -365,7 +383,8 @@ def filed(look: Mapping) -> str:
 
 
 def solid(r=0.0, g=0.0, b=0.0, **kw) -> Look:
-    return look("solid", {"red": r, "green": g, "blue": b}, **kw)
+    """A look of one `solid_test` layer of that colour (needs `fake_ops`)."""
+    return look("solid_test", {"red": r, "green": g, "blue": b}, **kw)
 
 
 def frames(source, count: int = 30, fps: float = 60.0) -> np.ndarray:
@@ -373,12 +392,6 @@ def frames(source, count: int = 30, fps: float = 60.0) -> np.ndarray:
     each copied, one slot apart at `fps` from its time now."""
     clock = SlotClock(fps, start=source.t)
     return np.stack([source.advance_to(clock.advance()).copy() for _ in range(count)])
-
-
-def the(pattern: object, cls: type[T]) -> T:
-    """`pattern`, a renderer's, as the class `cls` it runs, to read its params."""
-    assert isinstance(pattern, cls), pattern
-    return pattern
 
 
 def program_of(chain: str) -> Program:
@@ -401,19 +414,15 @@ def hosted(source: object, mapping: np.ndarray | None = None, **kw) -> Renderer:
     return Renderer(cls(), line(16) if mapping is None else mapping, name="layers.base", **kw)
 
 
-def program_layer(lid: str, source: object, **mix: object) -> tuple[Layer, type[Pattern]]:
-    """A layer `lid` that runs `source`, a program or a builder chain, and the class that hosts it: a
+def program_layer(lid: str, source: object, **mix: object) -> Layer:
+    """A layer `lid` that runs `source`, a program or a builder chain: a
     `stack` entry. `mix` are the layer's own fields, such as its blend."""
-    program = Program.of(source)  # type: ignore[arg-type]
-    return Layer(lid, program, **mix), ProgramPattern.of(program, {"solid": Solid})  # type: ignore[arg-type]
+    return Layer(lid, Program.of(source), **mix)  # type: ignore[arg-type]
 
 
-def stack(*layers: tuple[Layer, type[Pattern]], mapping=None, seed: int = 0, **kw) -> Compositor:
-    """A compositor of `layers`, each (layer, class), on `mapping` (line(8)),
-    each shown by its pattern's spec, a program by its layer's id."""
-    shown = [Resolved(layer, cls, spec(layer) if is_pattern_program(layer.program) else layer.id)
-             for layer, cls in layers]
-    return Compositor(shown, line(8) if mapping is None else mapping, seed=seed, **kw)
+def stack(*layers: Layer, mapping=None, seed: int = 0, **kw) -> Compositor:
+    """A compositor of `layers` on `mapping` (line(8))."""
+    return Compositor(layers, line(8) if mapping is None else mapping, seed=seed, **kw)
 
 
 class Pooled(Mapping[Hashable, Any]):
@@ -485,11 +494,6 @@ def in_new_process(job: Callable[[], T], **env: str) -> T:
     return pickle.loads(bytes.fromhex(out.stdout))
 
 
-def spec(layer: Layer) -> str:
-    """The pattern spec that `layer`'s one pattern node runs."""
-    return pattern_of(layer.program.output)[0]
-
-
 def rgb(r: float, g: float, b: float, n: int) -> np.ndarray:
     """A frame of `n` pixels of one float32 color."""
     return np.tile(np.array([r, g, b], np.float32), (n, 1))
@@ -500,13 +504,13 @@ def layer_renderer(aura, lid: str = "base") -> Renderer:
     return aura.fader.current.layer(lid).renderer
 
 
-def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, cap: float = 1.0,
+def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
              looks: Mapping[str, Look] | None = None, current: str | None = None, cycle=None,
              triggers: Mapping | None = None, path=None, timeout: float = 5.0,
              log=None, blink=None, boards=None, health=None, accept_looks: bool = False,
              variety=None, submit=None) -> SimpleNamespace:
-    """An aura without a loop or sinks: a one-layer stack (`base`, running
-    `start`), crossfader, deck, master, looks (when `looks` is given),
+    """An aura without a loop or sinks: a stack running `start` (default a
+    red `solid`, which needs `fake_ops`), crossfader, deck, master, looks (when `looks` is given),
     triggers and the aura control, built as `pewpew.run.Run` builds them
     (`build_aura_pipeline`);
     `variety(deck)` makes the looks a surprise, a vary and the director's
@@ -514,17 +518,12 @@ def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, 
     once, on the caller's thread).
     `frame(t)` runs the `before` hooks and renders, as one loop tick does;
     `calls.drain()` runs what the controls queued. `renderer(lid)` is the
-    renderer layer `lid` runs now. The catalog is `LOOK_CLASSES` unless
-    `catalog` names another."""
+    renderer layer `lid` runs now."""
     r = SimpleNamespace()
-    name = pattern_name(start)
-    r.catalog = catalog if catalog is not None else Catalog(LOOK_CLASSES)
     r.path = path
     r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {}) if looks is not None else None
-    layer = pattern_layer("base", name)
     aura = build_aura_pipeline(
-        Look((layer,)), [Resolved(layer, start, name)], line(4) if mapping is None else mapping,
-        catalog=r.catalog, grouping=grouping, master_cap=cap, looks_path=path, book=r.book,
+        start or solid(1.0), line(4) if mapping is None else mapping, master_cap=cap, looks_path=path, book=r.book,
         trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
         make_variety=variety, submit=submit or at_once,
     )

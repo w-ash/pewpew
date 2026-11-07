@@ -3,7 +3,6 @@ registry by op name once they are in.
 
 - `source`: osc, noise, voronoi, shape, quasicrystal, metaballs,
   lissajous, below, prev
-- `pattern`: pattern, a hand-written pattern as a source
 - `coord`: rotate, scale, kaleid, polar, mirror, twist, tunnel, repeat
 - `color`: palette, hue, contrast, posterize
 - `combine`: add, mult, diff, blend, and modulate
@@ -20,7 +19,7 @@ from collections.abc import Iterable
 from types import MappingProxyType
 
 from pewpew.fx.op import REGISTRY
-from pewpew.fx.ops import color, combine, coord, pattern, signal, sims, source, state, swarm
+from pewpew.fx.ops import color, combine, coord, signal, sims, source, state, swarm
 
 OPS = MappingProxyType(REGISTRY)
 
@@ -32,4 +31,4 @@ def labels(ops: Iterable[str]) -> dict[str, str]:
     return {OPS[op].label: op for op in ops}
 
 
-__all__ = ["OPS", "color", "combine", "coord", "labels", "pattern", "signal", "sims", "source", "state", "swarm"]
+__all__ = ["OPS", "color", "combine", "coord", "labels", "signal", "sims", "source", "state", "swarm"]

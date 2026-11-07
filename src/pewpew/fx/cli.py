@@ -4,9 +4,9 @@
     fx show NAME [--json]
 
 Tier 0 (CLAUDE.md T-7): each verb reads the package only and writes only
-to stdout. `catalog` lists ops, patterns, blend modes, palettes and param
+to stdout. `catalog` lists ops, blend modes, palettes and param
 kinds (`--kind` narrows to one, or to the ops of one signature, such as
-`coord`); `show` prints one op's (or pattern's, blend's, palette's or
+`coord`); `show` prints one op's (or blend's, palette's or
 kind's) whole record, with its examples as builder chains and as JSON.
 `--format markdown` prints the reference page, docs/reference/catalog.md.
 With `--json` a verb prints one JSON document on stdout. Exit codes: 0
@@ -33,7 +33,7 @@ HELP = """\
 What a look can be made of, and the lab that checks, renders, measures and
 compares looks. Tier 0: nothing is sent to an engine or a board.
 
-    fx catalog [--kind K] [--query Q]   ops, patterns, blends, palettes, param kinds
+    fx catalog [--kind K] [--query Q]   ops, blends, palettes, param kinds
     fx show NAME                        one record whole, with its examples
     fx check FILE                       the problems of a look or looks file, or ok
     fx render FILE                      render a look: its handle, spec and metrics
@@ -63,9 +63,9 @@ def add_parser(sub: argparse._SubParsersAction) -> argparse._SubParsersAction:
 
 def add_verbs(verbs: argparse._SubParsersAction) -> None:
     """Add `catalog` and `show` to the `fx` verbs."""
-    p = verbs.add_parser("catalog", help="list the ops, patterns, blends, palettes and param kinds")
+    p = verbs.add_parser("catalog", help="list the ops, blends, palettes and param kinds")
     p.add_argument("--kind", choices=KINDS, default=None,
-                   help="only one section (op, pattern, blend, palette, kind) or the ops of one signature")
+                   help="only one section (op, blend, palette, kind) or the ops of one signature")
     p.add_argument("--query", default=None, metavar="TEXT", help="only what names or describes every word of TEXT")
     form = p.add_mutually_exclusive_group()
     form.add_argument("--json", action="store_true", help="print one JSON document: {items: [...]}")
@@ -74,7 +74,7 @@ def add_verbs(verbs: argparse._SubParsersAction) -> None:
     p.set_defaults(cli=catalog_cli)
 
     p = verbs.add_parser("show", help="print one op's whole record, with its examples")
-    p.add_argument("name", metavar="NAME", help="an op (kaleid), or a pattern, blend, palette or kind")
+    p.add_argument("name", metavar="NAME", help="an op (kaleid), or a blend, palette or kind")
     p.add_argument("--json", action="store_true", help="print the record as one JSON document")
     p.set_defaults(cli=show_cli)
 

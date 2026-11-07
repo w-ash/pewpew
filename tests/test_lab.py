@@ -22,9 +22,14 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from fakes import Pooled, build, offered, run_python
+from fakes import Pooled, build, run_python
 from pewpew import lab
 from pewpew.aura.book import LookError, parse_looks
+from pewpew.color import EMBER
+from pewpew.compose import look_controls
+from pewpew.fx.op import FrameCtx, Op
+from pewpew.fx.ops.source import Osc
+from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.jsonfile import write_atomic
 from pewpew.lab import (
     Code,
@@ -34,7 +39,6 @@ from pewpew.lab import (
     compare,
     comparison,
     explain,
-    liveness,
     metrics,
     render,
     search,
@@ -46,8 +50,7 @@ from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.lab.handles import ENGINE, Cache, fingerprint
 from pewpew.lab.rendering import take
 from pewpew.metrics import LIVENESS_RMS
-from pewpew.params import ParamSet
-from pewpew.patterns import Comet
+from pewpew.params import Float, Int, Palette, ParamSet
 from pewpew.problems import problem
 from pewpew.render import SlotClock
 from pngread import decode_png
@@ -55,15 +58,31 @@ from pngread import decode_png
 MAP, SECONDS, FPS = "line:64", 2.0, 30.0
 
 
-def layer(lid: str, pattern: str, mix: dict | None = None, **args) -> dict:
-    return {"id": lid, **(mix or {}), "nodes": {pattern: {"op": "pattern", "args": {"pattern": pattern, **args}}}}
+def layer(lid: str, mix: dict | None = None, **nodes: dict) -> dict:
+    """Layer `lid` of `nodes`, its mix `mix`."""
+    return {"id": lid, **(mix or {}), "nodes": nodes}
 
 
-COMET = {"seed": 3, "layers": [layer("base", "comet", speed=0.6)]}
-SPEED = "layers.base.comet.speed"
-DUO = {"seed": 3, "master": 0.8, "layers": [
-    layer("base", "comet", speed=0.6), layer("top", "wash", {"blend": "screen", "opacity": 0.5}),
-]}
+def stripes(lid: str = "base", mix: dict | None = None, **args) -> dict:
+    """Layer `lid`: stripes (`waves`, osc at freq 4 and `args`) through the ember palette (`tint`)."""
+    return layer(lid, mix, waves={"op": "osc", "args": {"freq": 4.0, **args}},
+                 tint={"op": "palette", "in": ["waves"], "args": {"palette": "ember"}})
+
+
+def glow(lid: str = "top", mix: dict | None = None, **args) -> dict:
+    """Layer `lid`: noise hills (`hills`, at `args`) through the aurora palette (`tone`)."""
+    return layer(lid, mix, hills={"op": "noise", "args": args},
+                 tone={"op": "palette", "in": ["hills"], "args": {"palette": "aurora"}})
+
+
+def one(op: str, nid: str | None = None, **args) -> dict:
+    """A look of one layer, `base`, of one node of `op` (id `nid`, default `op`) at `args`."""
+    return {"layers": [layer("base", **{nid or op: {"op": op, "args": args}})]}
+
+
+STRIPES = {"seed": 3, "layers": [stripes()]}
+FREQ = "layers.base.waves.freq"
+DUO = {"seed": 3, "master": 0.8, "layers": [stripes(), glow("top", {"blend": "screen", "opacity": 0.5})]}
 
 
 def program(**nodes: dict) -> dict:
@@ -71,12 +90,12 @@ def program(**nodes: dict) -> dict:
     return {"layers": [{"id": "base", "nodes": nodes}]}
 
 
-# A program of three nodes, with a pattern screened over it.
+# A program of three nodes, with a second program screened over it.
 TIDE = {"seed": 3, "layers": [
     program(waves={"op": "osc", "args": {"freq": 8.0, "sync": 0.1}},
             fold={"op": "kaleid", "in": ["waves"], "args": {"sides": 5}},
             tint={"op": "palette", "in": ["fold"], "args": {"palette": "ember"}})["layers"][0],
-    layer("top", "comet", {"blend": "screen", "opacity": 0.6}, speed=0.6),
+    glow("top", {"blend": "screen", "opacity": 0.6}),
 ]}
 OSC = {"op": "osc", "args": {"freq": 8.0}}
 
@@ -101,7 +120,7 @@ def book(**looks: dict) -> dict:
     return {"version": 4, "looks": looks}
 
 
-def draw(look: dict | Path = COMET, *, map_spec: str = MAP, seconds: float = SECONDS, fps: float = FPS,
+def draw(look: dict | Path = STRIPES, *, map_spec: str = MAP, seconds: float = SECONDS, fps: float = FPS,
          **kw) -> lab.Rendered:
     return render(look, map_spec, seconds, fps, **kw)
 
@@ -110,20 +129,23 @@ def draw(look: dict | Path = COMET, *, map_spec: str = MAP, seconds: float = SEC
 
 
 def test_a_look_that_checks_comes_back_with_every_param_written_out():
-    result = check_look(COMET)
+    result = check_look(STRIPES)
     assert result.ok and result.problems == ()
-    args = ParamSet(Comet, {"speed": 0.6}).snapshot_json()
-    assert result.look_normalized == {
+    tint = normalized(result)["layers"][0]["nodes"]["tint"]
+    assert normalized(result) == {
         "seed": 3, "fade": 2.0, "cycle": False, "layers": [{
-            "id": "base", "opacity": 1.0, "blend": "normal", "enabled": True, "out": "comet",
-            "nodes": {"comet": {"op": "pattern", "args": {"pattern": "comet", **args}}},
+            "id": "base", "opacity": 1.0, "blend": "normal", "enabled": True, "out": "tint",
+            "nodes": {"waves": {"op": "osc", "args": {"freq": 4.0, "sync": 0.1, "offset": 0.0, "axis": "x"}},
+                      "tint": {"op": "palette", "in": ["waves"], "args": {
+                          "palette": tint["args"]["palette"], "shift": 0.0, "cycle": 0.0}}},
         }],
     }
+    assert tint["args"]["palette"]["label"] == "ember"
     assert check_look(normalized(result)).look_normalized == result.look_normalized  # normalizing is idempotent
 
 
 def test_a_looks_file_checks_whole_and_keeps_its_other_sections(tmp_path):
-    doc = {**book(duo=DUO, one=COMET), "current": "duo", "cycle": {"idle": None},
+    doc = {**book(duo=DUO, one=STRIPES), "current": "duo", "cycle": {"idle": None},
            "triggers": {"cue": {"look": "one"}}, "notes": "kept"}
     path = tmp_path / "saved.look.json"
     path.write_text(json.dumps(doc))
@@ -136,8 +158,8 @@ def test_a_looks_file_checks_whole_and_keeps_its_other_sections(tmp_path):
 
 
 def test_check_takes_a_look_value_json_data_and_text_alike(tmp_path):
-    value = parse_looks(json.dumps(book(a=COMET))).looks["a"]
-    results = [check_look(doc) for doc in (COMET, json.dumps(COMET), value)]
+    value = parse_looks(json.dumps(book(a=STRIPES))).looks["a"]
+    results = [check_look(doc) for doc in (STRIPES, json.dumps(STRIPES), value)]
     assert all(r == results[0] for r in results) and results[0].ok
 
 
@@ -146,36 +168,36 @@ def test_a_file_is_a_looks_file_as_run_reads_it(tmp_path):
     plays (ADR-006 amendment "layered paths"): a single look in a file
     is refused with the file that holds it."""
     path = tmp_path / "a.look.json"
-    path.write_text(json.dumps(COMET))
+    path.write_text(json.dumps(STRIPES))
     (problem,) = check_look(path).problems
     assert (problem.code, problem.path) == (Code.MISSING, "")
     assert "this is a single look, and a looks file wraps it" in problem.reason
-    assert problem.example == {"version": 4, "current": "look", "looks": {"look": COMET}}
+    assert problem.example == {"version": 4, "current": "look", "looks": {"look": STRIPES}}
     path.write_text(json.dumps(problem.example))
     assert check_look(path).ok and (tmp_path / "a.look.json").read_text()
     with pytest.raises(LookError, match="this is a single look"):
-        parse_looks(json.dumps(COMET))  # as `run LOOKS` refuses it
+        parse_looks(json.dumps(STRIPES))  # as `run LOOKS` refuses it
 
 
 @pytest.mark.parametrize("doc, path, code, guess", [
-    ({"layers": [{**layer("base", "comet"), "opacty": 1}]}, "layers.base.opacty", Code.UNKNOWN_KEY, "opacity"),
-    ({"layers": [layer("base", "comet", sped=1)]}, "layers.base.comet.sped", Code.UNKNOWN_KEY, "speed"),
-    ({"layers": [layer("base", "comet", speed=9)]}, "layers.base.comet.speed", Code.OUT_OF_RANGE, None),
-    ({"layers": [layer("base", "comet", speed="fast")]}, "layers.base.comet.speed", Code.WRONG_KIND, None),
-    ({"layers": [layer("base", "comet", {"blend": "screem"})]}, "layers.base.blend", Code.OUT_OF_RANGE, "screen"),
-    ({"layers": [layer("base", "comt")]}, "layers.base.comt.pattern", Code.BAD_REF, "comet"),
+    ({"layers": [{**stripes(), "opacty": 1}]}, "layers.base.opacty", Code.UNKNOWN_KEY, "opacity"),
+    ({"layers": [stripes(frek=1)]}, "layers.base.waves.frek", Code.UNKNOWN_KEY, "freq"),
+    ({"layers": [stripes(freq=99)]}, FREQ, Code.OUT_OF_RANGE, None),
+    ({"layers": [stripes(freq="fast")]}, FREQ, Code.WRONG_KIND, None),
+    ({"layers": [stripes(mix={"blend": "screem"})]}, "layers.base.blend", Code.OUT_OF_RANGE, "screen"),
     ({"layers": [{"id": "base", "nodes": {"o": {"op": "osci"}}}]}, "layers.base.o.op", Code.UNKNOWN_OP, "osc"),
-    ({"layers": [{"id": "base", "nodes": {"o": {"op": "pattern"}}}]}, "layers.base.o.pattern", Code.MISSING, None),
+    ({"layers": [{"id": "base", "nodes": {"o": {"op": "pattern"}}}]}, "layers.base.o.op", Code.UNKNOWN_OP, None),
     ({"seed": 1}, "layers", Code.MISSING, None),
     ({"layers": []}, "layers", Code.WRONG_KIND, None),
-    ({"layers": [layer("base", "comet"), layer("base", "wash")]}, "layers.base", Code.BAD_REF, None),
-    ({"layers": [layer("base", "comet")], "signals": [1]}, "signals", Code.WRONG_KIND, None),
-    ({"layers": [layer("Base", "comet")]}, "layers[0].id", Code.WRONG_KIND, None),
+    ({"layers": [stripes(), glow("base")]}, "layers.base", Code.BAD_REF, None),
+    ({"layers": [stripes()], "signals": [1]}, "signals", Code.WRONG_KIND, None),
+    ({"layers": [stripes("Base")]}, "layers[0].id", Code.WRONG_KIND, None),
     ({"version": 3}, "version", Code.WRONG_VERSION, None),
     ({"looks": {}}, "version", Code.MISSING, None),
-    ({**book(a=COMET), "current": "b"}, "current", Code.BAD_REF, None),
-    ({**book(a=COMET), "triggers": {"t": {"priority": "buton"}}}, "triggers.t.priority", Code.OUT_OF_RANGE, "button"),
-    ({**book(a={**COMET, "master": 2})}, "looks.a.master", Code.OUT_OF_RANGE, None),
+    ({**book(a=STRIPES), "current": "b"}, "current", Code.BAD_REF, None),
+    ({**book(a=STRIPES), "triggers": {"t": {"priority": "buton"}}}, "triggers.t.priority", Code.OUT_OF_RANGE,
+     "button"),
+    ({**book(a={**STRIPES, "master": 2})}, "looks.a.master", Code.OUT_OF_RANGE, None),
     ({**book(), "cycle": {"idle": 10**400}}, "cycle.idle", Code.WRONG_KIND, None),  # past float range
     ({**book(), "cycle": {"each": 10**400}}, "cycle.each", Code.WRONG_KIND, None),
     ([1, 2], "", Code.NOT_A_LOOK, None),
@@ -190,10 +212,6 @@ def test_a_file_is_a_looks_file_as_run_reads_it(tmp_path):
     (program(w=OSC, t={"op": "hue", "in": ["w"]}), "layers.base.t.in", Code.WRONG_KIND, None),
     (program(d=OSC, w=OSC), "layers.base.d", Code.BAD_REF, None),
     ({"layers": [{**program(w=OSC)["layers"][0], "out": "x"}]}, "layers.base.out", Code.BAD_REF, None),
-    (program(p={"op": "pattern", "args": {"pattern": "sparkle"}}, f={"op": "mirror", "in": ["p"]}),
-     "layers.base.p.pattern", Code.WRONG_KIND, None),
-    (program(p={"op": "pattern", "args": {"pattern": "plazma"}}, f={"op": "mirror", "in": ["p"]}),
-     "layers.base.p.pattern", Code.BAD_REF, "plasma"),
     (program(w=OSC, t={"op": "palette", "in": ["w"], "args": {"palette": "aurore"}}), "layers.base.t.palette",
      Code.OUT_OF_RANGE, "aurora"),
     (program(w=OSC, t={"op": "palette", "in": ["w"], "args": {"palette": {"stops": [
@@ -201,17 +219,17 @@ def test_a_file_is_a_looks_file_as_run_reads_it(tmp_path):
      "layers.base.t.palette.stops[0].s", Code.OUT_OF_RANGE, None),
     ({"layers": [{**program(w=OSC, t={"op": "palette", "in": ["w"]})["layers"][0], "alpha": "t"}]},
      "layers.base.alpha", Code.WRONG_KIND, None),
-    ({"layers": [layer(f"l{i}", "comet") for i in range(17)]}, "layers", Code.OUT_OF_RANGE, None),
-    ({"seed": -1, "layers": [layer("base", "comet")]}, "seed", Code.OUT_OF_RANGE, None),
-    ({"seed": "x", "layers": [layer("base", "comet")]}, "seed", Code.WRONG_KIND, None),
-    ({"layers": [layer("base", "comet")], "front": [SPEED, SPEED]}, "front[1]", Code.BAD_REF, None),
-    ({"layers": [layer("base", "comet")], "front": ["layers.base.comet.sped"]}, "front[0]", Code.BAD_REF, SPEED),
-    ({"layers": [layer("base", "comet")], "signals": {"b": {"op": "lfo"}},
-      "routes": [{"source": "b", "path": "layers.base.comet.sped", "depth": 0.1}]}, "routes[0].path", Code.BAD_REF,
-     SPEED),
+    ({"layers": [stripes(f"l{i}") for i in range(17)]}, "layers", Code.OUT_OF_RANGE, None),
+    ({"seed": -1, "layers": [stripes()]}, "seed", Code.OUT_OF_RANGE, None),
+    ({"seed": "x", "layers": [stripes()]}, "seed", Code.WRONG_KIND, None),
+    ({"layers": [stripes()], "front": [FREQ, FREQ]}, "front[1]", Code.BAD_REF, None),
+    ({"layers": [stripes()], "front": ["layers.base.waves.frek"]}, "front[0]", Code.BAD_REF, FREQ),
+    ({"layers": [stripes()], "signals": {"b": {"op": "lfo"}},
+      "routes": [{"source": "b", "path": "layers.base.waves.frek", "depth": 0.1}]}, "routes[0].path", Code.BAD_REF,
+     FREQ),
     (program(o={"op": "oscillator"}), "layers.base.o.op", Code.UNKNOWN_OP, "osc"),  # its label
     (program(o={"op": "Kaleidoscope", "in": []}), "layers.base.o.op", Code.UNKNOWN_OP, "kaleid"),
-    ({"layers": [layer("base", "comet")], "signals": {"e": {"op": "envelope"}}}, "signals.e.op", Code.UNKNOWN_OP,
+    ({"layers": [stripes()], "signals": {"e": {"op": "envelope"}}}, "signals.e.op", Code.UNKNOWN_OP,
      "env"),
 ])
 def test_each_problem_has_a_stable_code_a_path_and_a_did_you_mean(doc, path, code, guess):
@@ -243,27 +261,27 @@ def test_a_program_renders_explains_and_probes_each_node():
     rendered = draw(TIDE, map_spec="grid:8x8", seconds=1.0)
     assert rendered.metrics.black_fraction < 1.0
     words = explain(TIDE)
-    assert words.summary.startswith("2 layers, bottom first: program (normal blend at opacity 1), then comet")
+    assert words.summary.startswith("2 layers, bottom first: base (normal blend at opacity 1), then top")
     assert words.layers[0].about.startswith("3 nodes: waves (osc, Oscillator): Stripes along one axis")
     assert words.layers[0].knobs[0].startswith("waves.freq = 8 ")
-    assert words.layers[1].knobs[0].startswith("speed = 0.6 ")
+    assert words.layers[1].knobs[0].startswith("hills.scale = 3 ")
     probed = {p.path: p for p in probes_of(metrics(rendered, liveness=True))}
     assert "layers.base.fold.plane=xy" not in probed  # auto takes xy on a grid: the same plane
-    assert {"layers.base.fold.sides", "layers.base.tint.shift", "layers.top.comet.speed"} <= probed.keys()
+    assert {"layers.base.fold.sides", "layers.base.tint.shift", "layers.top.hills.scale"} <= probed.keys()
     assert all(p.live for p in probed.values()), [p.path for p in probed.values() if not p.live]
 
 
 def test_a_problem_keeps_the_words_the_aura_uses_and_gives_an_example():
-    (problem,) = check_look({"layers": [layer("base", "comet", speed=9)]}).problems
-    assert problem.reason == ParamSet(Comet, name="layers.base.comet").check("speed", 9)
-    assert problem.valid == ("0.0..2.0",) and problem.example == Comet.speed.default
+    (problem,) = check_look({"layers": [stripes(freq=99)]}).problems
+    assert problem.reason == ParamSet(Osc, name="layers.base.waves").check("freq", 99)
+    assert problem.valid == ("0.5..32.0",)
     (missing,) = check_look({"seed": 1}).problems
-    assert missing.example[0]["nodes"]["comet"]["args"]["pattern"] == "comet"  # a layer to start from
+    assert missing.example[0]["nodes"]["waves"]["op"] == "osc"  # a layer to start from
     assert check_look(missing.example and {"layers": missing.example}).ok
 
 
 @pytest.mark.parametrize("doc", [
-    {"layers": [layer("base", "comet", speed="unknown op 'x'; ops: {[]: 1}, ")]},
+    {"layers": [stripes(freq="unknown op 'x'; ops: {[]: 1}, ")]},
     {**book(), "triggers": {"t": {"priority": "a, {[]: 1}; got b"}}},
     '{"version": 4, "looks": {}, "cycle": {"idle": ' + "1" * 5000 + "}}",  # past Python's digit limit
 ], ids=["unknown-op-echoed", "one-of-echoed", "long-integer"])
@@ -287,14 +305,8 @@ def test_reading_a_refusal_never_raises(head, items, tail):
     assert isinstance(problem(head + ", ".join(items) + tail).code, Code)
 
 
-def test_a_problem_names_no_absolute_path(tmp_path):
-    gone = {"op": "pattern", "args": {"pattern": str(tmp_path / "gone.py")}}
-    (problem,) = check_look({"layers": [{"id": "base", "nodes": {"gone": gone}}]}).problems
-    assert str(tmp_path) not in problem.reason and problem.code == Code.BAD_REF
-
-
 def test_a_book_with_several_looks_needs_a_name_to_render():
-    doc = book(a=COMET, b=DUO)
+    doc = book(a=STRIPES, b=DUO)
     with pytest.raises(Refused) as refused:
         draw(doc)
     assert refused.value.problems[0].code == Code.MISSING and refused.value.problems[0].valid == ("a", "b")
@@ -313,9 +325,9 @@ JSONISH = st.recursive(
 )
 # Keys a look really has, so a patch reaches past the first refusal.
 KEYS = st.sampled_from([
-    "version", "looks", "current", "cycle", "triggers", "layers", "id", "nodes", "op", "pattern", "args", "in",
-    "out", "alpha", "opacity", "blend", "enabled", "seed", "master", "fade", "signals", "speed", "tail", "color",
-    "h", "idle", "end", "look", "priority",
+    "version", "looks", "current", "cycle", "triggers", "layers", "id", "nodes", "op", "args", "in",
+    "out", "alpha", "opacity", "blend", "enabled", "seed", "master", "fade", "signals", "freq", "sync", "palette",
+    "scale", "idle", "end", "look", "priority",
 ])
 PATCH = st.dictionaries(KEYS, JSONISH, max_size=3)
 
@@ -336,8 +348,8 @@ def test_check_never_raises_on_text(text):
 @given(PATCH, PATCH, PATCH, PATCH, st.booleans())
 def test_check_never_raises_on_a_look_patched_at_any_depth(top, mix, nodes, args, as_book):
     doc = copy.deepcopy(DUO)  # patched from the deepest level up, so no patch removes another's place
-    doc["layers"][0]["nodes"]["comet"]["args"].update(args)
-    doc["layers"][1]["nodes"]["wash"].update(nodes)
+    doc["layers"][0]["nodes"]["waves"]["args"].update(args)
+    doc["layers"][1]["nodes"]["hills"].update(nodes)
     doc["layers"][0].update(mix)
     doc.update(top)
     result = check_look(book(a=doc) if as_book else doc)
@@ -347,7 +359,7 @@ def test_check_never_raises_on_a_look_patched_at_any_depth(top, mix, nodes, args
 # A node's parts, patched: other ops, inputs and ids that do or do not exist.
 NODE_PATCH = st.dictionaries(
     st.sampled_from(["op", "in", "args", "out", "alpha", "nodes", "sides", "freq", "palette", "plane"]),
-    JSONISH | st.sampled_from(["osc", "kaleid", "palette", "hue", "pattern", "below", "prev", "mirror", "nope"])
+    JSONISH | st.sampled_from(["osc", "kaleid", "palette", "hue", "below", "prev", "mirror", "nope"])
     | st.lists(st.sampled_from(["waves", "fold", "tint", "x"]), max_size=3),
     max_size=3,
 )
@@ -387,13 +399,13 @@ def test_a_render_comes_back_without_its_frames():
     assert rendered.handle.startswith("r1-") and len(rendered.handle) == 23
     spec = spec_of(rendered)
     assert (spec.frames, spec.points, spec.dims) == (60, 64, 1)
-    assert spec.engine == ENGINE and spec.look == check_look(COMET).look_normalized
+    assert spec.engine == ENGINE and spec.look == check_look(STRIPES).look_normalized
     assert len(json.dumps(rendered.to_json())) < 4000
     assert take(rendered).frames.shape == (60, 64, 3)
 
 
 def test_a_render_without_a_map_is_on_the_map_run_uses_without_one():
-    rendered = render({"layers": [layer("base", "comet")]}, seconds=0.2)
+    rendered = render({"layers": [stripes()]}, seconds=0.2)
     spec = spec_of(rendered)
     assert (spec.map, spec.points, spec.dims) == ("grid:16x16", 256, 2)
 
@@ -410,7 +422,7 @@ ELSEWHERE_CODE = (
 
 # The new process, run on the suite's process pool (conftest.py), with the
 # render cache of its worker, not of the test (`fakes.strict_worker`).
-JOBS = {"elsewhere": partial(run_python, ELSEWHERE_CODE, json.dumps(COMET))}
+JOBS = {"elsewhere": partial(run_python, ELSEWHERE_CODE, json.dumps(STRIPES))}
 
 
 def test_the_same_render_has_the_same_handle_and_bytes_in_another_process(pooled: Pooled):
@@ -426,11 +438,11 @@ def test_any_changed_input_changes_the_handle():
         draw(fps=20.0).handle,
         draw(seed=1).handle,
         draw(map_spec="grid:8x8").handle,
-        draw({**COMET, "seed": 4}).handle,
-        draw({"seed": 3, "layers": [layer("base", "comet", speed=0.7)]}).handle,
+        draw({**STRIPES, "seed": 4}).handle,
+        draw({"seed": 3, "layers": [stripes(freq=4.5)]}).handle,
     }
     assert len(handles) == 7
-    assert draw({"seed": 3, "layers": [layer("base", "comet", speed=0.6, tail=0.25)]}).handle == draw().handle
+    assert draw({"seed": 3, "layers": [stripes(offset=0.0)]}).handle == draw().handle
 
 
 def test_the_engine_fingerprint_follows_every_byte_of_the_package(tmp_path):
@@ -443,15 +455,10 @@ def test_the_engine_fingerprint_follows_every_byte_of_the_package(tmp_path):
     assert fingerprint(copied) != ENGINE
 
 
-def test_a_layer_that_raises_is_contained_and_warned_about(tmp_path, monkeypatch):
-    offered(monkeypatch, boom=(
-        "from pewpew import Pattern\n"
-        "class Boom(Pattern):\n"
-        "    def render(self, x, y, z, index):\n"
-        "        raise ValueError('boom')\n"
-    ))
-    rendered = draw({"layers": [layer("base", "boom")]}, seconds=0.5)
-    assert any("layers.base.boom.render raised: ValueError: boom" in w for w in rendered.warnings)
+def test_a_layer_that_raises_is_contained_and_warned_about(fake_ops):
+    rendered = draw(one("raises_test", "raises"), seconds=0.5)
+    assert any("layers.base.render raised: RuntimeError: broken render (in node layers.base.raises (raises_test))"
+               in w for w in rendered.warnings), rendered.warnings
 
 
 def test_an_expired_handle_says_how_to_recover():
@@ -473,17 +480,15 @@ def test_a_brief_render_drops_its_spec_and_cannot_render_again():
         take(brief)
 
 
-def test_every_verb_refuses_a_pattern_named_by_a_path_and_never_runs_it(tmp_path):
-    """A pattern goes by its gallery name, so a look cannot make the lab
-    run code (pewpew.mcp_server)."""
-    mine = tmp_path / "mine.py"
-    mine.write_text("raise SystemExit('ran')\n")
-    path_look = {"layers": [{"id": "base", "nodes": {"mine": {"op": "pattern", "args": {"pattern": str(mine)}}}}]}
-    for verb in (lambda: render(path_look, MAP, SECONDS, FPS), lambda: compare(COMET, path_look, map_spec=MAP),
-                 lambda: explain(path_look)):
+def test_every_verb_refuses_a_look_that_names_op_pattern_as_any_unknown_op():
+    """No op `pattern` runs a gallery pattern or a file: a look that names
+    it is refused as any unknown op is (ADR-025)."""
+    named = {"layers": [{"id": "base", "nodes": {"mine": {"op": "pattern", "args": {"pattern": "comet"}}}}]}
+    for verb in (lambda: render(named, MAP, SECONDS, FPS), lambda: compare(STRIPES, named, map_spec=MAP),
+                 lambda: explain(named)):
         with pytest.raises(Refused) as refused:
             verb()
-        assert refused.value.problems[0].code == Code.BAD_REF
+        assert refused.value.problems[0].code == Code.UNKNOWN_OP
 
 
 def _entry_size(folder: Path) -> int:
@@ -596,47 +601,57 @@ def test_a_sheet_is_a_png_of_the_render(tmp_path):
 
 
 def test_metrics_with_liveness_name_each_dead_knob():
-    hidden = {"layers": [layer("base", "comet"), layer("top", "wash", {"opacity": 0.0})]}
+    hidden = {"layers": [stripes(), glow("top", {"opacity": 0.0})]}
     measured = metrics(draw(hidden), liveness=True)
     assert measured.metrics == draw(hidden).metrics
-    assert set(measured.dead) == {"layers.top.wash.color.h", "layers.top.wash.color.s", "layers.top.wash.color.v",
-                                  "layers.top.wash.speed", "layers.top.wash.spread"}
-    assert {p.path for p in probes_of(measured) if p.live} == {"layers.base.comet.speed", "layers.base.comet.tail"}
+    assert set(measured.dead) >= {"layers.top.hills.scale", "layers.top.hills.speed", "layers.top.tone.shift"}
+    assert all(path.startswith("layers.top.") for path in measured.dead)
+    assert {p.path for p in probes_of(measured) if p.live} >= {FREQ, "layers.base.waves.sync", "layers.base.tint.shift"}
+    assert all(p.path.startswith("layers.base.") for p in probes_of(measured) if p.live)
     assert all(p.rms is not None and p.rms > LIVENESS_RMS for p in probes_of(measured) if p.live)
     assert metrics(draw(hidden)).liveness is None
 
 
-def test_liveness_moves_a_color_part_with_the_others_as_the_look_sets_them():
-    white = {"layers": [layer("base", "wash", color={"h": 30, "s": 0, "v": 1})]}
+def test_liveness_moves_a_color_part_with_the_others_as_the_look_sets_them(fake_ops):
+    white = one("zoo_test", "zoo", color={"h": 30, "s": 0, "v": 1})
     probes = {p.path: p for p in metrics(draw(white), liveness=True).liveness or ()}
-    hue = probes["layers.base.wash.color.h"]
+    hue = probes["layers.base.zoo.color.h"]
     assert hue.a["s"] == hue.b["s"] == 0 and not hue.live  # no saturation, so no hue to see
-    assert probes["layers.base.wash.color.s"].live
+    assert probes["layers.base.zoo.color.s"].live
 
 
-# `level` shows only once the look has run half a second, as a trail or a
-# simulation shows once it has filled; `idle` never shows.
-LATE = (
-    "import numpy as np\n"
-    "from pewpew import Float, Pattern\n"
-    "class Late(Pattern):\n"
-    "    level = Float(0.5, 0.0, 1.0)\n"
-    "    idle = Float(0.5, 0.0, 1.0)\n"
-    "    def __init__(self):\n"
-    "        self.t = 0.0\n"
-    "    def before_render(self, dt, features):\n"
-    "        self.t += dt\n"
-    "    def render(self, x, y, z, index):\n"
-    "        return np.full((self.n, 3), self.level * min(max(self.t - 0.5, 0.0), 0.5), np.float32)\n"
-)
+def late_op() -> None:
+    """Define op `late_test`: its `level` shows only once it has run half a
+    second, as a trail or a simulation shows once it has filled; its `idle`
+    never shows."""
+
+    class LateTest(Op, op="late_test"):
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        stateful = True
+        level = Float(0.5, 0.0, 1.0)
+        idle = Float(0.5, 0.0, 1.0)
+
+        def setup(self, ctx) -> None:
+            super().setup(ctx)
+            self.t = 0.0
+
+        def advance(self, ctx: FrameCtx, inputs) -> None:
+            self.t += ctx.dt
+
+        def build(self, inputs) -> Fn:
+            def late(c: Coords) -> np.ndarray:
+                return np.full((len(c.index), 3), self.level * min(max(self.t - 0.5, 0.0), 0.5), np.float32)
+
+            return late
 
 
-def test_liveness_warms_up_so_a_knob_that_acts_late_is_live_and_one_that_never_acts_is_dead(tmp_path, monkeypatch):
-    offered(monkeypatch, late=LATE)
-    cold = compare({"layers": [layer("base", "late", level=0.0)]}, {"layers": [layer("base", "late", level=1.0)]},
+def test_liveness_warms_up_so_a_knob_that_acts_late_is_live_and_one_that_never_acts_is_dead(fake_ops):
+    late_op()
+    cold = compare(one("late_test", "late", level=0.0), one("late_test", "late", level=1.0),
                    map_spec=MAP, seconds=0.5, fps=FPS)
     assert cold.rms == 0.0  # from a cold start, its first half second shows nothing of it
-    probed = {p.path: p for p in metrics(draw({"layers": [layer("base", "late")]}, seconds=1.0),
+    probed = {p.path: p for p in metrics(draw(one("late_test", "late"), seconds=1.0),
                                          liveness=True).liveness or ()}
     late, idle = probed["layers.base.late.level"], probed["layers.base.late.idle"]
     assert late.live and late.rms is not None and late.rms > 100 * LIVENESS_RMS
@@ -653,115 +668,59 @@ def test_liveness_leaves_out_what_the_map_cannot_draw():
     assert measured.dead == ()
 
 
-PALETTE_ONLY = (
-    "import numpy as np\n"
-    "from pewpew import Palette, Pattern\n"
-    "from pewpew.color import EMBER\n"
-    "class Glow(Pattern):\n"
-    "    palette = Palette(EMBER)\n"
-    "    def render(self, x, y, z, index):\n"
-    "        return np.full((self.n, 3), 0.5, np.float32)\n"
-)
-DIVIDES = (
-    "import numpy as np\n"
-    "from pewpew import Int, Pattern\n"
-    "class Bands(Pattern):\n"
-    "    width = Int(4, 0, 8)\n"
-    "    def setup(self, n, x, y, z, index):\n"
-    "        self.step = 1.0 / self.width\n"
-    "    def render(self, x, y, z, index):\n"
-    "        return np.full((self.n, 3), 0.1 * self.step, np.float32)\n"
-)
+def unprobable_ops() -> None:
+    """Define op `glow_test`, whose palette offers no preset to probe, and
+    op `bands_test`, which does not run with its `width` at 0."""
+
+    class GlowTest(Op, op="glow_test"):
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        palette = Palette(EMBER)
+
+        def build(self, inputs) -> Fn:
+            return lambda c: np.full((len(c.index), 3), 0.5, np.float32)
+
+    class BandsTest(Op, op="bands_test"):
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        width = Int(4, 0, 8)
+
+        def build(self, inputs) -> Fn:
+            step = 1.0 / self.width
+            return lambda c: np.full((len(c.index), 3), 0.1 * step, np.float32)
 
 
-def test_a_knob_that_cannot_be_probed_fails_its_own_look_only(tmp_path, monkeypatch):
-    offered(monkeypatch, glow=PALETTE_ONLY)
-    offered(monkeypatch, bands=DIVIDES)
+def test_a_knob_that_cannot_be_probed_fails_its_own_look_only(tmp_path, fake_ops):
+    unprobable_ops()
     looks = tmp_path / "looks"
     looks.mkdir()
-    for name in ("glow", "bands", "comet"):
-        _write(looks, f"{name}.look.json", book(look={"layers": [layer("base", name)]}))
+    for name, doc in (("glow", one("glow_test", "glow")), ("bands", one("bands_test", "bands")), ("calm", STRIPES)):
+        _write(looks, f"{name}.look.json", book(look=doc))
     result = verify_looks([looks], map_spec=MAP, seconds=1.0, fps=FPS)
     verdicts = {Path(f.file).name: f.looks[0] for f in result.files}
-    assert verdicts["comet.look.json"].ok and not result.ok
+    assert verdicts["calm.look.json"].ok and not result.ok
     assert verdicts["glow.look.json"].failures == (
         "layers.base.glow.palette: palette 'palette' offers no preset other than its default, so nothing probes it",
     )
     (failure,) = verdicts["bands.look.json"].failures
     assert failure.startswith("layers.base.bands.width: the look does not run with it at 0: ")
-    measured = metrics(draw({"layers": [layer("base", "bands")]}, seconds=0.5), liveness=True)
+    measured = metrics(draw(one("bands_test", "bands"), seconds=0.5), liveness=True)
     assert measured.unprobed == (failure,) and measured.dead == ()
 
 
-TIDE_FILE = (
-    "from pewpew.fx.expr import osc\n"
-    "from pewpew.fx.host import ProgramPattern\n\n\n"
-    "class Tide(ProgramPattern):\n"
-    "    program = osc(8, 0.1).id('waves').palette('ember').id('tint')\n"
-)
-
-
-def test_a_pattern_file_whose_class_is_a_program_is_probed_and_explained_by_its_nodes(tmp_path, monkeypatch):
-    """Its knobs are its program's (pewpew.compose.controls.runs): the gate
-    probes each, and `explain` lists each, as the running stack names them."""
-    offered(monkeypatch, tide=TIDE_FILE)
-    look = {"layers": [layer("base", "tide")]}
-    probed = liveness.probe_knobs(ready(look), parse_geometry(MAP), 0)
-    assert {p.path for p in probed} >= {"layers.base.waves.freq", "layers.base.waves.sync", "layers.base.tint.shift"}
-    assert liveness.dead(probed) == ()
-    (note,) = explain(look).layers
-    assert note.knobs[0].startswith("waves.freq = 8") and any(k.startswith("tint.palette = ember") for k in note.knobs)
-    path = _write(tmp_path, "tide.look.json", book(tide=look))
-    (verdict,) = verify_looks([path], map_spec=MAP, seconds=1.0, fps=FPS).files[0].looks
-    assert verdict.ok, verdict.failures
-
-
-def test_a_moved_knob_of_a_pattern_files_program_is_saved_and_recalled(tmp_path, monkeypatch):
-    """The layer keeps its pattern node, so the file stays its content; a
-    knob moved from its literal is the node's arg `<nid>.<arg>`
-    (pewpew.fx.host), which a recall starts the node at."""
-    from pewpew.compose import Compositor
-    from pewpew.mapping import parse_map
-
-    offered(monkeypatch, tide=TIDE_FILE)
-    running = Compositor(ready({"layers": [layer("base", "tide")]}).layers,
-                         parse_map("line:16"))
-    running.controls.set("layers.base.waves.sync", 0.5)
-    saved = running.snapshot()
-    assert dict(saved.layers[0].program.output.args) == {"pattern": "tide", "waves.sync": 0.5}
-    checked = check_look(saved)
-    assert checked.ok and checked.look_normalized is not None
-    assert checked.look_normalized["layers"][0]["nodes"]["tide"]["args"] == {"pattern": "tide", "waves.sync": 0.5}
-    again = Compositor(ready(saved).layers, parse_map("line:16"))
-    assert again.controls.snapshot_json()["layers.base.waves.sync"] == 0.5
-    assert dict(again.snapshot().layers[0].program.output.args) == {"pattern": "tide", "waves.sync": 0.5}
-
-
-@pytest.mark.parametrize(("arg", "path", "code", "guess"), [
-    ("waves.freqq", "layers.base.waves.freqq", Code.UNKNOWN_KEY, "freq"),
-    ("wave.freq", "layers.base.tide", Code.BAD_REF, "waves"),
-    ("waves.freq", "layers.base.waves.freq", Code.OUT_OF_RANGE, None),
-])
-def test_a_pattern_files_program_knob_is_checked_as_the_stack_names_it(tmp_path, arg, path, code, guess, monkeypatch):
-    offered(monkeypatch, tide=TIDE_FILE)
-    node = {"op": "pattern", "args": {"pattern": "tide", arg: 999}}
-    found = check_look({"layers": [{"id": "base", "nodes": {"tide": node}}]}).problems
-    assert [(p.path, p.code, p.did_you_mean) for p in found] == [(path, code, guess)], found
-
-
 def test_a_look_compared_with_itself_differs_nowhere():
-    same = compare(COMET, COMET, map_spec=MAP, seconds=SECONDS, fps=FPS)
+    same = compare(STRIPES, STRIPES, map_spec=MAP, seconds=SECONDS, fps=FPS)
     assert same.a == same.b and same.look_diff == ()
     assert (same.rms, same.max_abs, same.first_divergent_frame, same.delta_e_p95) == (0.0, 0.0, None, 0.0)
     assert set(same.metric_deltas.values()) == {0}
 
 
 def test_compare_names_each_changed_knob_and_where_the_frames_part():
-    faster = {"seed": 3, "layers": [layer("base", "comet", speed=1.2)]}
+    finer = {"seed": 3, "layers": [stripes(freq=8.0)]}
     a = draw()
-    diff = compare(a, faster)  # the look renders as A did
-    assert diff.a == a.handle and diff.b == draw(faster).handle
-    assert [(c.path, c.a, c.b) for c in diff.look_diff] == [("layers.base.comet.speed", 0.6, 1.2)]
+    diff = compare(a, finer)  # the look renders as A did
+    assert diff.a == a.handle and diff.b == draw(finer).handle
+    assert [(c.path, c.a, c.b) for c in diff.look_diff] == [(FREQ, 4.0, 8.0)]
     assert diff.rms > 0 and diff.first_divergent_frame is not None and diff.metric_deltas["frames"] == 0
     with pytest.raises(ValueError, match="rendered alike"):
         compare(a, draw(seconds=1.0))
@@ -789,38 +748,38 @@ def test_the_look_diff_names_each_signal_route_and_front_change():
 
 
 def test_compare_renders_a_look_on_the_map_spec_of_a_so_its_spec_gives_its_handle():
-    a = render(COMET, "line:16", seconds=0.5)
-    diff = compare(a, {"seed": 3, "layers": [layer("base", "colorplasma")]})  # on A's line:16, not the default
+    a = render(STRIPES, "line:16", seconds=0.5)
+    diff = compare(a, {"seed": 3, "layers": [glow("base")]})  # on A's line:16, not the default
     spec = take(diff.b).spec
     assert spec.map == "line:16"
     assert render(spec.look, spec.map, spec.seconds, spec.fps, spec.seed).handle == diff.b
     with pytest.raises(ValueError, match="A and B must be rendered alike to compare"):
-        compare(a, render(COMET, seconds=0.5))  # on the default grid
+        compare(a, render(STRIPES, seconds=0.5))  # on the default grid
 
 
 def test_a_look_on_side_a_renders_as_the_render_on_side_b():
-    faster = {"seed": 3, "layers": [layer("base", "comet", speed=1.2)]}
-    b = draw(faster, seconds=1.0)
-    diff = compare(COMET, b)  # not the default auto map and seconds: those of B
+    finer = {"seed": 3, "layers": [stripes(freq=8.0)]}
+    b = draw(finer, seconds=1.0)
+    diff = compare(STRIPES, b)  # not the default auto map and seconds: those of B
     assert (diff.a, diff.b) == (draw(seconds=1.0).handle, b.handle)
-    assert [(c.path, c.a, c.b) for c in diff.look_diff] == [("layers.base.comet.speed", 0.6, 1.2)]
+    assert [(c.path, c.a, c.b) for c in diff.look_diff] == [(FREQ, 4.0, 8.0)]
 
 
-NANNY = (
-    "import numpy as np\n"
-    "from pewpew import Float, Pattern\n"
-    "class Nanny(Pattern):\n"
-    "    level = Float(0.5, 0.0, 1.0)\n"
-    "    def render(self, x, y, z, index):\n"
-    "        out = np.full((self.n, 3), self.level, np.float32)\n"
-    "        out[0] = np.nan\n"
-    "        return out\n"
-)
+def test_frames_holding_nan_compare_and_probe_as_a_sink_draws_them(fake_ops):
+    class NannyTest(Op, op="nanny_test"):
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        level = Float(0.5, 0.0, 1.0)
 
+        def build(self, inputs) -> Fn:
+            def nanny(c: Coords) -> np.ndarray:
+                out = np.full((len(c.index), 3), self.level, np.float32)
+                out[0] = np.nan
+                return out
 
-def test_frames_holding_nan_compare_and_probe_as_a_sink_draws_them(tmp_path, monkeypatch):
-    offered(monkeypatch, nanny=NANNY)
-    look = {"layers": [layer("base", "nanny")]}
+            return nanny
+
+    look = one("nanny_test", "nanny")
     same = compare(look, look, map_spec=MAP, seconds=0.5, fps=FPS)
     assert (same.rms, same.max_abs, same.first_divergent_frame) == (0.0, 0.0, None)
     measured = metrics(draw(look, seconds=0.5), liveness=True)
@@ -830,35 +789,44 @@ def test_frames_holding_nan_compare_and_probe_as_a_sink_draws_them(tmp_path, mon
 
 
 def test_compare_sheet_draws_a_over_b(tmp_path):
-    drawn = lab.compare_sheet(COMET, DUO, out=tmp_path / "ab.png", map_spec=MAP, seconds=SECONDS, fps=FPS)
+    drawn = lab.compare_sheet(STRIPES, DUO, out=tmp_path / "ab.png", map_spec=MAP, seconds=SECONDS, fps=FPS)
     assert drawn.legend.startswith("Row A and row B") and len(drawn.handles) == 2
 
 
 def test_explain_tells_each_layer_and_knob_the_same_way_every_time():
     words = explain(DUO)
     assert words == explain(json.dumps(DUO))
-    assert words.summary.startswith("2 layers, bottom first: comet (normal blend at opacity 1), then wash")
+    assert words.summary.startswith("2 layers, bottom first: base (normal blend at opacity 1), then top")
     assert "sets the master to 0.8" in words.summary
-    assert words.layers[0].knobs[0] == "speed = 0.6 /s (default 0.4; 0..2): Laps of the strip per second"
-    assert words.layers[0].about == "Comet — a bright head with a fading tail."
+    assert words.layers[0].knobs[0] == "waves.freq = 4 (0.5..32): More stripes across the room"
+    assert words.layers[0].about.startswith("2 nodes: waves (osc, Oscillator): Stripes along one axis")
     assert words.layers[1].mix == "screen blend at opacity 0.5"
 
 
 # ---- verify looks -------------------------------------------------------------------------
 
-STROBE = (
-    "import numpy as np\n"
-    "from pewpew import Float, Pattern\n"
-    "class Strobe(Pattern):\n"
-    "    rate = Float(5.0, 1.0, 10.0, '/s')\n"
-    "    def __init__(self):\n"
-    "        self.t = 0.0\n"
-    "    def before_render(self, dt, features):\n"
-    "        self.t += dt\n"
-    "    def render(self, x, y, z, index):\n"
-    "        on = (self.t * self.rate) % 1.0 < 0.5\n"
-    "        return np.full((self.n, 3), 1.0 if on else 0.0, np.float32)\n"
-)
+def strobe_op() -> None:
+    """Define op `strobe_test`: the whole map on and off `rate` times a second."""
+
+    class StrobeTest(Op, op="strobe_test"):
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        stateful = True
+        rate = Float(5.0, 1.0, 10.0, "/s")
+
+        def setup(self, ctx) -> None:
+            super().setup(ctx)
+            self.t = 0.0
+
+        def advance(self, ctx: FrameCtx, inputs) -> None:
+            self.t += ctx.dt
+
+        def build(self, inputs) -> Fn:
+            def strobe(c: Coords) -> np.ndarray:
+                on = (self.t * self.rate) % 1.0 < 0.5
+                return np.full((len(c.index), 3), 1.0 if on else 0.0, np.float32)
+
+            return strobe
 
 
 def _write(folder: Path, name: str, doc: dict) -> Path:
@@ -867,13 +835,13 @@ def _write(folder: Path, name: str, doc: dict) -> Path:
     return path
 
 
-def test_verify_passes_a_calm_look_and_fails_a_strobe_and_a_black_look(tmp_path, monkeypatch):
-    offered(monkeypatch, strobe=STROBE)
+def test_verify_passes_a_calm_look_and_fails_a_strobe_and_a_black_look(tmp_path, fake_ops):
+    strobe_op()
     looks = tmp_path / "looks"
     looks.mkdir()
-    _write(looks, "calm.look.json", book(calm=COMET))
-    _write(looks, "strobe.look.json", book(strobe={"layers": [layer("base", "strobe")]}))
-    _write(looks, "dark.look.json", book(dark={"layers": [layer("base", "comet", {"opacity": 0.0})]}))
+    _write(looks, "calm.look.json", book(calm=STRIPES))
+    _write(looks, "strobe.look.json", book(strobe=one("strobe_test", "strobe")))
+    _write(looks, "dark.look.json", book(dark={"layers": [stripes(mix={"opacity": 0.0})]}))
     _write(looks, "notes.json", {"not": "a look"})  # not a *.look.json file
     result = verify_looks([looks], map_spec=MAP, seconds=SECONDS, fps=FPS)
     verdicts = {v.name: v for f in result.files for v in f.looks}
@@ -885,25 +853,25 @@ def test_verify_passes_a_calm_look_and_fails_a_strobe_and_a_black_look(tmp_path,
 
 
 def test_verify_fails_a_render_too_short_to_judge_flashing(tmp_path):
-    path = _write(tmp_path, "calm.look.json", book(calm=COMET))
+    path = _write(tmp_path, "calm.look.json", book(calm=STRIPES))
     (verdict,) = verify_looks([path], map_spec=MAP, seconds=0.5, fps=FPS).files[0].looks
     (failure,) = verdict.failures
     assert failure.startswith("0.5 s is too short to judge flashing") and not verdict.ok
 
 
 def test_verify_fails_a_file_that_does_not_check_and_a_folder_or_file_with_no_looks(tmp_path):
-    bad = _write(tmp_path, "bad.look.json", book(bad={"layers": [layer("base", "comt")]}))
+    bad = _write(tmp_path, "bad.look.json", book(bad={"layers": [stripes(frek=4.0)]}))
     empty = tmp_path / "empty"
     empty.mkdir()
     hollow = _write(tmp_path, "hollow.look.json", book())
     result = verify_looks([bad, empty, hollow], map_spec=MAP, seconds=SECONDS, fps=FPS)
     assert not result.ok
-    assert [f.problems[0].code for f in result.files] == [Code.BAD_REF, Code.MISSING, Code.MISSING]
+    assert [f.problems[0].code for f in result.files] == [Code.UNKNOWN_KEY, Code.MISSING, Code.MISSING]
     assert result.files[2].problems[0].path == "looks"
 
 
 def test_verify_renders_fresh_and_never_reads_the_cache(tmp_path, monkeypatch):
-    path = _write(tmp_path, "calm.look.json", book(calm=COMET))
+    path = _write(tmp_path, "calm.look.json", book(calm=STRIPES))
     monkeypatch.setattr(Cache, "load", lambda self, key: pytest.fail("verify read the cache"))
     (verdict,) = verify_looks([path], map_spec=MAP, seconds=SECONDS, fps=FPS).files[0].looks
     assert verdict.ok and verdict.name == "calm"
@@ -918,7 +886,7 @@ def test_a_catalog_search_pages_concise_items_and_details_on_request():
     rest = lab.catalog(cursor=first.next_cursor)
     found = [(item.kind, item.name) for item in (*first.items, *rest.items)]
     assert rest.next_cursor is None and len(set(found)) == first.total == len(search.index().items)
-    assert {kind for kind, _ in found} == {"op", "pattern", "blend", "palette", "kind"}
+    assert {kind for kind, _ in found} == {"op", "blend", "palette", "kind"}
     (kaleid,) = lab.catalog("coord", "mirrored fold").items
     assert (kaleid.name, kaleid.sig, kaleid.label, kaleid.record) == ("kaleid", "coord", "Kaleidoscope", None)
     assert kaleid.summary == "Folds a pattern into mirrored wedges about the center, as a kaleidoscope does."
@@ -943,20 +911,20 @@ def test_a_search_for_what_is_not_there_is_one_coded_problem(call, path, code, g
 
 
 def test_example_looks_check():
-    pattern, program = search.example_looks()
-    assert check_look(pattern).ok and check_look(program).ok
+    first, program = search.example_looks()
+    assert check_look(first).ok and check_look(program).ok
     assert program["layers"][0]["nodes"]["kaleid"]["op"] == search.EXAMPLE_OP
 
 
 @pytest.mark.parametrize(("found", "fix"), [
-    (lab.Problem("layers.base.comet.sped", Code.UNKNOWN_KEY, "", "speed", ("speed", "tail")),
-     "rename 'sped' to 'speed'"),
-    (lab.Problem("layers.base.comet.zz", Code.UNKNOWN_KEY, "", None, ("speed", "tail")),
-     "remove 'zz'; the keys there are speed, tail"),
+    (lab.Problem("layers.base.waves.frek", Code.UNKNOWN_KEY, "", "freq", ("freq", "sync")),
+     "rename 'frek' to 'freq'"),
+    (lab.Problem("layers.base.waves.zz", Code.UNKNOWN_KEY, "", None, ("freq", "sync")),
+     "remove 'zz'; the keys there are freq, sync"),
     (lab.Problem("layers.base.blend", Code.OUT_OF_RANGE, "", "screen", ("normal", "screen")),
      "set layers.base.blend to 'screen'"),
-    (lab.Problem("layers.base.comet.speed", Code.OUT_OF_RANGE, "", None, ("0.0..2.0",), 0.4),
-     "set layers.base.comet.speed within 0.0..2.0, such as 0.4"),
+    (lab.Problem(FREQ, Code.OUT_OF_RANGE, "", None, ("0.5..32.0",), 4.0),
+     "set layers.base.waves.freq within 0.5..32.0, such as 4.0"),
     (lab.Problem("layers.base.osc.axis", Code.OUT_OF_RANGE, "", None, ("u", "x", "y")),
      "set layers.base.osc.axis to one of u, x, y"),
     (lab.Problem("layers.base.on", Code.WRONG_KIND, "", None, ("true", "false")),
@@ -978,11 +946,9 @@ def test_a_problem_says_the_edit_that_fixes_it(found, fix):
 
 def test_one_misspelt_address_is_one_code_wherever_it_is_written():
     """A set, a route and a front knob name a knob alike (ADR-023 codes)."""
-    from pewpew.compose import controls_of
-
-    reason = controls_of(ready(COMET).layers).parse("layers.base.comet.sped", 1)[1]
+    reason = look_controls(ready(STRIPES).look).parse("layers.base.waves.frek", 1)[1]
     found = problem(reason or "")
-    assert (found.code, found.did_you_mean) == (Code.BAD_REF, SPEED)
+    assert (found.code, found.did_you_mean) == (Code.BAD_REF, FREQ)
 
 
 def test_a_program_given_as_a_look_is_told_to_wrap_it_as_a_layer():

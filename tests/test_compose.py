@@ -5,30 +5,16 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from fakes import FixtureRamp, PixelRamp, Raises, Solid, bar, build, frames, program_layer, rgb, room, spec, stack, the
+from fakes import build, frames, one_node, program_layer, rgb, stack
 from harness.goldens import assert_matches_golden
-from params_zoo import Zoo
-from pewpew import Float, Int, Pattern, Renderer, grid, line
 from pewpew.aura.book import LookBook
-from pewpew.compose import (
-    Compositor,
-    Controls,
-    Layer,
-    LayerControls,
-    LayerError,
-    Look,
-    Resolved,
-    Route,
-    layer_seed,
-    pattern_layer,
-    pattern_node,
-    pattern_of,
-)
+from pewpew.compose import Compositor, Controls, Layer, LayerControls, LayerError, Look, Route, layer_seed
 from pewpew.crossfade import Crossfader
 from pewpew.features import FakeFeatures, FeatureFrame, MemoFeatures
 from pewpew.fx import expr
@@ -36,15 +22,53 @@ from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
 from pewpew.fx.expr import noise, osc, particles, ripple
 from pewpew.fx.graph import RESERVED, Graph, Node, Program, as_id, check_id
 from pewpew.fx.host import ProgramPattern
-from pewpew.params import declared_params
-from pewpew.render import SlotClock
-from pewpew.room.map import compile_room
+from pewpew.fx.op import BindCtx, Op
+from pewpew.fx.types import Fn, Sig, Ty
+from pewpew.mapping import grid, line
+from pewpew.params import Int, declared_params
+from pewpew.render import Renderer, SlotClock
 
 GOLDEN = Path(__file__).parent / "goldens" / "compose.npz"
 
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
-def resolved(layer: Layer, cls: type[Pattern]) -> Resolved:
-    return Resolved(layer, cls, spec(layer))
+
+def solid(lid: str, args: dict | None = None, **mix: object) -> Layer:
+    """A layer `lid` of one `solid_test` node, `solid`."""
+    return Layer(lid, one_node("solid_test", args), **mix)  # type: ignore[arg-type]
+
+
+def stepped(dts: list[float]) -> type[Op]:
+    """Op `steps_test` (registered while `fake_ops` runs): black, and
+    appends the dt of each frame it steps to `dts`."""
+
+    class StepsTest(Op, op="steps_test"):
+        sig = Sig.SOURCE
+        out = Ty.RGB
+
+        def step(self, dt: float) -> None:
+            dts.append(dt)
+
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            return lambda c: np.zeros((len(c.index), 3), np.float32)
+
+    return StepsTest
+
+
+def needs() -> type[Op]:
+    """Op `needs_test` (registered while `fake_ops` runs): `solid_test`
+    whose bind raises on a map of other than `need` points (0: any)."""
+    from pewpew.fx.ops import OPS
+
+    class NeedsTest(OPS["solid_test"], op="needs_test"):
+        need = Int(0, 0, 64)
+
+        def setup(self, ctx: BindCtx) -> None:
+            super().setup(ctx)
+            if self.need and ctx.n != self.need:
+                raise RuntimeError(f"binds {self.need} pixels only")
+
+    return NeedsTest
 
 
 # ---- program values ----------------------------------------------------------------
@@ -94,7 +118,7 @@ def test_a_layer_is_never_named_for_an_addresss_head(head):
     ("comet", "comet"), ("MyWave", "mywave"), ("my-wave.py", "my_wave_py"), ("2d", "p2d"), ("", "p"),
     ("blend", "blend_"), ("x" * 30, "x" * 24),
 ])
-def test_a_pattern_name_becomes_a_node_id(name, nid):
+def test_a_name_becomes_a_node_id(name, nid):
     assert as_id(name) == nid and check_id(nid) is None
 
 
@@ -113,51 +137,43 @@ def test_a_graph_lists_each_node_after_the_nodes_it_reads():
 
 
 def test_a_program_names_nodes_of_its_graph_and_its_args_are_read_only():
-    node = pattern_node("comet", "comet", {"speed": 1.0})
-    program = Program(Graph((node,)), "comet")
-    assert program.output is node and pattern_of(node) == ("comet", {"speed": 1.0})
+    node = Node("wave", "osc", {"speed": 1.0})
+    program = Program(Graph((node,)), "wave")
+    assert program.output is node and node.args == {"speed": 1.0}
     with pytest.raises(TypeError):
         node.args["speed"] = 2.0  # type: ignore[index]
     with pytest.raises(ValueError, match="out names 'x', which is not a node"):
         Program(Graph((node,)), "x")
     with pytest.raises(ValueError, match="alpha names 'm', which is not a node"):
-        Program(Graph((node,)), "comet", "m")
-    with pytest.raises(ValueError, match="'pattern' names the pattern, so it is not a param"):
-        pattern_node("x", "comet", {"pattern": "fire"})
-
-
-def test_a_pattern_layer_named_by_a_path_needs_its_node_id():
-    """The default node id comes from the spec, and a path must never reach a knob's address."""
-    with pytest.raises(ValueError, match="is not a plain name; pass the node id as `node`"):
-        pattern_layer("base", "/home/user/looks/glow.py:Glow")
-    assert pattern_layer("base", "/home/user/looks/glow.py:Glow", node="glow").program.out == "glow"
+        Program(Graph((node,)), "wave", "m")
 
 
 def test_layer_and_look_values_refuse_what_cannot_run():
+    wave = Program.of(osc())
     with pytest.raises(ValueError, match=r"layers.base.opacity must be within 0.0..1.0, got 1.5"):
-        pattern_layer("base", "comet", opacity=1.5)
+        Layer("base", wave, opacity=1.5)
     with pytest.raises(ValueError, match=r"layers.base.blend takes one of 'normal', 'add', "):
-        pattern_layer("base", "comet", blend="glow")
+        Layer("base", wave, blend="glow")
     with pytest.raises(ValueError, match="bad layer id 'Base'"):
-        pattern_layer("Base", "comet")
+        Layer("Base", wave)
     with pytest.raises(ValueError, match="a look has at least one layer"):
         Look(())
     with pytest.raises(ValueError, match="layer id 'a' is used more than once"):
-        Look((pattern_layer("a", "comet"), pattern_layer("a", "fire")))
+        Look((Layer("a", wave), Layer("a", Program.of(noise()))))
     with pytest.raises(ValueError, match="a look's seed is a whole number of at least 0"):
-        Look((pattern_layer("a", "comet"),), seed=-1)
+        Look((Layer("a", wave),), seed=-1)
     with pytest.raises(ValueError, match="bad signal id"):
         Route("Breath", "layers.base.opacity", 0.2)
     with pytest.raises(ValueError, match="a route's depth is a finite number"):
         Route("breath", "layers.base.opacity", math.inf)
-    base = (pattern_layer("base", "comet"),)
+    base = (Layer("base", wave),)
     breath = Graph((Node("breath", "lfo"),))
     with pytest.raises(ValueError, match=r"routes\[0\]: unknown signal 'breth' \(did you mean 'breath'\?\)"):
         Look(base, breath, (Route("breth", "layers.base.opacity", 0.2),))
     with pytest.raises(ValueError, match="a look's front lists knob addresses, each once"):
         Look(base, front=("layers.base.opacity", "layers.base.opacity"))
     assert Look(base, signals=Graph(()), routes=[], front=[]) == Look(base)  # type: ignore[arg-type]  # lists too
-    assert pattern_layer("base", "comet", opacity=1).opacity == 1.0 and type(pattern_layer("b", "c").opacity) is float
+    assert Layer("base", wave, opacity=1).opacity == 1.0 and type(Layer("b", wave).opacity) is float
 
 
 def test_a_layer_seed_comes_from_the_look_seed_and_the_layer_id_alone():
@@ -227,8 +243,7 @@ def test_a_blend_at_weight_0_leaves_the_frame_and_a_float64_weight_stays_float32
 
 
 def two_layers(**kw) -> Compositor:
-    return stack(program_layer("base", noise(speed=0.5)),
-                 (pattern_layer("top", "solid", blend="screen", opacity=0.5), Solid), **kw)
+    return stack(program_layer("base", noise(speed=0.5)), solid("top", blend="screen", opacity=0.5), **kw)
 
 
 def test_the_knobs_are_named_by_address_in_display_order():
@@ -265,7 +280,7 @@ def test_a_knob_is_parsed_and_set_through_its_set_and_refused_in_its_words():
     assert comp.layer("top").mix.opacity == 0.25
     assert controls.set("layers.base.noise.speed", 1.5)
     assert comp.layer("base").renderer.pattern.node_params["noise"]["speed"] == 1.5  # type: ignore[attr-defined]
-    assert controls.find("layers.top.solid.red") == (comp.layer("top").renderer.params, "red", "")
+    assert controls.find("layers.top.solid.red") == (comp.layer("top").host.node_params["solid"], "red", "")
     assert controls.find("layers.top.solid") is None
     with pytest.raises(ValueError, match="layers.top.blend takes one of"):
         controls.set("layers.top.blend", "glow")
@@ -274,8 +289,8 @@ def test_a_knob_is_parsed_and_set_through_its_set_and_refused_in_its_words():
 def test_a_part_address_names_the_part_a_route_drives():
     """`layers.<lid>.<nid>.<arg>.<part>` (ADR-006) finds the color and its
     part, as `Bound.drive` takes it; a set takes the whole color."""
-    comp = stack((pattern_layer("base", "zoo"), Zoo))
-    controls, params = comp.controls, comp.layer("base").renderer.params
+    comp = stack(Layer("base", one_node("zoo_test", node="zoo")))
+    controls, params = comp.controls, comp.layer("base").host.node_params["zoo"]
     assert controls.find("layers.base.zoo.color.h") == (params, "color", "h")
     assert controls.find("layers.base.zoo.color.x") is None and controls.find("layers.base.zoo.level.h") is None
     assert controls.parse("layers.base.zoo.color.h", 10.0)[1] == (
@@ -284,23 +299,12 @@ def test_a_part_address_names_the_part_a_route_drives():
     assert knob is not None
     assert knob.params.bound is not None
     knob.params.bound.drive(f"{knob.name}.{knob.part}", 10.0)
-    assert the(comp.layer("base").renderer.pattern, Zoo).color.h == params["color"].h + 10.0
-
-
-def test_the_controls_follow_a_hot_reload_and_keep_each_set():
-    """A reload keeps each ParamSet and rebinds it, so the controls hold no
-    stale binding and list the new declarations."""
-
-    class Wider(Solid):
-        white = Float(0.0, 0.0, 1.0)
-
-    comp = two_layers()
-    controls = comp.controls
-    params = comp.layer("top").renderer.params
-    comp.swap("top", Wider())
-    assert comp.controls is controls and comp.layer("top").renderer.params is params
-    assert "layers.top.solid.white" in controls.snapshot_json()
-    assert controls.set("layers.top.solid.red", 0.5) and the(comp.layer("top").renderer.pattern, Solid).red == 0.5
+    color = params["color"]
+    hsv = {"h": color.h + 10.0, "s": color.s, "v": color.v}
+    turned = stack(Layer("base", one_node("zoo_test", {"color": hsv}, node="zoo")))
+    plain = stack(Layer("base", one_node("zoo_test", node="zoo")))
+    assert comp.advance_to(1 / 60).tobytes() == turned.advance_to(1 / 60).tobytes()
+    assert comp.advance_to(2 / 60).tobytes() != plain.advance_to(2 / 60).tobytes()
 
 
 def test_layer_controls_drive_like_any_knob():
@@ -325,15 +329,12 @@ IDENTITY = [
                          ids=[f"{row[0]}-{row[3] or len(row[2])}" for row in IDENTITY])
 def test_a_one_layer_stack_is_its_renderer_byte_for_byte(source, mapping, where, example):
     """The identity path: the layer's frame untouched, its seed derived."""
-    grouping = None
     if where == "canopy":
-        mapping, grouping = example.mapping, example.grouping
+        mapping = example.mapping
     lid = "base"
     program = Program.of(source)
-    cls = ProgramPattern.of(program)
-    comp = Compositor([Resolved(Layer(lid, program), cls, lid)], mapping, seed=5,
-                      features=FakeFeatures(5), grouping=grouping)
-    alone = Renderer(cls(), mapping, seed=layer_seed(5, lid), features=FakeFeatures(5), grouping=grouping,
+    comp = Compositor([Layer(lid, program)], mapping, seed=5, features=FakeFeatures(5))
+    alone = Renderer(ProgramPattern.of(program)(), mapping, seed=layer_seed(5, lid), features=FakeFeatures(5),
                      name=f"layers.{lid}")
     assert frames(comp).tobytes() == frames(alone).tobytes()
 
@@ -349,26 +350,26 @@ def test_the_seed_a_layer_draws_is_its_own_whatever_else_runs():
     assert frames(other, 20).tobytes() != renders[0].tobytes()
 
 
-class Bright(Pattern):
-    """Above 1 everywhere: what an unclamped frame looks like."""
-
-    def render(self, x, y, z, index):
-        return np.full((self.n, 3), 1.6, dtype=np.float32)
-
-
 def test_a_stack_clamps_once_and_the_identity_path_never():
-    one = stack((pattern_layer("base", "bright"), Bright))
+    class BrightTest(Op, op="bright_test"):
+        """Above 1 everywhere: what an unclamped frame looks like."""
+
+        sig = Sig.SOURCE
+        out = Ty.RGB
+
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            return lambda c: np.full((len(c.index), 3), 1.6, dtype=np.float32)
+
+    one = stack(Layer("base", one_node(BrightTest.op)))
     assert np.all(one.advance_to(1 / 60) == np.float32(1.6))  # the sinks clip it
-    added = stack((pattern_layer("base", "solid", {"red": 0.8}), Solid),
-                  (pattern_layer("top", "solid", {"red": 0.8}, blend="add"), Solid))
+    added = stack(solid("base", {"red": 0.8}), solid("top", {"red": 0.8}, blend="add"))
     np.testing.assert_array_equal(added.advance_to(1 / 60), [[1.0, 0.0, 0.0]] * 8)
-    half = stack((pattern_layer("base", "bright", opacity=0.5), Bright))  # not the identity: blended, clamped
+    half = stack(Layer("base", one_node(BrightTest.op), opacity=0.5))  # not the identity: blended, clamped
     np.testing.assert_array_equal(half.advance_to(1 / 60), np.full((8, 3), 0.8, np.float32))
 
 
 def test_a_disabled_layer_is_not_advanced_and_opacity_0_draws_nothing():
-    comp = stack((pattern_layer("base", "solid", {"red": 0.2}), Solid),
-                 (pattern_layer("top", "pixelramp", enabled=False), PixelRamp))
+    comp = stack(solid("base", {"red": 0.2}), Layer("top", one_node("ramp_test"), enabled=False))
     np.testing.assert_array_equal(comp.advance_to(1 / 60), rgb(0.2, 0.0, 0.0, 8))
     assert comp.layer("top").renderer.t == 0.0 and comp.t == 1 / 60
     comp.controls.set("layers.top.enabled", True)
@@ -380,19 +381,11 @@ def test_a_disabled_layer_is_not_advanced_and_opacity_0_draws_nothing():
     assert not comp.advance_to(3 / 60).any()  # nothing on: black
 
 
-class Steps(Solid):
-    """Records the dt of each frame it renders."""
-
-    def setup(self, n, x, y, z, index):
-        self.dts: list[float] = []
-
-    def before_render(self, dt, features):
-        self.dts.append(dt)
-
-
 def test_a_layer_enabled_again_takes_one_slot_as_its_first_dt():
     """The time it was off, given as one dt, would ignite every pixel of sparkle (ADR-021)."""
-    comp = stack((pattern_layer("base", "solid"), Solid), (pattern_layer("top", "steps", blend="add"), Steps))
+    steps: list[float] = []
+    stepped(steps)
+    comp = stack(solid("base"), Layer("top", one_node("steps_test"), blend="add"))
     clock = SlotClock(60.0)
     for _ in range(4):
         comp.advance_to(clock.advance())
@@ -402,12 +395,13 @@ def test_a_layer_enabled_again_takes_one_slot_as_its_first_dt():
     comp.controls.set("layers.top.enabled", True)
     comp.advance_to(clock.advance())
     top = comp.layer("top").renderer
-    assert the(top.pattern, Steps).dts[-1] == pytest.approx(1 / 60) and top.t == comp.t
-    spawned = Compositor([resolved(pattern_layer("top", "steps", enabled=False), Steps)], line(8), t=1.0)
+    assert steps[-1] == pytest.approx(1 / 60) and top.t == comp.t
+    steps.clear()
+    spawned = Compositor([Layer("top", one_node("steps_test"), enabled=False)], line(8), t=1.0)
     spawned.advance_to(2.0)
     spawned.controls.set("layers.top.enabled", True)
     spawned.advance_to(2.5)
-    assert the(spawned.layer("top").renderer.pattern, Steps).dts == [0.5]  # spawned off: one slot too
+    assert steps == [0.5]  # spawned off: one slot too
     with pytest.raises(ValueError, match="time never goes backwards"):
         top.resume_at(0.0)
 
@@ -418,7 +412,7 @@ def lit(frame: np.ndarray) -> float:
 
 def test_particles_enabled_again_light_their_usual_share():
     """The backlog's acceptance: sparks on line(300), off for 10 s, light about their usual share."""
-    dark = (pattern_layer("base", "solid", {"red": 0.0}), Solid)
+    dark = solid("base", {"red": 0.0})
     sparks = program_layer("sparks", particles(), blend="screen")
     comp, fresh = stack(dark, sparks, mapping=line(300)), stack(dark, sparks, mapping=line(300))
     clock = SlotClock(60.0)
@@ -453,43 +447,40 @@ GREEN = {"red": 0.0, "green": 1.0}
 
 
 def test_a_raising_layer_draws_its_error_frame_in_its_place():
-    comp = stack((pattern_layer("base", "solid", GREEN), Solid),
-                 (pattern_layer("top", "raises", blend="add"), Raises))
+    comp = stack(solid("base", GREEN), Layer("top", one_node("raises_test"), blend="add"))
     frame = comp.advance_to(0.3)
     np.testing.assert_array_equal(frame, comp.error_frame(0.3) + np.array([0.0, 1.0, 0.0], np.float32))
-    assert comp.error is not None and comp.error.pattern == "layers.top.raises"
-    assert str(comp.error).startswith("layers.top.raises.render raised: RuntimeError: broken render")
+    assert comp.error is not None and comp.error.pattern == "layers.top"
+    assert str(comp.error).startswith(
+        "layers.top.render raised: RuntimeError: broken render (in node layers.top.raises (raises_test))")
     comp.controls.set("layers.top.enabled", False)
     assert comp.error is None  # a layer that is off reports nothing
 
 
 def test_an_unattended_run_leaves_a_failing_layer_out_until_none_is_left():
-    comp = stack((pattern_layer("base", "solid", GREEN), Solid),
-                 (pattern_layer("top", "raises", blend="add"), Raises), bypass=True)
+    comp = stack(solid("base", GREEN), Layer("top", one_node("raises_test"), blend="add"), bypass=True)
     np.testing.assert_array_equal(comp.advance_to(0.25), [[0.0, 1.0, 0.0]] * 8)
-    assert comp.error is not None and comp.error.pattern == "layers.top.raises"  # the status still names it
+    assert comp.error is not None and comp.error.pattern == "layers.top"  # the status still names it
     comp.controls.set("layers.base.enabled", False)
     np.testing.assert_array_equal(comp.advance_to(0.5), comp.error_frame(0.5))  # the failure, not black
-    alone = stack((pattern_layer("base", "raises"), Raises), bypass=True)
+    alone = stack(Layer("base", one_node("raises_test")), bypass=True)
     np.testing.assert_array_equal(alone.advance_to(0.25), alone.error_frame(0.25))
 
 
 @pytest.mark.parametrize("mode", sorted(set(Blend) - LIGHTS_BLACK))
 def test_an_unattended_run_draws_the_failure_when_only_a_blend_that_stays_dark_is_left(mode):
     """A healthy multiply over a bypassed base is black: a dark look, not a failure (ADR-021)."""
-    comp = stack((pattern_layer("base", "raises"), Raises),
-                 (pattern_layer("top", "solid", {"red": 1.0, "green": 1.0, "blue": 1.0}, blend=mode), Solid),
-                 bypass=True)
+    comp = stack(Layer("base", one_node("raises_test")),
+                 solid("top", {"red": 1.0, "green": 1.0, "blue": 1.0}, blend=mode), bypass=True)
     np.testing.assert_array_equal(comp.advance_to(0.25), comp.error_frame(0.25))
-    alone = stack((pattern_layer("base", "solid", blend=mode), Solid), bypass=True)
+    alone = stack(solid("base", blend=mode), bypass=True)
     assert not alone.advance_to(0.25).any()  # nothing failed: black, the look as written
 
 
 def test_an_unattended_run_draws_the_failure_when_the_only_layer_left_is_at_opacity_0():
     """A layer at opacity 0 lights nothing, so it leaves the room dark (ADR-021)."""
     white = {"red": 1.0, "green": 1.0, "blue": 1.0}
-    comp = stack((pattern_layer("base", "raises"), Raises),
-                 (pattern_layer("top", "solid", white, blend="add", opacity=0.0), Solid), bypass=True)
+    comp = stack(Layer("base", one_node("raises_test")), solid("top", white, blend="add", opacity=0.0), bypass=True)
     np.testing.assert_array_equal(comp.advance_to(0.25), comp.error_frame(0.25))
     comp.controls.set("layers.top.opacity", 0.5)
     np.testing.assert_array_equal(comp.advance_to(0.5), [[0.5, 0.5, 0.5]] * 8)  # the survivor lights the room
@@ -503,13 +494,8 @@ def test_a_blend_that_lights_black_draws_over_nothing(mode):
 
 
 def test_a_layer_left_unbound_draws_its_error_frame_and_logs_once(caplog):
-    class FourOnly(Solid):
-        def setup(self, n, x, y, z, index):
-            if n != 8:
-                raise RuntimeError("binds 8 pixels only")
-
-    comp = stack((pattern_layer("base", "solid", GREEN), Solid),
-                 (pattern_layer("top", "fouronly", blend="add"), FourOnly))
+    needs()
+    comp = stack(solid("base", GREEN), Layer("top", one_node("needs_test", {"need": 8}), blend="add"))
     with pytest.raises(RuntimeError, match="binds 8 pixels only"):
         comp.rebind(line(6))
     with caplog.at_level(logging.ERROR, logger="pewpew"):
@@ -524,17 +510,10 @@ def test_a_rebind_whose_rollback_fails_too_leaves_no_layer_on_another_map():
     """A room reload (pewpew.room.live) binds the new map, and on a failure
     the old one again. Every layer tries both, so each ends on the old map
     or unbound, and the blend still renders."""
-
-    class Needs(Solid):
-        need = Int(0, 0, 64)
-
-        def setup(self, n, x, y, z, index):
-            if self.need and n != self.need:
-                raise RuntimeError(f"binds {self.need} pixels only")
-
-    comp = stack((pattern_layer("a", "needs"), Needs),
-                 (pattern_layer("m", "solid", {"red": 0.0, "blue": 1.0}, blend="add"), Solid),
-                 (pattern_layer("b", "needs", GREEN, blend="add"), Needs))
+    needs()
+    comp = stack(Layer("a", one_node("needs_test", node="needs")),
+                 solid("m", {"red": 0.0, "blue": 1.0}, blend="add"),
+                 Layer("b", one_node("needs_test", GREEN, node="needs"), blend="add"))
     comp.controls.set("layers.a.needs.need", 6)  # a live set runs no setup
     comp.controls.set("layers.b.needs.need", 8)
     with pytest.raises(RuntimeError, match="binds 8 pixels only"):
@@ -546,66 +525,27 @@ def test_a_rebind_whose_rollback_fails_too_leaves_no_layer_on_another_map():
 
 
 def test_a_layer_that_cannot_be_built_is_named():
-    class BadSetup(Solid):
-        def setup(self, n, x, y, z, index):
-            raise RuntimeError("no fixture")
-
-    with pytest.raises(LayerError, match=r"^layers.top: RuntimeError: no fixture$") as err:
-        stack((pattern_layer("base", "solid"), Solid), (pattern_layer("top", "badsetup"), BadSetup))
+    needs()
+    with pytest.raises(LayerError, match=r"^layers.top: RuntimeError: binds 4 pixels only") as err:
+        stack(solid("base"), Layer("top", one_node("needs_test", {"need": 4})))
     assert err.value.layer == "top"
-    # Any program but one pattern node runs in a ProgramPattern made for it,
-    # never as one of its patterns with the rest dropped.
-    hosted = "layers.base: ValueError: a program other than one pattern node runs in its own class"
-    node = pattern_node("solid", "solid")
-    for program in (
-        Program(Graph((node, Node("m", "shape"))), "solid", "m"),
-        Program(Graph((node, Node("warp", "mirror", {}, ("solid",)))), "warp"),
-        Program(Graph((Node("ramp", "osc"),)), "ramp"),
-    ):
-        with pytest.raises(LayerError, match=hosted):
-            Compositor([Resolved(Layer("base", program), Solid, "solid")], line(8))
-
-
-def test_put_replaces_one_layer_and_the_others_run_on():
-    comp = two_layers()
-    frames(comp, 3)
-    base, mix = comp.layer("base").renderer, comp.layer("top").mix
-    comp.put(resolved(pattern_layer("top", "pixelramp", opacity=0.9), PixelRamp))
-    assert comp.layer("base").renderer is base and comp.layer("top").renderer.t == comp.t
-    assert [live.id for live in comp.layers] == ["base", "top"]
-    values = comp.controls.snapshot_json()
-    assert "layers.top.solid.red" not in values and "layers.top.pixelramp.red" not in values
-    assert comp.layer("top").mix is mix and values["layers.top.opacity"] == 0.5  # the running mix, not the value's
-    with pytest.raises(ValueError, match="unknown layer 'nosuch'; layers: base, top"):
-        comp.put(resolved(pattern_layer("nosuch", "solid"), Solid))
 
 
 def test_the_stack_is_a_look_again_at_its_live_values():
-    base = program_layer("base", noise(speed=0.5))
-    look = Look((base[0], pattern_layer("top", "solid", blend="screen")), seed=4)
-    comp = stack(base, (look.layers[1], Solid), seed=look.seed)
+    look = Look((program_layer("base", noise(speed=0.5)), solid("top", blend="screen")), seed=4)
+    comp = stack(*look.layers, seed=look.seed)
     comp.controls.set("layers.top.solid.red", 0.25)
     comp.controls.set("layers.top.opacity", 0.75)
     snap = comp.snapshot()
     assert snap.seed == 4 and [layer.id for layer in snap.layers] == ["base", "top"]
-    assert pattern_of(snap.layers[1].program.output) == ("solid", {"red": 0.25, "green": 0.0, "blue": 0.0})
+    top = snap.layers[1].program.output
+    assert (top.op, top.args) == ("solid_test", {"red": 0.25, "green": 0.0, "blue": 0.0})
     assert (snap.layers[1].opacity, snap.layers[1].blend) == (0.75, "screen")
     assert comp.state() == {
         "layers": [{"id": "base", "nodes": [{"id": "noise", "op": "noise", "label": "Noise", "in": []}]},
-                   {"id": "top", "nodes": [{"id": "solid", "op": "pattern", "label": "solid", "in": []}]}],
+                   {"id": "top", "nodes": [{"id": "solid", "op": "solid_test", "label": "Solid_test", "in": []}]}],
         "signals": [], "routes": [], "front": [], "dims": 1,
     }
-
-
-def test_layers_with_other_units_blend_pixel_for_pixel():
-    r = compile_room(room(bar("a", pixels=4), bar("b", pixels=4, start=[0, 1], end=[1, 1], chain=2)))
-    comp = stack((pattern_layer("base", "pixelramp"), PixelRamp),
-                 (pattern_layer("top", "fixtureramp", blend="add"), FixtureRamp),
-                 mapping=r.mapping, grouping=r.grouping)
-    assert comp.layer("top").renderer.units == "fixture"
-    frame = comp.advance_to(1 / 60)
-    np.testing.assert_array_equal(frame[:, 0], np.arange(8, dtype=np.float32) / 8)
-    np.testing.assert_array_equal(frame[:, 2], [0.5] * 4 + [1.0] * 4)
 
 
 def test_layer_timings_come_from_the_injected_clock_and_never_reach_a_frame():
@@ -617,11 +557,9 @@ def test_layer_timings_come_from_the_injected_clock_and_never_reach_a_frame():
 
 
 def test_a_crossfade_between_two_layered_looks_is_the_mean_at_its_midpoint():
-    first = stack((pattern_layer("base", "solid", {"red": 1.0}), Solid),
-                  (pattern_layer("top", "solid", {"red": 0.0, "blue": 1.0}, opacity=0.5), Solid))
+    first = stack(solid("base", {"red": 1.0}), solid("top", {"red": 0.0, "blue": 1.0}, opacity=0.5))
     fader: Crossfader[Compositor] = Crossfader(first)
-    green = pattern_layer("x", "solid", {"red": 0.0, "green": 1.0})
-    second = first.spawn([resolved(green, Solid)], Look((green,), seed=1))
+    second = first.spawn(Look((solid("x", {"red": 0.0, "green": 1.0}),), seed=1))
     fader.fade_to(second, 1.0)
     mid = fader.advance_to(0.5)
     np.testing.assert_array_equal(mid, [[0.25, 0.5, 0.25]] * 8)
@@ -661,6 +599,7 @@ def test_run_runs_a_layer_with_a_seed_derived_from_its_id(tmp_path):
 def test_controls_are_one_value_replaced_whole():
     comp = two_layers()
     before = comp.controls
-    comp.put(resolved(pattern_layer("top", "solid"), Solid))
+    comp.remove("top")
+    comp.insert(solid("top"), 1)
     assert isinstance(comp.controls, Controls) and comp.controls is not before
     assert before.sections["layers.top.solid"].params is not comp.controls.sections["layers.top.solid"].params

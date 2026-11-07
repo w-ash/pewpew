@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from numpy.typing import ArrayLike
 
-from pewpew import hsv
+from pewpew.kit import hsv
 from pewpew.metrics import FLASH_LIMIT, Metrics, flash_rates, measure
 
 FPS = 60.0

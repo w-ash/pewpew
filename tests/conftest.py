@@ -14,7 +14,7 @@ import websockets.sync.server
 from hypothesis import settings
 
 from fake_sounddevice import FakeSoundDevice, laptop
-from fakes import EXAMPLE_ROOM, STATE_FILES, FakeProcess, Pooled, UdpRecorder, strict_worker
+from fakes import EXAMPLE_ROOM, STATE_FILES, FakeProcess, Pooled, UdpRecorder, strict_worker, with_test_ops
 from pewpew import audit, awake, watchdog, wled
 from pewpew.fx.host import ProgramPattern
 from pewpew.room.map import load_room
@@ -38,6 +38,15 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="rewrite golden baselines from current output instead of comparing",
     )
+
+
+@pytest.fixture
+def fake_ops() -> Iterator[None]:
+    """The test ops (`solid_test`, `ramp_test`, `raises_test`; fakes.py) in
+    the registry for this test. A module whose looks run them asks for it
+    with `pytestmark = pytest.mark.usefixtures("fake_ops")`."""
+    with with_test_ops():
+        yield
 
 
 @pytest.fixture(scope="session")

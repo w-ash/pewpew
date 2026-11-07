@@ -7,41 +7,33 @@ there is no second file form for one look). It never raises: what is wrong
 comes back as `Problem`s (pewpew.problems), in the words the aura
 itself uses. It checks what the aura checks at launch: the file's shape,
 each layer's program and the look's signals (the codec, pewpew.fx.codec,
-through `pewpew.aura.book.parse_looks`), then each program's patterns and
-their params, and each route's knob (`pattern_problems`). A look that
+through `pewpew.aura.book.parse_looks`), then each route's knob
+(`route_reasons`). A look that
 passes comes back normalized: in the looks file's form (`encode_look`),
 with every knob of every node and signal at its value, the defaults
 written out, as a look saved from the running aura is. A program is
 checked against a map only when it renders (`dims_problems`).
 
-A pattern resolves by its gallery name (pewpew.load), or for a look
-sent to a running aura, through the aura's catalog.
-
-`ready` gives one look of the file ready to run (`Ready`), each layer as
-the aura builds it (pewpew.aura.deck.ready_layer), and `ready_looks`
-every look; each raises `Refused` with the problems.
+`ready` gives one look of the file ready to run (`Ready`), and
+`ready_looks` every look; each raises `Refused` with the problems.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
-from pewpew.aura.book import VERSION, LookBook, LookError, parse_looks, pattern_problems
-from pewpew.aura.deck import ready_layer
-from pewpew.compose import LayerControls, LayerError, Look, Resolved, layer_address
-from pewpew.compose.controls import runs
+from pewpew.aura.book import VERSION, LookBook, LookError, parse_looks, route_reasons
+from pewpew.compose import Layer, LayerControls, Look, layer_address
 from pewpew.errors import describe_exception, did_you_mean, unknown
 from pewpew.fx.codec import encode_look
-from pewpew.fx.compile import check, is_pattern_program, knob_class
-from pewpew.fx.graph import Graph, Node, Program
-from pewpew.fx.host import ProgramPattern, split_starts
+from pewpew.fx.compile import check
+from pewpew.fx.graph import Graph, Node
 from pewpew.fx.ops import OPS
 from pewpew.jsonfile import TooDeep, nests_deeper, parse_json
-from pewpew.load import Catalog
 from pewpew.params import ParamSet
 from pewpew.problems import Code, Problem, Refused, problem
 from pewpew.result import Result
@@ -65,20 +57,17 @@ class Check(Result):
 
 @dataclass(frozen=True, slots=True)
 class Ready:
-    """One look ready to run: the look, its knobs normalized; each layer
-    with the class its renderer runs (its one pattern, or a
-    `ProgramPattern`) and the name it shows by; and the look with only the
-    knobs its document gives (`authored`)."""
+    """One look ready to run: the look, its knobs normalized, and the look
+    with only the knobs its document gives (`authored`)."""
 
     look: Look
-    layers: tuple[Resolved, ...]
     authored: Look
 
 
 def check_look(doc: LookDoc) -> Check:
     """Check `doc`, a looks file or a single look (module docstring).
     Never raises."""
-    read = _Read.of(doc, _Patterns())
+    read = _Read.of(doc)
     if read.problems:
         return Check(False, None, read.problems)
     if read.single:
@@ -87,12 +76,11 @@ def check_look(doc: LookDoc) -> Check:
     return Check(True, json.loads(normalized.to_bytes()))
 
 
-def ready(doc: LookDoc, *, name: str | None = None, catalog: Catalog | None = None) -> Ready:
+def ready(doc: LookDoc, *, name: str | None = None) -> Ready:
     """A look of `doc` ready to run: a single look, or the look `name` of a
-    looks file, by default its only look or else its `current` one. Its
-    patterns resolve through `catalog` (default: the gallery). Raises
+    looks file, by default its only look or else its `current` one. Raises
     Refused with every problem."""
-    read = _Read.of(doc, _Patterns(catalog))
+    read = _Read.of(doc)
     if read.problems:
         raise Refused(read.problems)
     if read.single:
@@ -112,7 +100,7 @@ def ready(doc: LookDoc, *, name: str | None = None, catalog: Catalog | None = No
 def ready_looks(path: Path) -> dict[str, Ready]:
     """Every look of the looks file at `path` ready to run, by name.
     Raises Refused with every problem."""
-    read = _Read.of(path, _Patterns())
+    read = _Read.of(path)
     if read.problems:
         raise Refused(read.problems)
     return dict(read.looks)
@@ -129,7 +117,7 @@ class _Read:
     looks: Mapping[str, Ready] = field(default_factory=dict)
 
     @classmethod
-    def of(cls, doc: LookDoc, patterns: _Patterns) -> _Read:
+    def of(cls, doc: LookDoc) -> _Read:
         data, problems = _data(doc)
         if problems:
             return cls(tuple(problems))
@@ -141,15 +129,11 @@ class _Read:
             book = parse_looks(json.dumps(file))
         except LookError as exc:
             return cls(_localized([problem(text, file) for text in exc.problems], single))
-        texts = pattern_problems(book, patterns.declared)
+        texts = route_reasons(book)
         if texts:
-            examples = _examples(book, patterns)
+            examples = _examples(book)
             return cls(_localized([problem(text, file, examples) for text in texts], single))
-        try:
-            looks = {name: patterns.ready(look) for name, look in book.looks.items()}
-        except LayerError as exc:  # checked above, so only a pattern that raised
-            return cls(_localized([problem(str(exc), file)], single))
-        return cls((), single, book, looks)
+        return cls((), single, book, {name: _ready(look) for name, look in book.looks.items()})
 
 
 def _data(doc: LookDoc) -> tuple[Any, list[Problem]]:
@@ -200,100 +184,42 @@ def _localized(problems: list[Problem], single: bool) -> tuple[Problem, ...]:
     )
 
 
-class _Patterns:
-    """The patterns a document names, resolved through `catalog`."""
-
-    def __init__(self, catalog: Catalog | None = None) -> None:
-        self.catalog = catalog if catalog is not None else Catalog()
-        self._found: dict[str, type] = {}
-
-    def declared(self, spec: str) -> type:
-        """Pattern `spec` resolved. Raises LoadError for a name the catalog
-        does not hold."""
-        if spec not in self._found:
-            self._found[spec] = self.catalog.resolve(spec)
-        return self._found[spec]
-
-    def known(self, spec: str) -> type | None:
-        """The class of pattern `spec` if it resolved before, else None:
-        what is known without resolving anything."""
-        return self._found.get(spec)
-
-    def ready(self, look: Look) -> Ready:
-        """`look`, whose every pattern resolves and takes its params, ready
-        to run, its knobs normalized. Raises LayerError as the aura does."""
-        layers = tuple(
-            ready_layer(replace(layer, program=_normalized(layer.program, self.declared)), self.declared)
-            for layer in look.layers
-        )
-        signals = None if look.signals is None else _written(look.signals, self.declared)
-        normalized = replace(look, layers=tuple(resolved.layer for resolved in layers), signals=signals)
-        return Ready(normalized, layers, look)
+def _ready(look: Look) -> Ready:
+    """`look` ready to run, its knobs normalized."""
+    layers = tuple(replace(layer, program=replace(layer.program, graph=_written(layer.program.graph)))
+                   for layer in look.layers)
+    signals = None if look.signals is None else _written(look.signals)
+    return Ready(replace(look, layers=layers, signals=signals), look)
 
 
-def _normalized(program: Program, declared: Callable[[str], type]) -> Program:
-    """`program` with each node's knobs written out, defaults included."""
-    return replace(program, graph=_written(program.graph, declared))
-
-
-def _written(graph: Graph, declared: Callable[[str], type]) -> Graph:
-    """`graph` with each node's knobs written out, defaults included. A
-    pattern node that runs a pattern file whose class is a program writes
-    its moved knobs (`<nid>.<arg>`) in their JSON form, and no other: the
-    file's literals are its content (pewpew.fx.host)."""
-    nodes = []
-    for node in graph:
-        knobs = OPS[node.op].knob_values(node.args)
-        fixed = {key: value for key, value in node.args.items() if key not in knobs}
-        cls = knob_class(node, declared)
-        starts: dict[str, Any] = {}
-        if issubclass(cls, ProgramPattern):
-            knobs, by_node = split_starts(knobs)
-            classes = cls.knob_classes()
-            for nid, given in by_node.items():
-                shown = ParamSet(classes[nid], given).snapshot_json()
-                starts |= {f"{nid}.{arg}": shown[arg] for arg in given}
-        values = ParamSet(cls, knobs).snapshot_json()
-        nodes.append(Node(node.id, node.op, {**fixed, **values, **starts}, node.inputs))
-    return Graph(tuple(nodes))
+def _written(graph: Graph) -> Graph:
+    """`graph` with each node's knobs written out, defaults included."""
+    return Graph(tuple(Node(node.id, node.op, ParamSet(OPS[node.op], node.args).snapshot_json(), node.inputs)
+                       for node in graph))
 
 
 def dims_problems(staged: Ready, dims: int) -> list[Problem]:
     """What stops each of `staged`'s programs on a map of `dims`
     dimensions (`dims_reasons`). Never raises."""
     doc = encode_look(staged.look)
-    return [problem(text, doc) for text in dims_reasons(staged.layers, dims)]
+    return [problem(text, doc) for text in dims_reasons(staged.look.layers, dims)]
 
 
-def dims_reasons(layers: Iterable[Resolved], dims: int) -> list[str]:
+def dims_reasons(layers: Iterable[Layer], dims: int) -> list[str]:
     """What stops each of `layers`' programs on a map of `dims`
     dimensions (pewpew.fx.compile.check), each named by its address. Never
     raises."""
-    texts: list[str] = []
-    for resolved in layers:
-        layer, cls = resolved.layer, resolved.cls
-        if is_pattern_program(layer.program):
-            continue  # one pattern, run directly: any map takes it
-        host = cast("type[ProgramPattern]", cls)
-        texts += check(layer.program, where=layer_address(layer.id), resolve=host.resolve, dims=dims, hosted=True)
-    return texts
+    return [text for layer in layers for text in check(layer.program, where=layer_address(layer.id), dims=dims)]
 
 
-def _examples(book: LookBook, patterns: _Patterns) -> dict[str, Any]:
-    """A valid value for each knob of each look whose node classes are
-    known, by path: the knob's default."""
+def _examples(book: LookBook) -> dict[str, Any]:
+    """A valid value for each knob of each look, by path: the knob's
+    default."""
     examples: dict[str, Any] = {}
     for name, look in book.looks.items():
         for layer in look.layers:
             sets = [ParamSet(LayerControls, name=layer_address(layer.id))]
-            try:
-                graph, resolve = runs(layer, patterns.known)  # a pattern file's program, for one whose class is one
-            except ValueError:  # its one pattern is not known
-                graph, resolve = layer.program.graph, patterns.known
-            for node in graph:
-                cls = OPS[node.op].knob_class(node.args, resolve) if node.op in OPS else None
-                if cls is not None:
-                    sets.append(ParamSet(cls, name=layer_address(layer.id, node.id)))
+            sets += (ParamSet(OPS[node.op], name=layer_address(layer.id, node.id)) for node in layer.program.graph)
             for params in sets:
                 for record in params.describe():
                     examples[f"looks.{name}.{params.owner}.{record['name']}"] = record["default"]

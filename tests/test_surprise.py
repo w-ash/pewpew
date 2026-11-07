@@ -24,20 +24,19 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fakes import EXAMPLE_ROOM, aura_rig, filed, in_new_process
-from pewpew import lab, line
+from fakes import EXAMPLE_ROOM, FLOW_LOOK, aura_rig, filed, in_new_process, solid
+from pewpew import lab
 from pewpew.aura.variety import in_background
 from pewpew.color import PRESETS
 from pewpew.compose import Look
 from pewpew.fx import surprise
 from pewpew.fx.codec import decode_look, encode_look
-from pewpew.fx.graph import PATTERN
 from pewpew.fx.ops import OPS
 from pewpew.lab.check import ready
 from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.handles import Cache
 from pewpew.lab.rendering import play
-from pewpew.mapping import dimensions, parse_map
+from pewpew.mapping import dimensions, line, parse_map
 from pewpew.metrics import Metrics
 from pewpew.params import Palette, ParamSet
 from pewpew.problems import Code, Refused
@@ -77,7 +76,7 @@ def _made(spec: str, seed: int, budget: float = surprise.BUDGET_US) -> dict[str,
 def _made_for_the_room(seed: int) -> dict[str, Any]:
     """A look made for the example room, rendered there for a second."""
     geometry = parse_geometry(str(EXAMPLE_ROOM))
-    look = surprise.generate(seed, geometry.mapping, grouping=geometry.grouping)
+    look = surprise.generate(seed, geometry.mapping)
     with tempfile.TemporaryDirectory() as folder:
         rendered = lab.render(look, str(EXAMPLE_ROOM), 1.0, 30.0, cache=Cache(Path(folder)))
     return {"look": json.dumps(encode_look(look)), "warnings": rendered.warnings, "dims": geometry.dims,
@@ -105,7 +104,7 @@ def _shown() -> dict[str, Any]:
     """An aura on a strip makes a surprise and a variation of it, plays each
     unsaved, then keeps the variation (pewpew.aura.variety)."""
     with tempfile.TemporaryDirectory() as folder:
-        rig = aura_rig(mapping=line(24), looks={}, path=Path(folder) / "looks.json")
+        rig = aura_rig(FLOW_LOOK, mapping=line(24), looks={}, path=Path(folder) / "looks.json")
         made = rig.variety.surprise(8)
         played = rig.looks.play(made)
         rig.frame(rig.clock.advance())
@@ -196,11 +195,11 @@ def test_the_aura_plays_a_made_look_unsaved_and_keeps_it_under_its_own_name(pool
 
 
 def _space(spec: str) -> surprise.Space:
-    return surprise.Space.of(parse_map(spec), None, surprise.BUDGET_US)
+    return surprise.Space.of(parse_map(spec), surprise.BUDGET_US)
 
 
 def test_every_knob_drawn_is_one_its_param_takes_and_within_its_sweet_range():
-    for cls in (cls for op, cls in sorted(OPS.items()) if op != PATTERN):
+    for _, cls in sorted(OPS.items()):
         params = ParamSet(cls)
         for record in surprise.records(cls):
             for k in range(40):
@@ -286,14 +285,14 @@ def test_nothing_that_passes_is_no_look_whether_made_or_changed(monkeypatch):
         surprise.mutate(look, 1, parse_map("line:8"))
 
 
-def test_an_op_a_pattern_file_defines_never_joins_the_grammar():
-    """The same seed makes the same look in every process, whatever
-    pattern files it ran (module docstring)."""
+def test_an_op_defined_outside_the_engine_never_joins_the_grammar():
+    """The same seed makes the same look in every process, whatever ops
+    other code defined (module docstring)."""
     from pewpew.fx.op import REGISTRY, Op
     from pewpew.fx.types import Sig, Ty
 
     class Fog(Op, op="fog_test"):
-        """A field a pattern file might define."""
+        """A field code outside the engine might define."""
 
         sig = Sig.SOURCE
         out = Ty.SCALAR
@@ -323,11 +322,10 @@ def test_vary_holding_the_whole_look_makes_nothing_and_says_so(tmp_path):
         lab.vary(look, 3, 2, keep=["layers.base"], map_spec="line:32", cache=Cache(tmp_path))
 
 
-def test_a_candidate_carries_the_taste_gates_its_render_fails(monkeypatch, tmp_path):
+def test_a_candidate_carries_the_taste_gates_its_render_fails(monkeypatch, tmp_path, fake_ops):
     """Taste is a preference: a made look that fails a gate is still given,
     and says which (pewpew.lab.variations)."""
-    white = ready({"layers": [{"id": "base", "nodes": {"w": {"op": "pattern", "args": {
-        "pattern": "wash"}}}}]}).look
+    white = solid(1.0, 1.0, 1.0)
     monkeypatch.setattr(surprise, "generate", lambda seed, mapping, **kw: white)
     (made,) = lab.vary(None, 0, 1, map_spec="line:32", seconds=1.0, cache=Cache(tmp_path)).candidates
     assert made.metrics.mean_luma > surprise.WASHED and "washed out" in made.taste
@@ -358,7 +356,7 @@ def test_a_map_whose_points_sit_at_one_place_is_refused_saying_why():
 def test_a_drawn_look_never_costs_more_than_its_budget(spec):
     mapping = parse_map(spec)
     for budget in (30.0, 60.0, 120.0):
-        space = surprise.Space.of(mapping, None, budget)
+        space = surprise.Space.of(mapping, budget)
         for seed in range(60):
             try:
                 drawn = surprise._drawn(surprise.Draw("surprise", seed, 0), space, seed % 2 == 0)
@@ -372,7 +370,7 @@ def test_a_change_never_takes_a_look_past_its_budget():
     for name in ("copper-tide", "turing-garden", "mcp-tide"):
         staged = ready(EXAMPLES / f"{name}.look.json")
         budget = surprise.look_cost(staged.look, len(mapping))  # no room for one node more
-        space = surprise.Space.of(mapping, None, budget)
+        space = surprise.Space.of(mapping, budget)
         for seed in range(60):
             changed = surprise._mutated(surprise.Draw("mutate", seed, 0), staged, space, 1.0, surprise.Held(), True)
             assert surprise.look_cost(changed, space.points) <= budget, (name, seed)
@@ -431,7 +429,7 @@ def test_with_audio_a_route_may_follow_a_sound_band_and_without_it_never_does_ea
 
 
 def test_the_aura_refuses_a_variation_that_changes_nothing(monkeypatch, tmp_path):
-    rig = aura_rig(mapping=line(24), looks={}, path=tmp_path / "looks.json")
+    rig = aura_rig(FLOW_LOOK, mapping=line(24), looks={}, path=tmp_path / "looks.json")
     rig.looks.play(rig.variety.surprise(8))
     rig.frame(rig.clock.advance())
     monkeypatch.setattr(surprise, "judge", lambda candidate, space: surprise.Verdict(("flashes",)))

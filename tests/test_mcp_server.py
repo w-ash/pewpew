@@ -26,12 +26,12 @@ pytest.importorskip("mcp")
 from mcp import Client, MCPError
 from mcp.types import BlobResourceContents, TextContent, TextResourceContents
 
-from fakes import LoopThread, Pooled, Solid, aura_rig, instant_looks, layered, preview_sink, run_python
-from pewpew import boards, lab, line, wled
+from fakes import FLOW_LOOK, LoopThread, Pooled, aura_rig, instant_looks, preview_sink, run_python
+from pewpew import boards, lab, wled
 from pewpew.fx import op as fx_op
 from pewpew.fx.types import Sig, Ty
 from pewpew.lab import search
-from pewpew.load import Catalog
+from pewpew.mapping import line
 from pewpew.mcp_server import EXAMPLES, build
 from pewpew.problems import EXAMPLE_LOOK
 from pewpew.remote.client import Frame
@@ -44,8 +44,17 @@ ROOT = Path(__file__).parent.parent
 GOLDEN = ROOT / "tests" / "goldens" / "mcp_tools.json"
 TIER0 = ["catalog_search", "look_check", "look_render", "look_compare", "look_vary", "engine_observe", "fleet_status"]
 FAST = {"map": "line:64", "seconds": 1, "fps": 10}
-COMET = EXAMPLE_LOOK
-SPED = layered("comet", {"sped": 0.4})
+FIRST = EXAMPLE_LOOK
+FREQ = "layers.base.waves.freq"
+
+
+def stripes(**args: object) -> dict:
+    """`FIRST`, its stripes node `waves` at `args`."""
+    nodes = FIRST["layers"][0]["nodes"]
+    return {"layers": [{"id": "base", "nodes": {**nodes, "waves": {"op": "osc", "args": args}}}]}
+
+
+FREK = stripes(frek=4.0)
 LOCAL = "ws://127.0.0.1:9/"
 ARGV = ["mcp", "--tier", "1"]  # the command line the audit record names
 
@@ -169,13 +178,13 @@ async def test_catalog_search_pages_concise_and_detailed_items(client: Client) -
 
 
 async def test_look_check_gives_the_look_normalized_and_in_words(client: Client) -> None:
-    result = await client.call_tool("look_check", {"look": COMET, "explain": True})
-    assert not result.is_error and payload(result) == lab.check_look(COMET).to_json()
-    assert text(result.content[1]) == lab.explain(COMET).text()
+    result = await client.call_tool("look_check", {"look": FIRST, "explain": True})
+    assert not result.is_error and payload(result) == lab.check_look(FIRST).to_json()
+    assert text(result.content[1]) == lab.explain(FIRST).text()
 
 
 async def test_look_check_explains_each_look_of_a_looks_file_with_no_current(client: Client) -> None:
-    doc = {"version": 4, "looks": {"a": COMET, "b": layered("comet", {"speed": 1.0})}}
+    doc = {"version": 4, "looks": {"a": FIRST, "b": stripes(freq=8.0)}}
     result = await client.call_tool("look_check", {"look": doc, "explain": True})
     assert not result.is_error and payload(result) == lab.check_look(doc).to_json()
     assert [text(block) for block in result.content[1:]] == [
@@ -184,13 +193,13 @@ async def test_look_check_explains_each_look_of_a_looks_file_with_no_current(cli
 
 
 async def test_look_render_gives_the_render_a_sheet_and_the_same_json(client: Client) -> None:
-    result = await client.call_tool("look_render", {"look": COMET, **FAST})
-    rendered = lab.render(COMET, "line:64", 1, 10)
+    result = await client.call_tool("look_render", {"look": FIRST, **FAST})
+    rendered = lab.render(FIRST, "line:64", 1, 10)
     assert payload(result) == rendered.brief().to_json()
     assert [b.type for b in result.content] == ["text", "image"]
     sheet = await client.read_resource(f"pewpew://render/{rendered.handle}/sheet.png")
     assert png(result.content[1]) == base64.b64decode(blob(sheet.contents[0]))
-    detailed = await client.call_tool("look_render", {"look": COMET, **FAST, "sheet": False,
+    detailed = await client.call_tool("look_render", {"look": FIRST, **FAST, "sheet": False,
                                                       "response_format": "detailed"})
     assert payload(detailed) == rendered.to_json() and len(detailed.content) == 1
 
@@ -208,11 +217,11 @@ async def test_look_render_moves_a_knob_by_its_route(client: Client) -> None:
 
 
 async def test_look_compare_takes_a_handle_and_a_look(client: Client) -> None:
-    a = payload(await client.call_tool("look_render", {"look": COMET, **FAST, "sheet": False}))["handle"]
-    faster = layered("comet", {"speed": 1.0})
-    result = await client.call_tool("look_compare", {"a": a, "b": faster})
-    assert payload(result) == lab.compare(a, faster).to_json()
-    assert result.structured_content["look_diff"] == [{"path": "layers.base.comet.speed", "a": 0.4, "b": 1.0}]
+    a = payload(await client.call_tool("look_render", {"look": FIRST, **FAST, "sheet": False}))["handle"]
+    finer = stripes(freq=8.0)
+    result = await client.call_tool("look_compare", {"a": a, "b": finer})
+    assert payload(result) == lab.compare(a, finer).to_json()
+    assert result.structured_content["look_diff"] == [{"path": FREQ, "a": 4.0, "b": 8.0}]
     png(result.content[1])
 
 
@@ -226,9 +235,9 @@ async def test_look_vary_gives_n_candidates_and_their_numbered_sheet(
     assert [b.type for b in result.content] == ["text", "image"]
     rows = await client.read_resource(f"pewpew://render/{made.candidates[1].handle}/sheet.png")
     assert png(result.content[1]) != base64.b64decode(blob(rows.contents[0]))  # both rows, not one render
-    like = payload(await client.call_tool("look_vary", {"look": COMET, "n": 1, "map": "line:64", "sheet": False,
-                                                        "keep": ["layers.base.comet"]}))
-    assert like["strength"] == 0.3 and like["keep"] == ["layers.base.comet"]
+    like = payload(await client.call_tool("look_vary", {"look": FIRST, "n": 1, "map": "line:64", "sheet": False,
+                                                        "keep": ["layers.base.waves"]}))
+    assert like["strength"] == 0.3 and like["keep"] == ["layers.base.waves"]
     refused = await client.call_tool("look_vary", {"keep": ["layers.base"]})
     assert refused.is_error and "give the look to vary" in text(refused.content[0])
 
@@ -270,22 +279,22 @@ async def test_fleet_status_lists_each_board_with_its_health(client: Client, mon
 @contextlib.contextmanager
 def engine():
     """An aura on a 4-pixel line that takes looks, behind a started preview."""
-    rig = aura_rig(Solid, mapping=line(4), catalog=Catalog(), accept_looks=True)
+    rig = aura_rig(FLOW_LOOK, mapping=line(4), accept_looks=True)
     with preview_sink(line(4), control=rig.control) as sink, LoopThread(rig.calls):
         yield rig, f"ws://127.0.0.1:{sink.port}/"
 
 
 async def test_engine_apply_and_set_dry_run_by_default_then_send_and_audit(client: Client, audit_log: Path) -> None:
     with engine() as (rig, url):
-        dry = payload(await client.call_tool("engine_apply", {"url": url, "look": COMET}))
-        assert dry["dry_run"] and dry["ok"] and dry["answers"] == [] and rig.deck.current == "solid"
+        dry = payload(await client.call_tool("engine_apply", {"url": url, "look": FIRST}))
+        assert dry["dry_run"] and dry["ok"] and dry["answers"] == []
+        assert FREQ not in rig.deck.controls.snapshot_json()
         assert not audit_log.exists()
-        sent = payload(await client.call_tool("engine_apply", {"url": url, "look": COMET, "dry_run": False}))
+        sent = payload(await client.call_tool("engine_apply", {"url": url, "look": FIRST, "dry_run": False}))
         assert sent["answers"] == [{"id": "1", "control": "look", "ok": True, "reason": None, "name": None}]
-        assert rig.deck.current == "comet"
-        knob = await client.call_tool("engine_set", {"url": url, "path": "layers.base.comet.speed", "value": 9,
-                                                     "dry_run": False})
-    assert "refused at layers.base.comet.speed" in text(knob.content[0])
+        assert FREQ in rig.deck.controls.snapshot_json()
+        knob = await client.call_tool("engine_set", {"url": url, "path": FREQ, "value": 99, "dry_run": False})
+    assert f"refused at {FREQ}" in text(knob.content[0])
     assert refusal(knob)["answers"][0]["ok"] is False
     records = [json.loads(line) for line in audit_log.read_text().splitlines()]
     assert [r["argv"][-1] for r in records] == ["engine_apply", "engine_set"]
@@ -299,8 +308,8 @@ async def test_a_wrong_argument_gets_its_did_you_mean_and_the_corrected_call(cli
     result = await client.call_tool("catalog_search", {"query": "fold", "kind": "cord"})
     assert result.is_error
     assert text(result.content[0]).splitlines() == [
-        ("out-of-range at kind: unknown kind 'cord' (did you mean 'coord'?); kinds: op, pattern, blend, palette, "
-        "kind, source, coord, color, combine, modulate, state, signal"),
+        ("out-of-range at kind: unknown kind 'cord' (did you mean 'coord'?); kinds: op, blend, palette, kind, "
+        "source, coord, color, combine, modulate, state, signal"),
         "  fix: set kind to 'coord'",
         'corrected call: catalog_search(query="fold", kind="coord")',
     ]
@@ -311,13 +320,11 @@ async def test_a_wrong_argument_gets_its_did_you_mean_and_the_corrected_call(cli
 
 
 @pytest.mark.parametrize(("tool", "look", "says"), [
-    ("look_check", SPED, [("unknown-key at layers.base.comet.sped: layers.base.comet: unknown param 'sped' "
-                          "(did you mean 'speed'?); params: speed, tail"), "  fix: rename 'sped' to 'speed'"]),
+    ("look_check", FREK, [("unknown-key at layers.base.waves.frek: layers.base.waves: unknown param 'frek' "
+                          "(did you mean 'freq'?); params: freq, sync, offset, axis"),
+                         "  fix: rename 'frek' to 'freq'"]),
     ("look_render", {"layers": [{"id": "base", "nodes": {"x": {"op": "kaleidd", "args": {}}}}]},
      ["  fix: set layers.base.x.op to 'kaleid'"]),
-    ("look_render", layered("/tmp/x.py", node="x"),
-     [("bad-ref at layers.base.x.pattern: layers.base.x: pattern '…' does not load: unknown pattern '…'; "
-       "patterns: colorplasma, comet, fire, geq, plasma, pulse, rainbow, sdf3d, sparkle, wash, wave")]),
     ("engine_apply", {"layers": [{"id": "base", "blend": "scren", "nodes": {}}]},
      ["  fix: set layers.base.blend to 'screen'"]),
 ])
@@ -332,13 +339,13 @@ async def test_a_look_with_problems_is_an_error_that_teaches_each_fix(
 
 
 @pytest.mark.parametrize(("tool", "args", "says"), [
-    ("look_compare", {"a": "r1-00000000000000000000", "b": COMET}, "render again with the same look, map"),
-    ("look_render", {"look": COMET, "map": "grid16"}, "expected line:64, grid:16x16"),
+    ("look_compare", {"a": "r1-00000000000000000000", "b": FIRST}, "render again with the same look, map"),
+    ("look_render", {"look": FIRST, "map": "grid16"}, "expected line:64, grid:16x16"),
     ("engine_observe", {"url": LOCAL, "seconds": 0.5}, "nothing answered at ws://127.0.0.1:9/"),
-    ("engine_set", {"url": "ws://10.1.2.3:7447/", "path": "layers.base.comet.speed", "value": 0.4},
+    ("engine_set", {"url": "ws://10.1.2.3:7447/", "path": FREQ, "value": 4.0},
      "10.1.2.3 is not this machine"),
-    ("look_render", {"look": COMET, "seconds": 0}, "greater than 0"),
-    ("look_render", {"look": COMET, "maps": "line:64"}, "unknown argument 'maps' (did you mean 'map'?)"),
+    ("look_render", {"look": FIRST, "seconds": 0}, "greater than 0"),
+    ("look_render", {"look": FIRST, "maps": "line:64"}, "unknown argument 'maps' (did you mean 'map'?)"),
 ])
 async def test_any_other_failure_is_an_error_that_says_what_to_do(
     client: Client, tool: str, args: dict, says: str,
@@ -377,8 +384,8 @@ async def test_the_resources_list_and_read(client: Client) -> None:
 async def test_an_example_look_added_after_start_reads(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pewpew.mcp_server.EXAMPLES", tmp_path)
     async with Client(build(0)) as fresh:
-        (tmp_path / "dusk.look.json").write_text(json.dumps(COMET))
-        assert json.loads(text((await fresh.read_resource("pewpew://looks/dusk")).contents[0])) == COMET
+        (tmp_path / "dusk.look.json").write_text(json.dumps(FIRST))
+        assert json.loads(text((await fresh.read_resource("pewpew://looks/dusk")).contents[0])) == FIRST
 
 
 @pytest.mark.parametrize(("uri", "says"), [
@@ -424,9 +431,9 @@ STDIO_REQUESTS = [
     {"jsonrpc": "2.0", "method": "notifications/initialized"},
     {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
     {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "look_render", "arguments": {
-        "look": COMET, **FAST, "sheet": False}}},
+        "look": FIRST, **FAST, "sheet": False}}},
     {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "look_check", "arguments": {
-        "look": SPED}}},
+        "look": FREK}}},
 ]
 
 

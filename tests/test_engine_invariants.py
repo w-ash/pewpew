@@ -7,7 +7,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from pewpew import Pattern, Renderer, line, render_sequence
+from pewpew.mapping import line
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 
 
 class Flat(Pattern):
@@ -54,8 +56,7 @@ def test_index_is_read_only_too() -> None:
 
 def test_wrong_dtype_frame_is_contained() -> None:
     """`pattern.pixels` is a registered buffer; a float64 frame would make the
-    array disagree with its own BufferSpec, which is what hot reload will carry
-    state across by."""
+    array disagree with its own BufferSpec."""
 
     class F64(Pattern):
         def render(self, x, y, z, index):
@@ -122,11 +123,7 @@ class Half(Pattern):
         return np.full((index.size, 3), 0.5, dtype=np.float32)
 
 
-@pytest.mark.parametrize("repair, n", [
-    (lambda renderer: renderer.rebind(line(6)), 6),
-    (lambda renderer: renderer.swap(Flat()), 9),  # binds on the map the failed rebind left
-], ids=["rebind", "swap"])
-def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds(repair, n) -> None:
+def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds() -> None:
     """Binding is deliberately not contained, but a half-bound pattern must not
     keep rendering as if nothing happened — some buffers reallocated, the ones
     declared after the raise missing."""
@@ -138,8 +135,8 @@ def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds(repair, n) -> N
     with pytest.raises(RuntimeError, match="not bound"):
         renderer.step(1.0 / 60.0)
 
-    repair(renderer)
-    assert renderer.step(1.0 / 60.0).shape == (n, 3)
+    renderer.rebind(line(6))
+    assert renderer.step(1.0 / 60.0).shape == (6, 3)
 
 
 @pytest.mark.parametrize("name", ["render", "setup", "before_render", "_buffers", "speed"])
@@ -162,10 +159,8 @@ def test_buffer_cannot_shadow_anything_on_the_class(name: str) -> None:
         Renderer(Shadow(), line(4))
 
 
-def test_a_class_and_an_instance_are_not_interchangeable() -> None:
-    """Each entry point says which one it takes, rather than failing deep
-    inside with an AttributeError or 'object is not callable'."""
+def test_a_renderer_takes_an_instance_not_a_class() -> None:
+    """The renderer says which one it takes, rather than failing deep inside
+    with an AttributeError or 'object is not callable'."""
     with pytest.raises(TypeError, match="Renderer takes a Pattern instance, not a class"):
         Renderer(Flat, line(4))  # type: ignore[arg-type]
-    with pytest.raises(TypeError, match="render_sequence takes a Pattern class, not an instance"):
-        render_sequence(Flat(), line(4))  # type: ignore[arg-type]

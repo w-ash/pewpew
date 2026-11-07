@@ -24,8 +24,8 @@ holds tier 1 for them (an engine on this machine or an `--allow-host` IP,
 run with `--accept-looks`, an audit record before the first byte). No
 tool writes to the fleet.
 
-A look's patterns resolve by their gallery names (pewpew.load), as on an
-engine; no tool argument names a file the server runs.
+A look is data over the built-in op catalog, as on an engine; no tool
+argument names a file the server runs.
 
 A refused look, kind or cursor is an `isError` result that teaches: each
 problem's code, path, reason and fix, then the corrected call or what to
@@ -93,8 +93,8 @@ WATCH = ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hi
 WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True)
 
 INSTRUCTIONS = """\
-pewpew renders looks for addressable LEDs. A look is layers bottom first, each running one pattern or an \
-effect program (a graph of ops), and signals whose routes move its knobs each frame. Loop: catalog_search for \
+pewpew renders looks for addressable LEDs. A look is layers bottom first, each running an effect program (a \
+graph of ops), and signals whose routes move its knobs each frame. Loop: catalog_search for \
 the parts, write the look, look_check it, look_render it and read the metrics before the image, change one \
 thing, look_compare against the last render. The look format is in pewpew://docs/authoring/9 (layers) and \
 pewpew://docs/authoring/10 (effect programs); example looks are at pewpew://looks/{name}."""
@@ -112,16 +112,15 @@ def _either(words: Sequence[str]) -> str:
     return f"{', '.join(words[:-1])} or {words[-1]}"
 
 
-PATTERN_LOOK, PROGRAM_LOOK = example_looks()
+FIRST_LOOK, PROGRAM_LOOK = example_looks()
 EXAMPLE_HANDLE = "r1-0123456789abcdef0123"
 EXAMPLE_URL = "http://127.0.0.1:7447/"
 LookArg = Annotated[dict[str, Any], Field(
     description='A look, {"layers": [...]}, bottom layer first, or a looks file, {"version": 4, "looks": {...}}. '
-    'A layer is {"id", "nodes": {node id: {"op", "in": [node ids], "args": {...}}}}; a pattern node is '
-    '{"op": "pattern", "args": {"pattern": NAME, ...its params}}. A look may add "signals", {signal id: {"op", '
-    '"args"}}, and "routes", [{"source": signal id, "path": knob address, "depth"}], that move knobs each frame. '
-    'Patterns go by name, never by file.',
-    examples=[PATTERN_LOOK, PROGRAM_LOOK],
+    'A layer is {"id", "nodes": {node id: {"op", "in": [node ids], "args": {...}}}}. A look may add "signals", '
+    '{signal id: {"op", "args"}}, and "routes", [{"source": signal id, "path": knob address, "depth"}], that move '
+    'knobs each frame.',
+    examples=[FIRST_LOOK, PROGRAM_LOOK],
 )]
 Query = Annotated[str | None, Field(description="Words that each must appear in a name, label or doc",
                                     examples=["fold", "noise palette"])]
@@ -146,7 +145,7 @@ RenderFormat = Annotated[Detail, Field(description="concise: handle, metrics and
                                        "render spec, with the whole look normalized")]
 Side = Annotated[str | dict[str, Any], Field(
     description="A render handle (r1-...) from look_render, or a look to render as the other side was",
-    examples=[EXAMPLE_HANDLE, PATTERN_LOOK],
+    examples=[EXAMPLE_HANDLE, FIRST_LOOK],
 )]
 VaryLook = Annotated[dict[str, Any] | None, Field(
     description="The look to make looks like, as look_check takes it; omit it to make looks from nothing",
@@ -172,7 +171,7 @@ Fade = Annotated[float | None, Field(ge=0, description="Seconds to fade over; de
 DryRun = Annotated[bool, Field(description="Check and show what would be sent, and send nothing; false to send")]
 Address = Annotated[str, Field(
     description="A knob's address: layers.<layer>.<node>.<arg>, layers.<layer>.opacity or signals.<signal>.<arg>",
-    examples=["layers.base.comet.speed", "layers.top.opacity"],
+    examples=["layers.base.osc.freq", "layers.top.opacity"],
 )]
 Value = Annotated[Any, Field(description="The knob's new value, as JSON: a number, a choice key, true or false",
                              examples=[0.4, "screen", True])]
@@ -192,8 +191,8 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
     def catalog_search(
         query: Query = None, kind: Kind = None, response_format: Format = "concise", cursor: Cursor = None,
     ) -> Annotated[CallToolResult, CatalogPage]:
-        """Search what a look is made of: ops (by signature; kind lists them), gallery patterns, blend
-        modes, palettes and param kinds. Concise items give each one's kind,
+        """Search what a look is made of: ops (by signature; kind lists them), blend modes, palettes and
+        param kinds. Concise items give each one's kind,
         name, label and first sentence; detailed ones add its whole record: params with defaults and ranges,
         and examples as builder chains and as JSON, a layer's program (out and nodes: a look holds it as
         {"layers": [{"id": "base", ...program}]}) or, for a signal op, a whole look. A page holds 50 concise or
@@ -204,7 +203,7 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
     @_teaching
     def look_check(look: LookArg, explain: Explain = False) -> Annotated[CallToolResult, Check]:
         """Check a look, or a looks file, without rendering it: the aura's own checks, each problem with a
-        code, its path (layers.base.comet.speed), a did-you-mean and a fix. A look that checks comes back
+        code, its path (layers.base.osc.freq), a did-you-mean and a fix. A look that checks comes back
         normalized, every knob of every node written out with its value."""
         checked = lab.check_look(look)
         if not checked.ok:
@@ -278,7 +277,7 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
         """Send a whole look to an engine on this machine run with --preview --accept-looks, which fades to it
         over `fade` seconds (the look's own fade when none is given; the message says how long) and answers
         ack or refused. Observing during the fade measures both looks. The look is checked here first. A dry
-        run (the default) checks the look against this machine's patterns and that the engine is on this
+        run (the default) checks the look against this machine's catalog and that the engine is on this
         machine, and shows the message it would send; the engine's map and --accept-looks are checked only on
         a send. Call again with dry_run false to send it, which appends an audit record first."""
         return _pushed(push(url, look, fade=fade, dry_run=dry_run, allow_hosts=allow_hosts,
@@ -298,7 +297,7 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
         _tool(catalog_search, READ, {"query": "fold", "kind": "coord"}, {"kind": "palette"}),
         _tool(look_check, READ, {"look": PROGRAM_LOOK, "explain": True}),
         _tool(look_render, READ, {"look": PROGRAM_LOOK, "map": "grid:16x16", "seconds": 2}),
-        _tool(look_compare, READ, {"a": EXAMPLE_HANDLE, "b": PATTERN_LOOK}),
+        _tool(look_compare, READ, {"a": EXAMPLE_HANDLE, "b": FIRST_LOOK}),
         _tool(look_vary, READ, {"n": 4, "map": "grid:16x16"},
               {"look": PROGRAM_LOOK, "seed": 7, "n": 3, "strength": 0.4, "keep": ["layers.base.osc"]}),
         _tool(engine_observe, WATCH, {"url": EXAMPLE_URL, "seconds": 2}),
@@ -429,12 +428,12 @@ def _resources(server: MCPServer) -> None:
 
     @server.resource("pewpew://catalog", name="catalog", mime_type=JSON)
     def catalog_index() -> str:
-        """Every op, pattern, blend, palette and param kind: kind, name, label and first sentence."""
+        """Every op, blend, palette and param kind: kind, name, label and first sentence."""
         return json.dumps(index().to_json())
 
     @server.resource("pewpew://catalog/{kind}/{id}", name="catalog-record", mime_type=JSON)
     def catalog_record(kind: str, id: str) -> str:
-        """One whole catalog record: kind is op, pattern, blend, palette or kind; id is its name."""
+        """One whole catalog record: kind is op, blend, palette or kind; id is its name."""
         try:
             return json.dumps(lab.describe(kind, id))
         except Refused as exc:
@@ -454,8 +453,8 @@ def _resources(server: MCPServer) -> None:
 
     guides: dict[str, Callable[[], str]] = {"authoring": GUIDE.read_text} if GUIDE.is_file() else {}
     guides["catalog"] = lambda: markdown(whole_catalog())
-    about = {"authoring": "The authoring guide: patterns, params, layers (section 9), effect programs (section 10) "
-             "and the command line (section 11)", "catalog": "The catalog reference: every op, pattern, blend, "
+    about = {"authoring": "The authoring guide: params, layers (section 9), effect programs (section 10) "
+             "and the command line (section 11)", "catalog": "The catalog reference: every op, blend, "
              "palette and param kind, with examples"}
     for topic, read in guides.items():
         server.add_resource(FunctionResource(uri=f"pewpew://docs/{topic}", name=f"docs-{topic}", fn=read,
@@ -506,7 +505,7 @@ def _prompts(server: MCPServer) -> None:
         """Design a look from a brief, in the check, render and compare loop."""
         return (
             f"Design a pewpew look for this brief: {brief}\n\n"
-            "1. catalog_search with words from the brief for ops, patterns, palettes and blends; read the "
+            "1. catalog_search with words from the brief for ops, palettes and blends; read the "
             "detailed record of each part you use.\n"
             "2. Write the look as JSON (pewpew://docs/authoring/9 and pewpew://docs/authoring/10; examples at "
             "pewpew://looks/{name}).\n"

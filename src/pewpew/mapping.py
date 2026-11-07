@@ -4,16 +4,13 @@ A mapping is the coordinate table the engine hands `setup` and `render`
 (architecture §3: normalized 0-1 world units). `line`, `grid` and `lattice`
 are the study's fixtures, copied from `bench/authoring/surface.py`; a room
 map file (`pewpew.room.map`) gives a real one, and `parse_map` reads the
-command line's names for the synthetic ones. `Grouping` groups a mapping's
-pixels into fixtures for a pattern that lights a whole fixture as one unit.
-`dimensions` tells a strip from a panel from a volume, by the axes a
+command line's names for the synthetic ones. `dimensions` tells a strip from a panel from a volume, by the axes a
 mapping spreads along (`spanned`).
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -90,24 +87,3 @@ def dimensions(positions: np.ndarray) -> int:
     count is per axis, so a diagonal line counts 2.
     """
     return sum(spanned(extents(positions)))
-
-
-@dataclass(frozen=True)
-class Grouping:
-    """Pixels grouped into fixtures: what a per-fixture pattern renders at.
-
-    `centres` is (F,3) float32 in the same normalized units as the pixel
-    mapping; `of` is (N,) and gives the fixture index of each pixel. A
-    per-fixture frame of F colours becomes the N-pixel frame as `frame[of]`.
-    """
-
-    centres: np.ndarray
-    of: np.ndarray
-
-    def __post_init__(self) -> None:
-        if self.centres.ndim != 2 or self.centres.shape[1] != 3:
-            raise ValueError(f"fixture centres must be (F,3), got {self.centres.shape}")
-        if self.of.ndim != 1:
-            raise ValueError(f"fixture table must be (N,), got {self.of.shape}")
-        if len(self.of) and (self.of.min() < 0 or self.of.max() >= len(self.centres)):
-            raise ValueError("fixture table names a fixture that has no centre")

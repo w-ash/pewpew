@@ -1,8 +1,8 @@
 """Per-frame exception containment (ADR-005; architecture §3).
 
 "Errors never stop rendering": a raising pattern produces a visible error
-state and the engine keeps stepping *and keeps calling the pattern*, so a fix
-applied by hot reload self-heals with no restart. Precedent is led-control's
+state and the engine keeps stepping *and keeps calling the pattern*, so a
+pattern whose failure passes recovers with no restart. Precedent is led-control's
 pulsing-red frame [S660:ledcontrol/animationcontroller.py#L418-L434] and
 Pixelblaze's crash-proof editor [S504].
 """
@@ -13,8 +13,11 @@ import logging
 
 import numpy as np
 
-from pewpew import Pattern, Renderer, line, render_sequence
+from fakes import frames as render_frames
 from pewpew.classinfo import pattern_name
+from pewpew.mapping import line
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 
 FPS = 60.0
 DT = 1.0 / FPS
@@ -68,7 +71,7 @@ def is_error_frame(frame: np.ndarray) -> bool:
 
 
 def test_render_failure_yields_pulsing_red_frames() -> None:
-    frames = render_sequence(AlwaysFails, line(8), frames=30, fps=FPS)
+    frames = render_frames(Renderer(AlwaysFails(), line(8)), 30, FPS)
 
     assert frames.shape == (30, 8, 3) and frames.dtype == np.float32
     assert all(is_error_frame(f) for f in frames)
@@ -93,8 +96,8 @@ def test_renderer_keeps_stepping_and_keeps_calling_the_pattern() -> None:
         renderer.step(DT)
 
     assert renderer.t == 5 * DT
-    # The pattern was still called every frame — that is what lets a hot
-    # reload of a fixed pattern recover with no restart.
+    # The pattern was still called every frame — that is what lets a
+    # pattern whose failure passes recover with no restart.
     assert renderer.pattern.frame == 4
     assert renderer.error is not None
     assert renderer.error.phase == "render"
@@ -140,8 +143,8 @@ def test_wrong_return_shape_is_contained() -> None:
 
 def test_failing_sequences_stay_deterministic() -> None:
     for factory in (AlwaysFails, BeforeRenderFails, FailsOnce):
-        a = render_sequence(factory, line(8), frames=12, fps=FPS)
-        b = render_sequence(factory, line(8), frames=12, fps=FPS)
+        a = render_frames(Renderer(factory(), line(8)), 12, FPS)
+        b = render_frames(Renderer(factory(), line(8)), 12, FPS)
         assert np.array_equal(a, b), pattern_name(factory)
 
 

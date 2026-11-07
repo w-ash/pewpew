@@ -1,11 +1,11 @@
 """The paced render loop: ADR-010's deadline-corrected clock, the frame
 stages around each render, and the loop thread's call queue.
 
-`PacedLoop` is the live form of `render_sequence`: one `advance_to(t)` per
+`PacedLoop` is the live form of an offline render: one `advance_to(t)` per
 schedule slot of its `FrameSource`, paced against an absolute deadline
 schedule. The wall clock decides when a frame runs, never what it holds:
 engine time comes from `render.SlotClock`, so a live run renders the same
-bytes as `render_sequence` at the same slot, skips or not (ADR-010 and its
+bytes as an offline render at the same slot, skips or not (ADR-010 and its
 2026-08-20 amendment).
 
 One tick, in order, on the loop thread:

@@ -1,7 +1,7 @@
 [
   {
     "name": "catalog_search",
-    "description": "Search what a look is made of: ops (by signature; kind lists them), gallery patterns, blend modes, palettes and param kinds. Concise items give each one's kind, name, label and first sentence; detailed ones add its whole record: params with defaults and ranges, and examples as builder chains and as JSON, a layer's program (out and nodes: a look holds it as {\"layers\": [{\"id\": \"base\", ...program}]}) or, for a signal op, a whole look. A page holds 50 concise or 10 detailed items; pass next_cursor back as cursor for the next. pewpew://catalog/{kind}/{name} holds one record whole.",
+    "description": "Search what a look is made of: ops (by signature; kind lists them), blend modes, palettes and param kinds. Concise items give each one's kind, name, label and first sentence; detailed ones add its whole record: params with defaults and ranges, and examples as builder chains and as JSON, a layer's program (out and nodes: a look holds it as {\"layers\": [{\"id\": \"base\", ...program}]}) or, for a signal op, a whole look. A page holds 50 concise or 10 detailed items; pass next_cursor back as cursor for the next. pewpew://catalog/{kind}/{name} holds one record whole.",
     "inputSchema": {
       "type": "object",
       "additionalProperties": false,
@@ -33,7 +33,7 @@
             }
           ],
           "default": null,
-          "description": "Only one kind: op, pattern, blend, palette or kind (a param kind), or the ops of one signature: source, coord, color, combine, modulate, state or signal",
+          "description": "Only one kind: op, blend, palette or kind (a param kind), or the ops of one signature: source, coord, color, combine, modulate, state or signal",
           "examples": [
             "coord",
             "palette"
@@ -172,26 +172,34 @@
   },
   {
     "name": "look_check",
-    "description": "Check a look, or a looks file, without rendering it: the aura's own checks, each problem with a code, its path (layers.base.comet.speed), a did-you-mean and a fix. A look that checks comes back normalized, every knob of every node written out with its value.",
+    "description": "Check a look, or a looks file, without rendering it: the aura's own checks, each problem with a code, its path (layers.base.osc.freq), a did-you-mean and a fix. A look that checks comes back normalized, every knob of every node written out with its value.",
     "inputSchema": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "look": {
           "additionalProperties": true,
-          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}; a pattern node is {\"op\": \"pattern\", \"args\": {\"pattern\": NAME, ...its params}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame. Patterns go by name, never by file.",
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame.",
           "examples": [
             {
               "layers": [
                 {
                   "id": "base",
                   "nodes": {
-                    "comet": {
+                    "tint": {
                       "args": {
-                        "pattern": "comet",
-                        "speed": 0.4
+                        "palette": "ember"
                       },
-                      "op": "pattern"
+                      "in": [
+                        "waves"
+                      ],
+                      "op": "palette"
+                    },
+                    "waves": {
+                      "args": {
+                        "freq": 4.0
+                      },
+                      "op": "osc"
                     }
                   }
                 }
@@ -395,19 +403,27 @@
       "properties": {
         "look": {
           "additionalProperties": true,
-          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}; a pattern node is {\"op\": \"pattern\", \"args\": {\"pattern\": NAME, ...its params}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame. Patterns go by name, never by file.",
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame.",
           "examples": [
             {
               "layers": [
                 {
                   "id": "base",
                   "nodes": {
-                    "comet": {
+                    "tint": {
                       "args": {
-                        "pattern": "comet",
-                        "speed": 0.4
+                        "palette": "ember"
                       },
-                      "op": "pattern"
+                      "in": [
+                        "waves"
+                      ],
+                      "op": "palette"
+                    },
+                    "waves": {
+                      "args": {
+                        "freq": 4.0
+                      },
+                      "op": "osc"
                     }
                   }
                 }
@@ -731,12 +747,20 @@
                 {
                   "id": "base",
                   "nodes": {
-                    "comet": {
+                    "tint": {
                       "args": {
-                        "pattern": "comet",
-                        "speed": 0.4
+                        "palette": "ember"
                       },
-                      "op": "pattern"
+                      "in": [
+                        "waves"
+                      ],
+                      "op": "palette"
+                    },
+                    "waves": {
+                      "args": {
+                        "freq": 4.0
+                      },
+                      "op": "osc"
                     }
                   }
                 }
@@ -763,12 +787,20 @@
                 {
                   "id": "base",
                   "nodes": {
-                    "comet": {
+                    "tint": {
                       "args": {
-                        "pattern": "comet",
-                        "speed": 0.4
+                        "palette": "ember"
                       },
-                      "op": "pattern"
+                      "in": [
+                        "waves"
+                      ],
+                      "op": "palette"
+                    },
+                    "waves": {
+                      "args": {
+                        "freq": 4.0
+                      },
+                      "op": "osc"
                     }
                   }
                 }
@@ -801,11 +833,19 @@
               {
                 "id": "base",
                 "nodes": {
-                  "comet": {
-                    "op": "pattern",
+                  "waves": {
+                    "op": "osc",
                     "args": {
-                      "pattern": "comet",
-                      "speed": 0.4
+                      "freq": 4.0
+                    }
+                  },
+                  "tint": {
+                    "op": "palette",
+                    "in": [
+                      "waves"
+                    ],
+                    "args": {
+                      "palette": "ember"
                     }
                   }
                 }
@@ -1570,7 +1610,7 @@
   },
   {
     "name": "engine_apply",
-    "description": "Send a whole look to an engine on this machine run with --preview --accept-looks, which fades to it over `fade` seconds (the look's own fade when none is given; the message says how long) and answers ack or refused. Observing during the fade measures both looks. The look is checked here first. A dry run (the default) checks the look against this machine's patterns and that the engine is on this machine, and shows the message it would send; the engine's map and --accept-looks are checked only on a send. Call again with dry_run false to send it, which appends an audit record first.",
+    "description": "Send a whole look to an engine on this machine run with --preview --accept-looks, which fades to it over `fade` seconds (the look's own fade when none is given; the message says how long) and answers ack or refused. Observing during the fade measures both looks. The look is checked here first. A dry run (the default) checks the look against this machine's catalog and that the engine is on this machine, and shows the message it would send; the engine's map and --accept-looks are checked only on a send. Call again with dry_run false to send it, which appends an audit record first.",
     "inputSchema": {
       "type": "object",
       "additionalProperties": false,
@@ -1585,19 +1625,27 @@
         },
         "look": {
           "additionalProperties": true,
-          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}; a pattern node is {\"op\": \"pattern\", \"args\": {\"pattern\": NAME, ...its params}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame. Patterns go by name, never by file.",
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame.",
           "examples": [
             {
               "layers": [
                 {
                   "id": "base",
                   "nodes": {
-                    "comet": {
+                    "tint": {
                       "args": {
-                        "pattern": "comet",
-                        "speed": 0.4
+                        "palette": "ember"
                       },
-                      "op": "pattern"
+                      "in": [
+                        "waves"
+                      ],
+                      "op": "palette"
+                    },
+                    "waves": {
+                      "args": {
+                        "freq": 4.0
+                      },
+                      "op": "osc"
                     }
                   }
                 }
@@ -1837,7 +1885,7 @@
         "path": {
           "description": "A knob's address: layers.<layer>.<node>.<arg>, layers.<layer>.opacity or signals.<signal>.<arg>",
           "examples": [
-            "layers.base.comet.speed",
+            "layers.base.osc.freq",
             "layers.top.opacity"
           ],
           "title": "Path",

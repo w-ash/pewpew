@@ -1,8 +1,8 @@
 """Liveness: does every knob of a look change what it shows?
 
 The method of tests/test_param_liveness.py, applied to a whole look: for
-each knob of each node of each enabled layer's program (a pattern's
-params, an op's args), and of each of the look's signals, render the look
+each knob of each node of each enabled layer's program (an op's args),
+and of each of the look's signals, render the look
 twice with the knob at each end of a probe pair (pewpew.params.probes),
 every other knob as the look sets it (a color part's other parts too),
 and call the knob live when the two sequences, as a sink shows them,
@@ -26,9 +26,7 @@ z on a panel), at either end; and a choice of axis or plane whose two
 values read the map alike (`plane` from `auto` to the plane `auto` takes,
 `axis` from `u` to the one axis a strip spreads along).
 
-A layer that runs a pattern file whose class is a program has its
-program's knobs (pewpew.compose.controls.runs), each probed as a moved
-knob of its pattern node. A layer's mix (opacity, blend, enabled) is not probed: what it does
+A layer's mix (opacity, blend, enabled) is not probed: what it does
 depends on the layers below, and the bottom layer's blend over nothing
 shows the same in every mode. A disabled layer's knobs are not probed:
 the layer does not run.
@@ -40,15 +38,13 @@ import json
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from functools import partial
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 
-from pewpew.compose import Resolved, layer_address
-from pewpew.compose.controls import runs, signal_address
-from pewpew.fx.compile import is_pattern_program, knob_class
+from pewpew.compose import layer_address
+from pewpew.compose.controls import signal_address
 from pewpew.fx.graph import Graph, Node
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.ops import OPS
 from pewpew.lab.check import Ready
 from pewpew.lab.geometry import Geometry
@@ -68,7 +64,7 @@ LIVENESS_FRAMES = 15  # frames compared
 @dataclass(frozen=True, slots=True)
 class KnobProbe(Result):
     """One knob moved from `a` to `b` (JSON values): its path, with the
-    part or option moved (`layers.base.comet.color.h`), the RMS between
+    part or option moved (`layers.base.tint.palette`), the RMS between
     the two renders, and whether that passes `LIVENESS_RMS`. A probe that
     cannot run is not live: `error` says why, and `rms` is None."""
 
@@ -101,20 +97,17 @@ def each_probe(staged: Ready, geometry: Geometry, seed: int) -> Iterator[KnobPro
     """The probes `probe_knobs` gives, each rendered only when it is asked
     for, so a caller can stop at the first that fails."""
     spans = np.ptp(geometry.mapping, axis=0).tolist()
-    knobs: list[tuple[Node, type, str, Callable[[str, Any], Ready]]] = []
-    for i, resolved in enumerate(staged.layers):
-        if not resolved.layer.enabled:
-            continue
-        graph, resolve = runs(resolved.layer, resolved.resolve)
-        move = _moved if graph is resolved.layer.program.graph else _start_moved  # a pattern file's program
-        knobs += ((node, knob_class(node, resolve), layer_address(resolved.layer.id, node.id),
-                   partial(move, staged, i, node.id)) for node in graph)
-    knobs += ((node, OPS[node.op], signal_address(node.id), partial(_signal_moved, staged, node.id))
+    knobs: list[tuple[Node, str, Callable[[str, Any], Ready]]] = []
+    for i, layer in enumerate(staged.look.layers):
+        if layer.enabled:
+            knobs += ((node, layer_address(layer.id, node.id), partial(_moved, staged, i, node.id))
+                      for node in layer.program.graph)
+    knobs += ((node, signal_address(node.id), partial(_signal_moved, staged, node.id))
               for node in staged.look.signals or ())
-    for node, cls, owner, moved in knobs:
+    for node, owner, moved in knobs:
         op = OPS[node.op]
-        values = ParamSet(cls, op.knob_values(node.args)).snapshot_json()  # a file's program writes few out
-        for record in ParamSet(cls).describe():
+        values = ParamSet(op, node.args).snapshot_json()
+        for record in ParamSet(op).describe():
             name = record["name"]
             try:
                 pairs = probes(record, values[name])
@@ -161,22 +154,11 @@ def _probe(shown: Callable[[Any], np.ndarray], path: str, a: Any, b: Any) -> Kno
 
 def _moved(staged: Ready, i: int, nid: str, name: str, value: Any) -> Ready:
     """`staged` with knob `name` of node `nid` of layer `i` at `value`."""
-    resolved = staged.layers[i]
-    layer = resolved.layer
+    look = staged.look
+    layer = look.layers[i]
     graph = Graph(tuple(_set(node, name, value) if node.id == nid else node for node in layer.program.graph))
-    program = replace(layer.program, graph=graph)
-    cls = resolved.cls
-    if not is_pattern_program(program):
-        cls = ProgramPattern.of(program, cast("type[ProgramPattern]", cls).patterns)  # the class runs its program
-    moved = Resolved(replace(layer, program=program), cls, resolved.label)
-    return replace(staged, layers=(*staged.layers[:i], moved, *staged.layers[i + 1 :]))
-
-
-def _start_moved(staged: Ready, i: int, nid: str, name: str, value: Any) -> Ready:
-    """`staged` with knob `name` of node `nid` of the program that layer
-    `i`'s pattern file runs at `value`: its pattern node's arg
-    `<nid>.<name>` (pewpew.fx.host), which the program starts at."""
-    return _moved(staged, i, staged.layers[i].layer.program.out, f"{nid}.{name}", value)
+    moved = replace(layer, program=replace(layer.program, graph=graph))
+    return replace(staged, look=replace(look, layers=(*look.layers[:i], moved, *look.layers[i + 1 :])))
 
 
 def _signal_moved(staged: Ready, sid: str, name: str, value: Any) -> Ready:

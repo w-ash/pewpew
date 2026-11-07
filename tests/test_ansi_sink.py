@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from fakes import FakeTime
-from pewpew import grid, lattice, line
+from pewpew.mapping import grid, lattice, line
 from pewpew.sinks.ansi import AnsiLayout, AnsiSink
 
 GOLDENS = Path(__file__).parent / "goldens"

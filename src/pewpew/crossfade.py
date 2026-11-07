@@ -14,12 +14,11 @@ The first frame at or past `a = 1` is the incoming frame alone, and the
 outgoing source is dropped. Progress comes from engine `t` only, so a fade
 renders the same bytes every time it is replayed (T-1…T-5).
 
-Each source's frame is the (N,3) linear pixel frame after its fixture
-gather (render.py), so two looks with different `units` blend pixel for
-pixel. The master is not part of the blend: it is a `PacedLoop` stage after
+Each source's frame is the (N,3) linear pixel frame, so two looks blend
+pixel for pixel. The master is not part of the blend: it is a `PacedLoop` stage after
 this.
 
-`current` is the source a live set, a hot reload and a pick act on, which
+`current` is the source a live set and a layer edit act on, which
 during a fade is the incoming one: they change the look that is fading in.
 A recall builds a fresh source and fades or `cut`s to it; a `cut` ends a
 running fade. `rebind` moves both, so a room map reload mid-fade keeps the
@@ -48,7 +47,6 @@ from typing import Generic, TypeVar
 
 import numpy as np
 
-from pewpew.mapping import Grouping
 from pewpew.render import Live, PatternError
 
 logger = logging.getLogger(__name__)
@@ -158,15 +156,15 @@ class Crossfader(Generic[S]):
         """The current source's error frame at engine time `t`."""
         return self._current.error_frame(t)
 
-    def rebind(self, mapping: np.ndarray, grouping: Grouping | None = None) -> None:
+    def rebind(self, mapping: np.ndarray) -> None:
         """Rebind the current source, raising as its `rebind` does; then the
         outgoing one, whose failure ends the fade instead."""
-        self._current.rebind(mapping, grouping)
+        self._current.rebind(mapping)
         outgoing = self._outgoing
         if outgoing is None:
             return
         try:
-            outgoing.rebind(mapping, grouping)
+            outgoing.rebind(mapping)
         except Exception:
             logger.warning("the outgoing look cannot bind the new map; the fade ends here", exc_info=True)
             self._outgoing = None

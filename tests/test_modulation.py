@@ -17,12 +17,13 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from fakes import the
-from params_zoo import Zoo
-from pewpew import HSV, Bool, Color, Float, Int, Renderer, line
+from fakes import hosted, one_node
+from params_zoo import ZOO
 from pewpew.color import EMBER
-from pewpew.params import Bound, Palette, ParamSet
+from pewpew.mapping import line
+from pewpew.params import HSV, Bool, Bound, Color, Float, Int, Palette, ParamSet
 from pewpew.params.kinds import Ranged
+from pewpew.render import Renderer
 
 
 class Knobs:
@@ -243,32 +244,33 @@ def test_applying_to_the_same_target_keeps_the_binding_and_its_drives() -> None:
     assert target.speed == pytest.approx(1.5)
 
 
-def test_a_rebind_keeps_the_drive_and_a_swap_retires_the_binding() -> None:
-    """A new room map is not a restart: the seat's binding and its drives
-    survive it. A swap binds a new pattern, so the old binding refuses
-    rather than drive a pattern that is gone."""
-    r = Renderer(Zoo(), line(64), name="zoo")
-    link = r.params.bound
+def zoo(mapping: np.ndarray) -> tuple[Renderer, ParamSet]:
+    """A renderer of one `zoo_test` node, `zoo`, and the node's knobs."""
+    renderer = hosted(one_node(ZOO, node="zoo"), mapping)
+    return renderer, renderer.pattern.node_params["zoo"]  # type: ignore[attr-defined]  # a ProgramPattern
+
+
+@pytest.mark.usefixtures("fake_ops")
+def test_a_rebind_keeps_the_drive() -> None:
+    """A new room map is not a restart: the node's binding and its drives
+    survive it."""
+    r, params = zoo(line(64))
+    link = params.bound
     assert link is not None
     link.drive("level", -0.4)
     r.rebind(line(32))
-    assert r.params.bound is link and the(r.pattern, Zoo).level == pytest.approx(0.1)
-    r.params.set("level", 0.6)
-    assert the(r.pattern, Zoo).level == pytest.approx(0.2) and link.value("level") == pytest.approx(0.2)
-    r.swap(Zoo())
-    assert r.params.bound is not link and the(r.pattern, Zoo).level == 0.6
-    with pytest.raises(RuntimeError, match=re.escape(f"zoo: {STALE}")):
-        link.drive("level", -0.4)
+    assert params.bound is link and link.target.level == pytest.approx(0.1)  # type: ignore[attr-defined]  # the zoo op
+    params.set("level", 0.6)
+    assert link.target.level == pytest.approx(0.2) and link.value("level") == pytest.approx(0.2)  # type: ignore[attr-defined]  # the zoo op
 
 
-def test_a_driven_param_reaches_the_running_pattern() -> None:
-    """The renderer's set is bound to its pattern; a drive changes the
-    picture while the set, and so every surface, keeps the base."""
-    held = Renderer(Zoo(), line(64))
-    driven = Renderer(Zoo(), line(64))
-    assert driven.params.bound is not None
-    driven.params.bound.drive("level", -0.4)
-    assert the(driven.pattern, Zoo).level == pytest.approx(0.1) and driven.params["level"] == 0.5
+@pytest.mark.usefixtures("fake_ops")
+def test_a_driven_param_reaches_the_running_node() -> None:
+    """A node's set is bound to its op; a drive changes the picture while
+    the set, and so every surface, keeps the base."""
+    held, _ = zoo(line(64))
+    driven, params = zoo(line(64))
+    assert params.bound is not None
+    params.bound.drive("level", -0.4)
+    assert params.bound.target.level == pytest.approx(0.1) and params["level"] == 0.5  # type: ignore[attr-defined]  # the zoo op
     assert not np.array_equal(held.step(1 / 60), driven.step(1 / 60))
-    driven.swap(Zoo())  # a reload binds afresh: nothing is driven until the seat drives again
-    assert the(driven.pattern, Zoo).level == 0.5

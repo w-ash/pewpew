@@ -24,15 +24,17 @@ from websockets.http11 import Response
 from websockets.sync.server import serve
 
 import pewpew.remote.observe as remote_observe
-from fakes import Solid, aura_rig, look, peers, preview_sink, wait_until
-from pewpew import grid, line
+from fakes import aura_rig, peers, preview_sink, solid, wait_until
 from pewpew.__main__ import main
+from pewpew.mapping import grid, line
 from pewpew.metrics import measure
 from pewpew.remote.client import Client, Frame, Unreachable, engine_url, why_unreachable
 from pewpew.remote.observe import Capture, Observation, observe
 from pewpew.sinks.base import from_display_u8, to_display_u8
 from pewpew.sinks.preview import FRAME_HEADER, page_build
 from pngread import decode_png
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 TIMES = (0.25, 0.5, 0.75, 1.0, 1.25)  # one second of window, then the frame that closes it
 
@@ -58,7 +60,7 @@ def push(sink, t: float, frame: np.ndarray) -> None:
 def engine(mapping, **kw):
     """A started preview of `mapping` over an aura's control. Yields the
     sink and every message a client has sent it."""
-    rig = aura_rig(Solid, mapping=mapping)
+    rig = aura_rig(mapping=mapping)
     with preview_sink(mapping, control=rig.control, **kw) as sink:
         received: list = []
         sink._on_message = lambda conn, message: received.append(message)
@@ -88,7 +90,7 @@ def test_observe_measures_the_frames_it_was_sent_and_sends_nothing(tmp_path):
     assert (seen.frames, seen.span, seen.fps, seen.dropped) == (4, 0.75, 4.0, 0)
     assert (seen.sent_pixels, seen.total_pixels, seen.approximate) == (16, 64, True)
     assert seen.build == page_build() and seen.warnings == ()
-    assert seen.aura is not None and seen.aura["pattern"] == "solid"
+    assert seen.aura is not None and seen.aura["stack"]["layers"][0]["nodes"][0]["op"] == "solid_test"
     assert seen.params == {"layers.base.solid.red": 1.0, "layers.base.solid.green": 0.0,
                            "layers.base.solid.blue": 0.0, "layers.base.opacity": 1.0,
                            "layers.base.blend": "normal", "layers.base.enabled": True}
@@ -103,9 +105,9 @@ def test_observe_measures_the_frames_it_was_sent_and_sends_nothing(tmp_path):
 
 def test_an_observation_says_a_crossfade_ran_in_its_window():
     """Frames of a fade mix two looks, so their metrics are neither's."""
-    rig = aura_rig(Solid, mapping=line(8))
+    rig = aura_rig(mapping=line(8))
     with preview_sink(line(8), control=rig.control) as sink:
-        assert rig.deck.recall(look("wave"), 2.0) is None and rig.control.state()["fading"]
+        assert rig.deck.recall(solid(0.0, 0.0, 1.0), 2.0) is None and rig.control.state()["fading"]
         url = f"ws://127.0.0.1:{sink.port}/"
         with watching(sink, lambda: observe(url, 1.0)) as future:
             for t in TIMES:
@@ -175,7 +177,7 @@ def test_an_engine_that_sends_no_frames_gives_state_and_no_metrics():
     with engine(line(4)) as (sink, _):
         seen = observe(f"ws://127.0.0.1:{sink.port}/", 0.05, timeout=0.1)
     assert (seen.frames, seen.fps, seen.metrics) == (0, 0.0, None)
-    assert seen.aura is not None and seen.aura["pattern"] == "solid"
+    assert seen.aura is not None and seen.aura["stack"]["layers"][0]["nodes"][0]["op"] == "solid_test"
     assert seen.warnings[0] == ("the frames stopped 0.00 s into the 0.05 s window, after 0 frames (waited 0.15 s): "
                                 "check the engine's status and its render loop")
     assert seen.warnings[1] == "metrics and a sheet need two frames at different engine times; got 0"
@@ -238,7 +240,7 @@ def test_no_frames_exits_1_with_the_reason_on_stderr(monkeypatch, capsys):
         code = main(["observe", f"localhost:{port}", "--seconds", "0.05"])
     out, err = capsys.readouterr()
     assert code == 1
-    assert out.startswith(f"ws://localhost:{port}/: 0 frames") and "\nlayer base: solid (normal at 1.0)\n" in out
+    assert out.startswith(f"ws://localhost:{port}/: 0 frames") and "\nlayer base: Solid_test (normal at 1.0)\n" in out
     assert err.startswith("observe: the frames stopped 0.00 s into the 0.05 s window")
 
 

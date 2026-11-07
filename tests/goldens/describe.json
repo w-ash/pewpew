@@ -1,60 +1,213 @@
 {
   "display_gamma": 2.2,
-  "patterns": {
-    "plasma": [
+  "ops": {
+    "add": [
       {
-        "name": "speed",
+        "name": "amount",
         "kind": "float",
-        "label": "Speed",
-        "help": "Cycles of the field per second",
+        "label": "Amount",
+        "help": "How much of the second pattern shows over the first",
         "group": "",
         "widget": "",
-        "default": 0.5,
-        "unit": "/s",
+        "default": 1.0,
+        "unit": "",
         "lo": 0.0,
-        "hi": 2.0,
-        "step": 0.01,
-        "decimals": 2,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
         "periodic": false,
         "text": [],
         "sweet": [
           0.0,
-          2.0
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "attractor": [
+      {
+        "name": "kind",
+        "kind": "choice",
+        "label": "Kind",
+        "help": "Lorenz: a butterfly ribbon in 3D; Clifford: a flat cloud of filaments",
+        "group": "",
+        "widget": "",
+        "default": "lorenz",
+        "options": [
+          {
+            "value": "lorenz",
+            "label": "Lorenz"
+          },
+          {
+            "value": "clifford",
+            "label": "Clifford"
+          }
+        ]
+      },
+      {
+        "name": "count",
+        "kind": "int",
+        "label": "Count",
+        "help": "Points it draws: a few ribbons, or a dense cloud",
+        "group": "",
+        "widget": "",
+        "default": 24,
+        "unit": "",
+        "lo": 1,
+        "hi": 2000,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          2000
         ],
         "flash_sensitive": false
       },
       {
-        "name": "scale",
+        "name": "speed",
         "kind": "float",
-        "label": "Scale",
-        "help": "How many ripples fit across the map; higher is finer",
+        "label": "Speed",
+        "help": "How fast it moves: Lorenz points fly, a Clifford cloud morphs",
         "group": "",
         "widget": "",
-        "default": 4.0,
+        "default": 0.3,
+        "unit": "Hz",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "spin",
+        "kind": "float",
+        "label": "Spin",
+        "help": "How fast the figure turns",
+        "group": "",
+        "widget": "",
+        "default": 10.0,
+        "unit": "°/s",
+        "lo": -90.0,
+        "hi": 90.0,
+        "step": 1.0,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -30.0,
+          30.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "size",
+        "kind": "float",
+        "label": "Size",
+        "help": "Radius of each point's glow",
+        "group": "",
+        "widget": "",
+        "default": 0.04,
         "unit": "",
-        "lo": 1.0,
+        "lo": 0.02,
+        "hi": 0.3,
+        "step": 0.002,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.03,
+          0.12
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "trail",
+        "kind": "float",
+        "label": "Trail",
+        "help": "How long its glow lasts",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "s",
+        "lo": 0.1,
         "hi": 10.0,
         "step": 0.05,
         "decimals": 2,
         "periodic": false,
         "text": [],
         "sweet": [
-          1.0,
-          10.0
+          0.3,
+          4.0
         ],
         "flash_sensitive": false
       }
     ],
-    "comet": [
+    "band": [
       {
-        "name": "speed",
-        "kind": "float",
-        "label": "Speed",
-        "help": "Laps of the strip per second",
+        "name": "band",
+        "kind": "choice",
+        "label": "Band",
+        "help": "The part of the sound it follows",
         "group": "",
         "widget": "",
-        "default": 0.4,
-        "unit": "/s",
+        "default": "bass",
+        "options": [
+          {
+            "value": "volume",
+            "label": "Volume"
+          },
+          {
+            "value": "bass",
+            "label": "Bass"
+          },
+          {
+            "value": "mid",
+            "label": "Mid"
+          },
+          {
+            "value": "high",
+            "label": "High"
+          }
+        ]
+      },
+      {
+        "name": "gain",
+        "kind": "float",
+        "label": "Boost",
+        "help": "Turns the level up; it never goes past full",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "×",
+        "lo": 0.0,
+        "hi": 4.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          2.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "attack",
+        "kind": "float",
+        "label": "Rise",
+        "help": "How soon it follows the sound up",
+        "group": "",
+        "widget": "",
+        "default": 0.05,
+        "unit": "s",
         "lo": 0.0,
         "hi": 2.0,
         "step": 0.01,
@@ -63,45 +216,319 @@
         "text": [],
         "sweet": [
           0.0,
-          2.0
+          0.2
         ],
         "flash_sensitive": false
       },
       {
-        "name": "tail",
+        "name": "release",
         "kind": "float",
-        "label": "Tail",
-        "help": "How long the tail lasts",
+        "label": "Release",
+        "help": "How slowly it lets go as the sound falls",
         "group": "",
         "widget": "",
-        "default": 0.25,
+        "default": 0.2,
         "unit": "s",
-        "lo": 0.01,
-        "hi": 2.0,
-        "step": 0.01,
+        "lo": 0.0,
+        "hi": 5.0,
+        "step": 0.05,
         "decimals": 2,
         "periodic": false,
         "text": [],
         "sweet": [
-          0.01,
-          2.0
+          0.05,
+          1.0
         ],
         "flash_sensitive": false
       }
     ],
-    "geq": [
+    "beat": [
       {
-        "name": "fall",
-        "kind": "float",
-        "label": "Fall",
-        "help": "Seconds a bar takes to fall back",
+        "name": "shape",
+        "kind": "choice",
+        "label": "Shape",
+        "help": "Pulse flashes on each beat; phase climbs through the beat; fall drops from each beat",
         "group": "",
         "widget": "",
-        "default": 0.35,
+        "default": "pulse",
+        "options": [
+          {
+            "value": "pulse",
+            "label": "Pulse"
+          },
+          {
+            "value": "phase",
+            "label": "Phase"
+          },
+          {
+            "value": "fall",
+            "label": "Fall"
+          }
+        ]
+      },
+      {
+        "name": "width",
+        "kind": "float",
+        "label": "Width",
+        "help": "How much of each beat the pulse is on",
+        "group": "",
+        "widget": "",
+        "default": 0.25,
+        "unit": "",
+        "lo": 0.05,
+        "hi": 0.95,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          0.95
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "below": [],
+    "blend": [
+      {
+        "name": "mode",
+        "kind": "choice",
+        "label": "Mode",
+        "help": "How the second pattern mixes into the first",
+        "group": "",
+        "widget": "",
+        "default": "normal",
+        "options": [
+          {
+            "value": "normal",
+            "label": "Normal"
+          },
+          {
+            "value": "add",
+            "label": "Add"
+          },
+          {
+            "value": "screen",
+            "label": "Screen"
+          },
+          {
+            "value": "multiply",
+            "label": "Multiply"
+          },
+          {
+            "value": "max",
+            "label": "Lighter"
+          },
+          {
+            "value": "min",
+            "label": "Darker"
+          },
+          {
+            "value": "difference",
+            "label": "Difference"
+          },
+          {
+            "value": "subtract",
+            "label": "Subtract"
+          },
+          {
+            "value": "stencil",
+            "label": "Stencil"
+          },
+          {
+            "value": "highlight",
+            "label": "Highlight"
+          }
+        ]
+      },
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "How much of the second pattern shows over the first",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "contrast": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "Above 1 sharpens, below 1 flattens toward gray",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 4.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          2.5
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "diff": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "How much of the second pattern shows over the first",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "diffuse": [
+      {
+        "name": "bleed",
+        "kind": "float",
+        "label": "Bleed",
+        "help": "How fast the glow spreads to the next points",
+        "group": "",
+        "widget": "",
+        "default": 6.0,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 40.0,
+        "step": 0.2,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1.0,
+          20.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "decay",
+        "kind": "float",
+        "label": "Decay",
+        "help": "How long the glow lasts",
+        "group": "",
+        "widget": "",
+        "default": 2.0,
         "unit": "s",
         "lo": 0.05,
-        "hi": 2.0,
-        "step": 0.01,
+        "hi": 20.0,
+        "step": 0.1,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          6.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "env": [
+      {
+        "name": "attack",
+        "kind": "float",
+        "label": "Rise",
+        "help": "Seconds to rise from 0 to 1",
+        "group": "",
+        "widget": "",
+        "default": 0.01,
+        "unit": "s",
+        "lo": 0.0,
+        "hi": 5.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          0.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "decay",
+        "kind": "float",
+        "label": "Decay",
+        "help": "Seconds to fall from 1 to the sustain level",
+        "group": "",
+        "widget": "",
+        "default": 0.3,
+        "unit": "s",
+        "lo": 0.0,
+        "hi": 5.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "sustain",
+        "kind": "float",
+        "label": "Sustain",
+        "help": "The level it holds while the pulse lasts",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "release",
+        "kind": "float",
+        "label": "Release",
+        "help": "Seconds to fall to nothing after the pulse ends",
+        "group": "",
+        "widget": "",
+        "default": 0.3,
+        "unit": "s",
+        "lo": 0.0,
+        "hi": 10.0,
+        "step": 0.05,
         "decimals": 2,
         "periodic": false,
         "text": [],
@@ -112,169 +539,120 @@
         "flash_sensitive": false
       }
     ],
-    "fire": [
+    "feedback": [
       {
-        "name": "cooling",
+        "name": "decay",
         "kind": "float",
-        "label": "Cooling",
-        "help": "Heat each cell loses per second, at most",
+        "label": "Decay",
+        "help": "How long a trail lasts",
         "group": "",
         "widget": "",
-        "default": 0.9,
-        "unit": "/s",
-        "lo": 0.0,
-        "hi": 3.0,
-        "step": 0.02,
+        "default": 1.0,
+        "unit": "s",
+        "lo": 0.05,
+        "hi": 10.0,
+        "step": 0.05,
         "decimals": 2,
         "periodic": false,
         "text": [],
         "sweet": [
-          0.0,
+          0.3,
           3.0
         ],
         "flash_sensitive": false
       },
       {
-        "name": "sparking",
+        "name": "zoom",
         "kind": "float",
-        "label": "Sparking",
-        "help": "Sparks per second in each column",
+        "label": "Zoom",
+        "help": "How much it grows a second: above 1 it streams out of the center, below 1 into it",
         "group": "",
         "widget": "",
-        "default": 10.0,
-        "unit": "/s",
-        "lo": 0.0,
-        "hi": 30.0,
-        "step": 0.2,
-        "decimals": 1,
+        "default": 1.0,
+        "unit": "×/s",
+        "lo": 0.25,
+        "hi": 4.0,
+        "step": 0.02,
+        "decimals": 2,
         "periodic": false,
         "text": [],
         "sweet": [
-          0.0,
-          30.0
+          0.6,
+          2.5
         ],
         "flash_sensitive": false
       },
-      {
-        "name": "rise",
-        "kind": "float",
-        "label": "Rise",
-        "help": "How fast heat climbs; higher makes taller flames",
-        "group": "",
-        "widget": "",
-        "default": 14.0,
-        "unit": "/s",
-        "lo": 1.0,
-        "hi": 40.0,
-        "step": 0.2,
-        "decimals": 1,
-        "periodic": false,
-        "text": [],
-        "sweet": [
-          1.0,
-          40.0
-        ],
-        "flash_sensitive": false
-      }
-    ],
-    "sdf3d": [
       {
         "name": "spin",
         "kind": "float",
         "label": "Spin",
-        "help": "Turns of the ring a second",
+        "help": "Which way and how fast it turns about the center; nothing on a strip",
         "group": "",
         "widget": "",
-        "default": 0.15,
-        "unit": "/s",
-        "lo": 0.0,
-        "hi": 1.0,
-        "step": 0.005,
-        "decimals": 3,
+        "default": 0.0,
+        "unit": "°/s",
+        "lo": -180.0,
+        "hi": 180.0,
+        "step": 2.0,
+        "decimals": 0,
         "periodic": false,
         "text": [],
         "sweet": [
-          0.0,
-          1.0
+          -60.0,
+          60.0
         ],
-        "flash_sensitive": false
-      }
-    ],
-    "pulse": [
-      {
-        "name": "color",
-        "kind": "color",
-        "label": "Color",
-        "help": "The color at the top of each breath",
-        "group": "",
-        "widget": "",
-        "default": {
-          "h": 200.0,
-          "s": 1.0,
-          "v": 1.0
-        },
-        "parts": {
-          "h": {
-            "label": "Hue",
-            "unit": "°",
-            "lo": 0.0,
-            "hi": 360.0,
-            "step": 2.0,
-            "decimals": 0,
-            "periodic": true,
-            "text": []
-          },
-          "s": {
-            "label": "Saturation",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          },
-          "v": {
-            "label": "Brightness",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          }
-        }
+        "flash_sensitive": true
       },
       {
-        "name": "speed",
+        "name": "swirl",
         "kind": "float",
-        "label": "Speed",
-        "help": "Breaths per second",
+        "label": "Swirl",
+        "help": "Degrees a second the middle turns, falling off outward: a whirlpool; nothing on a strip",
         "group": "",
         "widget": "",
-        "default": 0.2,
-        "unit": "/s",
-        "lo": 0.0,
-        "hi": 1.0,
-        "step": 0.005,
-        "decimals": 3,
+        "default": 0.0,
+        "unit": "°/s",
+        "lo": -360.0,
+        "hi": 360.0,
+        "step": 5.0,
+        "decimals": 0,
         "periodic": false,
         "text": [],
         "sweet": [
-          0.0,
-          1.0
+          -120.0,
+          120.0
         ],
         "flash_sensitive": false
       },
       {
-        "name": "depth",
+        "name": "drift",
         "kind": "float",
-        "label": "Depth",
-        "help": "How far each breath dims, from 0 (not at all) to 1 (to black)",
+        "label": "Drift",
+        "help": "How fast it flows upward (below 0, down)",
         "group": "",
         "widget": "",
-        "default": 0.8,
+        "default": 0.0,
+        "unit": "/s",
+        "lo": -1.0,
+        "hi": 1.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -0.3,
+          0.3
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "warp",
+        "kind": "float",
+        "label": "Warp",
+        "help": "How much a slow noise wobbles the flow",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
         "unit": "",
         "lo": 0.0,
         "hi": 1.0,
@@ -289,20 +667,797 @@
         "flash_sensitive": false
       }
     ],
-    "wave": [
+    "hue": [
       {
-        "name": "color",
-        "kind": "color",
-        "label": "Color",
-        "help": "The color of the crests",
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "Degrees the hues turn",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "°",
+        "lo": 0.0,
+        "hi": 360.0,
+        "step": 2.0,
+        "decimals": 0,
+        "periodic": true,
+        "text": [],
+        "sweet": [
+          0.0,
+          360.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "kaleid": [
+      {
+        "name": "sides",
+        "kind": "int",
+        "label": "Sides",
+        "help": "More mirror slices",
+        "group": "",
+        "widget": "",
+        "default": 5,
+        "unit": "",
+        "lo": 1,
+        "hi": 24,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          24
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
+        "group": "",
+        "widget": "",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      }
+    ],
+    "knob": [
+      {
+        "name": "value",
+        "kind": "float",
+        "label": "Value",
+        "help": "A knob of the look's own: turn it to move what it drives",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "lfo": [
+      {
+        "name": "rate",
+        "kind": "float",
+        "label": "Rate",
+        "help": "Higher: what it moves swings faster",
+        "group": "",
+        "widget": "",
+        "default": 0.25,
+        "unit": "Hz",
+        "lo": 0.0,
+        "hi": 10.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.02,
+          1.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "shape",
+        "kind": "choice",
+        "label": "Shape",
+        "help": "Sine glides; square jumps; saw and ramp climb or fall, then jump back",
+        "group": "",
+        "widget": "",
+        "default": "sine",
+        "options": [
+          {
+            "value": "sine",
+            "label": "Sine"
+          },
+          {
+            "value": "triangle",
+            "label": "Triangle"
+          },
+          {
+            "value": "square",
+            "label": "Square"
+          },
+          {
+            "value": "saw",
+            "label": "Saw down"
+          },
+          {
+            "value": "ramp",
+            "label": "Ramp up"
+          }
+        ]
+      },
+      {
+        "name": "offset",
+        "kind": "float",
+        "label": "Offset",
+        "help": "Moves the wave along by part of a cycle",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": true,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "life": [
+      {
+        "name": "states",
+        "kind": "int",
+        "label": "States",
+        "help": "Steps in one cycle: more give wider bands, which settle sooner",
+        "group": "",
+        "widget": "",
+        "default": 6,
+        "unit": "",
+        "lo": 3,
+        "hi": 12,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          3,
+          12
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the waves chase",
+        "group": "",
+        "widget": "",
+        "default": 6.0,
+        "unit": "/s",
+        "lo": 0.5,
+        "hi": 20.0,
+        "step": 0.1,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          2.0,
+          10.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "sparks",
+        "kind": "float",
+        "label": "Sparks",
+        "help": "Points a second that move on by themselves, each starting a wave; at 0 a strip settles",
+        "group": "",
+        "widget": "",
+        "default": 2.0,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 20.0,
+        "step": 0.1,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          8.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "lissajous": [
+      {
+        "name": "a",
+        "kind": "int",
+        "label": "Loops across",
+        "help": "How many times the knot crosses the room side to side",
+        "group": "",
+        "widget": "",
+        "default": 3,
+        "unit": "",
+        "lo": 1,
+        "hi": 9,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          9
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "b",
+        "kind": "int",
+        "label": "Loops up",
+        "help": "How many times the knot rises and falls",
+        "group": "",
+        "widget": "",
+        "default": 4,
+        "unit": "",
+        "lo": 1,
+        "hi": 9,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          9
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "c",
+        "kind": "int",
+        "label": "Loops deep",
+        "help": "How many times the knot comes near and goes far",
+        "group": "",
+        "widget": "",
+        "default": 5,
+        "unit": "",
+        "lo": 1,
+        "hi": 9,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          9
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the heads run round the knot",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "Hz",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "heads",
+        "kind": "int",
+        "label": "Heads",
+        "help": "Heads spaced evenly along the knot",
+        "group": "",
+        "widget": "",
+        "default": 3,
+        "unit": "",
+        "lo": 1,
+        "hi": 8,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "width",
+        "kind": "float",
+        "label": "Width",
+        "help": "Size of each head's glow",
+        "group": "",
+        "widget": "",
+        "default": 0.06,
+        "unit": "",
+        "lo": 0.01,
+        "hi": 0.3,
+        "step": 0.002,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.01,
+          0.3
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "metaballs": [
+      {
+        "name": "count",
+        "kind": "int",
+        "label": "Count",
+        "help": "How many blobs",
+        "group": "",
+        "widget": "",
+        "default": 5,
+        "unit": "",
+        "lo": 1,
+        "hi": 16,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          16
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "radius",
+        "kind": "float",
+        "label": "Radius",
+        "help": "Size of each blob",
+        "group": "",
+        "widget": "",
+        "default": 0.15,
+        "unit": "",
+        "lo": 0.02,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.02,
+          0.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "smooth",
+        "kind": "float",
+        "label": "Smooth",
+        "help": "How far apart blobs start to melt together",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          0.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the blobs wander",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "Hz",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "glow",
+        "kind": "float",
+        "label": "Glow",
+        "help": "Softness of the blobs' edges",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "",
+        "lo": 0.01,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.01,
+          0.5
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "mirror": [
+      {
+        "name": "axis",
+        "kind": "choice",
+        "label": "Axis",
+        "help": "The direction it folds across; u folds a strip along its wiring",
+        "group": "",
+        "widget": "",
+        "default": "x",
+        "options": [
+          {
+            "value": "u",
+            "label": "u"
+          },
+          {
+            "value": "x",
+            "label": "x"
+          },
+          {
+            "value": "y",
+            "label": "y"
+          },
+          {
+            "value": "z",
+            "label": "z"
+          }
+        ]
+      },
+      {
+        "name": "centre",
+        "kind": "float",
+        "label": "Center",
+        "help": "Where the fold sits, from the low end (0) to the high end (1)",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "modulate": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "How strongly the second pattern warps the first",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.02,
+          0.4
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "mult": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "How much of the second pattern shows over the first",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "noise": [
+      {
+        "name": "scale",
+        "kind": "float",
+        "label": "Scale",
+        "help": "How many hills fit across; more is finer",
+        "group": "",
+        "widget": "",
+        "default": 3.0,
+        "unit": "",
+        "lo": 0.1,
+        "hi": 40.0,
+        "step": 0.2,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1.0,
+          10.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the hills change",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          2.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "octaves",
+        "kind": "int",
+        "label": "Octaves",
+        "help": "Finer detail on top of the hills",
+        "group": "",
+        "widget": "",
+        "default": 1,
+        "unit": "",
+        "lo": 1,
+        "hi": 6,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          6
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "kind",
+        "kind": "choice",
+        "label": "Kind",
+        "help": "Gradient noise is smoother; value noise is blockier",
+        "group": "",
+        "widget": "",
+        "default": "gradient",
+        "options": [
+          {
+            "value": "gradient",
+            "label": "Gradient"
+          },
+          {
+            "value": "value",
+            "label": "Value"
+          }
+        ]
+      }
+    ],
+    "osc": [
+      {
+        "name": "freq",
+        "kind": "float",
+        "label": "Stripes",
+        "help": "More stripes across the room",
+        "group": "",
+        "widget": "",
+        "default": 4.0,
+        "unit": "",
+        "lo": 0.5,
+        "hi": 32.0,
+        "step": 0.2,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1.0,
+          12.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "sync",
+        "kind": "float",
+        "label": "Travel",
+        "help": "How fast the stripes travel: crests a second past each point; below 0 they run back",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "Hz",
+        "lo": -1.0,
+        "hi": 1.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -1.0,
+          1.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "offset",
+        "kind": "float",
+        "label": "Offset",
+        "help": "Moves the stripes along by part of a crest",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": true,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "axis",
+        "kind": "choice",
+        "label": "Axis",
+        "help": "Which way the stripes run; u runs along a strip from its first light",
+        "group": "",
+        "widget": "",
+        "default": "x",
+        "options": [
+          {
+            "value": "u",
+            "label": "u"
+          },
+          {
+            "value": "x",
+            "label": "x"
+          },
+          {
+            "value": "y",
+            "label": "y"
+          },
+          {
+            "value": "z",
+            "label": "z"
+          }
+        ]
+      }
+    ],
+    "palette": [
+      {
+        "name": "palette",
+        "kind": "palette",
+        "label": "Palette",
+        "help": "Press a dot to edit its color; the left end colors the low parts, the right the high",
         "group": "",
         "widget": "",
         "default": {
-          "h": 200.0,
-          "s": 1.0,
-          "v": 1.0
+          "label": "ember",
+          "stops": [
+            {
+              "at": 0.0,
+              "h": 0.0,
+              "s": 1.0,
+              "v": 0.0
+            },
+            {
+              "at": 0.35,
+              "h": 5.0,
+              "s": 1.0,
+              "v": 0.35
+            },
+            {
+              "at": 0.7,
+              "h": 22.0,
+              "s": 1.0,
+              "v": 0.9
+            },
+            {
+              "at": 1.0,
+              "h": 42.0,
+              "s": 0.7,
+              "v": 1.0
+            }
+          ]
         },
-        "parts": {
+        "stop": {
+          "at": {
+            "label": "Position",
+            "unit": "",
+            "lo": 0.0,
+            "hi": 1.0,
+            "step": 0.005,
+            "decimals": 3,
+            "periodic": false,
+            "text": []
+          },
           "h": {
             "label": "Hue",
             "unit": "°",
@@ -333,16 +1488,367 @@
             "periodic": false,
             "text": []
           }
-        }
+        },
+        "max_stops": 16,
+        "presets": [
+          {
+            "value": {
+              "label": "ember",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 0.0,
+                  "s": 1.0,
+                  "v": 0.0
+                },
+                {
+                  "at": 0.35,
+                  "h": 5.0,
+                  "s": 1.0,
+                  "v": 0.35
+                },
+                {
+                  "at": 0.7,
+                  "h": 22.0,
+                  "s": 1.0,
+                  "v": 0.9
+                },
+                {
+                  "at": 1.0,
+                  "h": 42.0,
+                  "s": 0.7,
+                  "v": 1.0
+                }
+              ]
+            },
+            "label": "ember"
+          },
+          {
+            "value": {
+              "label": "ocean",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 225.0,
+                  "s": 1.0,
+                  "v": 0.05
+                },
+                {
+                  "at": 0.45,
+                  "h": 210.0,
+                  "s": 0.95,
+                  "v": 0.4
+                },
+                {
+                  "at": 0.8,
+                  "h": 190.0,
+                  "s": 0.8,
+                  "v": 0.85
+                },
+                {
+                  "at": 1.0,
+                  "h": 175.0,
+                  "s": 0.35,
+                  "v": 1.0
+                }
+              ]
+            },
+            "label": "ocean"
+          },
+          {
+            "value": {
+              "label": "aurora",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 150.0,
+                  "s": 1.0,
+                  "v": 0.1
+                },
+                {
+                  "at": 0.4,
+                  "h": 140.0,
+                  "s": 0.85,
+                  "v": 0.7
+                },
+                {
+                  "at": 0.7,
+                  "h": 185.0,
+                  "s": 0.7,
+                  "v": 0.8
+                },
+                {
+                  "at": 1.0,
+                  "h": 285.0,
+                  "s": 0.65,
+                  "v": 0.7
+                }
+              ]
+            },
+            "label": "aurora"
+          },
+          {
+            "value": {
+              "label": "synthwave",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 275.0,
+                  "s": 1.0,
+                  "v": 0.25
+                },
+                {
+                  "at": 0.5,
+                  "h": 315.0,
+                  "s": 0.9,
+                  "v": 0.9
+                },
+                {
+                  "at": 1.0,
+                  "h": 190.0,
+                  "s": 0.85,
+                  "v": 1.0
+                }
+              ]
+            },
+            "label": "synthwave"
+          },
+          {
+            "value": {
+              "label": "forest",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 120.0,
+                  "s": 1.0,
+                  "v": 0.08
+                },
+                {
+                  "at": 0.5,
+                  "h": 105.0,
+                  "s": 0.85,
+                  "v": 0.45
+                },
+                {
+                  "at": 1.0,
+                  "h": 65.0,
+                  "s": 0.7,
+                  "v": 0.9
+                }
+              ]
+            },
+            "label": "forest"
+          },
+          {
+            "value": {
+              "label": "ice",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 220.0,
+                  "s": 1.0,
+                  "v": 0.25
+                },
+                {
+                  "at": 0.6,
+                  "h": 200.0,
+                  "s": 0.55,
+                  "v": 0.75
+                },
+                {
+                  "at": 1.0,
+                  "h": 195.0,
+                  "s": 0.08,
+                  "v": 1.0
+                }
+              ]
+            },
+            "label": "ice"
+          },
+          {
+            "value": {
+              "label": "candy",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 330.0,
+                  "s": 0.55,
+                  "v": 1.0
+                },
+                {
+                  "at": 0.5,
+                  "h": 275.0,
+                  "s": 0.4,
+                  "v": 1.0
+                },
+                {
+                  "at": 1.0,
+                  "h": 160.0,
+                  "s": 0.45,
+                  "v": 1.0
+                }
+              ]
+            },
+            "label": "candy"
+          },
+          {
+            "value": {
+              "label": "mono",
+              "stops": [
+                {
+                  "at": 0.0,
+                  "h": 0.0,
+                  "s": 0.0,
+                  "v": 0.0
+                },
+                {
+                  "at": 1.0,
+                  "h": 0.0,
+                  "s": 0.0,
+                  "v": 1.0
+                }
+              ]
+            },
+            "label": "mono"
+          }
+        ]
+      },
+      {
+        "name": "shift",
+        "kind": "float",
+        "label": "Shift",
+        "help": "Turns every color's hue",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "°",
+        "lo": 0.0,
+        "hi": 360.0,
+        "step": 2.0,
+        "decimals": 0,
+        "periodic": true,
+        "text": [],
+        "sweet": [
+          0.0,
+          360.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cycle",
+        "kind": "float",
+        "label": "Slide",
+        "help": "Slides the colors along, round and round; give both ends one color for no seam",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "/s",
+        "lo": -1.0,
+        "hi": 1.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -1.0,
+          1.0
+        ],
+        "flash_sensitive": true
+      }
+    ],
+    "particles": [
+      {
+        "name": "rate",
+        "kind": "float",
+        "label": "Rate",
+        "help": "More sparks at once",
+        "group": "",
+        "widget": "",
+        "default": 20.0,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 120.0,
+        "step": 1.0,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          2.0,
+          60.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "life",
+        "kind": "float",
+        "label": "Life",
+        "help": "Seconds each lives, fading in and out",
+        "group": "",
+        "widget": "",
+        "default": 2.0,
+        "unit": "s",
+        "lo": 0.1,
+        "hi": 10.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.3,
+          6.0
+        ],
+        "flash_sensitive": false
       },
       {
         "name": "speed",
         "kind": "float",
         "label": "Speed",
-        "help": "Crests passing any one point per second",
+        "help": "How fast each spark sets off, in a random direction",
         "group": "",
         "widget": "",
-        "default": 0.25,
+        "default": 0.2,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "gravity",
+        "kind": "float",
+        "label": "Gravity",
+        "help": "Pull upward: above 0 up, below 0 down",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "/s²",
+        "lo": -2.0,
+        "hi": 2.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -1.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "swirl",
+        "kind": "float",
+        "label": "Swirl",
+        "help": "How fast the breeze they drift on swirls",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
         "unit": "/s",
         "lo": 0.0,
         "hi": 1.0,
@@ -357,10 +1863,437 @@
         "flash_sensitive": false
       },
       {
-        "name": "direction",
+        "name": "emit",
+        "kind": "choice",
+        "label": "Emit",
+        "help": "Where they are born: the center, along the bottom or top edge, or anywhere",
+        "group": "",
+        "widget": "",
+        "default": "centre",
+        "options": [
+          {
+            "value": "centre",
+            "label": "Center"
+          },
+          {
+            "value": "bottom",
+            "label": "Bottom"
+          },
+          {
+            "value": "top",
+            "label": "Top"
+          },
+          {
+            "value": "anywhere",
+            "label": "Anywhere"
+          }
+        ]
+      },
+      {
+        "name": "size",
         "kind": "float",
-        "label": "Direction",
-        "help": "Which way the bands cross the room, as the plan shows it",
+        "label": "Size",
+        "help": "Radius of each particle's glow",
+        "group": "",
+        "widget": "",
+        "default": 0.06,
+        "unit": "",
+        "lo": 0.02,
+        "hi": 0.3,
+        "step": 0.002,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.03,
+          0.15
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "polar": [
+      {
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
+        "group": "",
+        "widget": "",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      }
+    ],
+    "posterize": [
+      {
+        "name": "levels",
+        "kind": "int",
+        "label": "Levels",
+        "help": "Steps from dark to bright",
+        "group": "",
+        "widget": "",
+        "default": 4,
+        "unit": "",
+        "lo": 2,
+        "hi": 16,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          2,
+          16
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "prev": [],
+    "quasicrystal": [
+      {
+        "name": "waves",
+        "kind": "int",
+        "label": "Waves",
+        "help": "Directions of the waves; 5 and 7 never repeat",
+        "group": "",
+        "widget": "",
+        "default": 7,
+        "unit": "",
+        "lo": 3,
+        "hi": 12,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          3,
+          12
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "scale",
+        "kind": "float",
+        "label": "Scale",
+        "help": "Higher: more, smaller waves",
+        "group": "",
+        "widget": "",
+        "default": 8.0,
+        "unit": "",
+        "lo": 1.0,
+        "hi": 40.0,
+        "step": 0.2,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          3.0,
+          15.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the waves move",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "Hz",
+        "lo": -1.0,
+        "hi": 1.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -1.0,
+          1.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
+        "group": "",
+        "widget": "",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      }
+    ],
+    "reaction": [
+      {
+        "name": "kind",
+        "kind": "choice",
+        "label": "Kind",
+        "help": "Coral, mitosis, spots or maze",
+        "group": "",
+        "widget": "",
+        "default": "coral",
+        "options": [
+          {
+            "value": "coral",
+            "label": "Coral"
+          },
+          {
+            "value": "mitosis",
+            "label": "Mitosis"
+          },
+          {
+            "value": "spots",
+            "label": "Spots"
+          },
+          {
+            "value": "maze",
+            "label": "Maze"
+          }
+        ]
+      },
+      {
+        "name": "size",
+        "kind": "float",
+        "label": "Size",
+        "help": "How big its shapes grow",
+        "group": "",
+        "widget": "",
+        "default": 0.4,
+        "unit": "",
+        "lo": 0.15,
+        "hi": 0.8,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.25,
+          0.6
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast it grows",
+        "group": "",
+        "widget": "",
+        "default": 60.0,
+        "unit": "/s",
+        "lo": 5.0,
+        "hi": 240.0,
+        "step": 2.0,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          20.0,
+          120.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "seeds",
+        "kind": "float",
+        "label": "Seeds",
+        "help": "New seeds a second at random points",
+        "group": "",
+        "widget": "",
+        "default": 0.2,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 4.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "repeat": [
+      {
+        "name": "count",
+        "kind": "int",
+        "label": "Count",
+        "help": "Tiles along the axis",
+        "group": "",
+        "widget": "",
+        "default": 2,
+        "unit": "",
+        "lo": 1,
+        "hi": 16,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1,
+          16
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "axis",
+        "kind": "choice",
+        "label": "Axis",
+        "help": "The axis it tiles along, or all of them",
+        "group": "",
+        "widget": "",
+        "default": "all",
+        "options": [
+          {
+            "value": "all",
+            "label": "all"
+          },
+          {
+            "value": "u",
+            "label": "u"
+          },
+          {
+            "value": "x",
+            "label": "x"
+          },
+          {
+            "value": "y",
+            "label": "y"
+          },
+          {
+            "value": "z",
+            "label": "z"
+          }
+        ]
+      }
+    ],
+    "ripple": [
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the rings spread",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "/s",
+        "lo": 0.05,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          1.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "damping",
+        "kind": "float",
+        "label": "Damping",
+        "help": "How quickly ripples fade",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "/s",
+        "lo": 0.1,
+        "hi": 5.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          2.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "drops",
+        "kind": "float",
+        "label": "Drops",
+        "help": "How often a drop falls, each at a random point",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 4.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.1,
+          1.5
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "size",
+        "kind": "float",
+        "label": "Size",
+        "help": "Bigger splashes",
+        "group": "",
+        "widget": "",
+        "default": 0.08,
+        "unit": "",
+        "lo": 0.02,
+        "hi": 0.3,
+        "step": 0.002,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.04,
+          0.15
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "rotate": [
+      {
+        "name": "angle",
+        "kind": "float",
+        "label": "Angle",
+        "help": "Where it starts, before speed turns it on",
         "group": "",
         "widget": "angle",
         "default": 0.0,
@@ -378,103 +2311,420 @@
         "flash_sensitive": false
       },
       {
-        "name": "width",
+        "name": "speed",
         "kind": "float",
-        "label": "Width",
-        "help": "Room lengths from one crest to the next",
+        "label": "Speed",
+        "help": "Which way and how fast it keeps turning",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "°/s",
+        "lo": -90.0,
+        "hi": 90.0,
+        "step": 1.0,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -90.0,
+          90.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
+        "group": "",
+        "widget": "",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      }
+    ],
+    "scale": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "Zoom: above 1 enlarges, below 1 shrinks",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "×",
+        "lo": 0.1,
+        "hi": 10.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          4.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "axis",
+        "kind": "choice",
+        "label": "Axis",
+        "help": "The axis it zooms along, or all of them",
+        "group": "",
+        "widget": "",
+        "default": "all",
+        "options": [
+          {
+            "value": "all",
+            "label": "all"
+          },
+          {
+            "value": "u",
+            "label": "u"
+          },
+          {
+            "value": "x",
+            "label": "x"
+          },
+          {
+            "value": "y",
+            "label": "y"
+          },
+          {
+            "value": "z",
+            "label": "z"
+          }
+        ]
+      }
+    ],
+    "shape": [
+      {
+        "name": "sides",
+        "kind": "int",
+        "label": "Sides",
+        "help": "Corners; fewer than 3 draws a circle",
+        "group": "",
+        "widget": "",
+        "default": 0,
+        "unit": "",
+        "lo": 0,
+        "hi": 12,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [
+          {
+            "value": 0,
+            "label": "round"
+          }
+        ],
+        "sweet": [
+          0,
+          12
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "radius",
+        "kind": "float",
+        "label": "Radius",
+        "help": "Size from the center to the rim or a corner",
+        "group": "",
+        "widget": "",
+        "default": 0.3,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          0.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "smooth",
+        "kind": "float",
+        "label": "Smooth",
+        "help": "Softness of the edge",
+        "group": "",
+        "widget": "",
+        "default": 0.05,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          0.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
+        "group": "",
+        "widget": "",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      }
+    ],
+    "smooth": [
+      {
+        "name": "time",
+        "kind": "float",
+        "label": "Time",
+        "help": "How long it takes to catch up",
+        "group": "",
+        "widget": "",
+        "default": 0.2,
+        "unit": "s",
+        "lo": 0.0,
+        "hi": 10.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          2.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "trails": [
+      {
+        "name": "tail",
+        "kind": "float",
+        "label": "Tail",
+        "help": "How long a trail lasts",
         "group": "",
         "widget": "",
         "default": 0.5,
-        "unit": "",
-        "lo": 0.1,
-        "hi": 2.0,
-        "step": 0.01,
+        "unit": "s",
+        "lo": 0.02,
+        "hi": 10.0,
+        "step": 0.05,
         "decimals": 2,
         "periodic": false,
         "text": [],
         "sweet": [
           0.1,
-          2.0
+          3.0
         ],
         "flash_sensitive": false
       }
     ],
-    "wash": [
+    "tunnel": [
       {
-        "name": "color",
-        "kind": "color",
-        "label": "Color",
-        "help": "The color at the room's center; the rings turn the hue from there",
+        "name": "depth",
+        "kind": "float",
+        "label": "Depth",
+        "help": "How deep the tunnel looks",
         "group": "",
         "widget": "",
-        "default": {
-          "h": 0.0,
-          "s": 0.8,
-          "v": 1.0
-        },
-        "parts": {
-          "h": {
-            "label": "Hue",
-            "unit": "°",
-            "lo": 0.0,
-            "hi": 360.0,
-            "step": 2.0,
-            "decimals": 0,
-            "periodic": true,
-            "text": []
-          },
-          "s": {
-            "label": "Saturation",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          },
-          "v": {
-            "label": "Brightness",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          }
-        }
+        "default": 0.3,
+        "unit": "",
+        "lo": 0.05,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          2.0
+        ],
+        "flash_sensitive": false
       },
       {
         "name": "speed",
         "kind": "float",
         "label": "Speed",
-        "help": "Hue turns per second at any one point",
+        "help": "How fast it flies down the tunnel",
         "group": "",
         "widget": "",
-        "default": 0.02,
+        "default": 0.2,
         "unit": "/s",
+        "lo": -2.0,
+        "hi": 2.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -2.0,
+          2.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "core",
+        "kind": "float",
+        "label": "Core",
+        "help": "A still circle at the center, so the middle does not flicker",
+        "group": "",
+        "widget": "",
+        "default": 0.08,
+        "unit": "",
         "lo": 0.0,
-        "hi": 0.1,
-        "step": 0.0005,
-        "decimals": 4,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
         "periodic": false,
         "text": [],
         "sweet": [
           0.0,
-          0.1
+          0.5
         ],
         "flash_sensitive": false
       },
       {
-        "name": "spread",
-        "kind": "float",
-        "label": "Spread",
-        "help": "Times the colors go round the wheel across the room",
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
         "group": "",
         "widget": "",
-        "default": 0.5,
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      }
+    ],
+    "twist": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "Degrees of turn per unit along the axis",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "°/unit",
+        "lo": -360.0,
+        "hi": 360.0,
+        "step": 5.0,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -180.0,
+          180.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "axis",
+        "kind": "choice",
+        "label": "Axis",
+        "help": "The axis the slices turn about",
+        "group": "",
+        "widget": "",
+        "default": "z",
+        "options": [
+          {
+            "value": "x",
+            "label": "x"
+          },
+          {
+            "value": "y",
+            "label": "y"
+          },
+          {
+            "value": "z",
+            "label": "z"
+          }
+        ]
+      }
+    ],
+    "voronoi": [
+      {
+        "name": "scale",
+        "kind": "float",
+        "label": "Scale",
+        "help": "Cells across the room; more is smaller",
+        "group": "",
+        "widget": "",
+        "default": 5.0,
         "unit": "",
+        "lo": 1.0,
+        "hi": 32.0,
+        "step": 0.2,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          2.0,
+          10.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast the cells move",
+        "group": "",
+        "widget": "",
+        "default": 0.2,
+        "unit": "/s",
         "lo": 0.0,
         "hi": 2.0,
         "step": 0.01,
@@ -486,63 +2736,16 @@
           2.0
         ],
         "flash_sensitive": false
-      }
-    ],
-    "sparkle": [
-      {
-        "name": "color",
-        "kind": "color",
-        "label": "Color",
-        "help": "The color of a spark",
-        "group": "",
-        "widget": "",
-        "default": {
-          "h": 40.0,
-          "s": 1.0,
-          "v": 1.0
-        },
-        "parts": {
-          "h": {
-            "label": "Hue",
-            "unit": "°",
-            "lo": 0.0,
-            "hi": 360.0,
-            "step": 2.0,
-            "decimals": 0,
-            "periodic": true,
-            "text": []
-          },
-          "s": {
-            "label": "Saturation",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          },
-          "v": {
-            "label": "Brightness",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          }
-        }
       },
       {
-        "name": "speed",
+        "name": "edge",
         "kind": "float",
-        "label": "Sparks",
-        "help": "How many sparks light a second on each fixture",
+        "label": "Edge",
+        "help": "0 lights each cell's middle; 1 lights the borders between cells",
         "group": "",
         "widget": "",
-        "default": 0.3,
-        "unit": "/s",
+        "default": 0.0,
+        "unit": "",
         "lo": 0.0,
         "hi": 1.0,
         "step": 0.005,
@@ -554,331 +2757,32 @@
           1.0
         ],
         "flash_sensitive": false
-      },
-      {
-        "name": "tail",
-        "kind": "float",
-        "label": "Tail",
-        "help": "How long a spark lasts",
-        "group": "",
-        "widget": "",
-        "default": 0.6,
-        "unit": "s",
-        "lo": 0.1,
-        "hi": 2.0,
-        "step": 0.01,
-        "decimals": 2,
-        "periodic": false,
-        "text": [],
-        "sweet": [
-          0.1,
-          2.0
-        ],
-        "flash_sensitive": false
       }
     ],
-    "colorplasma": [
+    "walk": [
       {
-        "name": "speed",
+        "name": "rate",
         "kind": "float",
-        "label": "Speed",
-        "help": "Cycles of the field per second",
-        "group": "",
-        "widget": "",
-        "default": 0.5,
-        "unit": "/s",
-        "lo": 0.0,
-        "hi": 2.0,
-        "step": 0.01,
-        "decimals": 2,
-        "periodic": false,
-        "text": [],
-        "sweet": [
-          0.0,
-          2.0
-        ],
-        "flash_sensitive": false
-      },
-      {
-        "name": "scale",
-        "kind": "float",
-        "label": "Scale",
-        "help": "How many ripples fit across the map; higher is finer",
-        "group": "",
-        "widget": "",
-        "default": 4.0,
-        "unit": "",
-        "lo": 1.0,
-        "hi": 10.0,
-        "step": 0.05,
-        "decimals": 2,
-        "periodic": false,
-        "text": [],
-        "sweet": [
-          1.0,
-          10.0
-        ],
-        "flash_sensitive": false
-      },
-      {
-        "name": "color_a",
-        "kind": "color",
-        "label": "Color",
-        "help": "",
-        "group": "Low",
-        "widget": "",
-        "default": {
-          "h": 126.0,
-          "s": 1.0,
-          "v": 1.0
-        },
-        "parts": {
-          "h": {
-            "label": "Hue",
-            "unit": "°",
-            "lo": 0.0,
-            "hi": 360.0,
-            "step": 2.0,
-            "decimals": 0,
-            "periodic": true,
-            "text": []
-          },
-          "s": {
-            "label": "Saturation",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          },
-          "v": {
-            "label": "Brightness",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          }
-        }
-      },
-      {
-        "name": "cycle_a",
-        "kind": "float",
-        "label": "Cycle",
-        "help": "Seconds for the hue to turn once round the wheel; 0 holds it",
-        "group": "Low",
-        "widget": "",
-        "default": 0.0,
-        "unit": "s",
-        "lo": 0.0,
-        "hi": 60.0,
-        "step": 0.5,
-        "decimals": 1,
-        "periodic": false,
-        "text": [
-          {
-            "value": 0.0,
-            "label": "hold"
-          }
-        ],
-        "sweet": [
-          0.0,
-          60.0
-        ],
-        "flash_sensitive": false
-      },
-      {
-        "name": "color_b",
-        "kind": "color",
-        "label": "Color",
-        "help": "",
-        "group": "Middle",
-        "widget": "",
-        "default": {
-          "h": 198.0,
-          "s": 1.0,
-          "v": 1.0
-        },
-        "parts": {
-          "h": {
-            "label": "Hue",
-            "unit": "°",
-            "lo": 0.0,
-            "hi": 360.0,
-            "step": 2.0,
-            "decimals": 0,
-            "periodic": true,
-            "text": []
-          },
-          "s": {
-            "label": "Saturation",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          },
-          "v": {
-            "label": "Brightness",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          }
-        }
-      },
-      {
-        "name": "cycle_b",
-        "kind": "float",
-        "label": "Cycle",
-        "help": "Seconds for the hue to turn once round the wheel; 0 holds it",
-        "group": "Middle",
-        "widget": "",
-        "default": 0.0,
-        "unit": "s",
-        "lo": 0.0,
-        "hi": 60.0,
-        "step": 0.5,
-        "decimals": 1,
-        "periodic": false,
-        "text": [
-          {
-            "value": 0.0,
-            "label": "hold"
-          }
-        ],
-        "sweet": [
-          0.0,
-          60.0
-        ],
-        "flash_sensitive": false
-      },
-      {
-        "name": "color_c",
-        "kind": "color",
-        "label": "Color",
-        "help": "",
-        "group": "High",
-        "widget": "",
-        "default": {
-          "h": 270.0,
-          "s": 1.0,
-          "v": 1.0
-        },
-        "parts": {
-          "h": {
-            "label": "Hue",
-            "unit": "°",
-            "lo": 0.0,
-            "hi": 360.0,
-            "step": 2.0,
-            "decimals": 0,
-            "periodic": true,
-            "text": []
-          },
-          "s": {
-            "label": "Saturation",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          },
-          "v": {
-            "label": "Brightness",
-            "unit": "",
-            "lo": 0.0,
-            "hi": 1.0,
-            "step": 0.005,
-            "decimals": 3,
-            "periodic": false,
-            "text": []
-          }
-        }
-      },
-      {
-        "name": "cycle_c",
-        "kind": "float",
-        "label": "Cycle",
-        "help": "Seconds for the hue to turn once round the wheel; 0 holds it",
-        "group": "High",
-        "widget": "",
-        "default": 0.0,
-        "unit": "s",
-        "lo": 0.0,
-        "hi": 60.0,
-        "step": 0.5,
-        "decimals": 1,
-        "periodic": false,
-        "text": [
-          {
-            "value": 0.0,
-            "label": "hold"
-          }
-        ],
-        "sweet": [
-          0.0,
-          60.0
-        ],
-        "flash_sensitive": false
-      }
-    ],
-    "rainbow": [
-      {
-        "name": "bands",
-        "kind": "float",
-        "label": "Bands",
-        "help": "Spectra per unit distance",
-        "group": "",
-        "widget": "",
-        "default": 3.83,
-        "unit": "",
-        "lo": 0.5,
-        "hi": 12.0,
-        "step": 0.1,
-        "decimals": 1,
-        "periodic": false,
-        "text": [],
-        "sweet": [
-          0.5,
-          12.0
-        ],
-        "flash_sensitive": false
-      },
-      {
-        "name": "speed",
-        "kind": "float",
-        "label": "Speed",
-        "help": "Cycles per second, inward",
+        "label": "Rate",
+        "help": "How often it wanders somewhere new",
         "group": "",
         "widget": "",
         "default": 0.25,
-        "unit": "/s",
+        "unit": "Hz",
         "lo": 0.0,
-        "hi": 2.0,
-        "step": 0.01,
+        "hi": 4.0,
+        "step": 0.02,
         "decimals": 2,
         "periodic": false,
         "text": [],
         "sweet": [
-          0.0,
-          2.0
+          0.05,
+          1.0
         ],
-        "flash_sensitive": false
+        "flash_sensitive": true
       }
     ],
-    "zoo": [
+    "zoo_test": [
       {
         "name": "level",
         "kind": "float",

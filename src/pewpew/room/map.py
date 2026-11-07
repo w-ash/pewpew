@@ -81,7 +81,6 @@ from typing import Any
 import numpy as np
 
 from pewpew.jsonfile import ProblemsError, is_number, parse_json
-from pewpew.mapping import Grouping
 from pewpew.sinks.ddp import HOST_RULE, Board, board_host, parse_target
 
 # WLED v16.0.1 `MAX_LEDS_PER_BUS` and `MAX_LEDS` (ESP32 and S3), from
@@ -166,7 +165,6 @@ class RoomMap:
     outputs: tuple[OutputRange, ...]
     meters: np.ndarray  # (N,3) float64 pixel centres
     mapping: np.ndarray  # (N,3) float32, normalized by Contain
-    centres: np.ndarray  # (F,3) float32, fixture centres in the same units
     fixture_of: np.ndarray  # (N,) intp, fixture index per pixel
     span: tuple[float, float, float]  # normalized extent per axis
     extent: tuple[float, float, float]  # meters per axis
@@ -177,11 +175,6 @@ class RoomMap:
     @property
     def n(self) -> int:
         return len(self.mapping)
-
-    @property
-    def grouping(self) -> Grouping:
-        """The fixture grouping a `Renderer` takes."""
-        return Grouping(self.centres, self.fixture_of)
 
     def plan_file(self, room_path: Path) -> Path | None:
         """The floor-plan image file, relative to the room file at
@@ -553,14 +546,8 @@ def _compile(specs: list[_Spec], boards: dict[str, tuple[str, int]], plan: Plan 
     span = extent / longest
     offset = np.where(extent > 0, (1.0 - span) / 2.0, 0.0)
 
-    def normalize(p: np.ndarray) -> np.ndarray:
-        return np.ascontiguousarray((p - lo) / longest + offset, dtype=np.float32)
-
-    starts = np.cumsum([0] + [f.pixels for f in fixtures[:-1]])
-    centres_m = np.add.reduceat(meters, starts, axis=0) / np.array([[f.pixels] for f in fixtures])
-    mapping = normalize(meters)
-    centres = normalize(centres_m)
-    for array in (meters, mapping, centres, fixture_of):
+    mapping = np.ascontiguousarray((meters - lo) / longest + offset, dtype=np.float32)
+    for array in (meters, mapping, fixture_of):
         array.setflags(write=False)
 
     ddp_boards: list[Board] = []
@@ -588,7 +575,6 @@ def _compile(specs: list[_Spec], boards: dict[str, tuple[str, int]], plan: Plan 
         outputs=tuple(outputs),
         meters=meters,
         mapping=mapping,
-        centres=centres,
         fixture_of=fixture_of,
         span=tuple(float(s) for s in span),  # type: ignore[arg-type]
         extent=tuple(float(e) for e in extent),  # type: ignore[arg-type]

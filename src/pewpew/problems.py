@@ -13,7 +13,7 @@ valid value where one is known. The reason stays the refusal's own words, scrubb
 A path is dotted: `looks.<name>` for a look of a book, then a knob's
 address (ADR-006: `layers.<layer>.<node>.<arg>`, `layers.<layer>.opacity`,
 `signals.<signal>.<arg>`), a node's or signal's own part
-(`layers.<layer>.<node>.op`, `.in`, `.pattern`), a route's or front
+(`layers.<layer>.<node>.op`, `.in`), a route's or front
 knob's place and key (`routes[<index>].path`, `front[<index>]`), or the
 key refused, such as `looks.dusk.master` or `cycle.end`. A layer
 that has no usable id yet is `layers[<index>]`. The path of a problem with
@@ -52,16 +52,16 @@ class Code(StrEnum):
     NOT_A_LOOK = "not-a-look"  # not JSON, or not a look or a looks file
 
 
-# A look an agent can start from: one layer running one gallery pattern.
+# A look an agent can start from: one layer whose stripes are colored by a palette.
 EXAMPLE_LOOK: dict[str, Any] = {
-    "layers": [{"id": "base", "nodes": {"comet": {"op": "pattern", "args": {"pattern": "comet", "speed": 0.4}}}}],
+    "layers": [{"id": "base", "nodes": {"waves": {"op": "osc", "args": {"freq": 4.0}},
+                                        "tint": {"op": "palette", "in": ["waves"], "args": {"palette": "ember"}}}}],
 }
 # Examples of a key that is missing, by key.
 _MISSING_EXAMPLES: dict[str, Any] = {
     "layers": EXAMPLE_LOOK["layers"],
     "nodes": EXAMPLE_LOOK["layers"][0]["nodes"],
-    "op": "pattern",
-    "pattern": "comet",
+    "op": "osc",
 }
 
 
@@ -215,8 +215,7 @@ def _classify(rest: str, node: Any) -> tuple[Code, list[str], tuple[str, ...], s
         noun, name = m[1], _unrepr(m[2])
         code = {"param": Code.UNKNOWN_KEY, "op": Code.UNKNOWN_OP, "preset": Code.OUT_OF_RANGE}.get(noun, Code.BAD_REF)
         knob = ["path"] if isinstance(node, dict) else []  # a route's path, or a front knob itself
-        parts = {"param": [name], "op": ["op"], "pattern": _pattern_at(node), "signal": ["source"],
-                 "knob": knob}.get(noun, [])
+        parts = {"param": [name], "op": ["op"], "signal": ["source"], "knob": knob}.get(noun, [])
         return code, parts, _listed(m[3]), name, None
     if re.match(r"\S+ cannot be modulated: ", rest):  # pewpew.params.bound.drive_range, for a route
         return Code.WRONG_KIND, ["path"], (), None, None
@@ -232,10 +231,6 @@ def _classify(rest: str, node: Any) -> tuple[Code, list[str], tuple[str, ...], s
         return Code.BAD_REF, [_unrepr(m[1]), "in"], (), None, None
     if re.match(r".* read or drive each other in a cycle", rest, re.DOTALL):
         return Code.CYCLE, [], (), None, None
-    if re.match(rf"pattern (?:{_REPR}) (?:is a program|renders once per fixture)", rest):
-        return Code.WRONG_KIND, _pattern_at(node), (), None, None
-    if re.match(rf"(?:unknown pattern|pattern) (?:{_REPR})", rest):
-        return Code.BAD_REF, _pattern_at(node), (), None, None
     if m := re.match(r"\w+ needs a map of ([\d ]+(?:or [\d ]+)?)dimensions", rest):
         return Code.WRONG_DIMS, [], tuple(m[1].replace("or", "").split()), None, None
     if re.match(r"\w+ reads \d+ node\(s\)", rest):
@@ -330,15 +325,6 @@ def _listed(text: str) -> tuple[str, ...]:
     if not text or text == "(none)":
         return ()
     return tuple(_unrepr(item.strip()) for item in text.split(", "))
-
-
-def _pattern_at(node: Any) -> list[str]:
-    """The path parts from `node` to its pattern: from a pattern node, or
-    from a layer of one node."""
-    if isinstance(node, dict) and "op" in node:
-        return ["pattern"]
-    nodes = _child(node, "nodes")
-    return [next(iter(nodes)), "pattern"] if isinstance(nodes, dict) and len(nodes) == 1 else []
 
 
 def _child(node: Any, key: str) -> Any:

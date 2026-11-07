@@ -4,7 +4,7 @@
 
     osc(8, 0.1).kaleid(5).modulate(noise(3), 0.2).palette("ember")
 
-A source op is a function (`osc(...)`, `pattern("plasma")`); every other op
+A source op is a function (`osc(...)`); every other op
 is a method of what it reads (`.kaleid(5)`): the receiver is its first
 input, and a combine or modulate op takes its second input first
 (`a.add(b, 0.5)`). Positional args follow the op's declared order and
@@ -47,10 +47,9 @@ from functools import partial
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
-from pewpew.classinfo import pattern_name
 from pewpew.errors import unknown
 from pewpew.fx.compile import check
-from pewpew.fx.graph import PATTERN, Graph, Node, Program, as_id, auto_id, post_order, require_id
+from pewpew.fx.graph import Graph, Node, Program, as_id, auto_id, post_order, require_id
 from pewpew.fx.op import Op
 from pewpew.fx.ops import OPS, labels
 from pewpew.fx.ops.signal import Range, SignalOp
@@ -65,15 +64,13 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True, eq=False)
 class Expr:
     """One node being written: its op, its args (JSON values, the ones
-    given), the builders it reads, the id `.id` pinned, for a pattern node
-    the pattern's class, and the route of each arg a signal drives, its
-    path the arg's name. Compared by identity: one builder, one node."""
+    given), the builders it reads, the id `.id` pinned, and the route of
+    each arg a signal drives, its path the arg's name. Compared by identity: one builder, one node."""
 
     op: str
     args: Mapping[str, Any]
     inputs: tuple[Expr, ...] = ()
     pinned: str | None = None
-    pattern_cls: type | None = field(default=None, repr=False)
     driven: tuple[Routed, ...] = field(default=(), repr=False)
 
     def id(self, nid: str) -> Expr:
@@ -123,36 +120,16 @@ class Expr:
         route of each arg a signal drives, its path `<node>.<arg>`. Raises
         ValueError for an id used twice or a program `check` refuses."""
         order = post_order([self] if alpha is None else [self, alpha], lambda e: e.inputs)
-        ids = assign_ids([(id_base(e.op, e.args), e.pinned) for e in order])
+        ids = assign_ids([(as_id(e.op), e.pinned) for e in order])
         by_expr = dict(zip(order, ids))  # an Expr hashes by identity
         nodes = tuple(Node(by_expr[e], e.op, e.args, tuple(by_expr[s] for s in e.inputs)) for e in order)
         program = Program(Graph(nodes), by_expr[self], None if alpha is None else by_expr[alpha])
-        patterns = self.patterns() | (alpha.patterns() if alpha is not None else {})
-        if problems := check(program, resolve=patterns.get):
+        if problems := check(program):
             raise ValueError("; ".join(problems))
         return program, [replace(wire, path=f"{by_expr[e]}.{wire.path}") for e in order for wire in e.driven]
 
-    def patterns(self) -> dict[str, type]:
-        """The class of each pattern node's pattern, by spec."""
-        found: dict[str, type] = {}
-        stack: list[Expr] = [self]
-        while stack:
-            e = stack.pop()
-            if e.pattern_cls is not None:
-                found[str(e.args[PATTERN])] = e.pattern_cls
-            stack.extend(e.inputs)
-        return found
-
-
-def id_base(op: str, args: Mapping[str, Any]) -> str:
-    """What a node's id is made from when none is pinned: its op's name,
-    or for a pattern node its pattern's name."""
-    spec = args.get(PATTERN) if op == PATTERN else None
-    return as_id(spec) if isinstance(spec, str) and spec else as_id(op)
-
-
 def assign_ids(nodes: list[tuple[str, str | None]]) -> list[str]:
-    """The ids of nodes given as (`id_base`, pinned id or None) in
+    """The ids of nodes given as (id base, pinned id or None) in
     evaluation order: the pinned one, or the base with an ordinal past its
     first (`osc`, `osc2`). Raises ValueError for an id used twice."""
     counts: Counter[str] = Counter()
@@ -180,12 +157,10 @@ def _node(cls: type[Op], receiver: Expr | None, *args: Any, **kwargs: Any) -> Ex
     return _with_args(cls.op, tuple(inputs), cls, rest, kwargs)
 
 
-def _with_args(op: str, inputs: tuple[Expr, ...], knobs: type, args: list[Any], kwargs: Mapping[str, Any],
-               fixed: Mapping[str, Any] | None = None, pattern_cls: type | None = None) -> Expr:
+def _with_args(op: str, inputs: tuple[Expr, ...], knobs: type, args: list[Any], kwargs: Mapping[str, Any]) -> Expr:
     """An `Expr` of `op` whose knobs (the params of `knobs`) are `args` in
     declared order and `kwargs`, each parsed now, a signal given for one
-    driving it (`swept`); a refusal names the op, or a pattern node's
-    pattern."""
+    driving it (`swept`); a refusal names the op."""
     names = list(declared_params(knobs))
     if len(args) > len(names):
         raise TypeError(f"{op} takes {len(names)} args ({', '.join(names) or 'none'}), got {len(args)}")
@@ -193,8 +168,8 @@ def _with_args(op: str, inputs: tuple[Expr, ...], knobs: type, args: list[Any], 
     for name in kwargs.keys() & values.keys():
         raise TypeError(f"{op} got {name!r} twice, by position and by name")
     values.update(kwargs)
-    params = ParamSet(knobs, name=op if pattern_cls is None else pattern_name(pattern_cls))
-    out: dict[str, Any] = dict(fixed or {})
+    params = ParamSet(knobs, name=op)
+    out: dict[str, Any] = {}
     driven: list[Routed] = []
     for name, given in values.items():
         param, value = params.declarations.get(name), given
@@ -212,7 +187,7 @@ def _with_args(op: str, inputs: tuple[Expr, ...], knobs: type, args: list[Any], 
         if reason is not None:
             raise ValueError(reason)
         out[name] = params.declarations[name].to_json(parsed)
-    return Expr(op, MappingProxyType(out), inputs, pattern_cls=pattern_cls, driven=tuple(driven))
+    return Expr(op, MappingProxyType(out), inputs, driven=tuple(driven))
 
 
 def swept(param: Param[Any], where: str, span: Range) -> tuple[Any, float]:
@@ -235,28 +210,16 @@ def signal_range(signal: Expr) -> Range:
     return cls.range_of([signal_range(source) for source in signal.inputs])
 
 
-def pattern(spec: str | type, *args: Any, **params: Any) -> Expr:
-    """A pattern node: `spec` a gallery name (or the pattern's class), at
-    `params`."""
-    if isinstance(spec, type):
-        cls, spec = spec, pattern_name(spec)
-    else:
-        from pewpew.load import resolve  # loads the gallery only when a node needs one
-
-        cls = resolve(spec)
-    return _with_args(PATTERN, (), cls, list(args), params, {PATTERN: spec}, cls)
-
-
 def _sources() -> dict[str, type[Op]]:
     """The ops a builder calls as functions, which read no node: the
-    sources and the signal sources; `pattern` has its own."""
-    return {op: cls for op, cls in OPS.items() if not cls.inputs and op != PATTERN}
+    sources and the signal sources."""
+    return {op: cls for op, cls in OPS.items() if not cls.inputs}
 
 
 def namespace() -> dict[str, Any]:
-    """The names a builder chain may use: `look`, `layer`, `pattern` and
-    each op that reads no node."""
-    return {"look": look, "layer": layer, PATTERN: pattern,
+    """The names a builder chain may use: `look`, `layer` and each op that
+    reads no node."""
+    return {"look": look, "layer": layer,
             **{op: partial(_node, cls, None) for op, cls in _sources().items()}}
 
 
@@ -311,22 +274,19 @@ def look(
     from pewpew.compose.controls import layer_address, look_controls, signal_address
     from pewpew.compose.modulation import route_problems, signal_problems
     from pewpew.compose.stack import DEFAULT_FADE, Layer, Look, Route, order_signals
-    from pewpew.load import resolve
 
     built: list[Layer] = []
     wires: list[Routed] = []
-    patterns: dict[str, type] = {}
     for part in layers:
         if isinstance(part.source, Program):
             program, driven = part.source, []
         else:
             program, driven = part.source.built(part.alpha)
-            patterns |= part.source.patterns() | (part.alpha.patterns() if part.alpha is not None else {})
         built.append(Layer(part.id, program, **part.mix))
         wires += (replace(wire, path=layer_address(part.id, wire.path)) for wire in driven)
     wires += routes
     order = post_order([wire.signal for wire in wires], lambda e: [*e.inputs, *(wire.signal for wire in e.driven)])
-    sids = dict(zip(order, assign_ids([(id_base(e.op, e.args), e.pinned) for e in order])))
+    sids = dict(zip(order, assign_ids([(as_id(e.op), e.pinned) for e in order])))
     wires += (replace(wire, path=signal_address(sids[e], wire.path)) for e in order for wire in e.driven)
     made = tuple(Route(sids[wire.signal], wire.path, wire.depth) for wire in wires)
     nodes, problems = order_signals(
@@ -336,7 +296,7 @@ def look(
     result = Look(tuple(built), Graph(nodes) if nodes else None, made, seed, master,
                   DEFAULT_FADE if fade is None else fade, cycle, tuple(front))
     problems = signal_problems(result.signals, result.routes) or route_problems(
-        result.routes, result.front, look_controls(result, lambda spec: patterns.get(spec) or resolve(spec)))
+        result.routes, result.front, look_controls(result))
     if problems:
         raise ValueError("; ".join(problems))
     return result
@@ -346,6 +306,6 @@ def __getattr__(name: str) -> Callable[..., Expr]:
     """A source op as a function: `osc(8, 0.1)`."""
     sources = _sources()
     if name not in sources:
-        known = sorted([*sources, PATTERN])
+        known = sorted(sources)
         raise AttributeError(f"module {__name__!r} has no {name!r}; {unknown('source', name, known, suggest=True)}")
     return partial(_node, sources[name], None)

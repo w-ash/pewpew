@@ -13,35 +13,40 @@ from dataclasses import replace
 from typing import Any
 
 import numpy as np
+import pytest
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, invariant, precondition, rule
 
-from fakes import PixelRamp, Raises, Solid, spec
-from pewpew import line
+from fakes import one_node
 from pewpew.aura.book import LookBook, parse_looks
-from pewpew.compose import MIX, Compositor, Layer, Look, Resolved, layer_address, pattern_layer
+from pewpew.compose import MIX, Compositor, Layer, Look, layer_address
 from pewpew.fx.blend import Blend
 from pewpew.fx.expr import noise, particles
-from pewpew.fx.host import ProgramPattern
+from pewpew.fx.graph import Graph, Program
+from pewpew.fx.ops import OPS
+from pewpew.mapping import line
 from pewpew.params import ParamSet
 
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
-class Sparks(ProgramPattern):
-    program = particles()
-
-
-class Drift(ProgramPattern):
-    program = noise(3)
-
-
-POOL: dict[str, type] = {"solid": Solid, "pixelramp": PixelRamp, "sparks": Sparks, "drift": Drift, "raises": Raises}
+POOL: dict[str, Program] = {
+    "solid": one_node("solid_test"), "ramp": one_node("ramp_test"), "sparks": Program.of(particles()),
+    "drift": Program.of(noise(3)), "raises": one_node("raises_test"),
+}
 MAP = line(8)
 MAX_LAYERS = 4
 
 
 def build(look: Look) -> Compositor:
-    return Compositor([Resolved(layer, POOL[spec(layer)], spec(layer)) for layer in look.layers], MAP, seed=look.seed)
+    return Compositor(look.layers, MAP, seed=look.seed)
+
+
+def every_arg(program: Program) -> Program:
+    """`program` with each node's every arg written out, as a running
+    stack's snapshot gives it."""
+    nodes = (replace(node, args=ParamSet(OPS[node.op], node.args).snapshot_json()) for node in program.graph)
+    return replace(program, graph=Graph(tuple(nodes)))
 
 
 class Rendered:
@@ -67,8 +72,8 @@ class LayerEdits(RuleBasedStateMachine):
         self.t = 0.0
 
     @staticmethod
-    def _layer(lid: str, pattern: str, **mix: Any) -> Layer:
-        return pattern_layer(lid, pattern, ParamSet(POOL[pattern]).snapshot_json(), **mix)
+    def _layer(lid: str, source: str, **mix: Any) -> Layer:
+        return Layer(lid, every_arg(POOL[source]), **mix)
 
     def _edit(self, layers: list[Layer]) -> None:
         before, kept = self.rendered, {layer.id: layer for layer in self.look.layers}
@@ -83,14 +88,14 @@ class LayerEdits(RuleBasedStateMachine):
         return data.draw(st.integers(0, len(self.look.layers) - 1))
 
     @precondition(lambda self: len(self.look.layers) < MAX_LAYERS)
-    @rule(pattern=st.sampled_from(sorted(POOL)), data=st.data(), blend=st.sampled_from(list(Blend)),
+    @rule(source=st.sampled_from(sorted(POOL)), data=st.data(), blend=st.sampled_from(list(Blend)),
           opacity=st.floats(0.0, 1.0))
-    def add(self, pattern: str, data: st.DataObject, blend: Blend, opacity: float) -> None:
+    def add(self, source: str, data: st.DataObject, blend: Blend, opacity: float) -> None:
         layers = list(self.look.layers)
         at = data.draw(st.integers(0, len(layers)))
-        layer = self._layer(f"l{self.made}", pattern, blend=blend.value, opacity=opacity)
+        layer = self._layer(f"l{self.made}", source, blend=blend.value, opacity=opacity)
         layers.insert(at, layer)
-        self.live.insert(Resolved(layer, POOL[pattern], pattern), at)
+        self.live.insert(layer, at)
         self.made += 1
         self._edit(layers)
 
@@ -147,10 +152,11 @@ class LayerEdits(RuleBasedStateMachine):
 
     @invariant()
     def contains_a_raising_layer(self) -> None:
-        raising = [layer.id for layer in self.look.layers if spec(layer) == "raises" and layer.enabled]
+        raising = [layer.id for layer in self.look.layers
+                   if layer.program.output.op == "raises_test" and layer.enabled]
         error = self.rendered.stack.error
         if raising:
-            assert error is not None and error.pattern == f"layers.{raising[0]}.raises"
+            assert error is not None and error.pattern == f"layers.{raising[0]}"
         else:
             assert error is None
 

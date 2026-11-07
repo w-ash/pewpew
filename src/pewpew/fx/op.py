@@ -1,6 +1,6 @@
 """Ops: what each node of an effect program does (ADR-022).
 
-An op is to a node what a `Pattern` class is to a pattern. Each op is a
+Each op is a
 subclass of `Op` that registers itself by name:
 
     class Kaleid(Op, op="kaleid"):
@@ -24,7 +24,7 @@ the catalog reads (`RESERVED_ARGS`).
 
 A `Rate` arg is a speed whose phase the op keeps (the float rule): each
 frame `phase += rate * dt` in a Python float, wrapped into the rate's
-period centred on 0, carried across a hot reload. A closure reads
+period centred on 0. A closure reads
 `self.phase(name)`, never `t * rate`.
 
 Hooks: `setup(ctx)` once per bind (`BindCtx`: the points, the map's
@@ -40,7 +40,7 @@ an `axis_choice` arg; and an `axis_choice` or `plane_choice` arg acts
 along its own value.
 
 A class with the same module and qualified name as a registered one
-replaces it, which hot reload needs; a different class under a taken
+replaces it, as a reimport of its module gives; a different class under a taken
 name is refused.
 """
 
@@ -151,8 +151,7 @@ class BindCtx:
     `seed` (32 bits) seeds a hash noise and `key` (64 bits) a node's
     random draws (`rng` at bind, `FrameCtx.rng` each frame).
     `buffer(name, shape, dtype, fill)` declares the node's persistent
-    state: at its fill at a bind, carried across a hot reload (so a buffer
-    still at its fill is new), read-only while the program renders, so
+    state: at its fill at a bind, read-only while the program renders, so
     write it in place in `advance`. `below()` and `prev()` give the frame
     of the layers below and the layer's own last frame, current when
     called. `gives` is the type the node gives: for a `SAME` output,
@@ -266,9 +265,6 @@ def node_seed(key: int) -> int:
     return int(np.random.SeedSequence(key).generate_state(1)[0])
 
 
-Resolve = Callable[[str], "type | None"]
-
-
 class Op(ABC):
     """The base of every op (module docstring)."""
 
@@ -331,23 +327,7 @@ class Op(ABC):
     def __init__(self) -> None:
         self.phases: dict[str, float] = dict.fromkeys(self._rates, 0.0)
 
-    @classmethod
-    def make(cls, args: Mapping[str, Any], resolve: Resolve) -> Op:
-        """A new op for a node of `args`."""
-        return cls()
-
     # ---- the node's knobs ----------------------------------------------------
-
-    @classmethod
-    def knob_class(cls, args: Mapping[str, Any], resolve: Resolve | None) -> type | None:
-        """The class whose params a node's args are: the op's own, or None
-        when it cannot be known without `resolve`."""
-        return cls
-
-    @classmethod
-    def knob_values(cls, args: Mapping[str, Any]) -> dict[str, Any]:
-        """A node's args that are knobs (all of them, for most ops)."""
-        return dict(args)
 
     @classmethod
     def shows(cls, name: str, a: Any, b: Any, args: Mapping[str, Any], spans: Sequence[float]) -> bool:
@@ -366,11 +346,6 @@ class Op(ABC):
         return True
 
     @classmethod
-    def warps(cls, args: Mapping[str, Any], resolve: Resolve | None) -> bool:
-        """Whether a node of this op may sit under a coord op."""
-        return cls.warpable
-
-    @classmethod
     def gives(cls, inputs: Sequence[Ty]) -> Ty:
         """The type a node gives from the types it reads: `out`, or for a
         `SAME` output rgb when any input is rgb, else scalar."""
@@ -378,18 +353,7 @@ class Op(ABC):
             return Ty(cls.out)
         return Ty.RGB if Ty.RGB in inputs else Ty.SCALAR
 
-    @property
-    def target(self) -> object:
-        """What the node's params are set on: the op itself."""
-        return self
-
     # ---- hooks ----------------------------------------------------------------
-
-    def adopt(self, old: Op) -> None:
-        """Take over the state of `old`, the op this one replaces at a hot
-        reload (same node, same op), before `setup`: its phases. `old` is
-        read, never changed."""
-        self.phases.update((name, phase) for name, phase in old.phases.items() if name in self.phases)
 
     def setup(self, ctx: BindCtx) -> None:
         """Called once per bind, before `build`: keeps `ctx` as `self.ctx`.

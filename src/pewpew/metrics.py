@@ -1,7 +1,7 @@
 """Frame metrics: the numbers an agent reads before it looks at a sheet.
 
 `measure(frames, fps)` reduces a rendered sequence, (F, N, 3) linear light
-as `render_sequence` returns it, to one `Metrics` record: flashing,
+as an offline render gives it (pewpew.lab.rendering.play), to one `Metrics` record: flashing,
 brightness, motion, detail and colour. `Metrics.flash_safe` checks a
 record against WCAG's three flashes a second, and gives None for less than
 a second of frames, where the count is only a lower bound. `rms` compares

@@ -77,7 +77,7 @@ from __future__ import annotations
 
 import math
 import zlib
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import cache
 from typing import Any, TypeVar
@@ -85,13 +85,13 @@ from typing import Any, TypeVar
 import numpy as np
 
 from pewpew.color import PRESETS
-from pewpew.compose.controls import Controls, LayerControls, layer_address, look_controls, signal_address, signal_of
+from pewpew.compose.controls import LayerControls, layer_address, look_controls, signal_address, signal_of
 from pewpew.compose.modulation import route_problems
 from pewpew.compose.stack import Look, Route, is_seed
 from pewpew.errors import did_you_mean, typo_hint
-from pewpew.fx.compile import check, knob_class
+from pewpew.fx.compile import check
 from pewpew.fx.expr import Expr, Routed, layer, look, namespace
-from pewpew.fx.graph import PATTERN, Graph, Node, Program, as_id, free_id
+from pewpew.fx.graph import Graph, Node, Program, as_id, free_id
 from pewpew.fx.op import Op, stream
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.color import PaletteOp
@@ -102,7 +102,7 @@ from pewpew.lab.check import Ready, ready
 from pewpew.lab.geometry import Geometry
 from pewpew.lab.liveness import each_probe
 from pewpew.lab.rendering import limits, play
-from pewpew.mapping import Grouping, extents, spanned
+from pewpew.mapping import extents, spanned
 from pewpew.metrics import FLASH_LIMIT, LIVENESS_RMS, Metrics, measure
 from pewpew.params import HSV, Gradient, Palette, ParamSet, Stop
 from pewpew.problems import Code, Problem, Refused
@@ -110,7 +110,6 @@ from pewpew.problems import Code, Problem, Refused
 T = TypeVar("T")
 Record = Mapping[str, Any]
 # The class of a node's knobs, by its layer's id and the node.
-KnobClass = Callable[[str, Node], type]
 
 PHI = (1.0 + 5.0**0.5) / 2.0
 GOLDEN_ANGLE = 360.0 * (2.0 - PHI)  # degrees: the hue step between layers
@@ -199,7 +198,6 @@ def generate(
     seed: int,
     mapping: np.ndarray,
     *,
-    grouping: Grouping | None = None,
     audio: bool = False,
     budget: float = BUDGET_US,
 ) -> Look:
@@ -208,7 +206,7 @@ def generate(
     `audio`. Raises NoLook when no candidate passes the content gate, and
     ValueError for a negative seed, a map no look runs on (`Space.of`) or
     a budget no look fits."""
-    space = Space.of(mapping, grouping, budget)
+    space = Space.of(mapping, budget)
     return best(space, (_drawn(Draw("surprise", seed, k), space, audio) for k in range(TRIES)), seed)
 
 
@@ -219,7 +217,6 @@ def mutate(
     *,
     strength: float = STRENGTH,
     keep: Iterable[str] = (),
-    grouping: Grouping | None = None,
     audio: bool = False,
     budget: float = BUDGET_US,
 ) -> Look:
@@ -231,7 +228,7 @@ def mutate(
     negative seed or a map no look runs on (`Space.of`)."""
     s = require_strength(strength)
     require_seed(seed)
-    space = Space.of(mapping, grouping, budget)
+    space = Space.of(mapping, budget)
     staged = ready(look)
     held = Held.of(keep, staged)
     drawn = (_mutated(Draw("mutate", seed, k), staged, space, s, held, audio) for k in range(TRIES))
@@ -258,7 +255,7 @@ class Space:
     preview: Geometry
 
     @classmethod
-    def of(cls, mapping: np.ndarray, grouping: Grouping | None, budget: float) -> Space:
+    def of(cls, mapping: np.ndarray, budget: float) -> Space:
         """The space of `mapping`. Raises ValueError for a mapping that is
         not (N, 3) points, one whose points all sit at one place (every op
         needs an axis to run along), or a budget that is not above 0."""
@@ -271,7 +268,7 @@ class Space:
         if not axes:
             raise ValueError(f"no look is made for a map whose {len(mapping)} point(s) sit at one place: "
                              "every op runs along an axis, so give a map that spans one")
-        return cls(len(mapping), len(axes), axes, float(budget), _preview(mapping, grouping))
+        return cls(len(mapping), len(axes), axes, float(budget), _preview(mapping))
 
     def takes(self, cls: type[Op]) -> bool:
         """Whether op `cls` runs on this mapping."""
@@ -282,15 +279,13 @@ class Space:
         return node_cost(op, self.points)
 
 
-def _preview(mapping: np.ndarray, grouping: Grouping | None) -> Geometry:
+def _preview(mapping: np.ndarray) -> Geometry:
     """The geometry the judge renders on: the mapping, or past
-    PREVIEW_POINTS points, that many spread evenly along it, each in the
-    fixture it was in."""
+    PREVIEW_POINTS points, that many spread evenly along it."""
     if len(mapping) <= PREVIEW_POINTS:
-        return Geometry("surprise", mapping, grouping)
+        return Geometry("surprise", mapping)
     keep = np.linspace(0, len(mapping) - 1, PREVIEW_POINTS).round().astype(np.intp)
-    thinned = None if grouping is None else Grouping(grouping.centres, grouping.of[keep])
-    return Geometry("surprise", mapping[keep], thinned)
+    return Geometry("surprise", mapping[keep])
 
 
 def node_cost(op: str, points: int) -> float:
@@ -403,7 +398,7 @@ class Draw:
 
 @cache
 def records(cls: type) -> tuple[Record, ...]:
-    """The describe records of the knobs of op or pattern class `cls`."""
+    """The describe records of the knobs of op `cls`."""
     return tuple(ParamSet(cls).describe())
 
 
@@ -585,9 +580,7 @@ def role(cls: type[Op]) -> str | None:
     `field` or `sim` source (a scalar one, stateless or not), a `warp`
     (coord or modulate), a `tone` (a color op that keeps its type) or a
     `state` op; None for what the grammar places itself (the palette,
-    below) or never makes (patterns, combines, signals)."""
-    if cls.op == PATTERN:
-        return None
+    below) or never makes (combines, signals)."""
     if cls.sig == Sig.SOURCE:
         return None if cls.out != Ty.SCALAR else "sim" if cls.stateful else "field"
     if cls.sig in (Sig.COORD, Sig.MODULATE):
@@ -765,25 +758,20 @@ class Target:
 _OPACITY: Record = LayerControls.opacity.spec()
 
 
-def targets(programs: Mapping[str, Program], mixes: Mapping[str, Mapping[str, Any]],
-            classes: KnobClass) -> list[Target]:
+def targets(programs: Mapping[str, Program], mixes: Mapping[str, Mapping[str, Any]]) -> list[Target]:
     """Every knob of `programs` (by layer id) a route may move: each float
     knob that is neither flash-sensitive nor a speed (a route into a speed
     speeds the look up), and each opacity `mixes` holds (an upper
-    layer's). `classes(lid, node)` gives the class of a node's knobs."""
+    layer's)."""
     found = []
     for lid, program in programs.items():
         for node in program.graph:
             found += (Target(layer_address(lid, node.id, r["name"]), r, float(node.args.get(r["name"], r["default"])))
-                      for r in records(classes(lid, node)) if r["kind"] == "float" and not r["flash_sensitive"]
+                      for r in records(OPS[node.op]) if r["kind"] == "float" and not r["flash_sensitive"]
                       and not is_speed(r))
         if lid in mixes:
             found.append(Target(layer_address(lid, "opacity"), _OPACITY, float(mixes[lid].get("opacity", 1.0))))
     return found
-
-
-def _op_class(lid: str, node: Node) -> type:
-    return OPS[node.op]
 
 
 def _routes(draw: Draw, programs: dict[str, Program], mixes: dict[str, dict[str, Any]], purse: _Purse,
@@ -794,7 +782,7 @@ def _routes(draw: Draw, programs: dict[str, Program], mixes: dict[str, dict[str,
     out: list[Routed] = []
     pace = draw.uniform(*PACE)
     for j in range(draw.pick(ROUTES)):
-        found = [t for t in targets(programs, mixes, _op_class) if t.path not in {r.path for r in out}]
+        found = [t for t in targets(programs, mixes) if t.path not in {r.path for r in out}]
         if not found:
             break
         target = found[draw.pick({i: 3.0 if t.record["periodic"] else 1.0 for i, t in enumerate(found)})]
@@ -980,7 +968,7 @@ class Held:
         that names no knob of it, nor a layer, node or signal above one,
         at `keep[<index>]`."""
         given = list(keep)
-        knobs = list(_controls(staged).snapshot_json())
+        knobs = list(look_controls(staged.look).snapshot_json())
         known = {prefix for path in knobs for prefix in _prefixes(path)}
         above = sorted(known)  # a knob, or a layer, node or signal above one
         refused = [
@@ -1012,31 +1000,15 @@ def _prefixes(path: str) -> Iterator[str]:
     return (".".join(parts[:k]) for k in range(1, len(parts) + 1))
 
 
-def _controls(staged: Ready, candidate: Look | None = None) -> Controls:
-    """The knobs of `candidate` (default `staged`'s look), its patterns as
-    `staged` resolved them."""
-    known: dict[str, type] = {}
-    for resolved in staged.layers:
-        for node in resolved.layer.program.graph:
-            if node.op == PATTERN:
-                known[node.args[PATTERN]] = knob_class(node, resolved.resolve)
-    return look_controls(candidate or staged.look, known.get)
-
-
 def _mutated(draw: Draw, staged: Ready, space: Space, s: float, held: Held, audio: bool) -> Look:
     """One candidate like `staged`'s look at strength `s` (module
     docstring), holding `held`."""
     base = staged.look
-    by_id = {resolved.layer.id: resolved for resolved in staged.layers}
-
-    def classes(lid: str, node: Node) -> type:
-        return knob_class(node, by_id[lid].resolve)
-
     programs: dict[str, Program] = {}
     mixes: dict[str, dict[str, Any]] = {}
     for i, item in enumerate(base.layers):
         lid = item.id
-        programs[lid] = _nudged(draw, item.program, lid, classes, s, held, space.axes)
+        programs[lid] = _nudged(draw, item.program, lid, s, held, space.axes)
         mix = dict(item.mix)
         if i and not held.holds(layer_address(lid, "blend")) and draw.chance(REBLEND * s):
             mix["blend"] = draw.pick(BLENDS)
@@ -1049,22 +1021,21 @@ def _mutated(draw: Draw, staged: Ready, space: Space, s: float, held: Held, audi
     signals = [replace(n, args=_nudged_args(draw, n, OPS[n.op], signal_address(n.id), s, held, space.axes))
                for n in base.signals or ()]
     if draw.chance(REROUTE * s):
-        _reroute(draw, programs, mixes, signals, routes, classes, held, space, audio)
+        _reroute(draw, programs, mixes, signals, routes, held, space, audio)
     layers = tuple(replace(item, program=programs[item.id], **mixes[item.id]) for item in base.layers)
     reseed = not held.seed and draw.chance(RESEED * s)
     made = replace(base, layers=layers, seed=draw.seed() if reseed else base.seed)
-    return _pruned(made, signals, routes, staged)
+    return _pruned(made, signals, routes)
 
 
-def _nudged(draw: Draw, program: Program, lid: str, classes: KnobClass, s: float, held: Held,
-            axes: frozenset[str]) -> Program:
+def _nudged(draw: Draw, program: Program, lid: str, s: float, held: Held, axes: frozenset[str]) -> Program:
     """`program`, layer `lid`'s, with each knob of each node nudged
     (`nudge`, on a mapping spanning `axes`) and each palette now and then
     repainted, but what `held` holds."""
     nodes = []
     for node in program.graph:
         where = layer_address(lid, node.id)
-        args = _nudged_args(draw, node, classes(lid, node), where, s, held, axes)
+        args = _nudged_args(draw, node, OPS[node.op], where, s, held, axes)
         if node.op == "palette" and not held.holds(f"{where}.palette") and draw.chance(REPAINT * s):
             gradient, _ = palette(draw, draw.uniform(0.0, 360.0))
             cycling = bool(args.get("cycle"))
@@ -1126,12 +1097,12 @@ def _swap(draw: Draw, programs: dict[str, Program], routes: Sequence[Route], spa
     )
     swapped = Program(Graph(nodes), rename.get(program.out, program.out),
                       None if program.alpha is None else rename.get(program.alpha, program.alpha))
-    if not check(swapped, dims=space.dims, hosted=True):
+    if not check(swapped, dims=space.dims):
         programs[lid] = swapped
 
 
 def _reroute(draw: Draw, programs: dict[str, Program], mixes: dict[str, dict[str, Any]], signals: list[Node],
-             routes: list[Route], classes: KnobClass, held: Held, space: Space, audio: bool) -> None:
+             routes: list[Route], held: Held, space: Space, audio: bool) -> None:
     """Drop one route that `held` does not hold, or add one into a knob it
     does not hold, with a signal of its own that fits the budget."""
     free = [route for route in routes if not held.holds_route(route)]
@@ -1140,7 +1111,7 @@ def _reroute(draw: Draw, programs: dict[str, Program], mixes: dict[str, dict[str
         return
     taken = {route.path for route in routes}
     upper = dict(list(mixes.items())[1:])  # a route moves an upper layer's opacity only
-    found = [t for t in targets(programs, upper, classes) if t.path not in taken and not held.holds(t.path)]
+    found = [t for t in targets(programs, upper) if t.path not in taken and not held.holds(t.path)]
     if not found:
         return
     target = draw.choice(found)
@@ -1153,12 +1124,12 @@ def _reroute(draw: Draw, programs: dict[str, Program], mixes: dict[str, dict[str
     routes.append(Route(sid, target.path, depth))
 
 
-def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route], staged: Ready) -> Look:
+def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route]) -> Look:
     """`made` with `signals` and `routes`, less each route that cannot move
     its knob any more (pewpew.compose.modulation.route_problems), each
     signal nothing reads, with the routes into its knobs, and each front
     knob that is gone."""
-    controls = _controls(staged, replace(made, signals=Graph(tuple(signals)) if signals else None, routes=(),
+    controls = look_controls(replace(made, signals=Graph(tuple(signals)) if signals else None, routes=(),
                                          front=()))
     kept = [route for route in routes if not route_problems([route], (), controls)]
     left = list(signals)

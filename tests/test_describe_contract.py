@@ -1,27 +1,31 @@
 """The describe contract: `tests/goldens/describe.json` is what the page is
 built and tested against (web/), so it must equal the live `describe()` of
-every gallery pattern and the params zoo, and every value in it must pass
-`check`. `--regen-goldens` rewrites it; review the diff before committing."""
+every op's knobs and the params zoo's (`zoo_test`, which has the kinds no
+built-in op has), and every value in it must pass `check`.
+`--regen-goldens` rewrites it; review the diff before committing."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from params_zoo import PARAM_CASES
-from pewpew.classinfo import pattern_name
+from fakes import with_test_ops
+from params_zoo import ZOO
+from pewpew.fx.ops import OPS
 from pewpew.params import ParamSet
 from pewpew.params.probes import leaves, probes
 from pewpew.sinks.base import DISPLAY_GAMMA
 
 GOLDEN = Path(__file__).parent / "goldens" / "describe.json"
-CLASSES = {pattern_name(cls): cls for cls, _, _ in PARAM_CASES}
+with with_test_ops():  # the zoo leaves the registry again, so no catalog the suite checks lists it
+    _ZOO = OPS[ZOO]
+CLASSES = {**OPS, ZOO: _ZOO}
 
 
 def live() -> dict:
     return {
         "display_gamma": DISPLAY_GAMMA,
-        "patterns": {name: ParamSet(cls).describe() for name, cls in CLASSES.items()},
+        "ops": {name: ParamSet(cls).describe() for name, cls in sorted(CLASSES.items())},
     }
 
 
@@ -43,8 +47,8 @@ def _values(record: dict) -> list:
 
 def test_every_value_in_the_golden_passes_check() -> None:
     golden = json.loads(GOLDEN.read_text())
-    for pattern, records in golden["patterns"].items():
-        params = ParamSet(CLASSES[pattern])
+    for op, records in golden["ops"].items():
+        params = ParamSet(CLASSES[op])
         for record in records:
             for value in _values(record):
-                assert params.check(record["name"], value) is None, (pattern, record["name"], value)
+                assert params.check(record["name"], value) is None, (op, record["name"], value)

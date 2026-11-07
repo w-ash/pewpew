@@ -1,6 +1,5 @@
 """Aura control: the requests, their checks on the caller's thread, what
-reaches the loop thread, the deck's one way to start a pattern, and the
-rule that no refusal names a path."""
+reaches the loop thread, and the rule that no refusal names a path."""
 
 from __future__ import annotations
 
@@ -8,67 +7,78 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from fakes import (
-    LOOK_CLASSES,
     LoopThread,
     Painter,
-    Solid,
     aura_rig,
     build,
     ddp_sink,
     look,
+    looks_file,
     next_of,
-    offered,
-    pattern_looks,
     serving,
     solid,
     wait_until,
 )
-from pewpew import HSV, line, wled
+from pewpew import wled
 from pewpew.aura.book import Trigger
 from pewpew.aura.control import NO_LOOKS, OVERTAKEN, REQUESTS
 from pewpew.awake import KeepAwake
-from pewpew.compose import DEFAULT_FADE
+from pewpew.compose import DEFAULT_FADE, Look
 from pewpew.errors import Refusal, describe_exception
+from pewpew.fx.host import ProgramPattern
+from pewpew.fx.op import REGISTRY, BindCtx, Op
+from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.health import HealthMonitor
-from pewpew.load import Catalog
-from pewpew.params import ParamSet
-from pewpew.patterns import Comet, Plasma, Wash, Wave
+from pewpew.mapping import line
+from pewpew.params import HSV, ParamSet
 from pewpew.sinks.ddp import Board
 
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
-def gallery_rig(start=Plasma, **kw):
-    """An aura on an 8-pixel line whose catalog is the real one: the
-    gallery, with any pattern a test `offered`."""
-    return aura_rig(start, mapping=line(8), catalog=Catalog(), **kw)
+# Stripes: one `osc` node, its knobs at `layers.base.osc.*`.
+STRIPES = look("osc", {"freq": 8.0})
+
+
+def osc_rig(start: Look = STRIPES, **kw):
+    """An aura on an 8-pixel line, running `start`."""
+    return aura_rig(start, mapping=line(8), **kw)
+
+
+def knobs(rig, nid: str = "osc") -> ParamSet:
+    """The knobs of node `nid` of the program layer `base` runs now."""
+    pattern = rig.renderer().pattern
+    assert isinstance(pattern, ProgramPattern)
+    return pattern.node_params[nid]
 
 
 # ---- params ------------------------------------------------------------------
 
 
 def test_a_live_set_is_queued_for_the_loop_thread_not_applied_on_the_callers():
-    rig = gallery_rig()
-    assert rig.control.set("layers.base.plasma.speed", 1.75) is None
+    rig = osc_rig()
+    assert rig.control.set("layers.base.osc.freq", 16.0) is None
     # Nothing has touched the renderer yet: the queue drains at the top of a
     # tick, before advance_to, which is what keeps a frame from seeing half a
-    # change (plasma reads speed in before_render and scale in render).
-    assert rig.renderer().pattern.speed == 0.5
+    # change.
+    assert knobs(rig)["freq"] == 8.0
     rig.calls.drain()
-    assert rig.renderer().pattern.speed == 1.75 and rig.renderer().params["speed"] == 1.75
-    assert rig.control.values()["layers.base.plasma.speed"] == 1.75
+    assert knobs(rig)["freq"] == 16.0
+    assert rig.control.values()["layers.base.osc.freq"] == 16.0
 
 
 def test_a_set_names_its_knob_by_address():
     """A bare name is refused, and the refusal lists the addresses; a
     layer's own mix is a knob too."""
-    rig = gallery_rig()
-    reason = rig.control.set("speed", 1.75)
-    assert reason.startswith("unknown knob 'speed'; knobs: layers.base.plasma.speed, layers.base.plasma.scale, ")
+    rig = osc_rig()
+    reason = rig.control.set("freq", 16.0)
+    assert reason.startswith("unknown knob 'freq'; knobs: layers.base.osc.freq, layers.base.osc.sync, ")
     assert rig.control.set("layers.base.opacity", 2.0) == "layers.base.opacity must be within 0.0..1.0, got 2.0"
     assert rig.control.set("layers.base.blend", "screen") is None
     rig.calls.drain()
@@ -76,124 +86,58 @@ def test_a_set_names_its_knob_by_address():
     assert rig.control.values()["layers.base.blend"] == "screen"
 
 
-def test_a_set_checked_against_a_pattern_that_no_longer_runs_is_dropped(tmp_path, caplog, monkeypatch):
-    """A pick queued ahead of the set runs comet first, which has a
-    `speed` too: plasma's slider must not move comet's. The set is still
-    operator input, so it stops the idle cycle."""
-    rig = gallery_rig(looks={"blue": solid(0.0, 0.0, 1.0)}, path=tmp_path / "looks.json")
+def test_a_set_checked_against_a_node_that_no_longer_runs_is_dropped(tmp_path, caplog, monkeypatch):
+    """A recall queued ahead of the set runs another look first, whose
+    node has the same address: the old node's slider must not move the
+    new one's. The set is still operator input, so it stops the idle
+    cycle."""
+    rig = osc_rig(looks={"blue": solid(0.0, 0.0, 1.0)}, path=tmp_path / "looks.json")
     touched = []
     monkeypatch.setattr(rig.looks, "touch", lambda: touched.append(True))
-    rig.calls.call_soon(lambda: rig.deck.put("base", "comet"))
-    assert rig.control.set("layers.base.plasma.speed", 1.75) is None  # checked against plasma's
+    rig.calls.call_soon(lambda: rig.deck.recall(look("osc", {"freq": 4.0})))
+    assert rig.control.set("layers.base.osc.freq", 16.0) is None  # checked against the running node
     rig.calls.drain()
-    assert rig.deck.current == "comet" and rig.renderer().params["speed"] == 0.4
-    assert "dropped a live set of 'layers.base.plasma.speed': the pattern it was for no longer runs" in caplog.text
+    assert knobs(rig)["freq"] == 4.0
+    assert "dropped a live set of 'layers.base.osc.freq': the node it was for no longer runs" in caplog.text
     assert touched == [True]
-
-
-def test_a_mix_set_queued_behind_a_pick_still_lands(caplog):
-    """A pick replaces the layer's program, not its mix: the layer and its
-    opacity still run, so a slider moved while the pick loads applies."""
-    rig = gallery_rig()
-    mix = rig.fader.current.layer("base").mix
-    rig.calls.call_soon(lambda: rig.deck.put("base", "comet"))
-    assert rig.control.set("layers.base.opacity", 0.3) is None
-    rig.calls.drain()
-    assert rig.deck.current == "comet" and rig.fader.current.layer("base").mix is mix
-    assert mix.opacity == 0.3 and "dropped a live set" not in caplog.text
 
 
 def test_a_live_set_queues_the_parsed_value():
     """The JSON a page sends is parsed once, on the caller's thread; the loop
     thread gets the native value."""
-    rig = gallery_rig(Wave)
-    assert rig.control.set("layers.base.wave.color", {"h": 30, "s": 0.5, "v": 1}) is None
+    rig = osc_rig(look("zoo_test"))
+    assert rig.control.set("layers.base.zoo_test.color", {"h": 30, "s": 0.5, "v": 1}) is None
     rig.calls.drain()
-    assert rig.renderer().pattern.color == HSV(30.0, 0.5, 1.0)
+    assert knobs(rig, "zoo_test")["color"] == HSV(30.0, 0.5, 1.0)
 
 
 def test_an_out_of_range_live_set_is_refused_without_queueing_anything():
     # The live-crash path: a queued closure's exception ends run(), so an
     # out-of-range slider must never become a queued closure.
-    rig = gallery_rig()
-    assert rig.control.set("layers.base.plasma.scale", 99.0) == rig.renderer().params.check("scale", 99.0)
+    rig = osc_rig()
+    assert rig.control.set("layers.base.osc.freq", 99.0) == knobs(rig).check("freq", 99.0)
     rig.calls.drain()
-    assert rig.renderer().params["scale"] == 4.0
+    assert knobs(rig)["freq"] == 8.0
 
 
 def test_a_queued_set_gone_stale_logs_instead_of_killing_the_loop(caplog, monkeypatch):
     # A value passes check on the connection thread, then the range moves
     # under it before the closure runs. Applying it must not raise.
-    rig = gallery_rig()
-    rig.control.set("layers.base.plasma.speed", 1.75)
+    rig = osc_rig()
+    rig.control.set("layers.base.osc.freq", 16.0)
     # Declarations are the class's own Param objects, shared by every test in
     # the process — monkeypatch so narrowing the range does not outlive this one.
-    monkeypatch.setattr(rig.renderer().params.declarations["speed"], "hi", 1.0)
+    monkeypatch.setattr(knobs(rig).declarations["freq"], "hi", 10.0)
     with caplog.at_level(logging.WARNING, logger="pewpew"):
         rig.calls.drain()  # the loop thread; must return, not raise
-    assert "speed" in caplog.text and rig.renderer().pattern.speed == 0.5
-
-
-# ---- picks -------------------------------------------------------------------
-
-
-def test_a_pick_cuts_on_the_loop_thread():
-    rig = gallery_rig()
-    assert {"comet", "plasma"} <= set(rig.control.state()["patterns"])
-    with LoopThread(rig.calls):
-        assert rig.control.pick("comet") is None
-    assert type(rig.renderer().pattern) is Comet and not rig.fader.fading
-    assert rig.control.state()["pattern"] == "comet"
-
-
-def test_a_pick_off_the_list_is_refused_before_anything_resolves():
-    rig = gallery_rig()
-    for name in ("nosuch", "../plasma.py", "/etc/passwd", 7):
-        reason = rig.control.pick(name) or ""
-        assert reason.startswith(("unknown pattern", "pick takes a pattern name")), reason
-    assert rig.control.pick("nosuch").startswith("unknown pattern 'nosuch'; patterns: colorplasma, comet, ")
-    assert type(rig.renderer().pattern) is Plasma
-
-
-def test_a_pattern_whose_setup_raises_keeps_the_old_one(monkeypatch):
-    offered(monkeypatch, broken=(
-        "import numpy as np\nfrom pewpew import Pattern\n"
-        "class Broken(Pattern):\n"
-        "    def setup(self, n, x, y, z, index):\n        raise RuntimeError('no fixture')\n"
-        "    def render(self, x, y, z, index):\n"
-        "        return np.ones((self.n, 3), dtype=np.float32)\n"
-    ))
-    rig = gallery_rig()
-    running = rig.renderer()
-    assert "broken" in rig.control.state()["patterns"]
-    with LoopThread(rig.calls):
-        reason = rig.control.pick("broken")
-    assert reason == "cannot switch to 'broken', plasma is still running: layers.base: RuntimeError: no fixture"
-    assert running is rig.renderer()
-    assert rig.control.state()["pattern"] == "plasma"
-    rig.fader.advance_to(1 / 60)  # and it still renders
-    assert rig.fader.error is None
-
-
-def test_a_pick_starts_the_pattern_fresh_at_its_defaults():
-    """As a look recall does: nothing carries over from the pattern it
-    replaces, not even params both declare (Wave and Wash share color and
-    speed)."""
-    rig = gallery_rig(Wave)
-    rig.renderer().params.set("speed", 0.9)
-    rig.renderer().params.set("color", {"h": 10.0, "s": 0.1, "v": 1.0})
-    with LoopThread(rig.calls):
-        assert rig.control.pick("wash") is None
-    assert type(rig.renderer().pattern) is Wash
-    assert rig.renderer().params.snapshot() == ParamSet(Wash).snapshot()
-    assert rig.renderer().pattern.speed == Wash.speed.default
+    assert "freq" in caplog.text and knobs(rig)["freq"] == 8.0
 
 
 # ---- the master --------------------------------------------------------------
 
 
 def test_the_master_is_capped_and_queued_for_the_loop_thread():
-    rig = gallery_rig(cap=0.6)
+    rig = osc_rig(cap=0.6)
     assert (rig.control.state()["master"], rig.control.state()["cap"]) == (0.6, 0.6)
     assert rig.control.master(0.7) == "master must be within 0.0..0.6, got 0.7"
     for bad in (True, float("nan"), -0.1, "bright", None):
@@ -207,7 +151,7 @@ def test_the_master_is_capped_and_queued_for_the_loop_thread():
 
 
 def test_blackout_forces_zero_and_restore_keeps_the_master():
-    rig = gallery_rig()
+    rig = osc_rig()
     rig.control.master(0.4)
     assert rig.control.blackout(True) is None
     rig.calls.drain()
@@ -225,19 +169,19 @@ def test_blackout_forces_zero_and_restore_keeps_the_master():
 def test_a_request_is_its_controls_method_with_the_tables_defaults(tmp_path):
     """`request` is the one dispatch a surface needs: each message type is
     the method of that name, its missing fields at their defaults."""
-    rig = gallery_rig(looks={"blue": solid(0.0, 0.0, 1.0)}, path=tmp_path / "looks.json")
+    rig = osc_rig(looks={"blue": solid(0.0, 0.0, 1.0)}, path=tmp_path / "looks.json")
     assert rig.control.request({"type": "blackout", "on": "yes"}) == Refusal("blackout takes true or false, got 'yes'")
     with LoopThread(rig.calls):
         unknown = Refusal("unknown look 'nosuch'; looks: blue")
         assert rig.control.request({"type": "recall", "name": "nosuch"}) == unknown
     assert rig.control.request({"type": "fire", "name": 7}) == Refusal("a trigger name is text, got 7")
     # A refused set names its knob, so a page can show the refusal there.
-    assert rig.control.request({"type": "set", "name": "layers.base.plasma.speed", "value": "x"}) == Refusal(
-        "layers.base.plasma.speed takes a number, got 'x'", "layers.base.plasma.speed")
+    assert rig.control.request({"type": "set", "name": "layers.base.osc.freq", "value": "x"}) == Refusal(
+        "layers.base.osc.freq takes a number, got 'x'", "layers.base.osc.freq")
 
 
 def test_a_control_the_run_does_not_have_says_so_and_one_it_does_not_know_is_ignored():
-    rig = gallery_rig()  # no boards, no room
+    rig = osc_rig()  # no boards, no room
     for message, reason in (({"type": "scan"}, "this run streams to no boards"),
                             ({"type": "rebind", "board": "A", "address": "1.2.3.4"}, "this run streams to no boards"),
                             ({"type": "blink", "fixture": "a"}, "blink needs a room map (run --room)"),
@@ -250,10 +194,10 @@ def test_a_control_the_run_does_not_have_says_so_and_one_it_does_not_know_is_ign
 def test_a_control_it_does_not_know_is_refused_when_its_sender_waits_for_an_answer():
     """With an `id` the sender waits for an answer, so a typo is refused,
     never taken for an accepted request (ADR-020 amendment)."""
-    rig = gallery_rig()
+    rig = osc_rig()
     assert rig.control.request({"type": "sett", "id": 1}) == Refusal(
         f"unknown control 'sett'; controls: {', '.join(REQUESTS)}")
-    assert rig.control.request({"type": 7, "id": "a"}).reason.startswith("unknown control 7; controls: set, pick,")
+    assert rig.control.request({"type": 7, "id": "a"}) == Refusal(f"unknown control 7; controls: {', '.join(REQUESTS)}")
 
 
 # ---- no refusal names a path ------------------------------------------------------
@@ -266,7 +210,7 @@ def served_from_a_private_folder(tmp_path, monkeypatch):
     private = tmp_path / "private-folder-xyz"
     private.mkdir()
     triggers = {"cue": Trigger(look="blue")}
-    rig = aura_rig(mapping=line(4), catalog=Catalog(), looks={"blue": solid(0.0, 0.0, 1.0)},
+    rig = aura_rig(mapping=line(4), looks={"blue": solid(0.0, 0.0, 1.0)},
                    triggers=triggers, path=private / "looks.json", timeout=2.0)
     with serving(rig.control, rig.calls) as (_, ws, _):
         yield rig, ws, private
@@ -281,10 +225,11 @@ def refusals(ws, messages) -> list[dict]:
 
 def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, monkeypatch):
     """Every refusal crosses one socket, which anyone on the private network can
-    reach (architecture §5): a pattern named by a path, a look request whose
+    reach (architecture §5): an op named by a path, a look request whose
     write fails, and every malformed message must say why without the
     folder, a file name or `.py`."""
     _, ws, private = served_from_a_private_folder
+    mine = private / "mine.py"
     messages = [
         {"type": "recall", "name": "nosuch"}, {"type": "recall", "name": "../looks.json"},
         {"type": "recall", "name": 7}, {"type": "recall", "name": "blue", "fade": -2},
@@ -292,8 +237,10 @@ def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, m
         {"type": "delete", "name": "blue"}, {"type": "cycle", "name": "blue", "on": 1},
         {"type": "fire", "name": 7}, {"type": "fire", "name": "../looks.json"},
         {"type": "fire", "name": "cue", "value": "x"}, {"type": "arm", "on": 1},
-        {"type": "pick", "name": "../looks.json"}, {"type": "pick", "name": "mine"},
-        {"type": "pick", "name": "broken"}, {"type": "set", "name": "nosuch", "value": 1},
+        {"type": "add_layer", "layer": {"nodes": {"x": {"op": "../looks.json"}}}},
+        {"type": "add_layer", "layer": {"nodes": {"x": {"op": "pattern", "args": {"pattern": str(mine)}}}}},
+        {"type": "add_layer", "layer": {"nodes": {"x": {"op": "osc", "args": {"freq": str(private / "broken.py")}}}}},
+        {"type": "set", "name": "nosuch", "value": 1},
     ]
     replies = refusals(ws, messages)
     monkeypatch.setattr(os, "replace", lambda src, dst: (_ for _ in ()).throw(OSError(28, "No space", str(private))))
@@ -303,7 +250,7 @@ def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, m
         reason = reply["reason"]
         assert str(private) not in reason and "private-folder" not in reason, reason
         assert "mine.py" not in reason and "broken.py" not in reason and ".py" not in reason, reason
-    assert replies[13]["reason"].startswith("unknown pattern 'mine'; patterns: colorplasma")
+    assert "unknown op 'pattern'; ops: " in replies[13]["reason"]
 
 
 SECRET = Path.home() / "secret-folder" / "mine.py"
@@ -320,29 +267,52 @@ def leaks(text: str) -> bool:
     return "secret-folder" in text or str(Path.home()) in text or "/private" in text
 
 
+@pytest.fixture
+def raising_ops() -> Iterator[dict[str, Callable[[], Exception]]]:
+    """Two ops in the registry for this test that raise the error the
+    returned dict holds at `make`: `raising_test` as it renders and
+    `unbuildable_test` as it binds."""
+    before = dict(REGISTRY)
+    errors: dict[str, Callable[[], Exception]] = {}
+
+    class RaisingTest(Op, op="raising_test"):
+        """Raises as it renders."""
+
+        sig, out = Sig.SOURCE, Ty.RGB
+
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            def raising(c: Coords) -> np.ndarray:
+                raise errors["make"]()
+
+            return raising
+
+    class UnbuildableTest(RaisingTest, op="unbuildable_test"):
+        """Raises as it binds."""
+
+        def setup(self, ctx: BindCtx) -> None:
+            raise errors["make"]()
+
+    try:
+        yield errors
+    finally:
+        REGISTRY.clear()
+        REGISTRY.update(before)
+
+
 @pytest.mark.parametrize("make", PATH_ERRORS.values(), ids=PATH_ERRORS)
-def test_no_error_text_that_reaches_the_page_names_a_path(make, tmp_path, monkeypatch):
+def test_no_error_text_that_reaches_the_page_names_a_path(make, raising_ops, tmp_path, monkeypatch):
     """Each channel an exception's text takes to the page: the render and
-    looks status, a pick, recall and failed-request refusal, a
+    looks status, a recall and failed-request refusal, a
     trigger's `last.error`, a board's reasons, the scan error and the sleep
     detail."""
-
-    class Raising(Solid):
-        def render(self, x, y, z, index):
-            raise make()
-
-    class Unbuildable(Solid):
-        def __init__(self) -> None:
-            raise make()
-
-    classes = {**LOOK_CLASSES, "raising": Raising, "unbuildable": Unbuildable}
-    rig = aura_rig(Raising, catalog=Catalog(classes), looks={"bad": look("unbuildable", fade=0.0)},
+    raising_ops["make"] = make
+    rig = aura_rig(look("raising_test"), looks={"bad": look("unbuildable_test", fade=0.0)},
                    triggers={"cue": Trigger(look="bad", debounce=0.0)}, path=tmp_path / "looks.json")
     texts = [describe_exception(make()), wled.failure(make())]
     rig.frame(rig.clock.advance())
     texts.append(rig.fader.error and str(rig.fader.error))
     with LoopThread(rig.calls):
-        texts += [rig.control.pick("unbuildable"), rig.control.recall("bad")]
+        texts.append(rig.control.recall("bad"))
         monkeypatch.setattr(rig.looks, "save", lambda *a: (_ for _ in ()).throw(make()))
         texts.append(rig.control.save("x"))
     rig.triggers.arm(True, "test")
@@ -380,61 +350,27 @@ def test_a_look_request_that_raises_is_a_refusal_and_the_aura_goes_on(tmp_path, 
     np.testing.assert_array_equal(rig.frame(1 / 60), [[1.0, 0.0, 0.0]] * 4)
 
 
-# ---- the deck ------------------------------------------------------------------
-
-
-def test_a_recall_and_a_pick_start_a_pattern_the_same_way(tmp_path):
-    """One sequence for both: the deck resolves, builds at the values that
-    still fit, and cuts or fades."""
-    rig = gallery_rig(Comet, looks={"calm": look("wave", {"speed": 0.75, "gone": 3}, fade=0.0)},
-                      path=tmp_path / "looks.json")
-    assert rig.looks.recall("calm") is None
-    assert type(rig.renderer().pattern) is Wave and rig.renderer().params["speed"] == 0.75
-    assert rig.deck.current == "wave"
-    assert rig.deck.put("base", "comet") is None
-    assert type(rig.renderer().pattern) is Comet and rig.deck.current == "comet"
-    assert rig.deck.put("base", "nosuch").startswith("layers.base: unknown pattern 'nosuch'; patterns:")
-    assert rig.deck.put("top", "comet") == "unknown layer 'top'; layers: base"
+# ---- numbers at the edge -------------------------------------------------------
 
 
 def test_a_value_a_hair_past_its_range_is_stored_on_the_range():
     """A slider's float noise is accepted and snapped, and the stored value
     is the snapped one, so a saved look never holds a master above the cap
     or a negative fade that a later load or recall would refuse."""
-    rig = gallery_rig(cap=0.6)
+    rig = osc_rig(cap=0.6)
     assert rig.control.master(0.6 * (1 + 5e-10)) is None
     rig.calls.drain()
     assert rig.master.level == 0.6
 
 
 def test_a_number_too_large_for_a_float_is_a_refusal_not_a_crash():
-    rig = gallery_rig()
+    rig = osc_rig()
     huge = 10**400  # JSON integers have no size limit
     assert rig.control.master(huge) == "master must be a finite number, got a number too large"
-    assert rig.control.set("layers.base.plasma.speed", huge) == (
-        "layers.base.plasma.speed must be a finite number, got a number too large"
+    assert rig.control.set("layers.base.osc.freq", huge) == (
+        "layers.base.osc.freq must be a finite number, got a number too large"
     )
     assert rig.control.fire("cue", huge).startswith("a trigger value is a finite number or null")
-
-
-def test_a_pattern_goes_by_its_catalog_name_everywhere_on_the_page(monkeypatch):
-    """`mine` is `class Spark`: the picker, the status line and a refusal
-    all call it `mine`."""
-    offered(monkeypatch, mine=(
-        "from pewpew import Float\nfrom pewpew.patterns import Comet\n\n\n"
-        "class Spark(Comet):\n    speed = Float(0.5, 0.0, 1.0)\n"
-    ))
-    rig = gallery_rig()
-    assert rig.deck.put("base", "mine") is None
-    assert rig.control.state()["pattern"] == "mine"
-    assert rig.control.state()["stack"]["layers"] == [
-        {"id": "base", "nodes": [{"id": "mine", "op": "pattern", "label": "mine", "in": []}]},
-    ]
-    assert rig.control.set("layers.base.mine.speed", 3.0) == "layers.base.mine.speed must be within 0.0..1.0, got 3.0"
-    rig.renderer().pattern.render = None
-    rig.fader.advance_to(1 / 60)
-    error = rig.fader.error
-    assert error.pattern == "layers.base.mine" and str(error).startswith("layers.base.mine.render raised: ")
 
 
 # ---- looks made for the aura ------------------------------------------------------------
@@ -453,10 +389,10 @@ def test_a_surprise_and_a_vary_over_the_socket_are_acked_play_and_are_not_saved(
     ws.send(json.dumps({"type": "surprise", "id": 1, "seed": 7}))
     assert next_of(ws, "ack") == {"type": "ack", "id": 1, "control": "surprise"}
     assert rig.looks.book.current is None and list(rig.looks.book.looks) == ["blue"]
-    assert rig.renderer().params.snapshot_json()["green"] == 1.0
+    assert knobs(rig, "solid").snapshot_json()["green"] == 1.0
     ws.send(json.dumps({"type": "vary", "id": "v", "strength": 0.8, "seed": 2}))
     assert next_of(ws, "ack")["id"] == "v"
-    assert rig.renderer().params.snapshot_json()["red"] == 0.8
+    assert knobs(rig, "solid").snapshot_json()["red"] == 0.8
     assert list(rig.looks.book.looks) == ["blue"] and not rig.path.exists()  # nothing written
 
 
@@ -493,7 +429,7 @@ def test_a_save_with_no_name_keeps_the_made_look_under_the_name_it_offers_with_i
 
 def test_a_bad_surprise_or_vary_is_refused_with_its_id_and_nothing_starts(made):
     rig, ws = made
-    before = rig.renderer().params.snapshot_json()
+    before = knobs(rig, "solid").snapshot_json()
     for message, words in (
         ({"type": "surprise", "id": 1, "seed": -1}, "a seed is a whole number of at least 0, got -1"),
         ({"type": "vary", "id": 2, "strength": 2},
@@ -508,7 +444,7 @@ def test_a_bad_surprise_or_vary_is_refused_with_its_id_and_nothing_starts(made):
     rig.control._variety.fail = True
     ws.send(json.dumps({"type": "surprise", "id": 4}))
     assert next_of(ws, "refused")["reason"].endswith("try another seed")
-    assert rig.renderer().params.snapshot_json() == before and rig.looks.book.current == "blue"
+    assert knobs(rig, "solid").snapshot_json() == before and rig.looks.book.current == "blue"
 
 
 class Slow(Painter):
@@ -540,7 +476,7 @@ def test_a_look_being_made_holds_up_no_request_sent_after_it(slow):
     wait_until(lambda: rig.master.blackout)
     rig.variety.made.set()
     assert next_of(ws, "ack") == {"type": "ack", "id": "s", "control": "surprise"}
-    assert rig.renderer().params.snapshot_json()["green"] == 1.0
+    assert knobs(rig, "solid").snapshot_json()["green"] == 1.0
 
 
 def test_a_look_recalled_while_one_is_made_wins_over_it(slow):
@@ -552,7 +488,7 @@ def test_a_look_recalled_while_one_is_made_wins_over_it(slow):
     refused = next_of(ws, "refused")
     assert (refused["id"], refused["control"], refused["reason"]) == ("s", "surprise", OVERTAKEN)
     assert rig.looks.book.current == "red" and rig.looks.state()["made"] is None
-    assert rig.renderer().params.snapshot_json()["red"] == 1.0
+    assert knobs(rig, "solid").snapshot_json()["red"] == 1.0
 
 
 def test_a_look_that_cannot_be_made_for_a_bug_is_refused_naming_it():
@@ -568,7 +504,7 @@ def test_an_aura_without_a_looks_file_plays_a_surprise_but_cannot_keep_it():
     with serving(rig.control, rig.calls) as (_, ws, _):
         ws.send(json.dumps({"type": "surprise", "id": 1}))
         assert next_of(ws, "ack")["id"] == 1
-        assert rig.renderer().params.snapshot_json()["green"] == 1.0
+        assert knobs(rig, "solid").snapshot_json()["green"] == 1.0
         ws.send(json.dumps({"type": "keep", "id": 2}))
         assert next_of(ws, "refused")["reason"] == "no looks file: this aura saves no looks"
 
@@ -580,7 +516,7 @@ def test_a_surprise_without_a_seed_takes_the_run_s_next_one_the_same_in_every_ru
 
 
 def test_a_run_varies_its_look_and_the_socket_answers_after(tmp_path):
-    run = build(["run", pattern_looks("pulse"), "--map", "line:16"])
+    run = build(["run", looks_file(), "--map", "line:16"])
     with serving(run.control, run.calls) as (_, ws, _):
         ws.send(json.dumps({"type": "vary", "id": 1, "strength": 0.5, "seed": 3}))
         assert next_of(ws, "ack") == {"type": "ack", "id": 1, "control": "vary"}

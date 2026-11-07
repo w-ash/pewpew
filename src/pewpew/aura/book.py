@@ -15,17 +15,15 @@ boards: writing a WLED preset freezes the board's lights for seconds
       "looks": {
         "dusk": {"seed": 0, "master": 0.6, "fade": 4.0, "cycle": true,
                  "layers": [
-                   {"id": "base", "opacity": 1.0, "blend": "normal", "enabled": true, "out": "wash",
-                    "nodes": {"wash": {"op": "pattern", "args": {"pattern": "wash",
-                                                                 "color": {"h": 30.0, "s": 0.8, "v": 1.0},
-                                                                 "speed": 0.01}}}},
-                   {"id": "sparks", "opacity": 0.6, "blend": "screen", "out": "sparkle",
-                    "nodes": {"sparkle": {"op": "pattern", "args": {"pattern": "sparkle", "tail": 0.4}}}}],
+                   {"id": "base", "opacity": 1.0, "blend": "normal", "enabled": true, "out": "tint",
+                    "nodes": {"waves": {"op": "osc", "args": {"freq": 4.0, "sync": 0.01}},
+                              "tint": {"op": "palette", "in": ["waves"], "args": {"palette": "ember"}}}},
+                   {"id": "sparks", "opacity": 0.6, "blend": "screen", "out": "motes",
+                    "nodes": {"motes": {"op": "particles", "args": {}}}}],
                  "signals": {"breath": {"op": "lfo", "args": {"rate": 0.05}}},
                  "routes": [{"source": "breath", "path": "layers.sparks.opacity", "depth": 0.3}],
-                 "front": ["layers.base.wash.speed"]},
-        "breathe": {"layers": [{"id": "base", "nodes": {"pulse": {"op": "pattern",
-                                                                  "args": {"pattern": "pulse", "depth": 0.5}}}}]}
+                 "front": ["layers.base.waves.sync"]},
+        "breathe": {"layers": [{"id": "base", "nodes": {"glow": {"op": "osc", "args": {"freq": 1.0}}}}]}
       },
       "cycle": {"idle": 300, "each": [40, 90], "rounds": 0, "end": null,
                 "seed": 0, "window": 2, "fresh": 0, "weights": {"dusk": 2}},
@@ -41,9 +39,8 @@ boards: writing a WLED preset freezes the board's lights for seconds
 body (its layers and their programs, its signals, routes and front knobs,
 seed, master, fade and cycle) is the effect-program codec's
 (pewpew.fx.codec), which reads and writes it; this module holds the file
-around it. A node's `pattern` arg names its pattern
-by its name in the catalog (pewpew.load). A pattern's params are judged at recall, and `pattern_problems`
-lists at launch what no longer fits. `current` is the look last recalled
+around it. A route's knob is judged at recall, and `route_reasons`
+lists at launch a route that no longer reaches one. `current` is the look last recalled
 or saved, so a restart comes back in it.
 
 `cycle` is the idle cycle, ADR-006's playlist under pewpew's own names,
@@ -65,37 +62,35 @@ migration.
 `triggers` maps a room-event name to what the event does
 (pewpew.aura.triggers): `look` names a look to hold as a temporary
 override for `hold` seconds of engine time before the aura returns to the
-look it left (null: the event only reaches the pattern as data).
+look it left (null: the event only reaches the looks as data).
 `priority` is its class, one of `PRIORITIES`; `debounce` and `cooldown`
 are seconds. Every key but the name is optional. The page never edits
 this section; a rewrite keeps it, and a look that a trigger names cannot
 be deleted from the page.
 
 The loader refuses anything malformed with every problem listed, so a bad
-file fails at launch, not mid-run. A look whose pattern no longer loads,
-or whose params no longer fit it, is not malformed: `pattern_problems`
-lists those for a launch warning, and a recall runs the look with the
-params that still fit, or refuses it.
+file fails at launch, not mid-run. A look whose route reaches no knob is
+not malformed: `route_reasons` lists it for a launch warning, and a
+recall refuses it.
 
 `check_name` is the aura's request check for a look's name too, on any
-thread. Names only: a look name and a pattern name may cross the preview
-socket; the file's path never does.
+thread. Names only: a look name may cross the preview socket; the file's
+path never does.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from pewpew.compose.controls import layer_address, look_controls
+from pewpew.compose.controls import look_controls
 from pewpew.compose.modulation import route_problems
 from pewpew.compose.stack import Look, is_seed
 from pewpew.fx.codec import decode_look, encode_look
-from pewpew.fx.compile import check
 from pewpew.jsonfile import ProblemsError, is_number, parse_json
 
 VERSION = 4
@@ -239,8 +234,8 @@ def parse_looks(data: bytes | str, *, cap: float = 1.0) -> LookBook:
     """Validate looks-file JSON text. Raises LookError listing every problem.
 
     `cap` is the launch's master cap: a stored master above it is refused.
-    Which patterns and params a look names is not checked here; see
-    `pattern_problems`.
+    Whether each route reaches a knob is not checked here; see
+    `route_reasons`.
     """
     doc = parse_json(data, LookError)
     if not isinstance(doc, dict):
@@ -281,27 +276,16 @@ def parse_looks(data: bytes | str, *, cap: float = 1.0) -> LookBook:
     return LookBook(looks, current, cycle, doc.get("notes"), triggers)
 
 
-def pattern_problems(book: LookBook, declared: Callable[[str], type | None]) -> list[str]:
-    """What stops each look from recalling as saved: a pattern that nothing
-    offers or that does not load, params it does not declare or accept, a
-    pattern a program cannot run, and, once its patterns resolve, a route
-    that reaches no knob it can move or a front knob that is not there
+def route_reasons(book: LookBook) -> list[str]:
+    """What stops each look from recalling as saved: a route that reaches
+    no knob it can move or a front knob that is not there
     (pewpew.compose.modulation.route_problems), each named by its path.
-
-    `declared(pattern)` returns the class a pattern name runs, or None for a
-    name nothing offers. Never raises.
-    """
+    Never raises."""
     return [
-        f"look {name!r}: {problem}" for name, look in book.looks.items() for problem in _look_problems(look, declared)
+        f"look {name!r}: {problem}"
+        for name, look in book.looks.items() if look.routes or look.front
+        for problem in route_problems(look.routes, look.front, look_controls(look))
     ]
-
-
-def _look_problems(look: Look, declared: Callable[[str], type | None]) -> list[str]:
-    found = [problem for layer in look.layers
-             for problem in check(layer.program, where=layer_address(layer.id), resolve=declared)]
-    if found or not (look.routes or look.front):
-        return found
-    return route_problems(look.routes, look.front, look_controls(look, declared))
 
 
 def _cycle(raw: Any, looks: Mapping[str, Any], problems: list[str]) -> CycleConfig:

@@ -1,68 +1,23 @@
-"""The idiom kit: 0-1 phase/time built-ins and hsv (ADR-005, architecture §3).
+"""Small numeric helpers the ops, colors and sinks share: `TWO_PI`, the
+0-1 sine `wave`, `hsv`, the frame-rate-independent `fade` and `bins`.
 
-Pixelblaze's shapers [S680:README.expressions.md#L19-L23,L151-L163] are the
-model: everything is a 0-1 phase, `wave/triangle/square` shape it, `hsv`
-colors it, and the kit absorbs the branching an author would write as `if`.
-
-The arithmetic is copied, not tidied, from `bench/authoring/surface.py`, so
-the five study ports render bit-identically (tests/test_port_equivalence.py).
-
-`time()` reads a `ContextVar` that the renderer sets around each frame, so
-engines on other threads cannot share a time. In this module `time` is the
-kit's built-in, not the stdlib module: the engine reads no wall clock (Q-5).
+The arithmetic is copied, not tidied, from `bench/authoring/surface.py`
+(the authoring study, ADR-005), so what it rendered stays bit-identical.
 """
 
 from __future__ import annotations
 
-import contextlib
 import math
-from collections.abc import Iterator
-from contextvars import ContextVar
 
 import numpy as np
 from numpy.typing import ArrayLike
 
 TWO_PI = 2.0 * math.pi
 
-# ---- frame context (renderer-managed) --------------------------------------
-
-_NOW: ContextVar[float] = ContextVar("pewpew_frame_time", default=0.0)
-
-
-@contextlib.contextmanager
-def _frame_time(t: float) -> Iterator[None]:
-    """Engine-internal: scope `time()` to one frame's t, then restore it."""
-    token = _NOW.set(float(t))
-    try:
-        yield
-    finally:
-        _NOW.reset(token)
-
-
-def time(interval: float):
-    """Pixelblaze-scaled 0-1 sawtooth: period = interval * 65.536 seconds."""
-    if interval == 0:
-        # A bare ZeroDivisionError would point at the kit, not the call site.
-        raise ValueError("time(interval) needs a non-zero interval; use a constant phase instead")
-    return (_NOW.get() / (interval * 65.536)) % 1.0
-
-
-# ---- 0-1 phase waveform shapers (scalar or array) --------------------------
-
 
 def wave(p):
     """Sine shaped to 0-1: wave(0)=0.5 rising."""
     return 0.5 + 0.5 * np.sin(TWO_PI * np.asarray(p))
-
-
-def triangle(p):
-    """0 → 1 → 0 over one 0-1 phase."""
-    return 1.0 - np.abs(2.0 * (np.asarray(p) % 1.0) - 1.0)
-
-
-def square(p, duty: float = 0.5):
-    """1 for the first `duty` fraction of the phase, else 0."""
-    return np.where((np.asarray(p) % 1.0) < duty, 1.0, 0.0)
 
 
 def hsv(h: ArrayLike, s: ArrayLike, v: ArrayLike) -> np.ndarray:
@@ -80,7 +35,7 @@ def hsv(h: ArrayLike, s: ArrayLike, v: ArrayLike) -> np.ndarray:
     return np.stack([r, g, b], axis=-1).astype(np.float32)
 
 
-# ---- fade, bins, sample2d, hash01: the study's verdict -----------------------
+# ---- fade and bins: the study's verdict -------------------------------------
 # (bench/results/authoring-2026-07-16.md). Each copies the expression a study
 # pattern wrote by hand; tests/test_kit.py holds the proofs.
 
@@ -109,32 +64,5 @@ def bins(x, n: int):
 
     `int(x * n)` puts x == 1.0 in bin n, one past the end (stumble #9). The
     low clamp keeps a coordinate below 0 from wrapping to the last bin.
-    Bit-exact with geq's study code for x in 0..1.
     """
     return _cell(np.asarray(x) * n, n)
-
-
-def sample2d(field: np.ndarray, x, y) -> np.ndarray:
-    """The nearest cell of `field` (H, W) at normalized (x, y), clamped at
-    both ends as in `bins`.
-
-    A stencil effect (Fire2012) keeps its state in a field of its own and
-    samples it at world coordinates in `render` (stumbles #12, #15).
-    Bit-exact with fire's study code for x, y in 0..1.
-    """
-    if field.ndim != 2:
-        raise ValueError(f"sample2d expects a 2D field (H, W), got shape {field.shape}")
-    h, w = field.shape
-    return field[_cell(np.asarray(y) * (h - 1) + 0.5, h), _cell(np.asarray(x) * (w - 1) + 0.5, w)]
-
-
-def hash01(x, seed, salt):
-    """A stable per-pixel pseudo-random value in [0, 1).
-
-    Computed in float64: float32 flips sparkle pixels near comet's 0.995
-    threshold (stumble #6). `seed` and `salt` stay separate and are added in
-    this order: a pre-summed value differs by 1 ulp on 46 of comet's 120
-    study frames.
-    """
-    x64 = np.asarray(x).astype(np.float64)
-    return (np.sin(12.9898 * x64 + seed + salt) * 43758.5453) % 1.0

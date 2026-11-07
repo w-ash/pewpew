@@ -9,8 +9,9 @@ import numpy as np
 import pytest
 
 from fakes import FLOW
-from pewpew import render_sequence
+from fakes import frames as render_frames
 from pewpew.power import EffectPower, PowerCap, PowerLimiter, clean, power_stage
+from pewpew.render import Renderer
 from pewpew.rig import EXAMPLES, compile_rig, load_arrangement, load_catalog
 from pewpew.sinks.base import to_display_u8
 
@@ -189,7 +190,7 @@ def test_the_limiter_is_deterministic():
 
 def test_an_uncapped_limiter_changes_no_displayed_byte():
     rig = golden()
-    sequence = render_sequence(FLOW, rig.mapping, seed=42, frames=30, fps=60.0)
+    sequence = render_frames(Renderer(FLOW(), rig.mapping, seed=42), 30)
     for cap in (PowerCap(), PowerCap(max_watts=1e6)):
         limiter = rig.limiter(cap)
         limited = np.stack([limiter(f).frame for f in sequence])

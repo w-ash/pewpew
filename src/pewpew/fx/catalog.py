@@ -4,7 +4,7 @@
 (docs/reference/catalog.md) and the builder's stub (`expr.pyi`) all read
 it; nothing describes an op twice.
 
-`catalog()` is a JSON-ready dict of five sections, and `page`, `markdown`
+`catalog()` is a JSON-ready dict of four sections, and `page`, `markdown`
 and `stub` give it as the control page, the reference page and the
 builder's stub read it:
 
@@ -14,8 +14,6 @@ builder's stub read it:
   describe records, the same as the page's), `cost` and `examples`, each
   as the builder chain (`py`) and as the program it makes (`json`); a
   signal op's examples are looks, which hold signals and routes.
-- `patterns`: each gallery pattern's name, doc, `units`, `warpable` and
-  params.
 - `blends`: each blend mode, what it does, and whether it shows black
   over nothing (`black`: on the bottom layer it hides the layer).
 - `palettes`: each preset gradient, as a `palette` param's value.
@@ -31,8 +29,8 @@ less the same for what it reads, or for a source less a frame of
 `osc(1)`; its `us_fixed` holds the work on its own grid or particles,
 which grows with the map only up to the grid's cap. Where that
 difference is lost in timing noise (a cheap combine) the figure is an
-estimate of the same order, and `below`, `prev` and `pattern` are
-estimates (a copy; the wrapped pattern's own cost). A signal op costs a
+estimate of the same order, and `below` and `prev` are estimates (a
+copy). A signal op costs a
 few float operations a frame whatever the map, an estimate in
 `us_fixed`. The suite never times anything; measure a new op the same
 way.
@@ -41,22 +39,22 @@ way.
 from __future__ import annotations
 
 import inspect
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from pewpew.classinfo import first_sentence
 from pewpew.color import PRESETS
-from pewpew.compose.stack import Look, pattern_program
+from pewpew.compose.stack import Look
 from pewpew.fx.blend import ABOUT, LABELS, LIGHTS_BLACK, Blend
-from pewpew.fx.codec import encode_look, encode_program, to_python
+from pewpew.fx.codec import encode_look, encode_program
 from pewpew.fx.expr import Expr, namespace
-from pewpew.fx.graph import PATTERN, Program, as_id
+from pewpew.fx.graph import Program
 from pewpew.fx.op import Op
 from pewpew.fx.ops import OPS
 from pewpew.fx.types import Sig
 from pewpew.params import Bool, Choice, Color, Float, Int, Palette, ParamSet
 
-SECTIONS = ("ops", "patterns", "blends", "palettes", "kinds")
+SECTIONS = ("ops", "blends", "palettes", "kinds")
 # The kind of each section's records: the section's one-item name.
 RECORD_KINDS = tuple(section.removesuffix("s") for section in SECTIONS)
 # What `--kind` takes: a record kind, or an op signature.
@@ -99,33 +97,19 @@ def op_record(cls: type[Op]) -> dict[str, Any]:
         "stateful": cls.stateful,
         "warpable": cls.warpable,
         "fix": cls.fix,
-        "params": [] if cls.op == PATTERN else ParamSet(cls).describe(),
+        "params": ParamSet(cls).describe(),
         "cost": cls.cost.to_json(),
         "examples": [{"py": py, "json": encode_example(example(py))} for py in cls.examples],
     }
 
 
-def pattern_record(name: str, cls: type) -> dict[str, Any]:
-    """The catalog record of gallery pattern `cls`, named `name`."""
-    return {
-        "name": name,
-        "doc": doc(inspect.getmodule(cls)) or doc(cls),
-        "units": cls.units,
-        "warpable": bool(cls.warpable),
-        "params": ParamSet(cls).describe(),
-    }
-
-
 def catalog() -> dict[str, list[dict[str, Any]]]:
-    """Every op (in signature order, then by name), gallery pattern, blend
-    mode, palette preset and param kind (module docstring)."""
-    from pewpew.load import gallery  # the gallery loads every pattern
-
+    """Every op (in signature order, then by name), blend mode, palette
+    preset and param kind (module docstring)."""
     order = list(Sig)
     ops = sorted(OPS.values(), key=lambda cls: (order.index(cls.sig), cls.op))
     return {
         "ops": [op_record(cls) for cls in ops],
-        "patterns": [pattern_record(name, cls) for name, cls in gallery().items()],
         "blends": [{"name": mode.value, "label": LABELS[mode], "doc": ABOUT[mode],
                     "black": mode not in LIGHTS_BLACK} for mode in Blend],
         "palettes": [{"name": preset.label, "value": _PALETTE.to_json(preset)} for preset in PRESETS],
@@ -167,26 +151,22 @@ def _text(record: Mapping[str, Any]) -> str:
 # ---- the control page's cards ----------------------------------------------------------
 
 
-def page(book: Mapping[str, list[dict[str, Any]]], patterns: Sequence[str]) -> dict[str, Any]:
+def page(book: Mapping[str, list[dict[str, Any]]]) -> dict[str, Any]:
     """`book` as the control page reads it (the preview's `catalog`
-    message): a card for each pattern of `patterns` (the aura's pick names)
-    and each op that draws (every signature but `signal`), and the blend
-    modes as `book` has them. A card is its record's `item`, with the map
-    dimensions its op takes (`dims`; None: any), what to use on another
-    map (`fix`), and its `examples`: each a program a layer runs, as the
-    builder chain (`py`), in the looks file's form (`json`), and with the
-    map dimensions it runs on (`dims`: those each of its ops takes). A
-    pattern's one example runs it alone."""
-    gallery = {record["name"]: record for record in book["patterns"]}
+    message): a card for each op that draws (every signature but
+    `signal`), and the blend modes as `book` has them. A card is its
+    record's `item`, with the map dimensions its op takes (`dims`), what to
+    use on another map (`fix`), and its `examples`: each a program a layer
+    runs, as the builder chain (`py`), in the looks file's form (`json`),
+    and with the map dimensions it runs on (`dims`: those each of its ops
+    takes)."""
     takes = {record["op"]: set(record["dims"]) for record in book["ops"]}
 
     def runs_on(example: dict[str, Any]) -> dict[str, Any]:
         ops = {node["op"] for node in example["json"]["nodes"].values()}
         return {**example, "dims": sorted(set.intersection(*(takes[op] for op in ops)))}
 
-    cards = [{**item("pattern", gallery.get(name, {"name": name})), "dims": None, "fix": "",
-              "examples": [runs_on(_pattern_example(name))]} for name in patterns]
-    cards += [{**item("op", r), "dims": r["dims"], "fix": r["fix"], "examples": [runs_on(e) for e in r["examples"]]}
+    cards = [{**item("op", r), "dims": r["dims"], "fix": r["fix"], "examples": [runs_on(e) for e in r["examples"]]}
               for r in book["ops"] if r["sig"] != Sig.SIGNAL]
     return {"cards": cards, "blends": book["blends"]}
 
@@ -194,36 +174,11 @@ def page(book: Mapping[str, list[dict[str, Any]]], patterns: Sequence[str]) -> d
 def item(kind: str, record: Mapping[str, Any]) -> dict[str, Any]:
     """Record `record`, of record kind `kind` (`RECORD_KINDS`), in short,
     as a search lists it (pewpew.lab.search) and a page's card names it:
-    `kind`, `name`, `label` (a pattern's the title its doc starts with;
-    the name when it has none), `summary` (its doc's first sentence, a
-    pattern's without its title) and `sig` (an op's signature, else
-    None)."""
+    `kind`, `name`, `label` (the name when it has none), `summary` (its
+    doc's first sentence) and `sig` (an op's signature, else None)."""
     name = name_of(record)
-    text = str(record.get("doc", ""))
-    summary = first_sentence(_untitled(text) if kind == "pattern" else text)
-    title = _title(text) if kind == "pattern" else ""
-    return {"kind": kind, "name": name, "label": str(record.get("label") or title or name), "summary": summary,
-            "sig": record.get("sig")}
-
-
-def _title(doc: str) -> str:
-    """The title a pattern's doc starts with (`Color plasma` of `Color
-    plasma — the plasma field...`), or ""."""
-    title, dash, _ = doc.partition(" — ")
-    return title.strip() if dash and "\n" not in title else ""
-
-
-def _untitled(doc: str) -> str:
-    """A pattern's doc without the title its module's starts with (`Wave —
-    bands of light...`): the item names it already."""
-    _, dash, rest = doc.partition(" — ")
-    return rest[:1].upper() + rest[1:] if dash else doc
-
-
-def _pattern_example(name: str) -> dict[str, Any]:
-    """The example of pattern `name`'s card: a program of it alone."""
-    program = pattern_program(as_id(name), name)
-    return {"py": to_python(program), "json": encode_program(program)}
+    return {"kind": kind, "name": name, "label": str(record.get("label") or name),
+            "summary": first_sentence(str(record.get("doc", ""))), "sig": record.get("sig")}
 
 
 # ---- the reference page and the builder's stub ------------------------------------------
@@ -256,9 +211,6 @@ def markdown(book: Mapping[str, list[dict[str, Any]]]) -> str:
             if record["params"]:
                 lines += ["", *(f"- `{p['name']}`: {_param(p)}" for p in record["params"])]
             lines += ["", *(f"    {e['py']}" for e in record["examples"])]
-    lines += ["", "## Patterns", ""]
-    lines += [f"- `{r['name']}` ({r['units']}{', warpable' if r['warpable'] else ''}): {r['doc']}"
-              for r in book["patterns"]]
     lines += ["", "## Blend modes", ""] + [f"- `{r['name']}`: {r['doc']}" for r in book["blends"]]
     lines += ["", "## Palettes", ""] + [f"- `{r['name']}`" for r in book["palettes"]]
     lines += ["", "## Param kinds", ""] + [f"- `{r['kind']}`: {r['doc']}" for r in book["kinds"]]
@@ -284,7 +236,7 @@ def stub(book: Mapping[str, list[dict[str, Any]]]) -> str:
     """The builder's type stub (`src/pewpew/fx/expr.pyi`): each op that
     reads no node a function, each other op a method, args typed by kind
     (a float or int arg may be a signal), and the look builder."""
-    sources = [r for r in book["ops"] if not r["inputs"] and r["op"] != PATTERN]
+    sources = [r for r in book["ops"] if not r["inputs"]]
     methods = [r for r in book["ops"] if r["inputs"]]
     lines = [
         '"""Generated from the catalog (pewpew.fx.catalog.stub); a test fails when it drifts."""',
@@ -302,7 +254,6 @@ def stub(book: Mapping[str, list[dict[str, Any]]]) -> str:
         "    args: Mapping[str, Any]",
         "    inputs: tuple[Expr, ...]",
         "    pinned: str | None",
-        "    pattern_cls: type | None",
         "    driven: tuple[Routed, ...]",
         "    def id(self, nid: str) -> Expr: ...",
         "    @property",
@@ -310,7 +261,6 @@ def stub(book: Mapping[str, list[dict[str, Any]]]) -> str:
         "    def to(self, path: str, depth: float) -> Routed: ...",
         "    def program(self, alpha: Expr | None = None) -> Program: ...",
         "    def built(self, alpha: Expr | None = None) -> tuple[Program, list[Routed]]: ...",
-        "    def patterns(self) -> dict[str, type]: ...",
     ]
     for record in methods:
         ports = [f"{p['name']}: Expr" for p in record["inputs"][1:]]
@@ -329,7 +279,6 @@ def stub(book: Mapping[str, list[dict[str, Any]]]) -> str:
         "    alpha: Expr | None",
         "    mix: Mapping[str, Any]",
         "",
-        "def id_base(op: str, args: Mapping[str, Any]) -> str: ...",
         "def assign_ids(nodes: list[tuple[str, str | None]]) -> list[str]: ...",
         "def auto_id(base: str, ordinal: int) -> str: ...",
         "def swept(param: Param[Any], where: str, span: Range) -> tuple[Any, float]: ...",
@@ -339,7 +288,6 @@ def stub(book: Mapping[str, list[dict[str, Any]]]) -> str:
         _def("look", ["*layers: LayerExpr", "routes: Iterable[Routed] = ()", "seed: int = 0",
                       "master: float | None = None", "fade: float | None = None", "cycle: bool = False",
                       "front: Sequence[str] = ()"], "", "Look"),
-        "def pattern(spec: str | type, *args: Any, **params: Any) -> Expr: ...",
     ]
     lines += [_def(r["op"], _args(r), "") for r in sources]
     lines.append("def __getattr__(name: str) -> Callable[..., Expr]: ...")

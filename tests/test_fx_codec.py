@@ -12,15 +12,14 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from fakes import LOOK_CLASSES, program_of
-from pewpew.compose import Layer, Look, pattern_layer
+from fakes import program_of
+from pewpew.compose import Layer, Look
 from pewpew.compose.controls import look_controls
 from pewpew.compose.modulation import route_problems
 from pewpew.fx.codec import decode_look, decode_program, encode_look, encode_program, to_python
 from pewpew.fx.compile import check, field_ops, upstream
 from pewpew.fx.expr import Expr, noise, osc
-from pewpew.fx.graph import PATTERN, Graph, Node, Program
-from pewpew.fx.host import ProgramPattern
+from pewpew.fx.graph import Graph, Node, Program
 from pewpew.fx.ops import OPS
 from pewpew.fx.types import ACCEPTS, Ty
 from pewpew.params import Bool, Choice, Float, Int, Palette, Param, declared_params
@@ -59,14 +58,13 @@ def value(param: Param[Any]) -> st.SearchStrategy[Any]:
 
 @st.composite
 def programs(draw: st.DrawFn) -> Program:
-    """A program of up to six nodes of the built-in ops (no pattern
-    nodes), each reading earlier nodes of a type its ports take, ending in
+    """A program of up to six nodes of the built-in ops, each reading earlier nodes of a type its ports take, ending in
     its last node."""
     nodes: list[Node] = []
     types: dict[str, Ty] = {}
     for i in range(draw(st.integers(1, 6))):
-        ops = [op for op in field_ops() if op != PATTERN
-               and all(any(t in ACCEPTS[port.ty] for t in types.values()) for port in OPS[op].inputs)]
+        ops = [op for op in field_ops()
+               if all(any(t in ACCEPTS[port.ty] for t in types.values()) for port in OPS[op].inputs)]
         op = draw(st.sampled_from(ops))
         cls = OPS[op]
         inputs = tuple(draw(st.sampled_from([nid for nid, t in types.items() if t in ACCEPTS[port.ty]]))
@@ -93,18 +91,18 @@ def json_values() -> st.SearchStrategy[Any]:
                         | st.dictionaries(st.text(max_size=8), inner, max_size=4), max_leaves=12)
 
 
-KEYS = ["layers", "nodes", "op", "args", "in", "out", "alpha", "id", "pattern", "sides", "freq"]
+KEYS = ["layers", "nodes", "op", "args", "in", "out", "alpha", "id", "scale", "sides", "freq"]
 
 
 def layer_docs() -> list[dict[str, Any]]:
-    """Valid layers to graft junk into: a program, and one pattern node,
-    whose own `out` is the only node it can name."""
+    """Valid layers to graft junk into: a program, and one node, whose own
+    `out` is the only node it can name."""
     return [
         {"id": "base", "out": "tint", "nodes": {
             "waves": {"op": "osc", "args": {"freq": 8.0}},
             "fold": {"op": "kaleid", "in": ["waves"], "args": {"sides": 5}},
             "tint": {"op": "palette", "in": ["fold"], "args": {}}}},
-        {"id": "base", "nodes": {"p": {"op": "pattern", "args": {"pattern": "solid"}}}},
+        {"id": "base", "nodes": {"p": {"op": "noise", "args": {"scale": 3.0}}}},
     ]
 
 
@@ -130,7 +128,7 @@ def test_decode_never_raises(junk: Any, which: int, path: list[str], graft: Any)
 
 def test_a_look_encodes_in_a_fixed_order_and_omits_what_is_default() -> None:
     program = osc(8, 0.1).id("waves").kaleid(5).id("fold").palette("ember").id("tint").program()
-    look = Look((Layer("base", program, opacity=0.5), pattern_layer("top", "solid")), seed=7, master=0.6)
+    look = Look((Layer("base", program, opacity=0.5), Layer("top", noise().program())), seed=7, master=0.6)
     doc = encode_look(look)
     assert list(doc) == ["seed", "master", "fade", "cycle", "layers"]
     assert list(doc["layers"][0]) == ["id", "opacity", "blend", "enabled", "out", "nodes"]
@@ -138,7 +136,7 @@ def test_a_look_encodes_in_a_fixed_order_and_omits_what_is_default() -> None:
     assert decode_look(json.loads(json.dumps(doc))) == (look, [])
 
 
-@pytest.mark.parametrize("layer", layer_docs(), ids=["program", "pattern"])
+@pytest.mark.parametrize("layer", layer_docs(), ids=["program", "one-node"])
 @pytest.mark.parametrize("end", [None, 3, "nope"])
 def test_an_out_that_names_no_node_is_a_problem_not_an_exception(layer: dict[str, Any], end: Any) -> None:
     look, problems = decode_look({"layers": [{**layer, "out": end}]})
@@ -171,18 +169,13 @@ def test_the_builder_chain_of_a_program_is_short_and_runs_again() -> None:
 
 def _problems() -> dict[str, list[str]]:
     """Each case's problems: a layer's nodes decoded, or a program checked
-    against a map's dimension or with its patterns resolved."""
-
-    class Nested(ProgramPattern):
-        program = osc(2)
-
-    classes = {**LOOK_CLASSES, "nested": Nested}
+    against a map's dimension."""
 
     def nodes(**raw: Any) -> list[str]:
         return decode_program({"nodes": raw}, where="layers.base")[1]
 
     def checked(source: Expr | Program, dims: int | None = None) -> list[str]:
-        return check(Program.of(source), where="layers.base", resolve=classes.get, dims=dims)
+        return check(Program.of(source), where="layers.base", dims=dims)
 
     def unchecked(*nodes: Node) -> Program:
         return Program(Graph(nodes), nodes[-1].id)
@@ -195,11 +188,11 @@ def _problems() -> dict[str, list[str]]:
 
     def wired(signals: dict[str, Any], *routes: dict[str, Any], front: tuple[str, ...] = ()) -> list[str]:
         """A look's problems: decoded, then each route and front knob
-        checked against the stack's knobs, as `pattern_problems` does."""
+        checked against the stack's knobs, as `route_reasons` does."""
         look, found = decode_look({**waves, "signals": signals, "routes": list(routes), "front": list(front)})
         if look is None:
             return found
-        return route_problems(look.routes, look.front, look_controls(look, classes.get))
+        return route_problems(look.routes, look.front, look_controls(look))
 
     return {
         "unknown op": nodes(fold={"op": "kaleidd"}),
@@ -222,20 +215,10 @@ def _problems() -> dict[str, list[str]]:
                                         where="layers.base")[1],
         "kaleid on a strip": checked(osc(8).kaleid(5), dims=1),
         "twist on a panel": checked(osc(8).twist(90), dims=2),
-        "a fixture pattern in a program": checked(unchecked(Node("p", PATTERN, {PATTERN: "fixtureramp"}),
-                                                            Node("dim", "contrast", {}, ("p",)))),
-        "a coord op over a pattern that is not warpable": checked(unchecked(
-            Node("p", PATTERN, {PATTERN: "solid"}), Node("fold", "mirror", {}, ("p",)))),
         "a coord op over below": checked(unchecked(Node("b", "below"), Node("fold", "mirror", {}, ("b",)))),
         "a coord op over state per point": checked(unchecked(Node("pond", "ripple"),
                                                              Node("turn", "rotate", {}, ("pond",)))),
         "an attractor on a strip": checked(unchecked(Node("moth", "attractor")), dims=1),
-        "a program in a program": checked(unchecked(Node("p", PATTERN, {PATTERN: "nested"}),
-                                                    Node("dim", "contrast", {}, ("p",)))),
-        "an unknown pattern": checked(unchecked(Node("p", PATTERN, {PATTERN: "plasmo"}),
-                                                Node("dim", "contrast", {}, ("p",)))),
-        "a pattern's param": checked(unchecked(Node("p", PATTERN, {PATTERN: "solid", "rde": 0.5}),
-                                               Node("dim", "contrast", {}, ("p",)))),
         "a signal op in a layer": nodes(w={"op": "lfo"}),
         "a field op in the signals": wired({"w": {"op": "osc"}}, route("w")),
         "an unknown signal op": wired({"b": {"op": "lfoo"}}, route("b")),

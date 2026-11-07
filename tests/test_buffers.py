@@ -14,7 +14,10 @@ import logging
 import numpy as np
 import pytest
 
-from pewpew import Float, Pattern, Renderer, line
+from pewpew.mapping import line
+from pewpew.params import Float
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 
 
 class Buffered(Pattern):

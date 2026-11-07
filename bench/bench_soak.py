@@ -17,7 +17,7 @@ does:
             rig applies through `call_soon`) and disconnects, again and again
   looks     a looks file generated in a temp dir; periodic recalls with fades
   triggers  launched `--armed`; periodic `fire`s of a trigger that holds a
-            look and of one that only reaches the pattern as data
+            look and of one that only reaches the running look as data
 
 Every schedule comes from `--seed` and is printed by `--dry-run` and saved
 in the JSON.
@@ -122,18 +122,21 @@ WATCHDOG_S = 5.0  # pewpew.watchdog.TIMEOUT_S; fixed here because the JSON key `
 OUTLIER_TOP = 20
 LOG_KEEP = 5000
 
-def _look(pattern: str, args: dict, fade: float) -> dict:
-    """A looks-file look of one layer, `base`, running `pattern` at `args`."""
-    return {"fade": fade, "layers": [{"id": "base", "nodes": {pattern: {"op": "pattern",
-                                                                        "args": {"pattern": pattern, **args}}}}]}
+def _look(source: str, args: dict, palette: str, fade: float) -> dict:
+    """A looks-file look of one layer, `base`: source op `source` at
+    `args`, colored by preset `palette`."""
+    return {"fade": fade, "layers": [{"id": "base", "nodes": {
+        source: {"op": source, "args": args},
+        "tint": {"op": "palette", "in": [source], "args": {"palette": palette}},
+    }}]}
 
 
 LOOKS = {
-    "soak-a": _look("wave", {"color": {"h": 200.0, "s": 1.0, "v": 1.0}, "speed": 0.25}, 2.0),
-    "soak-b": _look("plasma", {"speed": 0.5, "scale": 4.0}, 3.0),
-    "soak-c": _look("wave", {"color": {"h": 30.0, "s": 1.0, "v": 1.0}, "direction": 90.0}, 1.5),
-    "soak-d": _look("pulse", {"color": {"h": 120.0, "s": 1.0, "v": 1.0}}, 2.0),
-    "soak-cue": _look("sparkle", {}, 0.5),
+    "soak-a": _look("osc", {"freq": 4.0, "sync": 0.25}, "ocean", 2.0),
+    "soak-b": _look("noise", {"scale": 4.0}, "aurora", 3.0),
+    "soak-c": _look("osc", {"freq": 2.0, "sync": -0.1}, "ember", 1.5),
+    "soak-d": _look("voronoi", {}, "forest", 2.0),
+    "soak-cue": _look("noise", {"scale": 8.0}, "ice", 0.5),
 }
 RECALL_ORDER = ("soak-b", "soak-c", "soak-d", "soak-a")
 TRIGGERS = {
@@ -766,8 +769,8 @@ class Client:
         self.health = health
         self.refused: list[dict] = []
         self.fired: list[dict] = []
-        self.pattern: str | None = None
-        self.patterns_seen: collections.Counter = collections.Counter()
+        self.look: str | None = None
+        self.looks_seen: collections.Counter = collections.Counter()
         self._last_health: dict[str, tuple] = {}
         self._last_trigger: Any = None
         self.wire = Wire(url, on_text=self._record, tries=tries)
@@ -789,9 +792,10 @@ class Client:
     def _record(self, doc: dict) -> None:
         kind = doc["type"]
         if kind == "aura":
-            if doc.get("pattern") != self.pattern:
-                self.pattern = doc.get("pattern")
-                self.patterns_seen[self.pattern] += 1
+            current = (doc.get("looks") or {}).get("current")
+            if current != self.look:
+                self.look = current
+                self.looks_seen[self.look] += 1
             last = (doc.get("triggers") or {}).get("last")
             if last and last != self._last_trigger:
                 self._last_trigger = last
@@ -809,7 +813,7 @@ class Client:
 
 
 def sliders(params: list[dict]) -> list[dict]:
-    """The `declare` records a churn client drags: the pattern's float
+    """The `declare` records a churn client drags: the nodes' float
     params. A layer's own controls (no `node`) and params with no range
     are left out. A `set` names a param by its record's `name`, the full path."""
     return [p for p in params if p.get("node") and p.get("kind") == "float"]
@@ -986,7 +990,7 @@ def driver_main(cfg_path: Path) -> None:
             "actions": dict(actions),
             "client": {"control": {"counts": dict(control.counts), "refused": control.refused,
                                    "trigger_last": control.fired,
-                                   "patterns_seen": dict(control.patterns_seen)},
+                                   "looks_seen": dict(control.looks_seen)},
                        "churn": dict(churn_stats)},
         }
         print(json.dumps(final), flush=True)

@@ -21,7 +21,7 @@ import pytest
 
 from audio_signals import RATE, frame_bytes, kick_loop, noise, write_wav
 from fake_node import MAC, FakeNode, clean, ready, source_for, synthetic_trace
-from fakes import FakeTime, build, no_watch, pattern_looks
+from fakes import FakeTime, build, looks_file, no_watch
 from pewpew.__main__ import main, parse
 from pewpew.audio import AudioFeatures, keys, net, wire
 from pewpew.audio.analysis import HOP_S, LOST_S, Analyser
@@ -38,6 +38,7 @@ from pewpew.audio.net import (
     node_source,
 )
 from pewpew.audio.wire import Denial, Packet
+from pewpew.fx import expr
 from pewpew.render import SlotClock
 from pewpew.run import Run
 
@@ -45,6 +46,9 @@ FPS = 60.0
 SLOT = 1.0 / FPS
 PER_PACKET = wire.SAMPLES / RATE
 TRACE = Path(__file__).parent / "fixtures" / "audio_net" / "synthetic.trace"
+# A looks file of a look the input moves: the bass shifts the stripes.
+HEARD = looks_file(expr.look(expr.layer("base", expr.osc(6).palette("ocean")),
+                             routes=[expr.band("bass").to("layers.base.osc.offset", depth=0.5)]), "heard")
 
 
 def made(start: int, count: int = 1, *, nonce: int = 1, flags: int = 0) -> list[Packet]:
@@ -228,9 +232,9 @@ def test_a_trace_replays_its_loss_reorder_duplicate_stray_and_reboot_byte_for_by
 
 
 def trace_run_frames(tmp_path: Path, seconds: float = 5.0) -> list[bytes]:
-    """5 s of the synthetic trace through a built `Run` of geq, tick by tick."""
+    """5 s of the synthetic trace through a built `Run` of `HEARD`, tick by tick."""
     wav = write_wav(tmp_path / "x.wav", noise(0.1))
-    run = build(["run", pattern_looks("geq"), "--audio", str(wav), "--ansi"])
+    run = build(["run", HEARD, "--audio", str(wav), "--ansi"])
     source = TraceSource(Trace.from_bytes(TRACE.read_bytes()), kick_loop(124.0, 2.0))
     run = type(run)(dataclasses.replace(run.launch, audio=source), ansi_stream=io.StringIO(), now=lambda: 0.0,
                     sleep=lambda s: None, watch=no_watch)
@@ -291,12 +295,12 @@ def test_outside_an_unattended_run_a_node_needs_an_allow_host_that_names_its_add
 ])
 def test_node_options_that_rule_each_other_out_are_usage_errors(capsys, argv: list[str], problem: str) -> None:
     with pytest.raises(SystemExit) as exit_:
-        parse(["run", pattern_looks("pulse"), *argv])
+        parse(["run", looks_file(), *argv])
     assert exit_.value.code == 2 and problem in capsys.readouterr().err
 
 
 def test_a_dry_run_names_the_node_and_subscribes_to_nothing(capsys, audit_log: Path) -> None:
-    argv = ["run", pattern_looks("pulse"), "--audio", "net:10.0.0.42", "--allow-host", "10.0.0.42", "--dry-run"]
+    argv = ["run", looks_file(), "--audio", "net:10.0.0.42", "--allow-host", "10.0.0.42", "--dry-run"]
     assert main(argv) == 0
     out = capsys.readouterr().out
     assert "dry run: nothing sent" in out and "capture node 10.0.0.42 at 10.0.0.42 (--allow-host names it)" in out
@@ -613,7 +617,7 @@ def test_a_tick_drains_a_bounded_number_of_datagrams(node: FakeNode, monkeypatch
 
 def node_run(node: FakeNode) -> Run:
     """A built bench run of `net:127.0.0.1`, its source pointed at `node`."""
-    run = build(["run", pattern_looks("pulse"), "--audio", "net:127.0.0.1", "--allow-host", "127.0.0.1", "--ansi"])
+    run = build(["run", looks_file(), "--audio", "net:127.0.0.1", "--allow-host", "127.0.0.1", "--ansi"])
     assert isinstance(run.capture, NetSource) and run.audio is not None and run.audio.source is run.capture
     run.capture._port, run.capture._fetch = node.port, node.fetch
     return run

@@ -31,7 +31,7 @@ from pewpew.errors import Refusal
 logger = logging.getLogger(__name__)
 
 # Display gamma for 8-bit screens (terminal cells, browser canvas): without
-# it, low-end glow (comet trails, the SDF shell) shows as black. Not the LED
+# it, low-end glow (trails, soft edges) shows as black. Not the LED
 # curve, which is ADR-001's 16-bit LUT.
 DISPLAY_GAMMA = 2.2
 

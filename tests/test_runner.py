@@ -16,17 +16,29 @@ import pytest
 
 import pewpew.run as run_module
 from fakes import EXAMPLES as EXAMPLE_LOOKS
-from fakes import FakeTime, build, layered, pattern_looks, run_main, wait_until
-from pewpew import Renderer, line, render_sequence
+from fakes import FakeTime, build, filed, frames, hosted, layered, looks_file, program_of, run_main, wait_until
 from pewpew.__main__ import main
 from pewpew.aura.master import Master
 from pewpew.compose import layer_seed
+from pewpew.fx import expr
+from pewpew.fx.host import ProgramPattern
+from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.patterns import Comet
 from pewpew.rig import EXAMPLES
 from pewpew.run import preview_url, status_line
 from pewpew.sinks import ddp, preview
 from pewpew.sinks.base import to_linear_u8
+
+# A program that keeps a trail: what it renders next depends on what it rendered.
+TRAIL = 'osc(2, 0.4).trails(0.8).palette("ember")'
+
+
+def unknown_op(tmp_path, op: str = "nope") -> str:
+    """The path, as text, of a looks file whose one look runs op `op`, which
+    no catalog holds."""
+    path = tmp_path / f"{op}.look.json"
+    path.write_text(filed(layered(op)))
+    return str(path)
 
 
 def usage_error(argv, capsys) -> str:
@@ -38,7 +50,7 @@ def usage_error(argv, capsys) -> str:
 
 
 def test_run_renders_n_frames_to_ansi_and_exits_clean():
-    rc, out = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "3"])
+    rc, out = run_main(["run", looks_file(), "--map", "line:8", "--frames", "3"])
     assert rc == 0
     # Pipe mode (StringIO is not a tty): three frame blocks, no cursor codes.
     # Exactly three because teardown drains the mailbox before stopping —
@@ -49,13 +61,13 @@ def test_run_renders_n_frames_to_ansi_and_exits_clean():
 
 
 def test_run_defaults_the_map_to_a_16x16_grid():
-    rc, out = run_main(["run", pattern_looks(), "--frames", "1"])
+    rc, out = run_main(["run", looks_file(), "--frames", "1"])
     assert rc == 0 and out.count("▀") == 128  # two rows of the grid a character
-    assert build(["run", pattern_looks()]).launch.mapping.shape == (256, 3)
+    assert build(["run", looks_file()]).launch.mapping.shape == (256, 3)
 
 
 def test_an_explicit_map_wins_over_the_default():
-    rc, out = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1"])
+    rc, out = run_main(["run", looks_file(), "--map", "line:8", "--frames", "1"])
     assert rc == 0
     assert out.count("█") == 8  # the 8 asked for, not the default grid's 256
 
@@ -63,26 +75,29 @@ def test_an_explicit_map_wins_over_the_default():
 def test_run_rejects_a_bad_looks_file_and_a_bad_map(tmp_path, capsys):
     with pytest.raises(SystemExit, match=r"nope.look.json: cannot read the looks file: No such file or directory$"):
         main(["run", str(tmp_path / "nope.look.json"), "--frames", "1"])
-    unknown = pattern_looks("nope")
-    with pytest.raises(SystemExit, match=rf"^{re.escape(unknown)}: cannot start look 'nope': layers.base: unknown "
-                       "pattern 'nope'; patterns: colorplasma"):
+    unknown = unknown_op(tmp_path)
+    with pytest.raises(SystemExit, match=rf"^{re.escape(unknown)}: look 'look': layers.base.nope: unknown "
+                       "op 'nope'; ops: add, "):
         main(["run", unknown, "--frames", "1"])
+    # The gallery's `pattern` op is gone: a look that names it is refused as any unknown op is.
+    with pytest.raises(SystemExit, match=r"layers.base.pattern: unknown op 'pattern'; ops: add, "):
+        main(["run", unknown_op(tmp_path, "pattern"), "--frames", "1"])
     assert "argument --map: expected line:64, grid:16x16 or lattice:8, sizes at least 1; got 'torus:9'" in usage_error(
-        ["run", pattern_looks(), "--map", "torus:9", "--frames", "1"], capsys)
+        ["run", looks_file(), "--map", "torus:9", "--frames", "1"], capsys)
     for flag in (["--param", "speed=1"], ["--units", "pixel"], ["--pattern-dir", "."], ["--no-reload"],
                  ["--looks", unknown]):
-        assert "unrecognized arguments" in usage_error(["run", pattern_looks(), *flag, "--frames", "1"], capsys)
+        assert "unrecognized arguments" in usage_error(["run", looks_file(), *flag, "--frames", "1"], capsys)
 
 
-def test_a_run_starts_in_the_current_look_else_the_first(tmp_path):
-    two = {"version": 4, "looks": {"warm": layered("comet", {"speed": 2.0}), "cool": layered("comet")}}
+def test_a_run_starts_in_the_current_look_else_the_first(tmp_path, fake_ops):
+    two = {"version": 4, "looks": {"warm": layered("solid_test", {"red": 0.5}), "cool": layered("solid_test")}}
     path = tmp_path / "looks.json"
     path.write_text(json.dumps(two))
     run = build(["run", str(path), "--map", "line:8"])
-    assert run.looks.book.current == "warm" and run.control.values()["layers.base.comet.speed"] == 2.0
+    assert run.looks.book.current == "warm" and run.control.values()["layers.base.solid.red"] == 0.5
     path.write_text(json.dumps({**two, "current": "cool"}))
     run = build(["run", str(path), "--map", "line:8"])
-    assert run.looks.book.current == "cool" and run.control.values()["layers.base.comet.speed"] != 2.0
+    assert run.looks.book.current == "cool" and run.control.values()["layers.base.solid.red"] != 0.5
     path.write_text(json.dumps({"version": 4, "looks": {}}))
     with pytest.raises(SystemExit, match=r"looks.json: the looks file holds no look$"):
         build(["run", str(path)])
@@ -120,7 +135,7 @@ def test_status_supplier_snapshots_the_error_once():
 
 
 def test_run_announces_the_preview_url(capsys):
-    rc, _ = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
+    rc, _ = run_main(["run", looks_file(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
     assert rc == 0
     err = capsys.readouterr().err
     assert "preview at http://127.0.0.1:" in err  # port 0 -> whatever we bound
@@ -136,7 +151,7 @@ def test_a_preview_that_cannot_listen_leaves_the_room_running_and_tries_again(au
         held.bind(("127.0.0.1", 0))
         held.listen()
         port = held.getsockname()[1]
-        argv = ["run", pattern_looks(), "--map", "line:8", "--ddp", "127.0.0.1=0+8", "--preview", "--port", str(port)]
+        argv = ["run", looks_file(), "--map", "line:8", "--ddp", "127.0.0.1=0+8", "--preview", "--port", str(port)]
         assert run_main([*argv, "--frames", "3"])[0] == 0
         assert recorder.sent  # the boards got frames
         assert f"preview: cannot listen on 127.0.0.1:{port} (Address already in use); the aura runs on" in (
@@ -174,7 +189,7 @@ def test_log_records_are_deferred_while_the_ansi_sink_owns_the_terminal(monkeypa
 
     term = Tty()
     monkeypatch.setattr(sys, "stderr", term)  # one device, as in a real shell
-    rc, out = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "3"], ansi_stream=term)
+    rc, out = run_main(["run", looks_file(), "--map", "line:8", "--frames", "3"], ansi_stream=term)
     assert rc == 0
     assert "TRACEBACK" in out  # deferred, never dropped
     # ...and only after the sink restored the cursor and released the terminal.
@@ -185,8 +200,8 @@ def test_log_records_are_deferred_while_the_ansi_sink_owns_the_terminal(monkeypa
 def test_cli_logging_leaves_no_handler_behind():
     root = logging.getLogger("pewpew")
     before = list(root.handlers)
-    run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1"])
-    run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1"])
+    run_main(["run", looks_file(), "--map", "line:8", "--frames", "1"])
+    run_main(["run", looks_file(), "--map", "line:8", "--frames", "1"])
     assert root.handlers == before  # repeated in-process runs must not stack
 
 
@@ -197,9 +212,9 @@ def test_ctrl_c_ends_the_run_through_the_whole_teardown(recorder, monkeypatch):
     def interrupted(self, x, y, z, index):
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(Comet, "render", interrupted)
+    monkeypatch.setattr(ProgramPattern, "render", interrupted)
     try:
-        rc, _ = run_main(["run", pattern_looks(), "--map", "line:4", "--frames", "100", "--ddp", "127.0.0.1=0+4"])
+        rc, _ = run_main(["run", looks_file(), "--map", "line:4", "--frames", "100", "--ddp", "127.0.0.1=0+4"])
     except KeyboardInterrupt:
         pytest.fail("Ctrl-C escaped the run")
     assert rc == 0
@@ -220,7 +235,7 @@ def test_status_prefers_the_reload_error_over_the_pattern_error():
 
 
 def test_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
-    argv = ["run", pattern_looks(), "--map", "line:3840", "--dry-run"]
+    argv = ["run", looks_file(), "--map", "line:3840", "--dry-run"]
     for i in range(3):
         argv += ["--ddp", f"10.0.0.1{i + 1}={1280 * i}+1280"]
     assert run_main(argv)[0] == 0
@@ -236,21 +251,21 @@ def test_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
     [
         ("{old}", "looks file is version 1; this pewpew reads version 4"),
         ("{folder}", r"folder: cannot read the looks file: Is a directory$"),
-        ("{unknown}", r"cannot start look 'nope': layers.base: unknown pattern 'nope'"),
+        ("{unknown}", r"look 'look': layers.base.nope: unknown op 'nope'"),
     ],
 )
 def test_dry_run_refuses_what_a_launch_would(looks, message, tmp_path, recorder):
     old = tmp_path / "looks.json"
     old.write_text(json.dumps({"version": 1, "looks": {}}))
     (tmp_path / "folder").mkdir()
-    looks = looks.format(old=old, folder=tmp_path / "folder", unknown=pattern_looks("nope"))
+    looks = looks.format(old=old, folder=tmp_path / "folder", unknown=unknown_op(tmp_path))
     with pytest.raises(SystemExit, match=message):
         run_main(["run", looks, "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run"])
     assert recorder.sent == []
 
 
 def test_real_run_audits_first_then_streams(audit_log, recorder, capsys):
-    argv = ["run", pattern_looks(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8",
+    argv = ["run", looks_file(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8",
             "--ddp-fps", "50"]
     assert run_main(argv)[0] == 0
     assert len(recorder.sent) == 3  # one packet per frame, last frame drained
@@ -268,7 +283,7 @@ def test_real_run_audits_first_then_streams(audit_log, recorder, capsys):
 
 
 def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
-    base = ["run", pattern_looks(), "--map", "line:8", "--fps", "30", "--ddp", "127.0.0.1=0+8", "--ddp-fps", "60"]
+    base = ["run", looks_file(), "--map", "line:8", "--fps", "30", "--ddp", "127.0.0.1=0+8", "--ddp-fps", "60"]
     assert run_main([*base, "--dry-run"])[0] == 0
     assert "at 30 fps" in capsys.readouterr().out
     assert run_main([*base, "--frames", "2"])[0] == 0
@@ -292,7 +307,7 @@ def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
     ("--map", "grid:4", "sizes at least 1; got 'grid:4'"),
 ])
 def test_a_bad_value_is_a_usage_error_naming_its_flag(flag, value, message, capsys):
-    assert message in usage_error(["run", pattern_looks(), "--map", "line:8", "--frames", "1", flag, value], capsys)
+    assert message in usage_error(["run", looks_file(), "--map", "line:8", "--frames", "1", flag, value], capsys)
 
 
 @pytest.mark.parametrize(
@@ -306,7 +321,7 @@ def test_a_bad_value_is_a_usage_error_naming_its_flag(flag, value, message, caps
 )
 def test_cli_rejects_bad_targets_with_one_line(extra, message, audit_log, recorder):
     with pytest.raises(SystemExit, match=message) as exc:
-        run_main(["run", pattern_looks(), "--map", "line:8", "--dry-run", *extra])
+        run_main(["run", looks_file(), "--map", "line:8", "--dry-run", *extra])
     assert "\n" not in str(exc.value)
     assert recorder.sent == []
     assert not audit_log.exists()
@@ -314,11 +329,11 @@ def test_cli_rejects_bad_targets_with_one_line(extra, message, audit_log, record
 
 def test_a_dry_run_with_nothing_to_stream_is_a_usage_error(capsys, audit_log):
     assert "--dry-run needs at least one --ddp target, a --room or --audio net:NODE" in usage_error(
-        ["run", pattern_looks(), "--map", "line:8", "--dry-run"], capsys)
+        ["run", looks_file(), "--map", "line:8", "--dry-run"], capsys)
     assert not audit_log.exists()
 
 
-# -- the control page: --host, pattern picker, master, blackout ------
+# -- the control page: --host, master, blackout ------
 
 
 def test_host_reaches_the_server_and_the_url_line(monkeypatch, capsys):
@@ -332,7 +347,7 @@ def test_host_reaches_the_server_and_the_url_line(monkeypatch, capsys):
         return real_serve(handler, "127.0.0.1", port, **kw)
 
     monkeypatch.setattr(preview, "serve", serve)
-    rc, _ = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0",
+    rc, _ = run_main(["run", looks_file(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0",
                       "--host", "10.0.0.2"])
     assert rc == 0 and bound == ["10.0.0.2"]
     assert "preview at http://10.0.0.2:" in capsys.readouterr().err
@@ -351,14 +366,14 @@ def test_the_preview_url_brackets_ipv6_and_knows_localhost_is_loopback():
 @pytest.mark.parametrize("flag", [["--host", "10.0.0.2"], ["--port", "0"], ["--accept-looks"]])
 def test_host_and_port_need_the_preview(flag, capsys):
     assert f"{flag[0]} only applies with --preview" in usage_error(
-        ["run", pattern_looks(), "--map", "line:8", "--frames", "1", *flag], capsys)
+        ["run", looks_file(), "--map", "line:8", "--frames", "1", *flag], capsys)
 
 
 def test_a_run_takes_looks_only_when_asked_and_never_an_unattended_run(capsys):
     """`--accept-looks` lets any client of the preview change the look, so
     only a run that asks offers `look`, and an unattended run refuses the flag
     (ADR-020 amendment "capabilities")."""
-    argv = ["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"]
+    argv = ["run", looks_file(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"]
     assert build(argv).control.capabilities == ()
     assert build([*argv, "--accept-looks"]).control.capabilities == ("look",)
     assert "--accept-looks lets any client of the preview change the look, which --unattended refuses" in (
@@ -366,7 +381,7 @@ def test_a_run_takes_looks_only_when_asked_and_never_an_unattended_run(capsys):
 
 
 def test_the_preview_flag_takes_no_value_so_it_never_swallows_the_looks_file():
-    path = pattern_looks()
+    path = looks_file()
     run_ = build(["run", "--preview", path, "--map", "line:8", "--frames", "1"])
     assert str(run_.args.looks) == path and run_.args.port == 7447
 
@@ -374,30 +389,31 @@ def test_the_preview_flag_takes_no_value_so_it_never_swallows_the_looks_file():
 @pytest.mark.parametrize("cap", ["0", "1.5", "-0.1", "nan", "bright"])
 def test_the_master_cap_must_be_above_0_and_at_most_1(cap, capsys):
     assert "argument --master-cap: expected a number above 0 and at most 1" in usage_error(
-        ["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--master-cap", cap], capsys)
+        ["run", looks_file(), "--map", "line:8", "--frames", "1", "--master-cap", cap], capsys)
 
 
-@pytest.mark.parametrize("extra, params, scale", [
-    (["--master-cap", "0.5"], {}, 0.5),
-    ([], {"speed": 1.5, "tail": 2.0}, 1.0),
-], ids=["master-cap", "params"])
-def test_the_boards_receive_the_render_of_the_params_dimmed_by_the_master(extra, params, scale, recorder):
-    argv = ["run", pattern_looks("comet", params), "--map", "line:8", "--frames", "3", "--fps", "60",
+@pytest.mark.parametrize("extra, chain, scale", [
+    (["--master-cap", "0.5"], TRAIL, 0.5),
+    ([], 'osc(3, 0.2).trails(2.0).palette("ember")', 1.0),
+], ids=["master-cap", "args"])
+def test_the_boards_receive_the_render_of_the_args_dimmed_by_the_master(extra, chain, scale, recorder):
+    start = expr.look(expr.layer("base", program_of(chain)))
+    argv = ["run", looks_file(start), "--map", "line:8", "--frames", "3", "--fps", "60",
             "--ddp-fps", "60", "--ddp", "127.0.0.1=0+8", *extra]
     assert run_main(argv)[0] == 0
     # The look runs its layer `base`, seeded from the look's own seed.
-    frames = render_sequence(Comet, line(8), frames=3, fps=60.0, params=params, seed=layer_seed(0, "base"))
-    want = [to_linear_u8(f * np.float32(scale)).tobytes() for f in frames]
+    made = frames(hosted(program_of(chain), line(8), seed=layer_seed(0, "base")), 3)
+    want = [to_linear_u8(f * np.float32(scale)).tobytes() for f in made]
     assert [data[ddp.HEADER_LEN:] for data, _ in recorder.sent] == want
 
 
 def test_master_scales_sink_output_without_touching_the_render():
-    """The master multiplies the copy the sinks get. Comet keeps a trail, so
-    a product written back into the renderer's frame would change every
-    later frame; the undimmed sequence must stay what render_sequence
+    """The master multiplies the copy the sinks get. The program keeps a
+    trail, so a product written back into the renderer's frame would change
+    every later frame; the undimmed sequence must stay what a lone renderer
     gives."""
 
-    renderer = Renderer(Comet(), line(16))
+    renderer = hosted(program_of(TRAIL))
     master = Master()
     seen = []
     ft = FakeTime()
@@ -408,7 +424,7 @@ def test_master_scales_sink_output_without_touching_the_render():
     loop.run(frames=4)
     loop.calls.call_soon(lambda: master.set_blackout(True))
     loop.run(frames=2)
-    ref = render_sequence(Comet, line(16), frames=10, fps=60.0)
+    ref = frames(hosted(program_of(TRAIL)), 10)
     for i, frame in enumerate(seen):
         scale = 1.0 if i < 4 else 0.25 if i < 8 else 0.0
         assert np.array_equal(frame, ref[i] * np.float32(scale)), i
@@ -452,43 +468,43 @@ def test_boards_lists_what_the_sweep_found(monkeypatch, capsys):
 
 def test_armed_arms_the_triggers_at_the_first_tick(tmp_path):
     log = tmp_path / "events.jsonl"
-    argv = ["run", pattern_looks(), "--map", "line:8", "--frames", "2", "--armed", "--trigger-log", str(log)]
+    argv = ["run", looks_file(), "--map", "line:8", "--frames", "2", "--armed", "--trigger-log", str(log)]
     assert run_main(argv)[0] == 0
     assert [json.loads(line) for line in log.read_text().splitlines()] == [
-        {"run": {"seed": 0, "fps": 60.0, "pattern": "comet", "look": "comet", "armed": True}},
+        {"run": {"seed": 0, "fps": 60.0, "look": "look", "armed": True}},
         {"tick": 0, "t": 1 / 60, "source": "launch", "arm": True},
     ]
 
 
 def test_triggers_start_disarmed_without_armed(tmp_path):
     log = tmp_path / "events.jsonl"
-    assert run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "2", "--trigger-log", str(log)])[0] == 0
+    assert run_main(["run", looks_file(), "--map", "line:8", "--frames", "2", "--trigger-log", str(log)])[0] == 0
     assert [json.loads(line).get("run", {}).get("armed") for line in log.read_text().splitlines()] == [False]
 
 
 def test_an_unattended_run_holds_the_sleep_assertion_and_arms_the_watchdog():
-    unattended = build(["run", pattern_looks(), "--map", "line:8", "--frames", "3", "--unattended"])
+    unattended = build(["run", looks_file(), "--map", "line:8", "--frames", "3", "--unattended"])
     assert unattended.awake is not None and unattended.awake.args[:4] == ["caffeinate", "-i", "-s", "-w"]
     assert unattended.watchdog is not None and unattended.watchdog.timeout == 5.0
     assert unattended.serve() == 0
     assert unattended.awake.state()["held"] is False and not unattended.watchdog.fired  # released at the end
 
-    dev = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
+    dev = build(["run", looks_file(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
     assert dev.awake is None and dev.watchdog is None  # a dev run holds neither
-    held = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--keep-awake", "--watchdog", "2"])
+    held = build(["run", looks_file(), "--map", "line:8", "--frames", "1", "--keep-awake", "--watchdog", "2"])
     assert held.awake is not None and held.watchdog is not None and held.watchdog.timeout == 2.0
     held.watchdog.stop()  # armed as the run was built; it is never served
-    off = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--unattended", "--watchdog", "0"])
+    off = build(["run", looks_file(), "--map", "line:8", "--frames", "1", "--unattended", "--watchdog", "0"])
     assert off.watchdog is None and off.monitor is not None and off.monitor.state()["loop"]["watchdog"] is None
 
 
 def test_keep_awake_alone_gets_a_monitor_that_restarts_caffeinate():
-    run_ = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--keep-awake"])
+    run_ = build(["run", looks_file(), "--map", "line:8", "--frames", "1", "--keep-awake"])
     assert run_.monitor is not None and run_.monitor.state()["awake"]["requested"] is True
 
 
 def test_the_health_monitor_polls_the_ddp_boards(recorder):
-    run_ = build(["run", pattern_looks(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8"])
+    run_ = build(["run", looks_file(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8"])
     assert run_.monitor is not None
     run_.monitor.step()
     assert [b["host"] for b in run_.monitor.state()["boards"]] == ["127.0.0.1"]
@@ -501,37 +517,37 @@ def test_the_health_monitor_polls_the_ddp_boards(recorder):
 GOLDEN_RINGS = EXAMPLES / "golden-rings.json"
 
 
-def test_run_accepts_an_arrangement_map_with_one_unit_per_fixture(capsys):
-    rc, out = run_main(["run", pattern_looks(), "--map", str(GOLDEN_RINGS), "--frames", "1"])
+def test_run_accepts_an_arrangement_map(capsys):
+    rc, out = run_main(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--frames", "1"])
     assert rc == 0 and "\x1b[38;2;" in out
     assert "warning: connector/clen-4pin.rated_a = 4.0 is assumed" in capsys.readouterr().err
-    launch = build(["run", pattern_looks("pulse"), "--map", str(GOLDEN_RINGS), "--frames", "1"]).launch
-    assert len(launch.mapping) == 3072 and launch.grouping is not None and len(launch.grouping.centres) == 48
+    launch = build(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--frames", "1"]).launch
+    assert len(launch.mapping) == 3072
 
 
 def test_run_reports_a_bad_arrangement(tmp_path):
     with pytest.raises(SystemExit, match="no such file"):
-        main(["run", pattern_looks(), "--map", str(tmp_path / "missing.json"), "--frames", "1"])
+        main(["run", looks_file(), "--map", str(tmp_path / "missing.json"), "--frames", "1"])
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps(
         {"format": "pewpew.arrangement", "version": 1, "fixtures": [{"id": "x", "type": "no-such-bar"}]}
     ))
     with pytest.raises(SystemExit, match="no fixture type 'no-such-bar'"):
-        main(["run", pattern_looks(), "--map", str(bad), "--frames", "1"])
+        main(["run", looks_file(), "--map", str(bad), "--frames", "1"])
 
 
 def test_run_reports_an_unreadable_or_empty_arrangement(tmp_path):
     (tmp_path / "dir.json").mkdir()
     with pytest.raises(SystemExit, match="cannot read the file: is a directory"):
-        main(["run", pattern_looks(), "--map", str(tmp_path / "dir.json"), "--frames", "1"])
+        main(["run", looks_file(), "--map", str(tmp_path / "dir.json"), "--frames", "1"])
     latin1 = tmp_path / "latin1.json"
     latin1.write_bytes(b'{"name": "\xe9"}')
     with pytest.raises(SystemExit, match="not UTF-8"):
-        main(["run", pattern_looks(), "--map", str(latin1), "--frames", "1"])
+        main(["run", looks_file(), "--map", str(latin1), "--frames", "1"])
     empty = tmp_path / "empty.json"
     empty.write_text(json.dumps({"format": "pewpew.arrangement", "version": 1}))
     with pytest.raises(SystemExit, match="has no pixels"):
-        main(["run", pattern_looks(), "--map", str(empty), "--frames", "1"])
+        main(["run", looks_file(), "--map", str(empty), "--frames", "1"])
 
 
 def test_a_run_on_any_other_map_never_imports_the_rig_stack():
@@ -539,10 +555,10 @@ def test_a_run_on_any_other_map_never_imports_the_rig_stack():
     code = (
         "import io, sys\n"
         "from pewpew.__main__ import main\n"
-        f"rc = main(['run', {pattern_looks('plasma')!r}, '--map', 'line:8', '--frames', '1'], "
+        f"rc = main(['run', {looks_file()!r}, '--map', 'line:8', '--frames', '1'], "
         "ansi_stream=io.StringIO())\n"
         "assert rc == 0\n"
-        f"rc = main(['run', {pattern_looks('pulse')!r}, '--frames', '1'], ansi_stream=io.StringIO())\n"
+        f"rc = main(['run', {looks_file()!r}, '--frames', '1'], ansi_stream=io.StringIO())\n"
         "assert rc == 0\n"
         "bad = [m for m in ('pewpew.rig', 'pydantic', 'pewpew.studio.app') if m in sys.modules]\n"
         "assert not bad, bad\n"
@@ -558,9 +574,9 @@ def test_a_failing_rig_compile_cannot_break_a_run_on_another_map(monkeypatch):
         raise RuntimeError("rig compile broke")
 
     monkeypatch.setattr(pewpew.rig, "compile_rig", boom)
-    assert run_main(["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1"])[0] == 0
+    assert run_main(["run", looks_file(), "--map", "line:8", "--frames", "1"])[0] == 0
     with pytest.raises(RuntimeError, match="rig compile broke"):
-        run_main(["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--frames", "1"])
+        run_main(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--frames", "1"])
 
 
 def _colors(out: str) -> set[str]:
@@ -568,8 +584,8 @@ def _colors(out: str) -> set[str]:
 
 
 def test_max_brightness_caps_every_frame_before_the_sink():
-    _, lit = run_main(["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1"])
-    rc, dark = run_main(["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1", "--max-brightness", "0"])
+    _, lit = run_main(["run", looks_file(), "--map", "line:8", "--frames", "1"])
+    rc, dark = run_main(["run", looks_file(), "--map", "line:8", "--frames", "1", "--max-brightness", "0"])
     assert rc == 0 and _colors(lit) != {"0;0;0"} and _colors(dark) == {"0;0;0"}
 
 
@@ -577,15 +593,15 @@ def test_an_arrangement_cap_applies_and_each_flag_replaces_its_value(tmp_path):
     data = json.loads(GOLDEN_RINGS.read_text())
     capped = tmp_path / "capped.json"
     capped.write_text(json.dumps({**data, "power": {"max_brightness": 0.0, "max_watts": 500}}))
-    _, dark = run_main(["run", pattern_looks("plasma"), "--map", str(capped), "--frames", "1"])
+    _, dark = run_main(["run", looks_file(), "--map", str(capped), "--frames", "1"])
     assert _colors(dark) == {"0;0;0"}
-    _, lit = run_main(["run", pattern_looks("plasma"), "--map", str(capped), "--frames", "1", "--max-brightness", "1"])
+    _, lit = run_main(["run", looks_file(), "--map", str(capped), "--frames", "1", "--max-brightness", "1"])
     assert _colors(lit) != {"0;0;0"}
 
 
 def test_the_power_limit_runs_after_the_master():
     """Architecture §2 stage 3: the master dims, then the limit caps what is left."""
-    run = build(["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--max-watts", "50", "--frames", "1"])
+    run = build(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--max-watts", "50", "--frames", "1"])
     assert run.launch.limiter is not None
     run.master.set(0.5)
     frame = np.ones((3072, 3), np.float32)
@@ -598,13 +614,13 @@ def test_the_power_limit_runs_after_the_master():
 
 def test_bad_power_flags_are_refused(capsys):
     assert "--max-watts needs --map with an arrangement .json" in usage_error(
-        ["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1", "--max-watts", "100"], capsys)
+        ["run", looks_file(), "--map", "line:8", "--frames", "1", "--max-watts", "100"], capsys)
     assert "argument --max-brightness: expected a number from 0 to 1, got '1.5'" in usage_error(
-        ["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1", "--max-brightness", "1.5"], capsys)
+        ["run", looks_file(), "--map", "line:8", "--frames", "1", "--max-brightness", "1.5"], capsys)
     assert "argument --max-watts: expected watts above 0, got '0'" in usage_error(
-        ["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "0"], capsys)
+        ["run", looks_file(), "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "0"], capsys)
     with pytest.raises(SystemExit, match="bad power cap: max_watts must be over 0 and at most"):
-        main(["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "1e7"])
+        main(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "1e7"])
 
 
 def test_studio_serves_its_app_with_the_message_cap(monkeypatch, tmp_path):

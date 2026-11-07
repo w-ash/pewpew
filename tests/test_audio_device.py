@@ -19,7 +19,7 @@ import pytest
 
 from audio_signals import RATE, frame_bytes, kick_loop, sine
 from fake_sounddevice import LINE, MIC, UNAVAILABLE, Device, FakeSoundDevice, PortAudioError
-from fakes import FakeTime, build, pattern_looks, wait_until
+from fakes import FakeTime, build, looks_file, wait_until
 from pewpew import audit
 from pewpew.__main__ import main
 from pewpew.audio import AudioFeatures, DeviceSource
@@ -37,10 +37,15 @@ from pewpew.audio.device import (
 )
 from pewpew.audio.features import beat_times
 from pewpew.errors import Worded
+from pewpew.fx import expr
 from pewpew.health import OVERFLOW_WARN_S, ZEROS_S, AudioHealth, HealthMonitor
 from pewpew.render import SlotClock
 
 FPS = 60.0
+
+# A looks file of a look the input moves: the bass shifts the stripes.
+HEARD = looks_file(expr.look(expr.layer("base", expr.osc(6).palette("ocean")),
+                             routes=[expr.band("bass").to("layers.base.osc.offset", depth=0.5)]), "heard")
 TICK = RATE // 60  # the samples one tick at 60 fps brings
 
 
@@ -63,7 +68,7 @@ def test_without_the_extra_listing_and_running_say_how_to_install_it(capsys) -> 
     assert main(["audio", "list"]) == 1  # it still lists the capture nodes (test_audio_node.py)
     assert f"audio list: {INSTALL}" in capsys.readouterr().err
     with pytest.raises(SystemExit, match=re.escape(f"--audio {LINE}: {INSTALL}")):
-        main(["run", pattern_looks("pulse"), "--audio", LINE, "--frames", "1"])
+        main(["run", looks_file(), "--audio", LINE, "--frames", "1"])
 
 
 def test_without_portaudio_the_refusal_names_the_library(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -129,7 +134,7 @@ def test_a_blank_spec_default_a_name_of_several_inputs_and_an_index_of_none_are_
 def test_a_blank_spec_and_default_are_refused_without_the_extra(spec: str, reason: str) -> None:
     # conftest's sounddevice is missing: these refusals come before the list.
     with pytest.raises(SystemExit, match=re.escape(f"--audio {spec}: ") + ".*" + re.escape(reason)):
-        main(["run", pattern_looks("pulse"), "--audio", spec, "--frames", "1"])
+        main(["run", looks_file(), "--audio", spec, "--frames", "1"])
 
 
 def test_audio_list_names_the_inputs_and_leaves_out_outputs(sd: FakeSoundDevice, capsys) -> None:
@@ -145,7 +150,7 @@ def test_audio_list_names_the_inputs_and_leaves_out_outputs(sd: FakeSoundDevice,
 
 
 def test_a_dry_run_names_the_input_and_opens_nothing(sd: FakeSoundDevice, capsys) -> None:
-    base = ["run", pattern_looks("pulse"), "--ddp", "127.0.0.1=0+10", "--dry-run", "--audio"]
+    base = ["run", looks_file(), "--ddp", "127.0.0.1=0+10", "--dry-run", "--audio"]
     assert main([*base, "scarlett", "--audio-channel", "1"]) == 0
     assert ("audio: 'Scarlett 2i2 USB' (Core Audio), channel 1 of 2 at 48000 Hz, latency 0.02 s"
             in capsys.readouterr().out)
@@ -338,7 +343,7 @@ def test_lost_input_silences_the_levels_and_the_beat_keeps_the_last_tempo(sd: Fa
 def live_frames(sd: FakeSoundDevice, frames: int) -> list[bytes]:
     """A built run with `--audio LINE`, its supervisor stepped once, fed a
     kick loop as the input delivers it, tick by tick."""
-    run = build(["run", pattern_looks("geq"), "--audio", LINE, "--ansi"])
+    run = build(["run", HEARD, "--audio", LINE, "--ansi"])
     assert run.capture is not None and run.capture is run.launch.audio
     assert run.audio is not None and run.audio.source is run.capture
     assert run.loop._before[0] == run.audio.before_frame
@@ -364,7 +369,7 @@ def test_a_run_writes_its_audit_record_before_it_opens_the_input(
     seen: list[bool] = []
     sd.on_open = lambda: seen.append(audit_log.exists() and "audio-input" in audit_log.read_text())
     log = tmp_path / "f.jsonl"
-    run = build(["run", pattern_looks("pulse"), "--audio", "scarlett", "--feature-log", str(log), "--ansi"])
+    run = build(["run", looks_file(), "--audio", "scarlett", "--feature-log", str(log), "--ansi"])
     assert run.capture is not None
     run._start_capture()
     wait_until(lambda: sd.streams)
@@ -382,7 +387,7 @@ def test_a_run_writes_its_audit_record_before_it_opens_the_input(
 def test_no_input_opens_when_its_audit_record_cannot_be_written(
         sd: FakeSoundDevice, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv(audit.ENV_VAR, str(tmp_path))  # a directory: the append fails
-    run = build(["run", pattern_looks("pulse"), "--audio", LINE, "--ansi"])
+    run = build(["run", looks_file(), "--audio", LINE, "--ansi"])
     with pytest.raises(SystemExit, match="audio: "):
         run._start_capture()
     assert sd.calls == []

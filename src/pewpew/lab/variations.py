@@ -97,7 +97,7 @@ def vary(
     geometry = where(map_spec)
     if look is None:
         made: list[Look | None] = [
-            surprise.generate(s, geometry.mapping, grouping=geometry.grouping, audio=audio) for s in seeds
+            surprise.generate(s, geometry.mapping, audio=audio) for s in seeds
         ]
     else:
         staged = ready(look, name=name)
@@ -105,8 +105,7 @@ def vary(
         for s in seeds:
             try:
                 made.append(surprise.mutate(
-                    staged.look, s, geometry.mapping, strength=strength, keep=held, grouping=geometry.grouping,
-                    audio=audio,
+                    staged.look, s, geometry.mapping, strength=strength, keep=held, audio=audio,
                 ))
             except surprise.NoLook:
                 made.append(None)

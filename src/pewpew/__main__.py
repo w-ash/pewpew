@@ -152,7 +152,7 @@ def _parser() -> argparse.ArgumentParser:
 
     where = run.add_argument_group("the geometry")
     where.add_argument("--map", type=parsed_by(_map_spec), default=None, metavar="SPEC",
-                       help="line:64, grid:16x16, lattice:8 or an arrangement .json, one unit per fixture "
+                       help="line:64, grid:16x16, lattice:8 or an arrangement .json "
                        f"(default {DEFAULT_MAP})")
     where.add_argument("--room", type=Path, default=None, metavar="PATH",
                        help="room map file: the mapping and the DDP boards, reloaded on save")

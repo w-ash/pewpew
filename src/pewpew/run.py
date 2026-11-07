@@ -14,11 +14,10 @@ so every part gets what it needs at construction. The health monitor
 reaches the room, built after the aura, only once the run starts. The
 watchdog is armed before the aura is built, so a look that hangs while it
 builds still ends the run. The run starts in the looks file's current
-look (else its first), its layers resolved as a recall resolves them
-(pewpew.aura.deck.ready_layer), and saves go to the same file; after a
-stall it starts in the next look instead (`after_stall`). The map is `--map`, the room's, or
-`DEFAULT_MAP`. An arrangement `--map` (`pewpew.rig`) gives the mapping,
-one unit per fixture, and a power model. Its `power` block,
+look (else its first), and saves go to the same file; after a stall it
+starts in the next look instead (`after_stall`). The map is `--map`, the
+room's, or `DEFAULT_MAP`. An arrangement `--map` (`pewpew.rig`) gives the
+mapping and a power model. Its `power` block,
 with `--max-watts` and `--max-brightness` replacing its values, is the
 power limit: the loop's last `after` stage, behind the master, so every
 sink gets the capped frame. The one exception is
@@ -75,17 +74,15 @@ import numpy as np
 from pewpew import audit
 from pewpew.audio import AudioFeatures, AudioSource, FeatureLog, LiveSource, ReplayFeatures
 from pewpew.audio.inputs import read_input
-from pewpew.aura.book import LookBook, load_looks, pattern_problems
-from pewpew.aura.deck import ready_layer
+from pewpew.aura.book import LookBook, load_looks, route_reasons
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.awake import KeepAwake
-from pewpew.compose import LayerError, Look, Resolved
+from pewpew.compose import LayerError, Look
 from pewpew.features import EventFeatures, FakeFeatures, FeatureSource
 from pewpew.health import HealthMonitor
 from pewpew.jsonfile import read_or_exit
 from pewpew.lab.check import dims_reasons
-from pewpew.load import gallery, resolve
-from pewpew.mapping import DEFAULT_MAP, Grouping, dimensions, parse_map
+from pewpew.mapping import DEFAULT_MAP, dimensions, parse_map
 from pewpew.pace import PaceStats
 from pewpew.power import PowerCap, PowerLimiter, power_stage
 from pewpew.reload import Watch
@@ -112,8 +109,8 @@ PREVIEW_RETRY_S = 5.0  # how often a preview that cannot listen tries again
 @dataclass(frozen=True)
 class Launch:
     """Everything a run reads and checks before anything starts: the
-    looks file, with the look the run starts in current, that look's
-    layers ready to build, the room map, the geometry, the power limit,
+    looks file, with the look the run starts in current, the room map,
+    the mapping, the power limit,
     the DDP sink and the `--audio` input. `read` refuses a launch it
     cannot run with one clean exit line, before a dry run returns, so the
     unattended checklist's attended dry run refuses what launchd's
@@ -122,11 +119,9 @@ class Launch:
     args: argparse.Namespace
     argv: list[str]  # the command line, as the audit log records it
     book: LookBook
-    layers: tuple[Resolved, ...]
     room: RoomMap | None
     room_bytes: bytes
     mapping: np.ndarray
-    grouping: Grouping | None
     limiter: PowerLimiter | None
     ddp: DdpSink | None
     audio: AudioSource | ReplayFeatures | None
@@ -143,12 +138,12 @@ class Launch:
         rig = None
         if isinstance(args.map, Path):
             rig = rig_map(args.map)
-            mapping, grouping = rig.mapping, rig.grouping
+            mapping = rig.mapping
         elif room is not None:
-            mapping, grouping = room.mapping, room.grouping
+            mapping = room.mapping
         else:
-            mapping, grouping = parse_map(DEFAULT_MAP) if args.map is None else args.map, None
-        book, layers = start_look(args.looks, book, mapping)
+            mapping = parse_map(DEFAULT_MAP) if args.map is None else args.map
+        book = start_look(args.looks, book, mapping)
         limiter = power_limiter(args.max_watts, args.max_brightness, rig)
         streams = bool(args.ddp) or (room is not None and not args.no_ddp)
         ddp = None
@@ -170,7 +165,7 @@ class Launch:
                 raise SystemExit(f"--audio {args.audio}: {exc}") from None
         if args.feature_log is not None:
             check_log(args.feature_log, "feature log")
-        return cls(args, argv, book, layers, room, room_bytes, mapping, grouping, limiter, ddp, audio)
+        return cls(args, argv, book, room, room_bytes, mapping, limiter, ddp, audio)
 
     @property
     def look(self) -> Look:
@@ -246,13 +241,13 @@ class Run:
         if self.watchdog is not None:
             self.watchdog.start()
         book = launch.book
-        start, layers, stalled = after_stall(launch, take_marker(marker_path()))
+        start, stalled = after_stall(launch, take_marker(marker_path()))
         # An unattended run leaves a failing layer out of the mix (`bypass`); its
         # error still reaches the status line.
         try:
             self.aura = build_aura_pipeline(
-                book.looks[start], layers, launch.mapping, seed=args.seed, features=features,
-                grouping=launch.grouping, bypass=args.unattended, now=now, master_cap=args.master_cap,
+                book.looks[start], launch.mapping, seed=args.seed, features=features, bypass=args.unattended,
+                now=now, master_cap=args.master_cap,
                 looks_path=args.looks, book=book, trigger_log=self.trigger_log,
                 trigger_log_max=int(args.trigger_log_max * 1_000_000), blink=self.blink,
                 boards=self.monitor if self.ddp is not None else None,
@@ -264,7 +259,7 @@ class Run:
             raise SystemExit(f"{args.looks}: cannot start look {start!r}: {exc}") from None
         assert self.aura.looks is not None  # a run always has its looks file
         if start != book.current:
-            self.aura.looks.leave()  # runs as a pick does: no look is current, and the file keeps its own
+            self.aura.looks.leave()  # runs as a sent look does: no look is current, and the file keeps its own
         if stalled is not None:
             print(stalled, file=sys.stderr, flush=True)
             self.aura.looks.error = stalled
@@ -346,7 +341,7 @@ class Run:
         if self.looks.book.current is not None:
             self.looks.begin()
         self.triggers.begin_run(
-            seed=self.args.seed, fps=self.args.fps, pattern=self.deck.current, look=self.looks.book.current,
+            seed=self.args.seed, fps=self.args.fps, look=self.looks.book.current,
             armed=self.args.armed,
         )
         for _, start in self.outputs:
@@ -506,64 +501,56 @@ def power_limiter(
 
 def looks_book(path: Path, cap: float) -> LookBook:
     """Load and check the looks file at launch. A missing or malformed file
-    is one clean exit line naming it; a look whose patterns or params no
-    longer fit is a warning, and its recall copes as it does mid-run."""
+    is one clean exit line naming it; a look whose route reaches no knob is
+    a warning, and its recall refuses it as it does mid-run."""
     book = read_or_exit(path, "looks file", lambda: load_looks(path, cap=cap))
-    for problem in pattern_problems(book, gallery().get):
+    for problem in route_reasons(book):
         logger.warning("%s: %s", path, problem)
     return book
 
 
-def start_look(path: Path, book: LookBook, mapping: np.ndarray) -> tuple[LookBook, tuple[Resolved, ...]]:
-    """`book` with the look the run starts in current (its current look,
-    else its first), and that look's layers ready to build on `mapping`
-    (`ready_look`). One clean exit line when the file holds no look, or the
-    look cannot start on `mapping`."""
+def start_look(path: Path, book: LookBook, mapping: np.ndarray) -> LookBook:
+    """`book` with the look the run starts in current: its current look,
+    else its first. One clean exit line when the file holds no look, or the
+    look cannot start on `mapping` (`check_map`)."""
     name = book.current if book.current is not None else next(iter(book.looks), None)
     if name is None:
         raise SystemExit(f"{path}: the looks file holds no look")
     try:
-        return book.with_current(name), ready_look(book.looks[name], mapping)
+        check_map(book.looks[name], mapping)
     except ValueError as exc:
         raise SystemExit(f"{path}: cannot start look {name!r}: {exc}") from None
+    return book.with_current(name)
 
 
-def ready_look(look: Look, mapping: np.ndarray) -> tuple[Resolved, ...]:
-    """`look`'s layers ready to build on `mapping`, each resolved as a
-    recall resolves it. Raises ValueError saying why the look cannot start
-    there, with a map that can (`map_hint`)."""
-    try:
-        layers = tuple(ready_layer(layer, resolve) for layer in look.layers)
-    except LayerError as exc:
-        raise ValueError(str(exc)) from None
-    if reasons := dims_reasons(layers, dimensions(mapping)):
+def check_map(look: Look, mapping: np.ndarray) -> None:
+    """Raise ValueError saying why `look`'s programs cannot run on
+    `mapping`, with a map that can (`map_hint`)."""
+    if reasons := dims_reasons(look.layers, dimensions(mapping)):
         reason = "; ".join(reasons)
         raise ValueError(f"{reason}{map_hint(reason)}")
-    return layers
 
 
-def after_stall(launch: Launch, stalled: float | None) -> tuple[str, tuple[Resolved, ...], str | None]:
-    """The look the run starts in, its layers, and what to say about it.
-    After a stall (`stalled`, the marker's age, pewpew.watchdog), the run
-    does not start in the look that stalled, the launch's current one, but
-    in the first that can start of the others in the idle cycle's order
-    after it (`LookBook.after`), which the run plays as a pick, so the
-    file's `current` stays the operator's; with no other, in that look
-    again."""
+def after_stall(launch: Launch, stalled: float | None) -> tuple[str, str | None]:
+    """The look the run starts in, and what to say about it. After a stall
+    (`stalled`, the marker's age, pewpew.watchdog), the run does not start
+    in the look that stalled, the launch's current one, but in the first
+    that can start of the others in the idle cycle's order after it
+    (`LookBook.after`), which the run plays as a sent look, so the file's
+    `current` stays the operator's; with no other, in that look again."""
     book = launch.book
     stalled_in = book.current
     assert stalled_in is not None, "the launch made the look it starts in current"
     if stalled is None:
-        return stalled_in, launch.layers, None
+        return stalled_in, None
     for name in book.after(stalled_in):
         try:
-            layers = ready_look(book.looks[name], launch.mapping)
+            check_map(book.looks[name], launch.mapping)
         except ValueError as exc:
             logger.warning("after the stall, look %r cannot start either: %s", name, exc)
             continue
-        return name, layers, f"the last run stalled in {stalled_in!r}, so {name!r} runs"
-    again = f"the last run stalled in {stalled_in!r}, the only look that starts, so it runs again"
-    return stalled_in, launch.layers, again
+        return name, f"the last run stalled in {stalled_in!r}, so {name!r} runs"
+    return stalled_in, f"the last run stalled in {stalled_in!r}, the only look that starts, so it runs again"
 
 
 Source = Literal["render", "reload", "looks"]  # the part an error comes from

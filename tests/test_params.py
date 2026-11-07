@@ -21,9 +21,24 @@ import numpy as np
 import pytest
 
 from fakes import Pooled, run_python
-from pewpew import HSV, Bool, Choice, Color, Float, Gradient, Int, Palette, Pattern, Renderer, Stop, line
 from pewpew.color import EMBER, OCEAN, PRESETS
-from pewpew.params import Param, ParamSet, declared_params
+from pewpew.mapping import line
+from pewpew.params import (
+    HSV,
+    Bool,
+    Choice,
+    Color,
+    Float,
+    Gradient,
+    Int,
+    Palette,
+    Param,
+    ParamSet,
+    Stop,
+    declared_params,
+)
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 
 
 class Probe(Pattern):
@@ -292,14 +307,6 @@ def test_palette_declaration_is_checked() -> None:
     assert Palette("ember", presets=PRESETS).default == EMBER
 
 
-def test_inherit_keeps_a_palette_that_still_fits() -> None:
-    class Retinted:
-        palette = Palette(OCEAN)
-
-    params = ParamSet(Tinted, {"palette": "ocean"})
-    assert params.inherit(Retinted) == ({"palette": OCEAN}, [])
-
-
 # ---- an owner named by a path -------------------------------------------------
 
 
@@ -319,9 +326,8 @@ def test_a_refusal_names_a_nested_owner_by_its_path() -> None:
     assert params.refusal("count", reason).startswith(f"{reason}; edit the 'count' param in ")
 
 
-def test_a_nested_owner_survives_a_reload_and_stays_off_the_records() -> None:
+def test_a_nested_owner_names_the_set_and_stays_off_the_records() -> None:
     renderer = Renderer(Probe(), line(4), name="layers.base.fold")
-    renderer.swap(Probe())
     assert renderer.params.owner == "layers.base.fold"
     assert renderer.params.check("count", 40) == "layers.base.fold.count must be within 1..8, got 40"
     assert renderer.params.describe() == ParamSet(Probe).describe()
@@ -336,11 +342,11 @@ def test_range_must_be_orderable() -> None:
         Float(0.5, 1.0, 1.0)
 
 
-@pytest.mark.parametrize("reserved", ["units", "warpable", "n", "pixels", "pattern"])
+@pytest.mark.parametrize("reserved", ["n", "seed", "rng", "pixels"])
 def test_a_param_cannot_take_a_name_the_engine_reads(reserved) -> None:
-    """`units = Float(...)` would reach the engine as the pattern's units and
-    fail every bind, and a `warpable` param would read as a true flag; the
-    class definition says why instead, also for a param a mixin declares."""
+    """`pixels = Float(...)` would shadow the frame the engine keeps, and
+    the class definition says why instead, also for a param a mixin
+    declares."""
     with pytest.raises(ValueError, match=f"Broken.{reserved}: '{reserved}' is reserved for the engine"):
         type("Broken", (Pattern,), {reserved: Float(1.0, 0.0, 2.0)})
     mixin = type("Mixin", (), {reserved: Float(1.0, 0.0, 2.0)})
@@ -351,9 +357,10 @@ def test_a_param_cannot_take_a_name_the_engine_reads(reserved) -> None:
 # The refusal of a class with three reserved names, from a new process at
 # each of two hash seeds, run on the suite's process pool (conftest.py).
 RESERVED_CODE = (
-    "from pewpew import Float, Pattern\n"
+    "from pewpew.params import Float\n"
+    "from pewpew.pattern import Pattern\n"
     "try:\n"
-    "    type('P', (Pattern,), {k: Float(1.0, 0.0, 2.0) for k in ('units', 'warpable', 'pattern')})\n"
+    "    type('P', (Pattern,), {k: Float(1.0, 0.0, 2.0) for k in ('seed', 'rng', 'pixels')})\n"
     "except ValueError as e:\n"
     "    print(str(e).split(':')[0])\n"
 )
@@ -365,7 +372,7 @@ def test_several_reserved_names_give_one_message_whatever_the_hash_seed(pooled: 
     changes per process (seeds 1 and 3 differed); the first name sorted is
     the one refused."""
     for seed, out in pooled.items():
-        assert out.stdout.strip() == "P.pattern", seed
+        assert out.stdout.strip() == "P.pixels", seed
 
 
 def test_the_base_is_abstract_and_a_color_takes_an_hsv_default() -> None:
@@ -531,33 +538,6 @@ def test_both_snapshots_round_trip_through_overrides() -> None:
     assert ParamSet(Probe, original.snapshot_json()).snapshot() == original.snapshot()
 
 
-# ---- inherit (hot reload) ---------------------------------------------------
-
-
-def test_inherit_keeps_what_fits_and_resets_what_does_not() -> None:
-    class Narrowed(Probe):
-        speed = Float(0.9, 0.5, 1.0)
-
-    params = ParamSet(Probe, {"speed": 0.25, "count": 5})
-    values, reset = params.inherit(Narrowed)
-    assert values["speed"] == 0.9 and values["count"] == 5
-    assert reset == ["speed"]
-
-
-def test_inherit_resets_a_param_whose_kind_changed() -> None:
-    """A value of the old kind is never coerced into the new one, even when
-    it would parse (3.0 as an Int, a float as a Bool)."""
-
-    class Retyped(Probe):
-        speed = Int(1, 0, 4)
-        tail = Bool(True)
-        mode = Float(0.5, 0.0, 1.0)
-
-    values, reset = ParamSet(Probe, {"speed": 1.0}).inherit(Retyped)
-    assert (values["speed"], values["tail"], values["mode"]) == (1, True, 0.5)
-    assert sorted(reset) == ["mode", "speed", "tail"]
-
-
 # ---- binding and discovery --------------------------------------------------
 
 
@@ -630,16 +610,12 @@ def test_declaration_beats_an_init_assignment() -> None:
 
 
 def test_a_set_on_the_renderers_params_reaches_the_running_pattern() -> None:
-    """One write path: the set and the pattern never disagree, after a
-    swap too, and a set that no pattern was bound to only holds values."""
+    """One write path: the set and the pattern never disagree, and a set
+    that no pattern was bound to only holds values."""
     renderer = Renderer(Probe(), line(4))
     assert renderer.params.set("mode", "solid") is True
     assert renderer.pattern.mode == "solid"
     assert renderer.params["mode"] == "solid"
-    old = renderer.pattern
-    renderer.swap(Probe())
-    renderer.params.set("speed", 1.5)
-    assert renderer.pattern.speed == 1.5 and old.speed == 0.4
     unbound = ParamSet(Probe)
     unbound.set("speed", 1.5)
     assert unbound["speed"] == 1.5

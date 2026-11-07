@@ -16,8 +16,11 @@ import numpy as np
 import pytest
 
 from fakes import FLOW, FakeTime, Oversleeper, wait_until
-from pewpew import Pattern, Renderer, line, render_sequence
+from fakes import frames as render_frames
+from pewpew.mapping import line
 from pewpew.pace import STOPPING, Calls, PacedLoop, PaceStats
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
 
 PERIOD = 1.0 / 60.0
 SEED = 42
@@ -48,7 +51,7 @@ def make_loop(ft, pattern=None, on_frame=(), fps=60.0, **kw):
 
 
 def reference_times(frames: int, fps: float = 60.0) -> list[float]:
-    """The render_sequence/FakeClock accumulation, reproduced independently."""
+    """The SlotClock/FakeClock accumulation, reproduced independently."""
     out, t = [], 0.0
     for _ in range(frames):
         t += 1.0 / fps
@@ -125,9 +128,9 @@ def test_a_stall_short_of_two_periods_loses_no_slot():
     assert delivered == reference_times(8)  # contiguous — nothing dropped
 
 
-def test_engine_time_matches_render_sequence_bitwise():
-    frames = 60
-    expected = render_sequence(FLOW, line(N_PX), seed=SEED, frames=frames)
+def test_engine_time_matches_slot_clock_frames_bitwise():
+    count = 60
+    expected = render_frames(Renderer(FLOW(), line(N_PX), seed=SEED), count)
 
     ft = FakeTime()
     got_t: list[float] = []
@@ -140,9 +143,9 @@ def test_engine_time_matches_render_sequence_bitwise():
         now=ft.now,
         sleep=ft.sleep,
     )
-    loop.run(frames=frames)
+    loop.run(frames=count)
 
-    assert got_t == reference_times(frames)  # bit-for-bit, no tolerance
+    assert got_t == reference_times(count)  # bit-for-bit, no tolerance
     assert np.array_equal(np.stack(got_frames), expected)  # not RMS-tolerant
 
 

@@ -14,8 +14,7 @@ Ids never change once given: a knob's address,
 cannot be one of the words a layer's own address uses (`RESERVED`).
 
 These are values only; evaluating them is the ops' work (pewpew.fx.op,
-pewpew.fx.host), and pewpew.fx.codec is their JSON form. A pattern node
-has op `pattern` and names its pattern by its `pattern` arg.
+pewpew.fx.host), and pewpew.fx.codec is their JSON form.
 """
 
 from __future__ import annotations
@@ -36,7 +35,6 @@ RESERVED = frozenset({"opacity", "blend", "enabled", "nodes", "out", "alpha"})
 # The heads of an address, which no layer is named: a look's signals draw
 # their random streams as a layer named `signals` would (pewpew.compose.modulation).
 HEADS = frozenset({"layers", "signals"})
-PATTERN = "pattern"  # a pattern node's op, and the arg that names its pattern
 
 T = TypeVar("T")
 
@@ -59,7 +57,7 @@ def check_id(value: object, noun: str = "node") -> str | None:
 
 
 def as_id(name: str) -> str:
-    """`name` (a pattern's name) made into a node id: lowercased, any other
+    """`name` (an op's or a signal's name) made into a node id: lowercased, any other
     character as '_', a leading 'p' when it does not start with a letter,
     at most 24 characters, and '_' after a reserved word."""
     text = re.sub(r"[^a-z0-9_]", "_", name.lower())

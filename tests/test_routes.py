@@ -20,17 +20,15 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from fakes import LoopThread, Pooled, Solid, aura_rig, frames, restore
-from pewpew import grid, line
-from pewpew.aura.book import LookBook, pattern_problems
-from pewpew.compose import Compositor, Look, Resolved, Route, controls_of, pattern_layer
+from fakes import LoopThread, Pooled, aura_rig, frames, one_node, restore
+from pewpew.aura.book import LookBook, route_reasons
+from pewpew.compose import Compositor, Layer, Look, Route, look_controls
 from pewpew.compose.modulation import signal_problems
 from pewpew.fx.catalog import example
 from pewpew.fx.codec import decode_look, encode_look, encode_node, to_python
 from pewpew.fx.compile import signal_ops
 from pewpew.fx.expr import band, beat, knob, layer, lfo, look, noise, osc, walk
 from pewpew.fx.graph import Graph, Node
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.signal import SignalOp
 from pewpew.lab import check_look, explain
@@ -38,7 +36,7 @@ from pewpew.lab.check import ready
 from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.rendering import play
 from pewpew.lab.verify import Verification, verify_looks
-from pewpew.load import Catalog
+from pewpew.mapping import grid, line
 from pewpew.params import Float, Int, declared_params
 from pewpew.render import error_frame
 from pewpew.run import status_line
@@ -49,14 +47,13 @@ FREQ = "layers.base.osc.freq"
 
 def running(made: Look, mapping: np.ndarray | None = None) -> Compositor:
     """`made`'s stack, built as a recall builds it, on `mapping` (line(8))."""
-    staged = ready(made)
-    shown = staged.look
-    return Compositor(staged.layers, line(8) if mapping is None else mapping, seed=shown.seed,
+    shown = ready(made).look
+    return Compositor(shown.layers, line(8) if mapping is None else mapping, seed=shown.seed,
                       signals=shown.signals, routes=shown.routes, front=shown.front)
 
 
 def live(stack: Compositor, path: str) -> Any:
-    """What the pattern or op behind the knob at `path` reads now."""
+    """What the op behind the knob at `path` reads now."""
     knob_ = stack.controls.find(path)
     assert knob_ is not None and knob_.params.bound is not None
     read = knob_.params.bound.value(knob_.name)
@@ -67,10 +64,13 @@ def tint() -> Any:
     return osc(8).palette("ember")
 
 
-def swapped() -> Resolved:
-    """Layer `base` running another program than `tint`, as a pick leaves it."""
-    made = look(layer("base", noise(3).palette("ocean"))).layers[0]
-    return Resolved(made, ProgramPattern.of(made.program), "base")
+def swapped(stack: Compositor) -> None:
+    """Run layer `base` of `stack` with another program than `tint`, at its
+    place: removed, then a new one inserted."""
+    stack.insert(look(layer("spare", osc(2).palette("ember"))).layers[0], 1)
+    stack.remove("base")
+    stack.insert(look(layer("base", noise(3).palette("ocean"))).layers[0], 0)
+    stack.remove("spare")
 
 
 # ---- the seat ------------------------------------------------------------------------
@@ -151,14 +151,14 @@ def test_the_state_gives_each_signal_its_range_a_smooth_its_inputs() -> None:
 
 
 def test_a_route_whose_knob_is_gone_rests_and_the_stack_saves_without_it() -> None:
-    """A pick replaces a layer's program: a route into the old program
+    """A layer run again with another program: a route into the old program
     rests, a route into the layer's mix runs on, and a snapshot leaves out
     the resting route and the signal only it read, so the look checks. A
     front knob of the old program gives its place to the new one's first."""
     made = look(layer("base", tint()), front=[FREQ, "signals.macro.value"], routes=[
         lfo(1.0).id("breath").to(FREQ, depth=2), knob(1.0).id("macro").to("layers.base.opacity", depth=-0.5)])
     stack = running(made)
-    stack.put(swapped())
+    swapped(stack)
     frames(stack, 1)
     state = stack.state()
     assert state["routes"] == [{"source": "macro", "path": "layers.base.opacity", "depth": -0.5}]
@@ -175,7 +175,7 @@ def test_a_save_leaves_out_the_front_knobs_of_a_signal_it_leaves_out() -> None:
     made = look(layer("base", tint()), front=["signals.breath.rate"], routes=[
         lfo(1.0).id("breath").to(FREQ, depth=2)])
     stack = running(made)
-    stack.put(swapped())
+    swapped(stack)
     saved = stack.snapshot()
     assert (saved.signals, saved.routes, saved.front) == (None, (), ())
     assert check_look(saved).ok
@@ -187,60 +187,35 @@ def test_a_save_leaves_out_a_chain_of_signals_that_drives_only_what_is_gone() ->
     made = look(layer("base", tint()), routes=[
         lfo(1.0).id("breath").to(FREQ, depth=2), knob(0.5).id("macro").to("signals.breath.rate", depth=0.5)])
     stack = running(made)
-    stack.put(swapped())
+    swapped(stack)
     saved = stack.snapshot()
     assert (saved.signals, saved.routes) == (None, ())
     assert check_look(saved).ok
 
 
-class Narrow(Solid):
-    """Solid, its red narrowed by a hot reload."""
-
-    red = Float(0.25, 0.0, 0.5)
-
-
-def test_a_route_rests_when_a_hot_reload_narrows_its_knob_below_its_depth() -> None:
-    """As a set refuses a value past a knob's range, a route rests once its
-    depth is past the knob's span, so the knob reads its own value and a
-    save holds a look that recalls."""
-    red = "layers.base.solid.red"
-    stack = Compositor([Resolved(pattern_layer("base", "solid", {"red": 0.25}), Solid, "solid")], line(4),
-                       signals=Graph((Node("k", "knob", {"value": 1.0}),)), routes=(Route("k", red, 0.9),))
-    frames(stack, 1)
-    assert live(stack, red) == pytest.approx(1.0)
-    stack.swap("base", Narrow())
-    frames(stack, 1)
-    assert (stack.state()["routes"], stack.mod(), live(stack, red)) == ([], {}, 0.25)
-    saved = stack.snapshot()
-    assert (saved.signals, saved.routes) == (None, ())
-    Compositor([Resolved(saved.layers[0], Narrow, "solid")], line(4), signals=saved.signals, routes=saved.routes)
-
-
 def test_a_stack_leaves_out_a_front_path_that_names_no_knob_and_a_look_check_names_it() -> None:
     """`front` is layout only: a stale path never stops a look running,
     while the builder and the checks still teach it."""
-    staged = ready(look(layer("base", tint())))
-    stack = Compositor(staged.layers, line(8), front=("layers.base.osc.speed", FREQ, "layers.base.palette.hue"))
+    layers = ready(look(layer("base", tint()))).look.layers
+    stack = Compositor(layers, line(8), front=("layers.base.osc.speed", FREQ, "layers.base.palette.hue"))
     assert stack.state()["front"] == [FREQ] and stack.snapshot().front == (FREQ,)
     with pytest.raises(ValueError, match=r"front\[0\]: unknown knob 'layers.base.osc.speed'"):
         look(layer("base", tint()), front=["layers.base.osc.speed"])
 
 
-def test_a_pattern_file_that_is_a_program_has_its_knobs_where_its_stack_runs_them() -> None:
-    """Its renderer is named by the layer, as any program's, so a check, a
-    push and a route all name its nodes' knobs `layers.<layer>.<node>`."""
-    prog = ProgramPattern.of(tint().program())
-    made = Look((pattern_layer("base", "prog"),), Graph((Node("breath", "lfo"),)), (Route("breath", FREQ, 2.0),))
-    resolved = Resolved(made.layers[0], prog, "prog")
-    stack = Compositor([resolved], line(8), signals=made.signals, routes=made.routes)
-    assert list(controls_of([resolved], made.signals).sections) == list(stack.controls.sections)
-    assert pattern_problems(LookBook({"tide": made}), lambda spec: prog) == []
+def test_a_looks_knobs_are_where_its_stack_runs_them() -> None:
+    """A layer's renderer is named by the layer, so a check, a push and a
+    route all name its nodes' knobs `layers.<layer>.<node>`."""
+    made = Look((Layer("base", tint().program()),), Graph((Node("breath", "lfo"),)), (Route("breath", FREQ, 2.0),))
+    stack = Compositor(made.layers, line(8), signals=made.signals, routes=made.routes)
+    assert list(look_controls(made).sections) == list(stack.controls.sections)
+    assert route_reasons(LookBook({"tide": made})) == []
     frames(stack, 1)
     assert set(stack.mod()) == {FREQ}
 
 
 def test_a_stack_refuses_a_route_that_reaches_no_knob_it_can_move() -> None:
-    staged = ready(look(layer("base", tint())))
+    layers = ready(look(layer("base", tint()))).look.layers
     signals = Graph((Node("breath", "lfo"),))
     for route, reason in [
         (Route("breath", "layers.base.osc.fre", 1.0),
@@ -249,7 +224,7 @@ def test_a_stack_refuses_a_route_that_reaches_no_knob_it_can_move() -> None:
         (Route("breath", FREQ, 40.0), r"routes\[0\]: depth must be within -31.5..31.5, got 40.0; a route moves "),
     ]:
         with pytest.raises(ValueError, match=reason):
-            Compositor(staged.layers, line(8), signals=signals, routes=(route,))
+            Compositor(layers, line(8), signals=signals, routes=(route,))
 
 
 def test_the_same_look_and_seed_give_the_same_bytes_and_the_seed_chooses_the_wander() -> None:
@@ -454,11 +429,11 @@ def test_verify_catches_a_fast_lfo_on_brightness_and_a_signal_knob_that_moves_no
     assert not quiet.ok and "signals.faint.rate" in quiet.dead
 
 
+@pytest.mark.usefixtures("fake_ops")
 def test_the_aura_sets_a_signals_knob_and_reports_the_stack_and_its_live_values(tmp_path: Path) -> None:
-    macro = Look((pattern_layer("base", "solid", {"red": 0.0}),), Graph((Node("macro", "knob"),)),
+    macro = Look((Layer("base", one_node("solid_test", {"red": 0.0})),), Graph((Node("macro", "knob"),)),
                  (Route("macro", "layers.base.solid.red", 1.0),), front=("signals.macro.value",))
-    rig = aura_rig(Solid, catalog=Catalog({"solid": Solid}), looks={"macro": macro}, current="macro",
-                   path=tmp_path / "looks.json")
+    rig = aura_rig(macro, looks={"macro": macro}, current="macro", path=tmp_path / "looks.json")
     assert restore(rig) is None
     rig.frame(rig.clock.advance())
     assert rig.control.state()["stack"]["routes"] == [{"source": "macro", "path": "layers.base.solid.red",

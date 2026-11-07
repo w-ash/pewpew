@@ -138,8 +138,8 @@ def play(staged: Ready, geometry: Geometry, frames: int, fps: float, seed: int) 
     look = staged.look
     try:
         stack = Compositor(
-            staged.layers, geometry.mapping, seed=look.seed, signals=look.signals, routes=look.routes,
-            front=look.front, features=EventFeatures(FakeFeatures(seed)), grouping=geometry.grouping,
+            look.layers, geometry.mapping, seed=look.seed, signals=look.signals, routes=look.routes,
+            front=look.front, features=EventFeatures(FakeFeatures(seed)),
         )
     except (LayerError, ValueError) as exc:  # ValueError: a route the stack's knobs refuse
         raise Refused([problem(str(exc))]) from exc

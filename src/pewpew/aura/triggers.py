@@ -18,7 +18,7 @@ An event is a trigger name from the looks file's `triggers` section
 (pewpew.aura.book), a source, and an optional number: None is an impulse (a
 button press), a number is a level (a sensor). The trigger gives its
 priority class and what it does: hold a look as a temporary override
-(`Looks.hold`), and in every case reach the running pattern as data in
+(`Looks.hold`), and in every case reach the running look as data in
 `features.events` for that one frame (`pewpew.features.EventFeatures`).
 
 Arbitration (`Arbiter.judge`), in this order, every interval in engine
@@ -48,7 +48,7 @@ The log has one JSON object per line. Each run starts with a header
 record, written at launch, so a log that spans restarts (launchd appends
 to the same file) separates its runs; then the events, in the order judged:
 
-    {"run": {"seed": 0, "fps": 60.0, "pattern": "wash", "look": "dusk", "armed": false}}
+    {"run": {"seed": 0, "fps": 60.0, "look": "dusk", "armed": false}}
     {"tick": 412, "t": 6.866666666666667, "source": "page", "arm": true}
     {"tick": 530, "t": 8.833333333333334, "source": "page", "name": "cue1",
      "value": null, "priority": "button", "fired": true, "reason": null}
@@ -144,7 +144,7 @@ class Triggers:
 
     `looks` is the aura's saved looks, or None without a looks file; a
     trigger that holds a look needs them. `features` gets each frame's
-    fired events, for the pattern. `log` is an open text file the JSONL
+    fired events, for the running look. `log` is an open text file the JSONL
     goes to, or None; `log_max` caps its size in bytes, counting what the
     file held when opened. A failed write, or one past the cap, is logged
     once and ends the log, never the aura.
@@ -210,7 +210,7 @@ class Triggers:
             "armed": self.armed,
             "names": self.names,
             # What each fires: the look it holds and for how long (None: the
-            # event only reaches the pattern as data).
+            # event only reaches the running look as data).
             "cues": {name: {"look": trigger.look, "hold": trigger.hold} for name, trigger in self._config.items()},
             "held": None if held is None else {
                 "trigger": held.trigger, "look": held.look,

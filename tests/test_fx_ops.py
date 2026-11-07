@@ -17,15 +17,14 @@ import pytest
 
 import fakes
 from fakes import program_of
-from pewpew import grid, lattice, line
 from pewpew.compose import Look
 from pewpew.fx.catalog import example
 from pewpew.fx.compile import check, field_ops
-from pewpew.fx.graph import PATTERN, Program
+from pewpew.fx.graph import Program
 from pewpew.fx.op import Op, axis_choice, reach
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.source import DRIFT
-from pewpew.mapping import extents
+from pewpew.mapping import extents, grid, lattice, line
 from pewpew.metrics import LIVENESS_RMS, rms
 from pewpew.params import Float, ParamSet
 from pewpew.params.probes import probes
@@ -91,8 +90,6 @@ def liveness_cases() -> Iterator[Any]:
     (`Op.shows`): a `plane` probe of `auto` against the plane auto picks
     there is the same plane."""
     for op, cls in FIELD_OPS.items():
-        if op == PATTERN:
-            continue  # its knobs are its pattern's, which tests/test_param_liveness.py covers
         program = program_of(cls.examples[0])
         node = next(node for node in program.graph if node.op == op)
         mapping = next(m for d, m in LIVE_MAPS.items() if d in dims_of(program))

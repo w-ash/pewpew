@@ -8,7 +8,7 @@ An address is a knob's full path (ADR-006):
 
 Each `ParamSet` in a stack is named by the address before its knobs (its
 `owner`), so a refusal names the full path with the params' own wording:
-`layers.base.comet.speed must be within 0.0..2.0, got 5.0`. `Controls`
+`layers.base.osc.freq must be within 0.5..32.0, got 40.0`. `Controls`
 holds a stack's sets by owner, in display order: per layer, bottom to top,
 each of its nodes' args in graph order, then its mix; then each signal's
 args. An address is read against the longest owner it starts with; a node
@@ -18,9 +18,8 @@ never overlap. A part (`color.h`) names a knob a route can drive
 
 `Controls` is one immutable value, replaced whole when the stack changes,
 so a reader on another thread takes it once and never sees half a change.
-It holds `ParamSet`s, never their `Bound`s: a hot reload keeps a set and
-rebinds it, and every write goes through the set (`ParamSet.bound` gives
-the current binding). The same rules as `ParamSet` apply: `parse`,
+It holds `ParamSet`s, never their `Bound`s: every write goes through the
+set (`ParamSet.bound` gives the current binding). The same rules as `ParamSet` apply: `parse`,
 `describe` and `snapshot_json` from any thread, `set` on the loop thread.
 
 `look_controls` gives a look's knobs before it runs, its layers' at their
@@ -38,10 +37,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pewpew.errors import unknown
 from pewpew.fx.blend import blend_choice
-from pewpew.fx.compile import is_pattern_program, knob_class
-from pewpew.fx.graph import ID, PATTERN, Graph, Node
-from pewpew.fx.host import ProgramPattern, split_starts
-from pewpew.fx.op import Resolve
+from pewpew.fx.graph import ID, Graph
 from pewpew.fx.ops import OPS
 from pewpew.params import Bool, Float, ParamSet, declared_params
 from pewpew.params.bound import drive_range
@@ -238,30 +234,11 @@ class Controls(NamedTuple):
 # ---- the knobs of a stack before it runs ------------------------------------------------
 
 
-def runs(layer: Layer, resolve: Resolve) -> tuple[Graph, Resolve]:
-    """The nodes `layer` runs, and what resolves their patterns: its own
-    program's; or for a layer of one pattern node whose pattern is a
-    program (a `ProgramPattern` file), that program's, so the layer has
-    their knobs at `layers.<layer>.<node>` as any program's
-    (pewpew.compose.compositor), each node's args with the look's moved
-    knobs in (`<nid>.<arg>`, pewpew.fx.host). Raises ValueError for a
-    pattern `resolve` does not find."""
-    program = layer.program
-    if is_pattern_program(program) and issubclass(cls := knob_class(program.output, resolve), ProgramPattern):
-        _, starts = split_starts(OPS[PATTERN].knob_values(program.output.args))
-        nodes = (Node(n.id, n.op, {**n.args, **starts.get(n.id, {})}, n.inputs) for n in cls.runs().graph)
-        return Graph(tuple(nodes)), cls.resolve
-    return program.graph, resolve
-
-
-def layer_sections(layer: Layer, resolve: Resolve) -> list[Section]:
+def layer_sections(layer: Layer) -> list[Section]:
     """The knob sets of `layer` as a stack built from it names them, at
-    their defaults, each pattern node's class from `resolve`: each node's
-    args in graph order (`runs`), then the mix. Raises ValueError for a
-    pattern `resolve` does not find."""
-    graph, resolve = runs(layer, resolve)
-    sections = [Section(ParamSet(knob_class(node, resolve), name=layer_address(layer.id, node.id)), layer.id, node.id)
-                for node in graph]
+    their defaults: each node's args in graph order, then the mix."""
+    sections = [Section(ParamSet(OPS[node.op], name=layer_address(layer.id, node.id)), layer.id, node.id)
+                for node in layer.program.graph]
     sections.append(Section(ParamSet(LayerControls, name=layer_address(layer.id)), layer.id, ""))
     return sections
 
@@ -275,9 +252,9 @@ def signal_sections(signals: Graph | None) -> list[Section]:
     ]
 
 
-def look_controls(look: Look, resolve: Resolve) -> Controls:
+def look_controls(look: Look) -> Controls:
     """Every knob of `look`, as a stack built from it holds them, with
     nothing built: to check an address before the look runs. Raises
     ValueError as `layer_sections` and `signal_sections` do."""
-    layers = [section for layer in look.layers for section in layer_sections(layer, resolve)]
+    layers = [section for layer in look.layers for section in layer_sections(layer)]
     return Controls.of([*layers, *signal_sections(look.signals)])

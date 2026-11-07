@@ -64,7 +64,7 @@ class AnsiLayout:
         Assumes each axis spans 0-1: resolution counts the distinct values
         per axis, and `bins()` places each value over [0, 1], so a map on
         part of the range leaves cells blank. `line`, `grid` and `lattice`
-        span 0-1; the canopy, a canopy-set pattern's default map, spans y 0.12-0.88.
+        span 0-1.
         """
         x, y, z = mapping[:, 0], mapping[:, 1], mapping[:, 2]
         flat_y = float(np.ptp(y)) < 1e-6

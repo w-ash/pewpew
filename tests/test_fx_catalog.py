@@ -51,7 +51,6 @@ def test_a_search_narrows_by_kind_and_words() -> None:
     assert [r["op"] for r in items(book, "coord", "mirrored FOLD")] == ["kaleid"]  # every word, in any order
     assert [r["op"] for r in items(book, "signal")] == ["band", "beat", "env", "knob", "lfo", "smooth", "walk"]
     assert [r["name"] for r in items(book, "palette", "ember")] == ["ember"]
-    assert {r["name"] for r in items(book, "pattern")} >= {"plasma", "sparkle"}
 
 
 def test_the_fx_verbs_print_the_catalog(capsys: pytest.CaptureFixture[str]) -> None:

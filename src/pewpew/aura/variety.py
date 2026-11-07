@@ -73,7 +73,7 @@ class Variety:
         when nothing made passes the content gate."""
         seed = self.next_seed() if seed is None else seed
         stack = self._deck.fader.current
-        look = surprise.generate(seed, stack.mapping, grouping=stack.grouping)
+        look = surprise.generate(seed, stack.mapping)
         return Made(look, f"surprise {next(self._surprises)}")
 
     def vary(self, strength: float | None = None, seed: int | None = None, of: str | None = None) -> Made:
@@ -88,7 +88,6 @@ class Variety:
         try:
             look = surprise.mutate(
                 running, seed, stack.mapping, strength=surprise.STRENGTH if strength is None else strength,
-                grouping=stack.grouping,
             )
         except Refused as exc:
             raise ValueError(f"the running look cannot vary: {scrub(str(exc))}") from exc

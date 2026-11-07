@@ -4,14 +4,11 @@ one frame per slot.
 A `Compositor` is a `pewpew.render.Live` source, so the loop, the
 crossfader and a room map reload drive it as they would one `Renderer`.
 Its layers run bottom to top (`layers[0]` is the bottom). Each is a full
-`Renderer`, seeded by `layer_seed` from the look's seed and its own id. A
-layer of one pattern node runs that pattern directly, its renderer named
-by the node's address (`layers.<layer>.<node>`); any other program runs in
-a `pewpew.fx.host.ProgramPattern`, its renderer named by the layer's
-address, each node's knobs by `layers.<layer>.<node>`. A pattern that is
-a program (a `ProgramPattern` file) is named as a program is, so its
-nodes' knobs are the layer's. Either way the layer's errors and refusals
-name it. Each frame:
+`Renderer` that runs the layer's program in a
+`pewpew.fx.host.ProgramPattern`, seeded by `layer_seed` from the look's
+seed and its own id. The renderer is named by the layer's address, each
+node's knobs by `layers.<layer>.<node>`, so the layer's errors and
+refusals name it. Each frame:
 
 1. The look's signals run, and its routes move their knobs
    (pewpew.compose.modulation): the modulation seat, before any layer.
@@ -30,7 +27,7 @@ stack is byte for byte its renderer. The sinks clip every frame
 (pewpew.sinks.base.sanitize), so a master below 1 dims a clamped stack.
 Every layer reads one feature frame per slot (`MemoFeatures`).
 
-Containment: each layer's renderer contains its pattern's failures, so a
+Containment: each layer's renderer contains its program's failures, so a
 raising layer shows its pulsing-red frame in its place (a layer left
 unbound by a failed map reload shows it too). With `bypass` (an unattended run),
 a failing layer is left out of the blend instead, while another layer
@@ -43,8 +40,8 @@ off. Building a layer is loud: `LayerError` names the layer. A
 signal that raises holds its last value and is the stack's `error` after
 its layers' (named `signals.<sid>`), while the stack renders on.
 
-A running stack takes a layer in (`insert`), lets one go (`remove`), runs
-one at another place (`move`) or swaps one's program (`put`); each leaves
+A running stack takes a layer in (`insert`), lets one go (`remove`) or
+runs one at another place (`move`); each leaves
 every other layer's renderer, buffers and seed as they are (ADR-021).
 
 `now` (a clock, injected as `pewpew.pace.PacedLoop` takes it) times each
@@ -62,7 +59,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, NamedTuple, cast
+from typing import Any, cast
 
 import numpy as np
 
@@ -71,28 +68,23 @@ from pewpew.compose.controls import (
     LayerControls,
     Section,
     layer_address,
-    layer_sections,
-    signal_sections,
 )
 from pewpew.compose.modulation import Modulation
-from pewpew.compose.stack import Layer, Look, Route, layer_seed, pattern_of, pattern_program, stack_problems
+from pewpew.compose.stack import Layer, Look, Route, layer_seed, stack_problems
 from pewpew.errors import describe_exception, unknown
 from pewpew.features import FakeFeatures, FeatureSource, memo
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
-from pewpew.fx.compile import is_pattern_program, label_of
+from pewpew.fx.compile import label_of
 from pewpew.fx.graph import Graph
-from pewpew.fx.host import ProgramPattern, split_starts
-from pewpew.fx.op import Resolve
-from pewpew.mapping import Grouping, dimensions
-from pewpew.pattern import Pattern
-from pewpew.render import PatternError, Renderer, SwapReport, error_frame
+from pewpew.fx.host import ProgramPattern
+from pewpew.mapping import dimensions
+from pewpew.render import PatternError, Renderer, error_frame
 
 logger = logging.getLogger(__name__)
 
 
 class LayerError(Exception):
-    """A layer that cannot be built: its pattern does not resolve or load,
-    or binding it raises. The message starts with the layer's address and
+    """A layer that cannot be built: binding its program raises. The message starts with the layer's address and
     names no path; `layer` is its id."""
 
     def __init__(self, lid: str, reason: str) -> None:
@@ -100,41 +92,12 @@ class LayerError(Exception):
         self.layer = lid
 
 
-class Resolved(NamedTuple):
-    """A layer ready to build: its value, the class its renderer runs (its
-    one pattern node's, or a `ProgramPattern` of its program), and the name
-    the page shows for it, never a path."""
-
-    layer: Layer
-    cls: type[Pattern]
-    label: str
-
-    @property
-    def resolve(self) -> Resolve:
-        """The class each pattern node of the layer runs, by spec: its one
-        pattern's, or what its program's class resolves."""
-        if is_pattern_program(self.layer.program):
-            return lambda spec: self.cls
-        return cast("type[ProgramPattern]", self.cls).resolve
-
-
-def controls_of(layers: Iterable[Resolved], signals: Graph | None = None) -> Controls:
-    """The knobs of a stack of `layers` and `signals`, as a stack built
-    from them holds them, at their defaults but the signals', with nothing
-    built: to check an address or a value before the stack runs, never to
-    read one (pewpew.compose.controls.layer_sections). Raises ValueError
-    for a signal's value its knob refuses."""
-    sections = [section for resolved in layers for section in layer_sections(resolved.layer, resolved.resolve)]
-    return Controls.of([*sections, *signal_sections(signals)])
-
-
 @dataclass(frozen=True, slots=True, eq=False)
 class LiveLayer:
-    """One running layer: its value as built, the name it shows by, its
-    renderer, and its live mix."""
+    """One running layer: its value as built, its renderer, and its live
+    mix."""
 
     layer: Layer
-    label: str
     renderer: Renderer
     mix: LayerControls
 
@@ -143,61 +106,36 @@ class LiveLayer:
         return self.layer.id
 
     @property
-    def host(self) -> ProgramPattern | None:
-        """The program the layer's renderer runs, or None for a pattern."""
-        pattern = self.renderer.pattern
-        return pattern if isinstance(pattern, ProgramPattern) else None
+    def host(self) -> ProgramPattern:
+        """The program the layer's renderer runs."""
+        return cast("ProgramPattern", self.renderer.pattern)
 
     @property
     def masked(self) -> bool:
         """Whether the layer's program masks it (`alpha`)."""
-        host = self.host
-        return host is not None and host.runs().alpha is not None
+        return self.layer.program.alpha is not None
 
     def sections(self) -> list[Section]:
         """The layer's knob sets: each node's, then its mix."""
-        host = self.host
-        if host is None:
-            knobs = [Section(self.renderer.params, self.id, self.layer.program.out)]
-        else:
-            knobs = [Section(params, self.id, nid) for nid, params in host.node_params.items()]
+        knobs = [Section(params, self.id, nid) for nid, params in self.host.node_params.items()]
         return [*knobs, Section(self.mix.params, self.id, "")]
 
     def nodes(self) -> list[dict[str, Any]]:
         """Each node the layer runs: its id, op, the label it shows, and
         the ids of the nodes it reads (`in`)."""
-        host = self.host
-        if host is None:
-            node = self.layer.program.output
-            return [{"id": node.id, "op": node.op, "label": self.label, "in": []}]
-        return [{"id": n.id, "op": n.op, "label": label_of(n, host.resolve), "in": list(n.inputs)}
-                for n in host.runs().graph]
+        return [{"id": n.id, "op": n.op, "label": label_of(n), "in": list(n.inputs)} for n in self.layer.program.graph]
 
     def snapshot(self) -> Layer:
         """The layer as a value now: its program at the live knob values,
-        and its live mix. A layer that runs a pattern file whose class is a
-        program keeps its pattern node, the file's literals its content,
-        with each knob moved from its literal as `<nid>.<arg>`
-        (pewpew.fx.host)."""
-        program, host = self.layer.program, self.host
-        if not is_pattern_program(program):
-            assert host is not None  # a program of more than one node runs hosted
-            program = host.snapshot()
-        else:
-            spec, _ = pattern_of(program.output)
-            moved = host.moved() if host is not None else {}
-            program = pattern_program(program.out, spec, {**self.renderer.params.snapshot_json(), **moved})
-        return replace(self.layer, program=program, **self.mix.params.snapshot())
+        and its live mix."""
+        return replace(self.layer, program=self.host.snapshot(), **self.mix.params.snapshot())
 
     def weight(self) -> float | np.ndarray:
         """What the layer's last frame blends in by: its opacity, times its
         mask per pixel when it has one ((N, 1) float32)."""
-        host, opacity = self.host, self.mix.opacity
-        alpha = host.alpha if host is not None else None
+        alpha, opacity = self.host.alpha, self.mix.opacity
         if alpha is None:
             return opacity
-        if self.renderer.units == "fixture":
-            alpha = alpha[self.renderer.gather]
         return (alpha * np.float32(opacity))[:, None]
 
 
@@ -206,7 +144,7 @@ class Compositor:
 
     def __init__(
         self,
-        layers: Iterable[Resolved],
+        layers: Iterable[Layer],
         mapping: np.ndarray,
         *,
         seed: int = 0,
@@ -214,16 +152,14 @@ class Compositor:
         routes: Iterable[Route] = (),
         front: Iterable[str] = (),
         features: FeatureSource | None = None,
-        grouping: Grouping | None = None,
-        units: str | None = None,
         bypass: bool = False,
         now: Callable[[], float] | None = None,
         t: float = 0.0,
     ) -> None:
         """Build every layer of `layers` on `mapping`, at engine time `t`,
         with the look's `signals`, `routes` and `front`
-        (pewpew.compose.modulation). `features`, `grouping` and `units` are
-        as for `Renderer`; the default features are the seeded fake. Raises
+        (pewpew.compose.modulation). `features` is as for `Renderer`; the
+        default features are the seeded fake. Raises
         LayerError for a layer that cannot be built, ValueError for no
         layers or a repeated id (`stack_problems`), a signal's value its
         knob refuses, or a route `route_problems` refuses, and TypeError for
@@ -232,14 +168,13 @@ class Compositor:
         self._seed = seed
         self._modulation = Modulation(signals, tuple(routes), tuple(front), seed)
         self._features = memo(FakeFeatures(seed) if features is None else features)
-        self._units = units
         self._bypass = bypass
         self._now = now
         self._t = float(t)
         self._unbound: set[str] = set()
         self._timings: Mapping[str, float] = {}
-        self._bind(mapping, grouping)
-        self._install(tuple(self._build(resolved) for resolved in layers), strict=True)
+        self._bind(mapping)
+        self._install(tuple(self._build(layer) for layer in layers), strict=True)
 
     # ---- state (any thread) ---------------------------------------------
 
@@ -262,11 +197,6 @@ class Compositor:
     def mapping(self) -> np.ndarray:
         """The points the stack renders at, (N, 3)."""
         return self._mapping
-
-    @property
-    def grouping(self) -> Grouping | None:
-        """The points' fixture grouping, or None."""
-        return self._grouping
 
     @property
     def layers(self) -> tuple[LiveLayer, ...]:
@@ -325,38 +255,24 @@ class Compositor:
 
     # ---- building (loop thread) -------------------------------------------
 
-    def spawn(self, layers: Iterable[Resolved], look: Look) -> Compositor:
-        """A new stack of `layers` with `look`'s seed, signals, routes and
-        front, on this one's mapping, features, `units` and `bypass`, at
+    def spawn(self, look: Look) -> Compositor:
+        """A new stack of `look`'s layers, seed, signals, routes and front,
+        on this one's mapping, features and `bypass`, at
         its engine time: the incoming side of a recall. Fresh state: a
         recalled look renders the same whatever ran before it. Raises as
         the constructor does, with this stack untouched."""
         return Compositor(
-            layers, self._mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
-            features=self._features, grouping=self._grouping, units=self._units, bypass=self._bypass,
-            now=self._now, t=self._t,
+            look.layers, self._mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
+            features=self._features, bypass=self._bypass, now=self._now, t=self._t,
         )
 
-    def put(self, resolved: Resolved) -> None:
-        """Replace the program of layer `resolved.layer.id` with a fresh
-        build of it, at this stack's engine time. The layer keeps its
-        running mix, the same `LayerControls`, so a set queued for it still
-        lands; `resolved.layer`'s own mix is not read. The other layers run
-        on, and a route into a knob the new program lacks rests. Raises
-        LayerError, or ValueError for an id the stack has not, with the
-        stack untouched."""
-        old = self.layer(resolved.layer.id)
-        index = self._layers.index(old)
-        live = self._build(resolved, old.mix)
-        self._install(self._layers[:index] + (live,) + self._layers[index + 1:])
-
-    def insert(self, resolved: Resolved, index: int) -> None:
-        """Build layer `resolved` fresh, with its own mix, at this stack's
+    def insert(self, layer: Layer, index: int) -> None:
+        """Build `layer` fresh, with its own mix, at this stack's
         engine time, and run it at render index `index` (0: the bottom,
         `len(layers)`: the top). The other layers run on. Raises
         LayerError, or ValueError for an id the stack has, with the stack
         untouched."""
-        self._install(self._layers[:index] + (self._build(resolved),) + self._layers[index:])
+        self._install(self._layers[:index] + (self._build(layer),) + self._layers[index:])
 
     def remove(self, lid: str) -> None:
         """Stop running layer `lid`. The other layers run on, and a route
@@ -379,43 +295,23 @@ class Compositor:
         Returns why not, or None. Loop thread only."""
         return self._modulation.set_front(front, self._controls)
 
-    def swap(self, lid: str, pattern: Pattern) -> SwapReport:
-        """Hot-reload layer `lid`'s pattern (`Renderer.swap`), and find each
-        route's knob anew: a pattern keeps its set, whose declarations may
-        change; a program's nodes may change, so its knobs are installed
-        again. Raises ValueError, with the layer untouched, for a pattern
-        that becomes a program or a program that becomes a pattern: its
-        knobs would change address, so that takes a restart."""
-        live = self.layer(lid)
-        if isinstance(pattern, ProgramPattern) != (live.host is not None):
-            raise ValueError("a pattern file that turns into a program, or back, takes a restart")
-        self._check_units(type(pattern))
-        report = live.renderer.swap(pattern)
-        if live.host is not None:
-            self._install(self._layers)
-        else:
-            self._modulation.bind(self._controls)
-        return report
-
-    def rebind(self, mapping: np.ndarray, grouping: Grouping | None = None) -> None:
-        """Rebind every layer to a new mapping and its fixture grouping.
-        Every layer tries, also after one raises, so each ends bound to
+    def rebind(self, mapping: np.ndarray) -> None:
+        """Rebind every layer to a new mapping. Every layer tries, also after one raises, so each ends bound to
         this stack's mapping or unbound, never on another one. Raises what
         the first failing layer's `Renderer.rebind` raised; the caller binds
         the old mapping again (pewpew.room.live)."""
-        self._bind(mapping, grouping)
+        self._bind(mapping)
         first: Exception | None = None
         for live in self._layers:
             try:
-                live.renderer.rebind(mapping, grouping)
+                live.renderer.rebind(mapping)
             except Exception as exc:  # noqa: BLE001  raised below, once every layer has tried
                 first = first or exc
         if first is not None:
             raise first
 
-    def _bind(self, mapping: np.ndarray, grouping: Grouping | None) -> None:
+    def _bind(self, mapping: np.ndarray) -> None:
         self._mapping = mapping
-        self._grouping = grouping
         self._n = len(mapping)
         self._dims = dimensions(mapping)
         self._acc = np.zeros((self._n, 3), dtype=np.float32)
@@ -423,39 +319,16 @@ class Compositor:
         self._below = self._acc.view()  # what a program's below() reads: the stack blended so far
         self._below.setflags(write=False)
 
-    def _build(self, resolved: Resolved, mix: LayerControls | None = None) -> LiveLayer:
-        """`resolved` running, with `mix`, or a new mix from its layer's values."""
-        layer, cls = resolved.layer, resolved.cls
+    def _build(self, layer: Layer, mix: LayerControls | None = None) -> LiveLayer:
+        """`layer` running, with `mix`, or a new mix from its values."""
         try:
-            program = layer.program
-            direct = is_pattern_program(program)
-            hosted = issubclass(cls, ProgramPattern)
-            if not direct and not hosted:
-                raise ValueError("a program other than one pattern node runs in its own class, "
-                                 "pewpew.fx.host.ProgramPattern.of(program)")
-            self._check_units(cls)
-            params, pattern = None, None
-            if direct and hosted:  # a pattern file whose class is a program: the look's moved knobs start it
-                params, starts = split_starts(pattern_of(program.output)[1])
-                pattern = cast("type[ProgramPattern]", cls)(starts)
-            elif direct:
-                params = pattern_of(program.output)[1]
             renderer = Renderer(
-                pattern or cls(), self._mapping, params=params, seed=layer_seed(self._seed, layer.id),
-                features=self._features, grouping=self._grouping, units=self._units,
-                name=layer_address(layer.id) if hosted else layer_address(layer.id, program.out), t=self._t,
+                ProgramPattern.of(layer.program)(), self._mapping, seed=layer_seed(self._seed, layer.id),
+                features=self._features, name=layer_address(layer.id), t=self._t,
             )
         except Exception as exc:
             raise LayerError(layer.id, describe_exception(exc)) from exc
-        return LiveLayer(layer, resolved.label, renderer, LayerControls(layer.id, layer.mix) if mix is None else mix)
-
-    def _check_units(self, cls: type[Pattern]) -> None:
-        """Raise ValueError for a program that reads below() set to render
-        per fixture: the frame below has one row per pixel."""
-        if self._units == "fixture" and issubclass(cls, ProgramPattern) and any(
-            node.op == "below" for node in cls.runs().graph
-        ):
-            raise ValueError("a program that reads below() runs per pixel, never per fixture")
+        return LiveLayer(layer, renderer, LayerControls(layer.id, layer.mix) if mix is None else mix)
 
     def _install(self, layers: tuple[LiveLayer, ...], *, strict: bool = False) -> None:
         """Run `layers`, their knobs and the signals' as the stack's
@@ -514,8 +387,7 @@ class Compositor:
     def _render(self, live: LiveLayer, t: float, timings: dict[str, float]) -> tuple[np.ndarray, bool]:
         """Layer `live`'s frame at `t`, and whether it rendered without failing."""
         start = self._now() if self._now is not None else 0.0
-        if (host := live.host) is not None:
-            host.below = self._below
+        live.host.below = self._below
         try:
             frame = live.renderer.advance_to(t)
         except RuntimeError:

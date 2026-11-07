@@ -1,27 +1,22 @@
-"""What the engine reads off a pattern class: its name, what it does and
-its source file. Imports nothing from pewpew, so every layer can use it."""
+"""What the engine reads off a class (an op, a pattern): its name, what
+it does and its source file. Imports nothing from pewpew, so every layer can use it."""
 
 from __future__ import annotations
 
 import inspect
-import sys
 from pathlib import Path
 
 
 def pattern_name(pattern_cls: type) -> str:
-    """The name of a pattern class: its class name, lowercased. The gallery
-    goes by it (pewpew.load)."""
+    """The name of a pattern class: its class name, lowercased."""
     return pattern_cls.__name__.lower()
 
 
 def pattern_summary(pattern_cls: type) -> str:
-    """What a pattern class does, in one sentence: the first sentence of
-    its docstring, else of its module's (the gallery's convention), else ""."""
-    module = sys.modules.get(pattern_cls.__module__)
-    for doc in (pattern_cls.__doc__, getattr(module, "__doc__", None)):
-        if doc and doc.strip():
-            return first_sentence(" ".join(doc.strip().split("\n\n")[0].split()))
-    return ""
+    """What a class does, in one sentence: the first sentence of its
+    docstring, else ""."""
+    doc = (pattern_cls.__doc__ or "").strip()
+    return first_sentence(" ".join(doc.split("\n\n")[0].split())) if doc else ""
 
 
 def first_sentence(paragraph: str) -> str:

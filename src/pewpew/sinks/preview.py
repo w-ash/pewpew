@@ -22,7 +22,7 @@ binary frame is a `<fI` header (engine `t`, sequence number) and `n*3`
 display-ready RGB: gamma and quantization happen here, once (Q-1). Every
 text message is absolute state, so the last write wins on every tab.
 `refused` goes only to the client that asked; its reason names a param,
-pattern, look, fixture or cap, never a path. Each inbound message goes
+layer, look, fixture or cap, never a path. Each inbound message goes
 whole to `Control.request`, in the order it came; a request that answers
 later (a look to make) is answered when its future is done, and the
 messages after it are read meanwhile (`answer_request`, which the studio

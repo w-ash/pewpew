@@ -12,13 +12,9 @@ moved, is checked against the stack's knobs
 (pewpew.compose.modulation.route_problems).
 
 A layer's program is an effect program (pewpew.fx): nodes of ops, the
-node it shows (`out`) and the node that masks it (`alpha`). A pattern
-node is a program node with op `pattern`: its `pattern` arg names the
-pattern by its name in the catalog (pewpew.load) and every
-other arg is one of that pattern's params, in its JSON form. A layer of
-one pattern node runs the pattern directly; its node id defaults to the
-pattern's name, so `plasma.speed` is `layers.base.plasma.speed` on a
-layer `base`. A look's fade and master and a switch's on/off are checked
+node it shows (`out`) and the node that masks it (`alpha`), so node
+`waves`'s arg `freq` is `layers.base.waves.freq` on a layer `base`. A
+look's fade and master and a switch's on/off are checked
 here (`parse_fade`, `parse_master`, `check_on_off`), in the params' words,
 for the look, the codec and the aura's requests alike.
 
@@ -31,7 +27,6 @@ never changes its picture. The JSON form is the looks file's
 from __future__ import annotations
 
 import math
-import re
 import zlib
 from collections import Counter
 from collections.abc import Mapping, Sequence
@@ -42,14 +37,13 @@ import numpy as np
 
 from pewpew.compose.controls import MIX, LayerControls, mix_problems, signal_of
 from pewpew.errors import unknown
-from pewpew.fx.graph import PATTERN, Graph, Node, Program, as_id, order, require_id
+from pewpew.fx.graph import Graph, Node, Program, order, require_id
 from pewpew.params import Bool, Float
 from pewpew.params.kinds import Parsed
 from pewpew.result import Result
 
 DEFAULT_FADE = 2.0
 MAX_FADE = 600.0
-_NOT_NAME = re.compile(r"[/\\:.]")  # in a path or a module spec, never in a pick name
 
 
 _FADE = Float(DEFAULT_FADE, 0.0, MAX_FADE, "s")
@@ -90,28 +84,6 @@ def layer_seed(seed: int, lid: str) -> int:
     return int(np.random.SeedSequence([seed, zlib.crc32(lid.encode())]).generate_state(1)[0])
 
 
-def pattern_node(nid: str, spec: str, params: Mapping[str, Any] | None = None) -> Node:
-    """A node `nid` that runs pattern `spec` at `params` (JSON values)."""
-    params = dict(params or {})
-    if PATTERN in params:
-        raise ValueError(f"node {nid!r}: {PATTERN!r} names the pattern, so it is not a param")
-    return Node(nid, PATTERN, {PATTERN: spec, **params})
-
-
-def pattern_of(node: Node) -> tuple[str, dict[str, Any]]:
-    """The pattern spec of pattern node `node` and its param values.
-    Raises ValueError for a node of another op."""
-    if node.op != PATTERN:
-        raise ValueError(f"node {node.id!r} runs op {node.op!r}, not {PATTERN!r}")
-    args = dict(node.args)
-    return args.pop(PATTERN), args
-
-
-def pattern_program(nid: str, spec: str, params: Mapping[str, Any] | None = None) -> Program:
-    """A program of one pattern node, which is its output."""
-    return Program(Graph((pattern_node(nid, spec, params),)), nid)
-
-
 def stack_problems(ids: Sequence[str]) -> list[str]:
     """Why layers of ids `ids`, bottom first, cannot form one look: none,
     or an id used more than once. Never raises."""
@@ -143,28 +115,6 @@ class Layer:
     def mix(self) -> dict[str, Any]:
         """The mix as `LayerControls` values: opacity, blend and enabled."""
         return {name: getattr(self, name) for name in MIX}
-
-
-def pattern_layer(
-    lid: str,
-    spec: str,
-    params: Mapping[str, Any] | None = None,
-    *,
-    node: str | None = None,
-    opacity: float = LayerControls.opacity.default,
-    blend: str = LayerControls.blend.default,
-    enabled: bool = LayerControls.enabled.default,
-) -> Layer:
-    """Layer `lid` running pattern `spec` at `params`, in a node named
-    `node`: by default the spec made into an id (pewpew.fx.graph.as_id).
-    Raises ValueError for no `node` and a spec that is not a plain name
-    (a path or a module spec), which would put the path in every knob's
-    address."""
-    if node is None:
-        if _NOT_NAME.search(spec):
-            raise ValueError(f"pattern spec {spec!r} is not a plain name; pass the node id as `node`")
-        node = as_id(spec)
-    return Layer(lid, pattern_program(node, spec, params), opacity, blend, enabled)
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,35 +6,41 @@ from __future__ import annotations
 
 import io
 import json
+from collections.abc import Iterator, Sequence
 
 import numpy as np
 import pytest
 
 import pewpew.run as run_module
 from fakes import (
-    LOOK_CLASSES,
     FakeTime,
-    LoopThread,
     aura_rig,
     layered,
     look,
+    looks_file,
     next_of,
-    pattern_looks,
+    program_of,
     restore,
     run_main,
     serving,
     solid,
     wait_until,
 )
-from pewpew import Pattern, Renderer, line
 from pewpew.aura.book import VERSION, CycleConfig, LookBook, LookError, Trigger, parse_looks
 from pewpew.aura.triggers import MAX_QUEUE, Arbiter, Triggers
 from pewpew.aura.variety import Made
+from pewpew.compose import Layer, Look
 from pewpew.features import EventFeatures, FakeFeatures
+from pewpew.fx.host import ProgramPattern
+from pewpew.fx.op import REGISTRY, BindCtx, FrameCtx, Op
+from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.jsonfile import read_run
-from pewpew.load import Catalog
+from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.render import SlotClock
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer, SlotClock
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 
 class Counter(Pattern):
@@ -54,7 +60,41 @@ class Counter(Pattern):
         return out
 
 
-CLASSES = {**LOOK_CLASSES, "counter": Counter}
+@pytest.fixture
+def counter_op() -> Iterator[None]:
+    """`counter_test` in the op registry for this test: Counter as an op,
+    so a look can run it."""
+    before = dict(REGISTRY)
+
+    class CounterTest(Op, op="counter_test"):
+        """Red steps up by 0.1 for every room event the program sees."""
+
+        sig = Sig.SOURCE
+        out = Ty.RGB
+        stateful = True
+
+        def setup(self, ctx: BindCtx) -> None:
+            super().setup(ctx)
+            self.seen = ctx.buffer("seen", 1)
+
+        def advance(self, ctx: FrameCtx, inputs: Sequence[Fn]) -> None:
+            self.seen += len(ctx.features.events)
+
+        def build(self, inputs: Sequence[Fn]) -> Fn:
+            def counter(c: Coords) -> np.ndarray:
+                out = np.zeros((len(c.index), 3), dtype=np.float32)
+                out[:, 0] = min(1.0, 0.1 * float(self.seen[0]))
+                return out
+
+            return counter
+
+    try:
+        yield
+    finally:
+        REGISTRY.clear()
+        REGISTRY.update(before)
+
+
 BLUE, RED, GREEN = (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)
 
 
@@ -212,13 +252,11 @@ def test_a_pattern_sees_each_fired_event_on_one_frame_only():
 # ---- the override ----------------------------------------------------------------
 
 
-def make(tmp_path, triggers, looks=None, current="blue", start="solid", log=None, mapping=None, armed=True,
-         catalog=None):
+def make(tmp_path, triggers, looks=None, current="blue", log=None, mapping=None, armed=True):
     looks = looks if looks is not None else {
         "blue": solid(*BLUE, fade=0.0), "red": solid(*RED, fade=0.0, master=1.0), "green": solid(*GREEN, fade=0.0),
     }
-    r = aura_rig(CLASSES[start], mapping=mapping, catalog=catalog or Catalog(CLASSES), looks=looks,
-                 current=current, cycle=CycleConfig(idle=None), triggers=triggers,
+    r = aura_rig(mapping=mapping, looks=looks, current=current, cycle=CycleConfig(idle=None), triggers=triggers,
                  path=tmp_path / "looks.json", log=log, timeout=2.0)
     r.trig = r.triggers
     assert restore(r) is None
@@ -241,7 +279,9 @@ def test_a_held_look_returns_to_the_live_state_after_its_hold(tmp_path):
     r = make(tmp_path, HOLD_RED)
     assert r.step() == BLUE
     saved = r.path.read_bytes()
-    r.renderer().params.set("green", 0.5)  # an unsaved tweak: the journal keeps it
+    pattern = r.renderer().pattern
+    assert isinstance(pattern, ProgramPattern)
+    pattern.node_params["solid"].set("green", 0.5)  # an unsaved tweak: the journal keeps it
     r.master.set(0.4)
     r.trig.submit("page", "cue")
     assert r.step() == RED
@@ -293,18 +333,6 @@ def test_keep_during_a_hold_is_refused_and_keeps_the_made_look_once_the_aura_ret
     assert r.looks.recall("surprise 7", 0.0) is None and r.step() == GREEN  # kept as it played, not as held
 
 
-def test_a_pick_during_a_hold_cancels_the_return(tmp_path):
-    r = make(tmp_path, HOLD_RED, catalog=Catalog(CLASSES))
-    r.step()
-    r.trig.submit("page", "cue")
-    r.step()
-    with LoopThread(r.calls):
-        assert r.control.pick("pixelramp") is None
-    assert r.looks.held is None
-    r.step(60)
-    assert type(r.renderer().pattern).__name__ == "PixelRamp"
-
-
 def test_a_lower_class_cannot_replace_a_higher_hold(tmp_path):
     triggers = {
         "boss": Trigger(look="green", hold=1.0, priority="performer", debounce=0.0, cooldown=0.0),
@@ -343,7 +371,7 @@ def test_a_held_look_that_fails_after_a_fade_leaves_the_live_look_running(tmp_pa
     r.looks.recall("green")
     r.step()
     green = r.fader.current
-    r.trig.submit("page", "cue")  # waits for green's fade; its pattern no longer loads
+    r.trig.submit("page", "cue")  # waits for green's fade; its op is unknown
     r.step(40)
     assert r.looks.held is None and r.looks.error.startswith("cannot recall 'broken'")
     assert r.step(40) == GREEN
@@ -450,8 +478,8 @@ def log_rig(tmp_path, **kw):
         "cue": Trigger(look="red", hold=0.25, debounce=0.0, cooldown=0.5),
         "door": Trigger(priority="sensor", debounce=0.1, cooldown=0.0),
     }
-    looks = {"count": look("counter", fade=0.0), "red": solid(*RED, fade=0.1)}
-    return make(tmp_path, triggers, looks=looks, current="count", start="counter", **kw)
+    looks = {"count": look("counter_test", fade=0.0), "red": solid(*RED, fade=0.1)}
+    return make(tmp_path, triggers, looks=looks, current="count", **kw)
 
 
 def live(tmp_path, log_path):
@@ -479,7 +507,7 @@ def live(tmp_path, log_path):
 
 def replay(tmp_path, records):
     """The records fed back before the frame of their `t`, rendered at
-    every slot with no loop: render_sequence's shape."""
+    every slot with no loop."""
     by_t: dict[float, list] = {}
     for record in records:
         by_t.setdefault(record["t"], []).append(record)
@@ -501,6 +529,7 @@ def replay(tmp_path, records):
 REASONS = ["arm", None, "debounce", "debounce", None, "edge", "cooldown", None, "unknown", "arm", "disarmed"]
 
 
+@pytest.mark.usefixtures("counter_op")
 def test_a_recorded_log_replays_to_byte_identical_frames(tmp_path):
     (tmp_path / "live").mkdir()
     (tmp_path / "replay").mkdir()
@@ -557,7 +586,7 @@ def test_the_log_stops_at_its_byte_cap_with_one_warning(tmp_path, caplog):
 def test_the_triggers_section_round_trips_with_defaults_filled_in():
     text = json.dumps({
         "version": VERSION,
-        "looks": {"a": layered("solid"), "b": layered("gone")},
+        "looks": {"a": layered("solid_test"), "b": layered("ramp_test")},
         "triggers": {"cue1": {"look": "a", "hold": 8, "priority": "performer"}, "door": {}},
     })
     book = parse_looks(text)
@@ -583,7 +612,7 @@ def test_the_triggers_section_round_trips_with_defaults_filled_in():
 ])
 def test_a_bad_triggers_section_is_refused(triggers, message):
     with pytest.raises(LookError) as err:
-        parse_looks(json.dumps({"version": VERSION, "looks": {"a": layered("solid")}, "triggers": triggers}))
+        parse_looks(json.dumps({"version": VERSION, "looks": {"a": layered("solid_test")}, "triggers": triggers}))
     assert any(p.startswith(message) for p in err.value.problems), err.value.problems
 
 
@@ -595,19 +624,19 @@ def test_a_saved_look_rewrites_the_file_with_its_triggers(tmp_path):
 
 def test_the_runner_writes_the_trigger_log_and_starts_disarmed(tmp_path):
     looks = tmp_path / "looks.json"
-    doc = {"version": VERSION, "looks": {"a": layered("comet"), "b": layered("gone")},
+    doc = {"version": VERSION, "looks": {"a": layered("osc"), "b": layered("ramp_test")},
            "triggers": {"cue": {"look": "b"}}}
     looks.write_text(json.dumps(doc))
     log = tmp_path / "events.jsonl"
     run_main(["run", str(looks), "--map", "line:8", "--trigger-log", str(log), "--frames", "2"])
-    assert read_run(log) == [{"run": {"seed": 0, "fps": 60.0, "pattern": "comet", "look": "a", "armed": False}}]
+    assert read_run(log) == [{"run": {"seed": 0, "fps": 60.0, "look": "a", "armed": False}}]
     with pytest.raises(SystemExit, match="cannot open the trigger log for appending"):
-        run_main(["run", pattern_looks(), "--map", "line:8", "--trigger-log", str(tmp_path / "no" / "x.jsonl"),
+        run_main(["run", looks_file(), "--map", "line:8", "--trigger-log", str(tmp_path / "no" / "x.jsonl"),
                   "--frames", "1"])
 
 
 def test_a_dry_run_refuses_a_trigger_log_the_launch_cannot_open(tmp_path, audit_log):
-    base = ["run", pattern_looks(), "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run", "--trigger-log"]
+    base = ["run", looks_file(), "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run", "--trigger-log"]
     (tmp_path / "file").write_text("")
     cases = ((tmp_path / "no" / "x.jsonl", "No such file or directory"), (tmp_path, "Is a directory"),
              (tmp_path / "file" / "x.jsonl", "Not a directory"))
@@ -620,10 +649,11 @@ def test_a_dry_run_refuses_a_trigger_log_the_launch_cannot_open(tmp_path, audit_
 
 def test_a_refused_launch_creates_no_trigger_log(tmp_path, capsys):
     log = tmp_path / "events.jsonl"
+    folded = Look((Layer("base", program_of("osc(8).kaleid(5)")),))  # a fold, which a strip cannot run
     with pytest.raises(SystemExit, match="cannot start look 'nope'"):
-        run_main(["run", pattern_looks("nope"), "--map", "line:8", "--trigger-log", str(log), "--frames", "1"])
+        run_main(["run", looks_file(folded, "nope"), "--map", "line:8", "--trigger-log", str(log), "--frames", "1"])
     with pytest.raises(SystemExit) as exc:
-        run_main(["run", pattern_looks(), "--map", "line:8", "--trigger-log", str(log), "--trigger-log-max", "0"])
+        run_main(["run", looks_file(), "--map", "line:8", "--trigger-log", str(log), "--trigger-log-max", "0"])
     assert exc.value.code == 2 and "argument --trigger-log-max: expected megabytes above 0" in capsys.readouterr().err
     assert not log.exists()
 
@@ -638,7 +668,7 @@ def test_a_trigger_log_that_fails_to_close_still_tears_the_aura_down(tmp_path, m
     teardown = run_module.teardown
     monkeypatch.setattr(run_module, "open_log", lambda path, noun: FailingClose())
     monkeypatch.setattr(run_module, "teardown", lambda *a: (torn.append(True), teardown(*a)))
-    argv = ["run", pattern_looks(), "--map", "line:8", "--trigger-log", str(tmp_path / "x"), "--frames", "1"]
+    argv = ["run", looks_file(), "--map", "line:8", "--trigger-log", str(tmp_path / "x"), "--frames", "1"]
     assert run_main(argv)[0] == 0
     assert torn == [True]
 

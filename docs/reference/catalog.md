@@ -125,15 +125,6 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
     particles(12, 6, 0.05, -0.1, 0.3, "top").palette("ice")
     particles(8, 3, 0, 0, 0.3, "anywhere", 0.05).palette("forest")
 
-### `pattern` — Pattern
-
-Runs a pattern (gallery name, or a pattern file's name) as a source: its frame at the program's points. Its knobs are the pattern's params.
-
-Reads none; gives rgb. Dimensions: 1, 2, 3.
-
-    pattern("plasma").kaleid(5)
-    pattern("wave").hue(60)
-
 ### `prev` — Prev
 
 The layer's own last frame: with a fade or a color op after it, a trail (feedback with no warp).
@@ -543,20 +534,6 @@ Reads none; gives signal. Dimensions: 1, 2, 3.
 - `rate`: 0.25 0.0..4.0 Hz. How often it wanders somewhere new.
 
     look(layer("base", voronoi(5).palette("forest")), routes=[walk(0.3).to("layers.base.palette.shift", depth=90)])
-
-## Patterns
-
-- `plasma` (pixel, warpable): Plasma — soft fields of color that swirl and mix. Stateless nested sin fields, the happy-path control pattern: written exactly as scalar thinking dictates, and it vectorizes untouched.
-- `comet` (pixel, warpable): Comet — a bright head with a fading tail. Exercises self.pixels persistence and the float64 hash threshold that flips sparkle pixels near its 0.995 cutoff.
-- `geq` (pixel, warpable): Sound bars — bars that leap with the sound and fall back. 16 spectrum bands with peak-hold falloff on a 16x16 panel; exercises the features frame and band -> segment indexing.
-- `fire` (pixel, warpable): Fire — flames that rise and flicker. A Fire2012-style heat simulation on a 16x32 panel, the stress test: stateful stencil effect, RNG, world-coord sampling of an internal field.
-- `sdf3d` (pixel, warpable): Spinning ring — a ring of light that spins and swells on the beat. A torus distance field, the counterweight datapoint: volumetric math is where arrays shine.
-- `pulse` (fixture, warpable): Pulse — the whole room breathes in one color.
-- `wave` (pixel, warpable): Wave — bands of light cross the room in one direction. Direction is measured on the plan in real x/y: the room map's Contain normalization uses one scale for both axes, so 45 degrees is a true diagonal.
-- `wash` (pixel, warpable): Wash — a slow color wash: hue rings drift out from the room's center.
-- `sparkle` (fixture, warpable): Sparkle — random bars flare and fade.
-- `colorplasma` (pixel, warpable): Color plasma — the plasma field painted with a three-color palette. Each color has its own hue cycle. The field runs from the low color through the middle color to the high color. The brightness shaping is plasma's own, scaled by each color's brightness.
-- `rainbow` (pixel, warpable): Rainbow — hue by distance from the center, flowing inward. Port of the studio prototype's tube shader (docs/studio/prototype/golden-tubes-3d.html:336,517).
 
 ## Blend modes
 

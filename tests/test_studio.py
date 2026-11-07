@@ -30,7 +30,6 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from fakes import FakeTime
-from pewpew.mapping import Grouping
 from pewpew.power import Limited, PowerCap, PowerLimiter
 from pewpew.rig import EXAMPLES, load_catalog
 from pewpew.sinks.base import to_display_u8
@@ -68,7 +67,6 @@ class FakeRig:
         self.catalog_digest = "digest-1"
         self.issues = issues
         self.report = None
-        self.grouping = None
         self.to_json_calls = 0
 
     def to_json(self):
@@ -563,17 +561,6 @@ def test_pending_binds_coalesce_into_one_closure():
     assert sink.controls[1] == session.hello() and sink.controls[1]["n"] == 499
 
 
-def test_a_bind_passes_the_rigs_fixture_grouping_to_the_stack_and_keeps_engine_time():
-    session = stepped(RecordingSink())
-    session._loop.run(frames=3)
-    t = session.t
-    grouping = Grouping(np.array([[0.25, 0.0, 0.0], [0.75, 1.0, 0.0]], np.float32), np.repeat([0, 1], 4))
-    session.bind(plane(8), grouping=grouping, catalog_digest="d", issues=[], limiter=None)
-    session._loop.run(frames=1)
-    assert session._aura.fader.current.grouping is grouping and session.n == 8
-    assert session.t > t
-
-
 def test_a_bind_the_look_cannot_run_on_cuts_to_the_first_look_that_runs_and_says_so():
     sink = RecordingSink()
     session = stepped(sink)
@@ -725,19 +712,6 @@ def test_a_typed_set_over_the_socket_is_echoed_in_its_json_form(client):
         ws.send_text(json.dumps({"type": "set", "name": name, "value": 3}))
         refused = read_until(ws, is_type("refused"))
         assert (refused["control"], refused["name"]) == ("set", name)
-
-
-def test_the_real_rig_binds_one_unit_per_fixture():
-    from pewpew.rig import compile_rig, fixture_grouping, load_arrangement
-
-    rig = compile_rig(load_arrangement(GOLDEN), load_catalog())
-    grouping = fixture_grouping(rig.mapping, rig.fixtures)
-    assert grouping is not None and len(grouping.centres) == len(rig.fixtures) == 48
-    assert (grouping.of == rig.fixture_of).all()
-    first = rig.fixtures[0]
-    span = slice(first.pixel_start, first.pixel_start + first.pixel_count)
-    assert grouping.centres[0] == pytest.approx(rig.mapping[span].mean(axis=0), abs=1e-6)
-    assert fixture_grouping(rig.mapping, ()) is None
 
 
 # -- paused sessions and admission (finding 2, finding 10) ---------------------------

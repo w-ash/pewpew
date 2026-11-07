@@ -13,8 +13,9 @@ import numpy as np
 import pytest
 
 from fakes import FLOW, FakeTime
-from pewpew import Renderer, line
+from pewpew.mapping import line
 from pewpew.pace import PacedLoop
+from pewpew.render import Renderer
 from pewpew.sinks.base import SinkDriver
 
 N_PX = 16

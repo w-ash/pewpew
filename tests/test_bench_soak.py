@@ -20,7 +20,7 @@ from bench.bench_soak import (
     trend,
 )
 from fakes import LoopThread, aura_rig, peers, preview_sink, wait_until
-from pewpew import line
+from pewpew.mapping import line
 from pewpew.watchdog import TIMEOUT_S
 
 PERIOD = 1.0 / 60.0
@@ -107,12 +107,12 @@ def test_row_log_writes_the_same_json_as_live_rows():
     assert json.dumps({"rig_samples": log.rows()}, indent=1) == json.dumps({"rig_samples": rows}, indent=1)
 
 
-def test_the_soak_client_keeps_what_the_soak_reads():
+def test_the_soak_client_keeps_what_the_soak_reads(fake_ops):
     rig = aura_rig()
     with preview_sink(line(4), control=rig.control) as sink, LoopThread(rig.calls):
         client = Client(f"ws://127.0.0.1:{sink.port}/", time.monotonic(), health=[])
         try:
-            wait_until(lambda: client.pattern == "solid" and client.params and len(peers(sink)) == 1)
+            wait_until(lambda: client.params and len(peers(sink)) == 1)
             client.send({"type": "set", "name": "layers.base.solid.red", "value": 3})
             sink.send(0.5, rig.frame(0.5))
             wait_until(lambda: client.refused and client.counts["frame"] == 1)
@@ -121,7 +121,7 @@ def test_the_soak_client_keeps_what_the_soak_reads():
     rgb = [f"layers.base.solid.{c}" for c in ("red", "green", "blue")]
     assert [p["name"] for p in client.params] == [*rgb, *(f"layers.base.{c}" for c in ("opacity", "blend", "enabled"))]
     assert [p["name"] for p in sliders(client.params)] == rgb  # not the layer's own controls
-    assert client.patterns_seen == {"solid": 1} and client.fired == []
+    assert client.fired == []
     (refused,) = client.refused
     assert refused["name"] == "layers.base.solid.red" and refused["control"] == "set" and refused["t"] >= 0
     assert refused["reason"].endswith("must be within 0.0..1.0, got 3.0")

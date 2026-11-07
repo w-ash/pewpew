@@ -4,10 +4,10 @@ random arrivals), and the example looks under examples/.
 
 The catalog examples of every op, and the liveness of every arg, are
 tests/test_fx_ops.py's; this file holds what only state has: the same
-seed gives the same bytes, a hot reload carries the state on mid-run, a
-feedback field never climbs past what it reads, the simulations stay
-finite and in range at both ends of every knob, on every kind of map,
-and over minutes neither climbs to white nor settles."""
+seed gives the same bytes, a feedback field never climbs past what it
+reads, the simulations stay finite and in range at both ends of every
+knob, on every kind of map, and over minutes neither climbs to white nor
+settles."""
 
 from __future__ import annotations
 
@@ -22,18 +22,16 @@ import pytest
 
 import fakes
 from fakes import Pooled, program_of
-from pewpew import grid, lattice, line
 from pewpew.fx.compile import check
 from pewpew.fx.field import CAPS, Lattice, Splat, lattice_axes
 from pewpew.fx.graph import Graph, Node, Program
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.op import BindCtx, Op
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.sims import arrivals
 from pewpew.fx.prims.sample import sample
 from pewpew.fx.types import Coords
 from pewpew.lab import Verification, verify_looks
-from pewpew.mapping import DEFAULT_MAP
+from pewpew.mapping import DEFAULT_MAP, grid, lattice, line
 from pewpew.params import Float, ParamSet
 
 FPS = 30.0
@@ -73,20 +71,6 @@ def test_the_same_seed_gives_the_same_bytes(op: str) -> None:
     assert once.tobytes() == again.tobytes()
     if op in RANDOM_OPS:
         assert not np.array_equal(once, frames(hosted(program, mapping, seed=8), 20)), "another seed, another stream"
-
-
-@pytest.mark.parametrize("op", STATE_OPS)
-def test_a_hot_reload_carries_the_state_on_mid_run(op: str) -> None:
-    """A reload to the same program mid-run continues frame for frame, as
-    if nothing had happened: the buffers, phases and tick carry over."""
-    program = first_example(op)
-    mapping = a_map(program)
-    steady = frames(hosted(program, mapping), 30)
-    reloaded = hosted(program, mapping)
-    before = frames(reloaded, 15)
-    report = reloaded.swap(ProgramPattern.of(program)())
-    assert report.buffers, "the node buffers are carried"
-    np.testing.assert_array_equal(np.concatenate([before, frames(reloaded, 15)]), steady)
 
 
 @pytest.mark.parametrize("py", [

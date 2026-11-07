@@ -299,7 +299,6 @@ def create_app(
         limiter = getattr(rig, "limiter", None)
         return {
             "mapping": rig.mapping,
-            "grouping": rig.grouping,
             "catalog_digest": rig.catalog_digest,
             "issues": [_issue(i) for i in rig.issues],
             # A rig without a limiter streams uncapped, with no power messages.

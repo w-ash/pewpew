@@ -19,6 +19,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from fakes import (
     FakeTime,
@@ -35,16 +36,14 @@ from fakes import (
     room,
     wait_until,
 )
-from params_zoo import Zoo
-from pewpew import line
+from params_zoo import ZOO
 from pewpew.aura.book import Trigger
 from pewpew.aura.control import REQUESTS
 from pewpew.compose import Route
 from pewpew.fx.graph import Graph, Node
 from pewpew.health import HealthMonitor
-from pewpew.load import Catalog
+from pewpew.mapping import line
 from pewpew.pace import PaceStats
-from pewpew.patterns import ColorPlasma, Wave
 from pewpew.room.map import compile_room
 from pewpew.run import status_line
 from pewpew.sinks.ddp import Board
@@ -54,11 +53,12 @@ PAGE_SOURCE = Path(__file__).resolve().parents[1] / "web" / "src"
 # The hello's build stamp follows the page source; the golden holds this one.
 BUILD = "0123456789abcdef"
 HOST, US = "192.168.1.50", "192.168.1.2"
-# A look that names its pattern by a file, which no message may do.
-PATHED = layered("/tmp/x.py", node="x")
-# The catalog cards the golden keeps: a pattern's and an op's, so an op added
-# to the catalog does not change it.
-CARDS = ("wave", "kaleid")
+pytestmark = pytest.mark.usefixtures("fake_ops")
+# A look whose one knob is out of its range, which the aura refuses.
+REFUSED = layered("osc", {"freq": 99.0})
+# The catalog cards the golden keeps: a source's and a coord op's, so an op
+# added to the catalog does not change it.
+CARDS = ("osc", "kaleid")
 REPLY = {
     "mac": "aabbccddeeff", "ver": "16.0.1", "live": True, "lip": US, "uptime": 3700, "freeheap": 120000,
     "leds": {"count": 320, "fps": 40}, "wifi": {"rssi": -55, "channel": 6},
@@ -77,16 +77,15 @@ def capture(folder: Path) -> dict:
     monitor.step()
     ddp.frames_sent, stats.ticks, ft.t = 40, 60, 1.0
     monitor.step()
-    catalog = Catalog({"colorplasma": ColorPlasma, "wave": Wave, "zoo": Zoo})
     warm = replace(
-        look("zoo", fade=0.0, cycle=True),
+        look(ZOO, node="zoo", fade=0.0, cycle=True),
         signals=Graph((Node("breath", "lfo", {"rate": 0.5}), Node("macro", "knob", {"value": 0.5}))),
         routes=(Route("breath", "layers.base.zoo.level", 0.2), Route("macro", "layers.base.zoo.color.h", 60.0)),
         front=("signals.macro.value", "layers.base.zoo.level"),
     )
-    looks = {"warm": warm, "cool": look("zoo", {"level": 0.2}, fade=0.0)}
+    looks = {"warm": warm, "cool": look(ZOO, {"level": 0.2}, node="zoo", fade=0.0)}
     triggers = {"door": Trigger(look="cool", hold=8.0, debounce=0.0), "bell": Trigger()}
-    rig = aura_rig(Zoo, mapping=line(2), catalog=catalog, looks=looks, current="warm", triggers=triggers,
+    rig = aura_rig(look(ZOO, node="zoo"), mapping=line(2), looks=looks, current="warm", triggers=triggers,
                    path=folder / "looks.json", boards=monitor, health=monitor.state, accept_looks=True)
     assert restore(rig) is None
     rig.master.set(0.8)
@@ -108,9 +107,9 @@ def capture(folder: Path) -> dict:
             ws.send(json.dumps({"type": "set", "name": "layers.base.zoo.level", "value": 3}))
             refused = next_text(ws)
             with LoopThread(rig.calls):  # a look and a layer are checked on the loop thread
-                ws.send(json.dumps({"type": "look", "id": 7, "look": PATHED}))
-                pathed = next_text(ws)
-                ws.send(json.dumps({"type": "add_layer", "id": 8, "layer": {"nodes": PATHED["layers"][0]["nodes"]},
+                ws.send(json.dumps({"type": "look", "id": 7, "look": REFUSED}))
+                refused_look = next_text(ws)
+                ws.send(json.dumps({"type": "add_layer", "id": 8, "layer": {"nodes": REFUSED["layers"][0]["nodes"]},
                                     "below": None}))
                 layer = next_text(ws)
             ws.send(json.dumps({"type": "blackout", "id": "b1", "on": False}))
@@ -134,7 +133,7 @@ def capture(folder: Path) -> dict:
     catalog["cards"] = [card for card in catalog["cards"] if card["name"] in CARDS]
     return {
         "greeting": greeting,
-        "later": [held, refused, pathed, layer, ack, error, scan, layout],
+        "later": [held, refused, refused_look, layer, ack, error, scan, layout],
         "controls": {name: [field for field, _ in fields] for name, fields in REQUESTS.items()},
     }
 

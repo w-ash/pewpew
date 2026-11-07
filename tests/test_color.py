@@ -13,8 +13,10 @@ import numpy as np
 import pytest
 
 from harness.goldens import assert_matches_golden
-from pewpew import HSV, Gradient, Palette, Stop, hsv, line
 from pewpew.color import EMBER, LUT_SIZE, OCEAN, PRESETS, gradient_lut, linear_srgb, oklab, sample, turn_hue
+from pewpew.kit import hsv
+from pewpew.mapping import line
+from pewpew.params import HSV, Gradient, Palette, Stop
 
 GOLDENS = Path(__file__).parent / "goldens"
 

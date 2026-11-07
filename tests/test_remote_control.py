@@ -11,7 +11,6 @@ import json
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
-import numpy as np
 import pytest
 from websockets.sync.client import connect
 from websockets.sync.server import serve
@@ -19,54 +18,53 @@ from websockets.sync.server import serve
 import pewpew.remote.control as remote_control
 from fakes import (
     LoopThread,
-    Solid,
     aura_rig,
     filed,
     layered,
-    look,
-    next_of,
     next_text,
     preview_sink,
     restore,
-    serving,
+    solid,
     wait_until,
 )
-from pewpew import Float, Pattern, grid, line
 from pewpew.__main__ import main
 from pewpew.aura.control import BUSY
-from pewpew.load import Catalog
+from pewpew.mapping import grid, line
 from pewpew.problems import Code, Refused
 from pewpew.remote.client import Client, Unreachable
 from pewpew.remote.control import Answer, Forbidden, push, set_value
 
-COMET = layered("comet", {"speed": 0.4}, fade=0)
-SPEED = "layers.base.comet.speed"
-# Two layers: an effect program of three nodes, and a pattern screened over it.
+# The aura runs a red `solid` until a look comes.
+pytestmark = pytest.mark.usefixtures("fake_ops")
+
+SPARKS = layered("particles", {"speed": 0.4}, node="sparks", fade=0)
+SPEED = "layers.base.sparks.speed"
+# Two layers: an effect program of three nodes, and sparks screened over it.
 TIDE = {"fade": 0, "layers": [
     {"id": "base", "nodes": {
         "waves": {"op": "osc", "args": {"freq": 8.0, "sync": 0.1}},
         "fold": {"op": "kaleid", "in": ["waves"], "args": {"sides": 5}},
         "tint": {"op": "palette", "in": ["fold"], "args": {"palette": "ember"}}}},
     {"id": "sparks", "blend": "screen", "opacity": 0.6, "nodes": {
-        "comet": {"op": "pattern", "args": {"pattern": "comet", "speed": 0.6}}}},
+        "sparks": {"op": "particles", "args": {"speed": 0.6}}}},
 ]}
 # The hello of an engine with no map, as a build before capabilities sent it.
 OLD_HELLO = {"type": "hello", "n": 0, "total": 0, "positions": [], "is3d": False, "room": None,
              "display_gamma": 2.2, "build": None}
 
 
-def with_pattern(spec: str) -> dict:
-    """A one-layer look whose node `x` runs pattern `spec`."""
-    return layered(spec, node="x")
+def starts(rig) -> bool:
+    """Whether `rig` still runs the look it started in, the red `solid`."""
+    return "layers.base.solid.red" in rig.control.values()
 
 
 @contextlib.contextmanager
-def engine(catalog: Catalog | None = None, mapping=None, **kw):
-    """An aura on `mapping` (default a 4-pixel line) whose catalog is
-    `catalog`, by default the gallery, behind a started preview, its calls
-    drained on a loop thread. Yields the aura and the engine's address."""
+def engine(mapping=None, **kw):
+    """An aura on `mapping` (default a 4-pixel line) behind a started
+    preview, its calls drained on a loop thread. Yields the aura and the
+    engine's address."""
     mapping = line(4) if mapping is None else mapping
-    rig = aura_rig(Solid, mapping=mapping, catalog=Catalog() if catalog is None else catalog, **kw)
+    rig = aura_rig(mapping=mapping, **kw)
     with preview_sink(mapping, control=rig.control) as sink, LoopThread(rig.calls):
         yield rig, f"ws://127.0.0.1:{sink.port}/"
 
@@ -116,37 +114,19 @@ def resolving(monkeypatch, host: str, *addresses: str) -> None:
 
 def test_a_pushed_look_runs_and_is_acked_with_its_id():
     with engine(accept_looks=True) as (rig, url):
-        pushed = push(url, COMET)
-        assert rig.deck.current == "comet"
-        assert rig.control.values()[SPEED] == 0.4
+        pushed = push(url, SPARKS)
+        assert rig.control.values()[SPEED] == 0.4 and not starts(rig)
     assert pushed.ok and not pushed.dry_run
     assert pushed.answers == (Answer("1", "look", True),)
     assert pushed.connected == url and pushed.addresses == ("127.0.0.1",)
     sent = pushed.messages[0]
-    assert (sent["type"], sent["id"], sent["fade"]) == ("look", "1", COMET["fade"])  # the look's own, said outright
-    assert sent["look"]["layers"][0]["nodes"]["comet"]["args"] == {"pattern": "comet", "speed": 0.4}  # as authored
-
-
-def test_a_look_goes_out_as_authored_so_the_engine_fills_in_its_own_defaults():
-    """The engine's comet has no `tail`: a look that never named one runs
-    there, though the gallery comet has one."""
-
-    class Comet(Pattern):
-        speed = Float(0.5, 0.0, 2.0)
-
-        def render(self, x, y, z, index):
-            return np.zeros((self.n, 3), dtype=np.float32)
-
-    with engine(Catalog({"comet": Comet}), accept_looks=True) as (rig, url):
-        pushed = push(url, COMET)
-        values = rig.control.values()
-    assert pushed.answers == (Answer("1", "look", True),)
-    assert values[SPEED] == 0.4 and "layers.base.comet.tail" not in values
+    assert (sent["type"], sent["id"], sent["fade"]) == ("look", "1", SPARKS["fade"])  # the look's own, said outright
+    assert sent["look"]["layers"][0]["nodes"]["sparks"]["args"] == {"speed": 0.4}  # as authored
 
 
 def test_a_set_by_layered_path_follows_the_look_and_is_acked():
     with engine(accept_looks=True) as (rig, url):
-        pushed = push(url, COMET, sets={SPEED: 0.7})
+        pushed = push(url, SPARKS, sets={SPEED: 0.7})
         wait_until(lambda: rig.control.values()[SPEED] == 0.7)
         alone = set_value(url, "layers.base.opacity", 0.5)
         wait_until(lambda: rig.control.values()["layers.base.opacity"] == 0.5)
@@ -157,18 +137,18 @@ def test_a_set_by_layered_path_follows_the_look_and_is_acked():
 def test_a_look_the_engine_refuses_comes_back_with_its_path_and_id_and_ends_the_write():
     # The check here allows any master; the engine holds it to its cap.
     with engine(accept_looks=True, cap=0.5) as (rig, url):
-        pushed = push(url, {**COMET, "master": 0.8}, sets={SPEED: 0.7})
-        assert rig.deck.current == "solid"
+        pushed = push(url, {**SPARKS, "master": 0.8}, sets={SPEED: 0.7})
+        assert starts(rig)
     assert not pushed.ok
     assert pushed.answers == (Answer("1", "look", False, "master must be within 0.0..0.5, got 0.8", "master"),)
 
 
 def test_an_engine_that_takes_no_looks_is_written_to_by_neither_push_nor_set():
     with engine() as (rig, url):
-        for write in (lambda: push(url, COMET), lambda: set_value(url, SPEED, 0.7)):
+        for write in (lambda: push(url, SPARKS), lambda: set_value(url, SPEED, 0.7)):
             with pytest.raises(Forbidden, match="engine lacks look; run it with --accept-looks or a newer pewpew"):
                 write()
-        assert rig.deck.current == "solid"
+        assert starts(rig)
 
 
 def test_an_engine_whose_hello_has_no_capabilities_lacks_look_and_gets_no_message():
@@ -180,7 +160,7 @@ def test_an_engine_whose_hello_has_no_capabilities_lacks_look_and_gets_no_messag
             received.extend(conn)
 
     with fake_engine(old_engine) as url, pytest.raises(Forbidden, match="engine lacks look"):
-        push(url, COMET)
+        push(url, SPARKS)
     assert received == []
 
 
@@ -194,7 +174,7 @@ def test_an_engine_that_closes_mid_write_is_unreachable():
         conn.close()
 
     with fake_engine(closing_engine) as url, pytest.raises(Unreachable, match="closed the connection"):
-        push(url, COMET, sets={SPEED: 0.7})
+        push(url, SPARKS, sets={SPEED: 0.7})
 
 
 def test_a_send_after_the_engine_closed_is_unreachable():
@@ -209,7 +189,7 @@ def test_a_set_the_look_would_refuse_is_refused_here_before_any_socket(dry_run, 
     """Each set is checked against the knobs of the look it follows, so
     no write stops half done at a set the engine would refuse."""
     with pytest.raises(Refused) as bad:
-        push("ws://127.0.0.1:9/", COMET, sets={"layers.base.comet.nope": 1, SPEED: 99}, dry_run=dry_run)
+        push("ws://127.0.0.1:9/", SPARKS, sets={"layers.base.comet.nope": 1, SPEED: 99}, dry_run=dry_run)
     assert [(p.path, p.code) for p in bad.value.problems] == [
         ("layers.base.comet.nope", Code.BAD_REF), (SPEED, Code.OUT_OF_RANGE)]  # as a route to it is
     assert "must be within 0.0..2.0, got 99" in bad.value.problems[1].reason
@@ -218,14 +198,14 @@ def test_a_set_the_look_would_refuse_is_refused_here_before_any_socket(dry_run, 
 
 def test_a_look_with_problems_is_refused_here_before_any_socket(audit_log):
     with pytest.raises(Refused) as bad:
-        push("ws://127.0.0.1:9/", {**COMET, "layers": [{**COMET["layers"][0], "opacity": 3}]})
+        push("ws://127.0.0.1:9/", {**SPARKS, "layers": [{**SPARKS["layers"][0], "opacity": 3}]})
     assert [p.path for p in bad.value.problems] == ["layers.base.opacity"]
-    with pytest.raises(Refused) as pathed:
-        push("ws://127.0.0.1:9/", with_pattern("/tmp/x.py"))
-    (found,) = pathed.value.problems
-    assert found.path == "layers.base.x.pattern" and "/tmp" not in found.reason
+    with pytest.raises(Refused) as unknown:
+        push("ws://127.0.0.1:9/", layered("pattern", {"pattern": "comet"}, node="x"))
+    (found,) = unknown.value.problems
+    assert found.path == "layers.base.x.op" and "unknown op 'pattern'" in found.reason
     with pytest.raises(Refused, match="fade must be within 0.0..600.0"):
-        push("ws://127.0.0.1:9/", COMET, fade=-1)
+        push("ws://127.0.0.1:9/", SPARKS, fade=-1)
     assert not audit_log.exists()
 
 
@@ -233,28 +213,28 @@ def test_a_look_with_problems_is_refused_here_before_any_socket(audit_log):
 
 
 def test_tier_one_writes_only_to_loopback_unless_the_address_is_allowed(audit_log):
-    for write in (lambda **kw: push("ws://192.168.1.50:7447/", COMET, **kw),
+    for write in (lambda **kw: push("ws://192.168.1.50:7447/", SPARKS, **kw),
                   lambda **kw: set_value("ws://192.168.1.50:7447/", SPEED, 0.7, **kw)):
         for dry_run in (True, False):
             with pytest.raises(Forbidden, match=r"^192\.168\.1\.50 is not this machine: tier 1 writes only to an "
                                                 r"engine on this machine .* --allow-host 192\.168\.1\.50"):
                 write(dry_run=dry_run)
     assert not audit_log.exists()
-    planned = push("ws://192.168.1.50:7447/", COMET, dry_run=True, allow_hosts=["192.168.1.50"])
+    planned = push("ws://192.168.1.50:7447/", SPARKS, dry_run=True, allow_hosts=["192.168.1.50"])
     assert planned.ok and planned.addresses == ("192.168.1.50",)
 
 
 def test_a_host_that_resolves_to_loopback_and_another_address_is_refused(monkeypatch):
     resolving(monkeypatch, "bench.test", "127.0.0.1", "10.0.0.7")
     with pytest.raises(Forbidden, match=r"^bench\.test resolves to 10\.0\.0\.7, which is not this machine: tier 1"):
-        push("ws://bench.test:7447/", COMET, dry_run=True)
+        push("ws://bench.test:7447/", SPARKS, dry_run=True)
 
 
 def test_the_write_goes_to_the_address_that_was_checked(monkeypatch):
     with engine(accept_looks=True) as (_, url):
         port = url.rsplit(":", 1)[1].rstrip("/")
         resolving(monkeypatch, "bench.test", "127.0.0.1")
-        pushed = push(f"ws://bench.test:{port}/", COMET)
+        pushed = push(f"ws://bench.test:{port}/", SPARKS)
     # The preview refuses a Host that is a name, so only the checked address could connect.
     assert pushed.ok and pushed.url == f"ws://bench.test:{port}/" and pushed.connected == url
 
@@ -265,7 +245,7 @@ def test_a_dry_run_checks_and_plans_and_opens_no_socket(monkeypatch, audit_log):
             raise AssertionError("a dry run opened a socket")
 
     monkeypatch.setattr(socket, "socket", NoSocket)
-    pushed = push("ws://127.0.0.1:9/", COMET, fade=1.5, sets={SPEED: 0.7}, dry_run=True)
+    pushed = push("ws://127.0.0.1:9/", SPARKS, fade=1.5, sets={SPEED: 0.7}, dry_run=True)
     assert pushed.ok and pushed.dry_run and pushed.answers == () and pushed.connected is None and pushed.audit is None
     assert [(m["type"], m["id"]) for m in pushed.messages] == [("look", "1"), ("set", "2")]
     assert pushed.messages[0]["fade"] == 1.5
@@ -282,9 +262,9 @@ def test_the_audit_record_is_written_before_the_first_byte(monkeypatch, audit_lo
 
     monkeypatch.setattr(Client, "__init__", spy)
     with engine(accept_looks=True) as (_, url):
-        pushed = push(url, COMET, argv=["push", url, "comet.look.json"])
+        pushed = push(url, SPARKS, argv=["push", url, "sparks.look.json"])
     record = json.loads(logged_at_connect[0])
-    assert (record["action"], record["argv"], record["url"]) == ("push", ["push", url, "comet.look.json"], url)
+    assert (record["action"], record["argv"], record["url"]) == ("push", ["push", url, "sparks.look.json"], url)
     assert record["messages"] == list(pushed.messages) and pushed.audit == str(audit_log)
 
 
@@ -293,7 +273,7 @@ def test_an_engine_that_is_not_there_is_unreachable(audit_log):
     with sink:
         port = sink.port
     with pytest.raises(Unreachable, match=f"nothing answered at ws://127.0.0.1:{port}/"):
-        push(f"ws://127.0.0.1:{port}/", COMET)
+        push(f"ws://127.0.0.1:{port}/", SPARKS)
 
 
 # ---- the engine's answers on the wire ------------------------------------------
@@ -302,16 +282,16 @@ def test_an_engine_that_is_not_there_is_unreachable(audit_log):
 def test_the_engine_answers_every_message_with_an_id_and_only_those():
     with engine(accept_looks=True) as (_, url):
         assert answer(url, {"type": "master", "id": 5, "value": 0.5}) == {"type": "ack", "id": 5, "control": "master"}
-        bad = answer(url, {"type": "look", "id": "a", "look": layered("comet", {"speed": 99})})
+        bad = answer(url, {"type": "look", "id": "a", "look": layered("particles", {"speed": 99}, node="sparks")})
         assert (bad["control"], bad["name"], bad["id"]) == ("look", SPEED, "a")
         assert "must be within" in bad["reason"]
         typo = answer(url, {"type": "sett", "id": 9, "name": SPEED, "value": 1})
         assert (typo["type"], typo["control"], typo["id"], typo["name"]) == ("refused", "sett", 9, None)
-        assert typo["reason"].startswith("unknown control 'sett'; controls: set, pick, add_layer,")
+        assert typo["reason"].startswith("unknown control 'sett'; controls: set, add_layer,")
         for message in ({"type": 7, "id": "a"}, {"typ": "look", "id": "a"}):  # no text type, but an id to answer
             untyped = answer(url, message)
             assert (untyped["type"], untyped["control"], untyped["id"]) == ("refused", None, "a")
-            assert untyped["reason"].startswith(f"unknown control {message.get('type')!r}; controls: set, pick,")
+            assert untyped["reason"].startswith(f"unknown control {message.get('type')!r}; controls: set, add_layer,")
         with connect(url) as ws:  # without an id, an unknown type is passed over and an accepted one unanswered
             ws.send(json.dumps({"type": "sett"}))
             ws.send(json.dumps({"type": "master", "value": 0.4}))
@@ -320,27 +300,26 @@ def test_the_engine_answers_every_message_with_an_id_and_only_those():
             assert (reply["control"], reply["id"], reply["name"]) == ("master", None, None)
 
 
-def test_a_look_that_names_a_file_is_refused_with_its_path_and_id():
+def test_a_look_that_names_op_pattern_is_refused_as_an_unknown_op_with_its_path_and_id():
     with engine(accept_looks=True) as (rig, url):
-        reply = answer(url, {"type": "look", "id": 3, "look": with_pattern("/tmp/x.py")})
-        assert rig.deck.current == "solid"
+        reply = answer(url, {"type": "look", "id": 3, "look": layered("pattern", {"pattern": "comet"}, node="x")})
+        assert starts(rig)
     assert (reply["type"], reply["control"], reply["id"]) == ("refused", "look", 3)
-    assert reply["name"] == "layers.base.x.pattern"
-    assert "/tmp" not in reply["reason"] and "unknown pattern" in reply["reason"]
+    assert reply["name"] == "layers.base.x.op" and "unknown op 'pattern'" in reply["reason"]
 
 
-def test_a_program_look_runs_but_a_pattern_node_named_by_file_is_refused_inside_it():
-    """A pushed look's program runs node by node; a pattern node anywhere
-    in it is named by its catalog name, never by file."""
-    nodes = {"p": {"op": "pattern", "args": {"pattern": "/tmp/x.py"}},
+def test_a_program_look_runs_but_an_unknown_op_inside_one_is_refused_by_its_path():
+    """A pushed look's program runs node by node; an unknown op anywhere
+    in it is refused by its node's place in the look."""
+    nodes = {"p": {"op": "pattern", "args": {"pattern": "comet"}},
              "fold": {"op": "mirror", "in": ["p"]}, "tint": {"op": "hue", "in": ["fold"]}}
     with engine(mapping=grid(4, 4), accept_looks=True) as (rig, url):
         assert answer(url, {"type": "look", "id": 1, "look": TIDE}) == {"type": "ack", "id": 1, "control": "look"}
         assert rig.control.values()["layers.base.fold.sides"] == 5
         reply = answer(url, {"type": "look", "id": 2, "look": {"layers": [{"id": "base", "nodes": nodes}]}})
         assert rig.control.values()["layers.base.fold.sides"] == 5  # the refused look never started
-    assert (reply["type"], reply["id"], reply["name"]) == ("refused", 2, "layers.base.p.pattern")
-    assert "/tmp" not in reply["reason"] and "unknown pattern" in reply["reason"]
+    assert (reply["type"], reply["id"], reply["name"]) == ("refused", 2, "layers.base.p.op")
+    assert "unknown op 'pattern'" in reply["reason"]
 
 
 def test_a_program_look_checks_renders_verifies_and_pushes(tmp_path, capsys):
@@ -359,8 +338,7 @@ def test_a_program_look_checks_renders_verifies_and_pushes(tmp_path, capsys):
     assert capsys.readouterr().out.startswith("PASS ")
     with engine(mapping=grid(4, 4), accept_looks=True) as (rig, url):
         pushed = push(url, file)
-        assert rig.deck.current == "program"
-        assert rig.control.values()["layers.sparks.comet.speed"] == 0.6
+        assert rig.control.values()["layers.sparks.sparks.speed"] == 0.6 and not starts(rig)
     assert pushed.ok and pushed.answers == (Answer("1", "look", True),)
 
 
@@ -383,41 +361,28 @@ def test_a_modulated_look_pushes_with_a_set_on_a_signal_and_a_bad_route_is_refus
     assert "layers.base.tint.palette cannot be modulated: it is a palette" in reply["reason"]
 
 
-def test_a_look_refusal_names_no_folder(tmp_path):
-    private = tmp_path / "private-folder-xyz"
-    private.mkdir()
-    (private / "broken.py").write_text("def (:\n")
-    rig = aura_rig(mapping=line(4), catalog=Catalog(), accept_looks=True, timeout=2.0)
-    with serving(rig.control, rig.calls) as (_, ws, _):
-        for i, spec in enumerate((str(private / "broken.py"), f"{private}/mine", "nosuch")):
-            ws.send(json.dumps({"type": "look", "id": i, "look": with_pattern(spec)}))
-            reply = next_of(ws, "refused")
-            assert (reply["id"], reply["name"]) == (i, "layers.base.x.pattern")
-            assert str(private) not in reply["reason"] and "private-folder" not in reply["reason"], reply
-
-
 def test_a_pushed_look_is_no_saved_look_until_a_save_keeps_it(tmp_path):
     path = tmp_path / "looks.json"
-    rig = aura_rig(Solid, mapping=line(4), catalog=Catalog(), looks={"blue": look("wash")}, current="blue",
-                   path=path, accept_looks=True)
+    rig = aura_rig(mapping=line(4), looks={"blue": solid(0.0, 0.0, 1.0)}, current="blue", path=path,
+                   accept_looks=True)
     assert restore(rig) is None
     with LoopThread(rig.calls):
-        assert rig.control.look(COMET) is None
+        assert rig.control.look(SPARKS) is None
         assert rig.looks.book.current is None and list(rig.looks.book.looks) == ["blue"]
         assert rig.control.save("pushed") is None
     saved = json.loads(path.read_text())["looks"]["pushed"]
-    assert saved["layers"][0]["nodes"]["comet"]["args"]["speed"] == 0.4
+    assert saved["layers"][0]["nodes"]["sparks"]["args"]["speed"] == 0.4
 
 
 def test_a_pushed_look_leaves_the_last_recalled_look_out_of_the_fade(tmp_path):
     """The looks name no look as fading while a pushed look fades in: it
     has no name, and the last look recalled is not the one fading."""
-    rig = aura_rig(Solid, mapping=line(4), catalog=Catalog(), looks={"blue": look("wash", fade=0.5)},
+    rig = aura_rig(mapping=line(4), looks={"blue": solid(0.0, 0.0, 1.0, fade=0.5)},
                    path=tmp_path / "looks.json", accept_looks=True)
     assert rig.looks.recall("blue") is None
     rig.frame(1.0)  # the recall's fade is over
     with LoopThread(rig.calls):
-        assert rig.control.look(COMET, 2.0) is None
+        assert rig.control.look(SPARKS, 2.0) is None
     assert rig.fader.fading
     state = rig.looks.state()
     assert (state["current"], state["fading"], state["progress"]) == (None, None, None)
@@ -426,43 +391,43 @@ def test_a_pushed_look_leaves_the_last_recalled_look_out_of_the_fade(tmp_path):
 
 
 def test_a_dry_run_names_the_fade_the_engine_will_run():
-    pushed = push("ws://127.0.0.1:9/", {**COMET, "fade": 3.0}, dry_run=True)
+    pushed = push("ws://127.0.0.1:9/", {**SPARKS, "fade": 3.0}, dry_run=True)
     assert pushed.messages[0]["fade"] == 3.0  # the look's own
 
 
-@pytest.mark.parametrize("path", ["bogus", "layers.nope", "layers.base.comet", "signals.breath", "layers.Base.x.y"])
+@pytest.mark.parametrize("path", ["bogus", "layers.nope", "layers.base.sparks", "signals.breath", "layers.Base.x.y"])
 def test_a_set_whose_address_has_no_knobs_form_is_refused_before_any_socket(path, audit_log):
     with pytest.raises(Refused) as caught:
         set_value("ws://127.0.0.1:9/", path, 1, dry_run=True)
     (problem,) = caught.value.problems
     assert (problem.path, problem.code) == (path, Code.BAD_REF) and "is not a knob's address" in problem.reason
-    for good in (SPEED, "layers.base.opacity", "signals.breath.rate", "layers.base.comet.color.h"):
+    for good in (SPEED, "layers.base.opacity", "signals.breath.rate", "layers.base.sparks.color.h"):
         assert set_value("ws://127.0.0.1:9/", good, 1, dry_run=True).ok
 
 
 def test_a_look_the_loop_takes_too_late_is_refused_and_never_starts():
     """No loop drains the calls in time: the client hears the look was
     refused, so it must never start after that."""
-    rig = aura_rig(Solid, mapping=line(4), catalog=Catalog(), accept_looks=True, timeout=0.05)
-    assert rig.control.look(COMET) == BUSY
+    rig = aura_rig(mapping=line(4), accept_looks=True, timeout=0.05)
+    assert rig.control.look(SPARKS) == BUSY
     rig.calls.drain()
-    assert rig.deck.current == "solid"
+    assert starts(rig)
 
 
 def test_a_pushed_look_ends_a_running_fade_and_fades_from_its_target():
-    rig = aura_rig(Solid, mapping=line(4), catalog=Catalog(), accept_looks=True)
-    assert rig.deck.recall(look("wash"), 2.0) is None and rig.fader.fading
+    rig = aura_rig(mapping=line(4), accept_looks=True)
+    assert rig.deck.recall(solid(0.0, 0.0, 1.0), 2.0) is None and rig.fader.fading
     with LoopThread(rig.calls):
-        assert rig.control.look(COMET, 1.0) is None
-    assert rig.fader.fading and rig.deck.current == "comet"
+        assert rig.control.look(SPARKS, 1.0) is None
+    assert rig.fader.fading and rig.control.values()[SPEED] == 0.4
 
 
 # ---- the command line --------------------------------------------------------------
 
 
 def test_push_prints_its_result_and_exits_by_outcome(tmp_path, monkeypatch, capsys):
-    file = tmp_path / "comet.look.json"
-    file.write_text(filed(COMET))
+    file = tmp_path / "sparks.look.json"
+    file.write_text(filed(SPARKS))
     kept = []
     real = remote_control.push
     monkeypatch.setattr(remote_control, "push", lambda *a, **kw: kept.append(real(*a, **kw)) or kept[-1])
@@ -473,21 +438,21 @@ def test_push_prints_its_result_and_exits_by_outcome(tmp_path, monkeypatch, caps
         out = capsys.readouterr().out
         assert out.startswith(f"dry run, nothing sent to {url} (127.0.0.1):") and "look of 1 layer, fading 0.5 s" in out
     with engine(accept_looks=True, cap=0.5) as (_, url):
-        file.write_text(filed({**COMET, "master": 0.8}))
+        file.write_text(filed({**SPARKS, "master": 0.8}))
         assert main(["push", url, str(file)]) == 4
         assert "look of 1 layer, fading 0 s: refused at master: master must be within" in capsys.readouterr().out
-    file.write_text(filed(with_pattern("comett")))
+    file.write_text(filed(layered("particlez", node="x")))
     assert main(["push", "ws://127.0.0.1:9/", str(file)]) == 1
-    assert "did you mean 'comet'?" in capsys.readouterr().err
-    file.write_text(filed(COMET))
+    assert "unknown op 'particlez'" in capsys.readouterr().err
+    file.write_text(filed(SPARKS))
     assert main(["push", "ws://10.0.0.7:7447/", str(file), "--dry-run"]) == 4
     assert main(["push", "ws://10.0.0.7:7447/", str(file), "--dry-run", "--allow-host", "10.0.0.7"]) == 0
     assert main(["push", "ws://127.0.0.1:9/", str(file)]) == 3
 
 
 def test_a_set_of_nan_is_text_and_refused_so_the_output_stays_json(tmp_path, capsys):
-    file = tmp_path / "comet.look.json"
-    file.write_text(filed(COMET))
+    file = tmp_path / "sparks.look.json"
+    file.write_text(filed(SPARKS))
     for value in ("NaN", "Infinity", "-Infinity"):
         assert main(["push", "ws://127.0.0.1:9/", str(file), "--set", f"{SPEED}={value}", "--dry-run", "--json"]) == 1
         out = json.loads(capsys.readouterr().out, parse_constant=lambda name: pytest.fail(f"{name} in the output"))
@@ -498,10 +463,10 @@ def test_a_write_the_audit_log_cannot_record_is_refused_by_tier_one(tmp_path, mo
     blocker = tmp_path / "file"
     blocker.write_text("")
     monkeypatch.setenv("PEWPEW_AUDIT_LOG", str(blocker / "audit.jsonl"))  # its folder is a file
-    file = tmp_path / "comet.look.json"
-    file.write_text(filed(COMET))
+    file = tmp_path / "sparks.look.json"
+    file.write_text(filed(SPARKS))
     with pytest.raises(Forbidden, match="cannot write the audit record .*, so nothing was sent"):
-        push("ws://127.0.0.1:9/", COMET)
+        push("ws://127.0.0.1:9/", SPARKS)
     assert main(["push", "ws://127.0.0.1:9/", str(file)]) == 4
     assert "point PEWPEW_AUDIT_LOG at a file it can write" in capsys.readouterr().err
 

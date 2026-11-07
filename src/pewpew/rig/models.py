@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import math
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, TypeVar, cast
 
@@ -27,7 +27,6 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
-from pewpew.mapping import Grouping
 from pewpew.power import MAX_CAP_W, EffectPower, PowerCap, PowerLimiter
 
 # ---- shared ------------------------------------------------------------------
@@ -889,24 +888,6 @@ class ControllerSlice(_Model):
     count: int
 
 
-def fixture_grouping(mapping: np.ndarray, fixtures: Sequence[FixtureInstance]) -> Grouping | None:
-    """Each fixture's pixel range as one unit, centred on the mean of its
-    pixels in `mapping`; None for a rig with no fixtures. A per-fixture
-    pattern (`units = "fixture"`) then lights each bar as one unit."""
-    if not fixtures:
-        return None
-    of = np.zeros(len(mapping), dtype=np.int32)
-    centres = np.zeros((len(fixtures), 3), dtype=np.float32)
-    for f, fixture in enumerate(fixtures):
-        pixels = slice(fixture.pixel_start, fixture.pixel_start + fixture.pixel_count)
-        of[pixels] = f
-        if fixture.pixel_count:
-            centres[f] = np.asarray(mapping[pixels], dtype=np.float64).mean(axis=0)
-    for array in (of, centres):
-        array.setflags(write=False)
-    return Grouping(centres, of)
-
-
 @dataclass(frozen=True, eq=False)
 class CompiledRig:
     """A compiled arrangement. Arrays are read-only; pixels are in data order.
@@ -946,11 +927,6 @@ class CompiledRig:
         if self.power is None:
             raise ValueError("this rig has no power model to estimate with")
         return self.power.watts(frame_linear)
-
-    @property
-    def grouping(self) -> Grouping | None:
-        """The fixtures as the units of a per-fixture pattern (`fixture_grouping`)."""
-        return fixture_grouping(self.mapping, self.fixtures)
 
     def limiter(self, cap: PowerCap | None = None) -> PowerLimiter:
         """A `PowerLimiter` for this rig under `cap`, or under `power_cap`."""

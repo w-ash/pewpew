@@ -1,7 +1,7 @@
 """`ProgramPattern`: an effect program hosted in a normal `Renderer`.
 
-A program is a `Pattern`, so the goldens and the renderer's containment
-work for it unchanged:
+A program runs as a `Pattern`, so the renderer's containment works for it
+unchanged:
 
     from pewpew.fx.expr import noise, osc
     from pewpew.fx.host import ProgramPattern
@@ -9,8 +9,8 @@ work for it unchanged:
     class Tide(ProgramPattern):
         program = osc(8, 0.1).kaleid(5).modulate(noise(3, 0.1), 0.2).palette("ember")
 
-A look's layer that runs a program of more than one node runs it the same
-way, through a class made from the program (`ProgramPattern.of`).
+A look's layer runs its program the same way, through a class made from
+the program (`ProgramPattern.of`).
 
 Bind (`setup`): the program is checked against the map (`check`, with the
 map's dimension), then each node gets its op and its knobs' values, its
@@ -21,14 +21,9 @@ shows as grey) and the mask `alpha`, if any, at the map's points.
 
 Each node's knobs are a `ParamSet` named by the node's address,
 `<renderer name>.<nid>` (`layers.base.fold`), kept by node id for the
-host's life: a rebind keeps them, and a hot reload hands each on to the
-same node of the new program (ADR-022), so a control holding one keeps
-working. A knob takes the new program's literal unless the operator moved
-it from the old program's literal, which it keeps if the new declaration
-takes it. A node's buffers are the host's (`<nid>__<name>`), so they are
-read-only in `render` and carried across a hot reload by name and shape,
-and a node's op state (its phases, a pattern node's pattern) is handed on
-to the same node with the same op.
+host's life: a rebind keeps them and each node's op, so a control holding
+one keeps working. A node's buffers are the host's (`<nid>__<name>`), so
+they are read-only in `render`.
 
 Randomness: a node's key is its layer's seed and the CRC-32 of its
 layer and node ids (`node_key`), so its draws and its noise are the same
@@ -36,20 +31,12 @@ in every process and do not change when another node or layer does.
 
 The compositor sets `below` (the frame of the layers below) before the
 layer advances, and reads `alpha` after it renders.
-
-A look runs a pattern file whose class is a `ProgramPattern` as a layer
-of one pattern node (`run tide.py`, a pick of it), its knobs its
-program's nodes', at `layers.<layer>.<nid>.<arg>`. The pattern node keeps
-the file link, so the file's literals stay its content; a knob a look
-moves from its literal is the node's arg `<nid>.<arg>` (`starts`), which
-the host starts the node at, as if the operator had moved it, and
-`moved` gives back.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from functools import partial
 from typing import Any, ClassVar
 
@@ -63,46 +50,38 @@ from pewpew.fx.compile import (
     blame_node,
     check,
     closures,
-    knob_class,
     node_types,
     require_field,
 )
-from pewpew.fx.expr import Expr
 from pewpew.fx.graph import Buildable, Graph, Program
 from pewpew.fx.op import BindCtx, FrameCtx, Op, node_key, node_seed
 from pewpew.fx.ops import OPS
 from pewpew.fx.prims.vec import Center
 from pewpew.fx.types import Coords
 from pewpew.mapping import spanned
-from pewpew.params import ParamSet, declared_params
-from pewpew.pattern import Inheritance, Pattern
+from pewpew.params import ParamSet
+from pewpew.pattern import Pattern
 
 
 @dataclass(slots=True)
 class _BoundNode:
-    """One bound node: its op and the op's name, the values its knobs
-    started from (the program's literal, native), its key, whether its op
-    defines `advance`, and once committed the set that holds its knobs and
-    the values they bound at."""
+    """One bound node: its op, its key, whether its op defines `advance`,
+    the values its knobs bind at (the program's literal, native), and once
+    committed the set that holds its knobs."""
 
     op: Op
-    op_name: str
-    literal: dict[str, Any]
     key: int
     advances: bool
+    values: dict[str, Any]
     params: ParamSet | None = None
-    values: dict[str, Any] = field(default_factory=dict)
 
 
 class ProgramPattern(Pattern):
     """A pattern that runs an effect program (module docstring). A subclass
-    sets `program` (a `Program` or a builder expression) and, for its
-    pattern nodes, `patterns` (classes by spec); a spec not in `patterns`
-    resolves in the gallery (pewpew.load.resolve). `strict`
-    checks that every node gives a float32 field (tests)."""
+    sets `program` (a `Program` or a builder expression). `strict` checks
+    that every node gives a float32 field (tests)."""
 
     program: ClassVar[Program | Buildable | None] = None
-    patterns: ClassVar[Mapping[str, type]] = {}
     strict: ClassVar[bool] = False
     _program: ClassVar[Program | None] = None
 
@@ -112,39 +91,16 @@ class ProgramPattern(Pattern):
         if source is None:
             return
         cls._program = Program.of(source)  # a builder checks its program here
-        if isinstance(source, Expr):
-            cls.patterns = {**cls.patterns, **source.patterns()}
 
     @classmethod
-    def of(cls, program: Program, patterns: Mapping[str, type] | None = None) -> type[ProgramPattern]:
-        """A class that runs `program`, its pattern nodes' classes in
-        `patterns` by spec: how a look's layer runs its program. A bind
-        checks the program against the map and raises ValueError, naming
-        each problem by its address, for one `check` refuses."""
-        return type("Program", (cls,), {"program": program, "patterns": dict(patterns or {})})
+    def of(cls, program: Program) -> type[ProgramPattern]:
+        """A class that runs `program`: how a look's layer runs its
+        program. A bind checks the program against the map and raises
+        ValueError, naming each problem by its address, for one `check`
+        refuses."""
+        return type("Program", (cls,), {"program": program})
 
-    @classmethod
-    def resolve(cls, spec: str) -> type | None:
-        """The class pattern spec `spec` runs: from `patterns`, else
-        resolved once in the gallery and kept in `patterns`."""
-        found = cls.patterns.get(spec)
-        if found is None:
-            from pewpew.load import resolve  # loads the gallery only when a node needs one
-
-            found = resolve(spec)
-            cls.patterns = {**cls.patterns, spec: found}
-        return found
-
-    @classmethod
-    def knob_classes(cls) -> dict[str, type]:
-        """The class of each node's knobs, by node id, in graph order: what
-        a pattern node that runs this class takes as `<nid>.<arg>`."""
-        return {node.id: knob_class(node, cls.resolve) for node in cls.runs().graph}
-
-    def __init__(self, starts: Mapping[str, Mapping[str, Any]] | None = None) -> None:
-        """`starts`: by node id, the values (native or JSON) a node's knobs
-        start at in place of the program's literals, as moved knobs."""
-        self._starts = {nid: dict(values) for nid, values in (starts or {}).items()}
+    def __init__(self) -> None:
         self.tick = 0
         # The frame of the layers below, set by the compositor before each frame.
         self.below: np.ndarray | None = None
@@ -170,18 +126,6 @@ class ProgramPattern(Pattern):
         """Each node's knobs, by node id, in graph order."""
         return {nid: node.params for nid, node in self._nodes.items() if node.params is not None}
 
-    def moved(self) -> dict[str, Any]:
-        """Each knob whose live value is not its program's literal, as JSON
-        by `<nid>.<arg>`: what a pattern node that runs this class holds
-        (module docstring)."""
-        out: dict[str, Any] = {}
-        for nid, node in self._nodes.items():
-            if node.params is None:
-                continue
-            live, shown = node.params.snapshot(), node.params.snapshot_json()
-            out |= {f"{nid}.{name}": shown[name] for name, value in live.items() if value != node.literal.get(name)}
-        return out
-
     def snapshot(self) -> Program:
         """The program at its knobs' live values, as JSON args."""
         program, knobs = self.runs(), self.node_params
@@ -189,21 +133,20 @@ class ProgramPattern(Pattern):
         for node in program.graph:
             params = knobs.get(node.id)
             if params is not None:
-                fixed = {k: v for k, v in node.args.items() if k not in OPS[node.op].knob_values(node.args)}
-                node = replace(node, args={**fixed, **params.snapshot_json()})
+                node = replace(node, args=params.snapshot_json())
             nodes.append(node)
         return replace(program, graph=Graph(tuple(nodes)))
 
     # ---- bind ----------------------------------------------------------------------
 
     def _bind(self, n: int, x: np.ndarray, y: np.ndarray, z: np.ndarray, index: np.ndarray, seed: int,
-              params: ParamSet | Mapping[str, Any], inherit: Inheritance | None, name: str | None = None) -> None:
+              params: ParamSet | Mapping[str, Any], name: str | None = None) -> None:
         """`Pattern._bind`, then the nodes' knobs committed: only once the
-        whole program bound, so a hot reload whose program fails to bind
-        leaves the running nodes' knobs as they were."""
+        whole program bound, so a rebind whose program fails to bind leaves
+        the running nodes' knobs as they were."""
         if name:
             self.owner = name
-        super()._bind(n, x, y, z, index, seed, params, inherit, name)
+        super()._bind(n, x, y, z, index, seed, params, name)
         self._commit()
 
     def setup(self, n: int, x: np.ndarray, y: np.ndarray, z: np.ndarray, index: np.ndarray) -> None:
@@ -211,11 +154,9 @@ class ProgramPattern(Pattern):
         coords = Coords.of(x, y, z, index)
         lo, hi = _extent(x, y, z)
         dims = sum(spanned(b - a for a, b in zip(lo, hi)))
-        problems = check(program, where=self.owner, resolve=self.resolve, dims=dims, hosted=True)
+        problems = check(program, where=self.owner, dims=dims)
         if problems:
             raise Unrunnable("; ".join(problems))
-        old = self._inherit.old if self._inherit is not None else None
-        handed = old._nodes if isinstance(old, ProgramPattern) else {}
         lid = self.owner.rpartition(".")[2]
         self._black = np.zeros((n, 3), dtype=np.float32)
         self._black.setflags(write=False)
@@ -224,21 +165,12 @@ class ProgramPattern(Pattern):
         types = node_types(program)
         for node in program.graph:
             key = node_key(self.seed, lid, node.id)
-            cls = OPS[node.op]
-            kept = self._nodes.get(node.id) if not handed else None  # a rebind keeps its ops
-            prior = handed.get(node.id)
-            before = kept or prior
-            op = kept.op if kept is not None and kept.op_name == node.op else cls.make(node.args, self.resolve)
-            if prior is not None and prior.op_name == node.op:
-                op.adopt(prior.op)
-            knobs = knob_class(node, self.resolve)
-            literal = ParamSet(knobs, cls.knob_values(node.args)).snapshot()
-            values = _values(literal, before, type(op.target))
-            if before is None and node.id in self._starts:  # a look's moved knobs, at the first bind
-                started = {**literal, **self._starts[node.id]}
-                values |= ParamSet(knobs, started, name=f"{self.owner}.{node.id}").snapshot()
+            kept = self._nodes.get(node.id)  # a rebind keeps each node's op and knobs
+            op = kept.op if kept is not None else OPS[node.op]()
+            params = kept.params if kept is not None else None
+            values = params.snapshot() if params is not None else ParamSet(OPS[node.op], node.args).snapshot()
             for name, value in values.items():
-                setattr(op.target, name, value)  # `setup` sees the values the node runs at
+                setattr(op, name, value)  # `setup` sees the values the node runs at
             path = f"{self.owner}.{node.id}"
             ctx = BindCtx(
                 path=path, values=values, coords=coords, lo=lo, hi=hi, seed=node_seed(key), key=key,
@@ -251,26 +183,18 @@ class ProgramPattern(Pattern):
                 blame_node(exc, path, node.op)
                 raise
             ops[node.id] = op
-            params = before.params if before is not None else None
-            advances = type(op).advance is not Op.advance
-            staged[node.id] = _BoundNode(op, node.op, literal, key, advances, params, values)
+            staged[node.id] = _BoundNode(op, key, type(op).advance is not Op.advance, values, params)
         self._staged = staged
         self._built = closures(program, ops, self.owner, strict=type(self).strict)
         self._coords = coords
 
     def _commit(self) -> None:
         """Bind each node's knobs to its op: its own set again (a rebind),
-        the set the replaced program's node held (a hot reload), or a new
-        set."""
+        or a new set."""
         for nid, node in self._staged.items():
-            target, path = node.op.target, f"{self.owner}.{nid}"
             if node.params is None:
-                node.params = ParamSet(type(target), node.values, name=path)
-                node.params.apply(target)
-            elif node.params.bound is not None and node.params.bound.target is target:
-                node.params.apply(target)
-            else:
-                node.params.redeclare(target, node.values)
+                node.params = ParamSet(type(node.op), node.values, name=f"{self.owner}.{nid}")
+            node.params.apply(node.op)
         self._nodes, self._staged = self._staged, {}
 
     def _node_buffer(self, nid: str, name: str, shape: int | tuple[int, ...], dtype: Any = np.float32,
@@ -323,21 +247,6 @@ class ProgramPattern(Pattern):
         return out if out.flags.writeable else out.copy()
 
 
-def split_starts(args: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-    """A pattern node's knob values (its args but `pattern`) for a
-    `ProgramPattern` class, split into the class's own (`speed`) and, by
-    node id, its program's nodes' (`waves.freq`; module docstring)."""
-    own: dict[str, Any] = {}
-    starts: dict[str, dict[str, Any]] = {}
-    for key, value in args.items():
-        nid, dot, arg = key.partition(".")
-        if dot:
-            starts.setdefault(nid, {})[arg] = value
-        else:
-            own[key] = value
-    return own, starts
-
-
 def _extent(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple[Center, Center]:
     """The lowest and highest point of the map on each axis, as Python floats."""
     if not len(x):
@@ -345,18 +254,3 @@ def _extent(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple[Center, Center
     lx, ly, lz = (float(a.min()) for a in (x, y, z))
     hx, hy, hz = (float(a.max()) for a in (x, y, z))
     return (lx, ly, lz), (hx, hy, hz)
-
-
-def _values(literal: Mapping[str, Any], before: _BoundNode | None, cls: type) -> dict[str, Any]:
-    """The values a node's knobs start at: the program's `literal`, except
-    a knob the operator moved from the literal of the node it replaces
-    (`before`), which keeps its live value where `cls` still takes it."""
-    if before is None or before.params is None:
-        return dict(literal)
-    live = before.params.snapshot()
-    declared = declared_params(cls)
-    out = dict(literal)
-    for name, value in live.items():
-        if name in out and value != before.literal.get(name, value) and declared[name].fit(value) is not None:
-            out[name] = value
-    return out

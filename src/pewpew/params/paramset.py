@@ -44,7 +44,7 @@ class ParamSet:
     (`Bound.drive`). A set that was never applied only holds values.
 
     Threading. `parse`, `check`, the snapshots and `describe` are safe from
-    any thread. `set`, `apply` and `redeclare` belong to the loop thread, so
+    any thread. `set` and `apply` belong to the loop thread, so
     a value never changes mid-frame; reach them through
     `pewpew.pace.Calls.call_soon` after `parse` passes (a queued closure
     that raises ends the run).
@@ -59,9 +59,9 @@ class ParamSet:
         if overrides:
             self.set_many(overrides)
 
-    # One tuple, swapped in a single attribute store by `redeclare`, so a
-    # reader on another thread can never pair new declarations with old
-    # values. Every reader takes `self._state` once and works from it.
+    # One tuple, replaced in a single attribute store, so a reader on
+    # another thread can never pair a new binding with old values. Every
+    # reader takes `self._state` once and works from it.
 
     @property
     def declarations(self) -> dict[str, Param[Any]]:
@@ -108,29 +108,6 @@ class ParamSet:
         """Each param's `spec()`, in display order. A list, not a dict, so
         display order survives transport. `snapshot_json` gives the values."""
         return [param.spec() for param in self._state.declarations.values()]
-
-    def inherit(self, pattern_cls: type) -> tuple[dict[str, Any], list[str]]:
-        """The values a swap to `pattern_cls` would start from, and which
-        params reset.
-
-        ADR-006's reload policy: a current value that the new declaration
-        still `fit`s is kept; one that does not (out of range, or the kind
-        changed) resets to the *new default*, never a clamp. Params the new
-        class does not declare are dropped; new ones start at their default.
-        Pure and safe from any thread; `redeclare` is the write.
-        """
-        values = self._state.values
-        out: dict[str, Any] = {}
-        reset: list[str] = []
-        for name, param in declared_params(pattern_cls).items():
-            kept = param.fit(values[name]) if name in values else None
-            if kept is None:
-                out[name] = param.default
-                if name in values:
-                    reset.append(name)
-            else:
-                out[name] = kept
-        return out, reset
 
     def parse(self, name: str, value: object) -> Parsed[Any]:
         """`value` as `name`'s native value, or why it is refused.
@@ -209,18 +186,6 @@ class ParamSet:
         for name in self._state.values:
             bound.write(name)
         return bound
-
-    def redeclare(self, pattern: object, values: Mapping[str, Any]) -> None:
-        """Become the set for `pattern`'s class, holding native `values`, with
-        `pattern` as the target — the write half of a hot reload, after
-        `inherit` chose the values and `pattern` bound against them. One
-        attribute store, so it is atomic to readers. Identity is preserved:
-        a control surface holding this object keeps driving the live
-        pattern, and the set keeps its owner. No param of the new binding
-        is driven, and the old binding stops working.
-        """
-        state = _ParamState.of(type(pattern), values, self._state.owner)
-        self._state = state._replace(bound=Bound(self, pattern))
 
     def refusal(self, name: str, reason: str) -> str:
         """`reason` with the `hint` for `name` added: the CLI's wording."""

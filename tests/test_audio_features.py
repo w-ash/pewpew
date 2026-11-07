@@ -1,8 +1,8 @@
 """Audio features in a run (pewpew.audio.features, pewpew.run, the `audio`
 command): the analysis is deterministic on the sample clock, a feature log
 replays byte for byte, `at(t)` never raises, the delay and the log's cap
-hold, and the beat, band and env ops and the geq pattern read real
-features unchanged (goldens on a small committed feature fixture). Nothing
+hold, and the beat, band and env ops read real features unchanged (goldens
+on a small committed feature fixture). Nothing
 here, or in a run with `--audio`, imports a capture library."""
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from audio_signals import RATE, JitterSource, frame_bytes, kick_loop, noise, sine, ticks, write_wav
-from fakes import build, pattern_looks, run_python
+from fakes import build, looks_file, run_python
 from harness.goldens import assert_matches_golden
 from pewpew.__main__ import main, parse
 from pewpew.audio import ArraySource, AudioFeatures, Block, FeatureLog, ReplayFeatures
@@ -24,15 +24,16 @@ from pewpew.audio.analysis import SILENT
 from pewpew.audio.beat import phase_error
 from pewpew.audio.features import LEAD_S, SILENCE, play, record
 from pewpew.audio.inputs import wav_source
+from pewpew.fx import expr
 from pewpew.fx.op import FrameCtx
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.signal import SignalOp
-from pewpew.lab.geometry import parse_geometry
 from pewpew.params import ParamSet
-from pewpew.patterns.geq import Geq
-from pewpew.render import SlotClock, render_sequence
+from pewpew.render import SlotClock
 
 GOLDENS = Path(__file__).parent / "goldens" / "audio"
+# Stripes that stand still unless the bass band moves them: its frames change with the audio alone.
+AUDIO_LOOK = expr.look(expr.layer("base", expr.osc(4, offset=expr.band()).palette("ember")))
 FIXTURE = GOLDENS / "kick-120.jsonl"
 
 
@@ -120,14 +121,15 @@ def test_a_jittered_live_run_replays_byte_for_byte_at_its_fps_and_at_or_before_t
 def test_a_run_logs_its_features_and_a_replay_renders_the_same_bytes(tmp_path: Path) -> None:
     wav = write_wav(tmp_path / "k.wav", kick_loop(120.0, 2.0))
     log = tmp_path / "f.jsonl"
-    live = build(["run", pattern_looks("geq"), "--audio", str(wav), "--feature-log", str(log), "--ansi"])
+    looks = looks_file(AUDIO_LOOK, "audio")
+    live = build(["run", looks, "--audio", str(wav), "--feature-log", str(log), "--ansi"])
     assert isinstance(live.audio, AudioFeatures) and live.audio.source.state()["kind"] == "file"
     live.audio.source = JitterSource(kick_loop(120.0, 2.0), seed=5)  # samples as a device delivers them
     assert live.feature_log is not None
     live.feature_log.start()
     shown = drive(live, 90)
     live.feature_log.close()
-    replay = build(["run", pattern_looks("geq"), "--audio", f"replay:{log}", "--ansi"])
+    replay = build(["run", looks, "--audio", f"replay:{log}", "--ansi"])
     assert replay.audio is None and replay.loop._before[0] == replay.triggers.before_frame
     assert drive(replay, 90) == shown and len(set(shown)) > 20
     header = json.loads(log.read_text().splitlines()[0])["run"]
@@ -184,16 +186,16 @@ def test_the_log_stops_at_its_cap_and_on_a_failed_write_with_one_warning(tmp_pat
 ])
 def test_audio_options_that_rule_each_other_out_are_usage_errors(capsys, argv: list[str], problem: str) -> None:
     with pytest.raises(SystemExit) as exit_:
-        parse(["run", pattern_looks("pulse"), *argv])
+        parse(["run", looks_file(), *argv])
     assert exit_.value.code == 2 and problem in capsys.readouterr().err
 
 
 def test_an_input_a_run_cannot_open_is_one_exit_line(tmp_path: Path) -> None:
     with pytest.raises(SystemExit,
                        match="--audio net:pewpew-line-1: outside --unattended, a capture node is a bench node"):
-        main(["run", pattern_looks("pulse"), "--audio", "net:pewpew-line-1", "--frames", "1"])
+        main(["run", looks_file(), "--audio", "net:pewpew-line-1", "--frames", "1"])
     with pytest.raises(SystemExit, match="feature log for appending: No such file or directory"):
-        main(["run", pattern_looks("pulse"), "--audio", str(write_wav(tmp_path / "a.wav", noise(0.1))),
+        main(["run", looks_file(), "--audio", str(write_wav(tmp_path / "a.wav", noise(0.1))),
               "--feature-log", str(tmp_path / "missing" / "f.jsonl"), "--frames", "1"])
 
 
@@ -283,13 +285,6 @@ def test_beat_band_and_env_read_real_features_unchanged(regen_goldens: bool) -> 
     assert_matches_golden(GOLDENS / "signals.npz", traces, regen=regen_goldens)
 
 
-def test_geq_renders_real_features_unchanged(regen_goldens: bool) -> None:
-    geometry = parse_geometry("grid:16x16")
-    frames = render_sequence(Geq, geometry.mapping, frames=240, features=ReplayFeatures(FIXTURE))
-    assert np.ptp(frames) > 0.5
-    assert_matches_golden(GOLDENS / "geq.npz", frames, regen=regen_goldens)
-
-
 # ---- no capture library ------------------------------------------------------------------
 
 _NO_CAPTURE = """
@@ -299,11 +294,12 @@ sys.path.insert(0, sys.argv[1])
 from audio_signals import kick_loop, write_wav
 from pewpew.__main__ import main
 from pewpew.aura.book import LookBook
-from pewpew.compose import Look, pattern_layer
+from pewpew.fx import expr
 folder = pathlib.Path(tempfile.mkdtemp())
 wav = write_wav(folder / "k.wav", kick_loop(120.0, 1.0))
 looks = folder / "pulse.look.json"
-looks.write_bytes(LookBook({"pulse": Look((pattern_layer("base", "pulse"),))}, "pulse").to_bytes())
+pulse = expr.look(expr.layer("base", expr.osc(4, offset=expr.band()).palette("ember")))
+looks.write_bytes(LookBook({"pulse": pulse}, "pulse").to_bytes())
 main(["audio", "analyse", str(wav), "--json"])
 main(["run", str(looks), "--audio", str(wav), "--frames", "3", "--ansi"])
 print("CAPTURE", sorted(m for m in sys.modules if m.split(".")[0] in {"sounddevice", "_sounddevice", "cffi"}))

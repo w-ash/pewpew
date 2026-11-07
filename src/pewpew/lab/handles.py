@@ -3,7 +3,7 @@
 A handle is a content address: `r1-` and the first 20 hex digits of the
 SHA-256 of what a render depends on, written as canonical JSON (`handle`):
 the normalized look, the mapping's numbers, seconds, fps, seed, the engine
-fingerprint and each layer's pattern source. The same render always has
+fingerprint. The same render always has
 the same handle, in any process; a changed input has another.
 
 `ENGINE` fingerprints the code that renders: the source of every module of
@@ -39,7 +39,6 @@ import numpy as np
 
 from pewpew.jsonfile import temp_beside
 from pewpew.lab.geometry import Geometry
-from pewpew.mapping import Grouping
 
 HANDLE = re.compile(r"r1-[0-9a-f]{20}")
 CACHE_ENV = "PEWPEW_CACHE"
@@ -108,8 +107,7 @@ class Cache:
             return None
         with contextlib.suppress(OSError):  # read-only, or another user's: the entry still answers
             self._touch(handle)
-        grouping = Grouping(arrays["centres"], arrays["of"]) if "of" in arrays else None
-        return Entry(arrays["frames"], Geometry(record["map"], arrays["positions"], grouping), record)
+        return Entry(arrays["frames"], Geometry(record["map"], arrays["positions"]), record)
 
     def store(self, handle: str, frames: np.ndarray, geometry: Geometry, record: Mapping[str, Any]) -> None:
         """Keep `frames`, rendered on `geometry`, and `record` (JSON data;
@@ -121,10 +119,7 @@ class Cache:
         shutil.rmtree(tmp, ignore_errors=True)
         tmp.mkdir()
         try:
-            arrays = {"frames": frames, "positions": geometry.mapping}
-            if geometry.grouping is not None:
-                arrays |= {"centres": geometry.grouping.centres, "of": geometry.grouping.of}
-            np.savez(tmp / _FRAMES, allow_pickle=False, **arrays)
+            np.savez(tmp / _FRAMES, allow_pickle=False, frames=frames, positions=geometry.mapping)
             (tmp / _ENTRY).write_text(json.dumps({**record, "map": geometry.spec}))
             folder = self.root / handle
             try:

@@ -25,8 +25,7 @@ A look (ADR-006 amendment "layered paths"):
 Every key of a layer but `id` and `nodes` has a default: the mix's
 (`LayerControls`), `out` the last node, `alpha` none. A node's `in` lists
 the nodes it reads, in its op's port order, and `args` its args by name;
-a node may come before a node it reads, and is put after it. A pattern
-node is `{"op": "pattern", "args": {"pattern": name, ...its params}}`. A
+a node may come before a node it reads, and is put after it. A
 look's `master` left out leaves the master alone; `fade` defaults to 2 s,
 `cycle` to false and `seed` to 0. Its `signals` are signal nodes by id, in
 a layer's node form, each put after the signals it reads and the signals
@@ -34,8 +33,8 @@ whose routes drive it; each of its `routes` moves the knob at `path` by
 `depth` times its `source` signal, in the knob's units; `front` lists the
 knobs a page shows first. Each may be left out or null, and is written
 only when it holds something. Which knob a route's path names is checked
-against the stack's knobs (pewpew.compose.modulation.route_problems),
-once its patterns resolve (pewpew.aura.book.pattern_problems).
+against the stack's knobs (pewpew.compose.modulation.route_problems,
+through pewpew.aura.book.route_reasons).
 """
 
 from __future__ import annotations
@@ -62,8 +61,8 @@ from pewpew.compose.stack import (
 )
 from pewpew.errors import typo_hint
 from pewpew.fx.compile import check, field_ops, signal_ops
-from pewpew.fx.expr import assign_ids, id_base
-from pewpew.fx.graph import PATTERN, Graph, Node, Program, check_id, order, post_order
+from pewpew.fx.expr import assign_ids
+from pewpew.fx.graph import Graph, Node, Program, as_id, check_id, order, post_order
 from pewpew.fx.op import Op
 from pewpew.fx.ops import OPS
 from pewpew.jsonfile import is_number
@@ -273,7 +272,7 @@ def decode_program(raw: Any, *, where: str = "program") -> tuple[Program | None,
         return None, [f"{where} is an object with 'nodes'"]
     nodes_raw = raw.get("nodes")
     if not isinstance(nodes_raw, dict) or not nodes_raw:
-        example = '{"id": {"op": "pattern", "args": {"pattern": name, ...}}}'
+        example = '{"id": {"op": "osc", "args": {...}}}'
         return None, [f"{where}: 'nodes' is an object of node id: node, such as {example}"]
     problems: Problems = []
     if len(nodes_raw) > MAX_NODES:
@@ -358,7 +357,7 @@ class _Chain:
         self.graph = graph
         self.reads = Counter([*(source for node in graph for source in node.inputs), *ends])
         walk = post_order(ends, lambda nid: graph[nid].inputs)
-        autos = assign_ids([(id_base(graph[nid].op, graph[nid].args), None) for nid in walk])
+        autos = assign_ids([(as_id(graph[nid].op), None) for nid in walk])
         self.pinned = {nid for nid, auto in zip(walk, autos) if nid != auto}
         self.named: set[str] = set()
 
@@ -370,8 +369,6 @@ class _Chain:
         if node.inputs:
             head, *others = (self(source) for source in node.inputs)
             text = f"{head}.{node.op}({', '.join([*others, *args])})"
-        elif node.op == PATTERN:
-            text = f"pattern({', '.join([_py(node.args[PATTERN]), *args])})"
         else:
             text = f"{node.op}({', '.join(args)})"
         if nid in self.pinned:
@@ -412,11 +409,8 @@ def _layer_python(layer: Layer) -> str:
 
 def _call_args(node: Node, cls: type[Op]) -> list[str]:
     """`node`'s knobs as call arguments: positional while each follows the
-    one before it in declared order from the first, then by name. A
-    pattern node's knobs, which only its pattern declares, go by name."""
-    knobs = cls.knob_values(node.args)
-    if node.op == PATTERN:
-        return [f"{name}={_py(value)}" for name, value in knobs.items()]
+    one before it in declared order from the first, then by name."""
+    knobs = node.args
     out: list[str] = []
     for i, (name, param) in enumerate(declared_params(cls).items()):
         if name in knobs:

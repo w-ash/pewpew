@@ -1236,6 +1236,14 @@ series (batch mode).
   registration from a loaded file, and the control page's rescan of a
   patterns folder. A pattern goes by its gallery name alone
   (`pewpew.load`).
+- Remove the pattern gallery and every way to run it (ADR-025): the eleven
+  patterns of `pewpew.patterns`, `pewpew.load`, the `pattern` op and
+  builder, a layer that runs one pattern directly, the aura's `pick`
+  request with the page's pattern picker and "replace with pattern", the
+  `pattern` and `patterns` fields of the `aura` state, the catalog's
+  `patterns` section, fixture units (`Pattern.units` and the per-fixture
+  gather), `render_sequence`, and the top-level `pewpew` exports. A look
+  that names op `pattern` is refused as any unknown op is.
 - Remove `run`'s launch pattern and its flags: the `PATTERN` positional,
   `--param`, `--units`, `--no-reload`, `--looks` and `--map auto` (the
   pattern's study fixture), with `auto` from the `fx` verbs and the MCP

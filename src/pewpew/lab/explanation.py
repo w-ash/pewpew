@@ -5,8 +5,8 @@ what moves the knobs.
 describe records of its knobs (`ParamSet.describe`), with no model in the
 loop: a summary of the stack, then one note per layer, bottom first, each
 knob as `name = value unit (default, range): help`, then one note per
-signal. A layer that runs a program names each node, its op and what the
-op does, and each knob by its node, as `node.name = ...`. A signal's note
+signal. A layer names each node, its op and what the op does, and each
+knob by its node, as `node.name = ...`. A signal's note
 says what it gives, lists its knobs, and says how far each of its routes
 moves its knob: either way for a signal that swings from -1 to 1, one
 way for a level from 0 to 1. A knob a route moves renders its own value
@@ -20,11 +20,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from pewpew.classinfo import pattern_summary
-from pewpew.compose import Controls, Resolved, Route, controls_of, pattern_of
-from pewpew.compose.controls import runs
-from pewpew.fx.compile import is_pattern_program, knob_class, label_of
-from pewpew.fx.graph import PATTERN, Node
-from pewpew.fx.op import Resolve
+from pewpew.compose import Controls, Layer, Route, look_controls
+from pewpew.fx.compile import label_of
+from pewpew.fx.graph import Node
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.signal import Range, ranges
 from pewpew.lab.check import LookDoc, ready
@@ -34,12 +32,10 @@ from pewpew.result import Result
 
 @dataclass(frozen=True, slots=True)
 class LayerNote(Result):
-    """One layer in words: its id, the pattern it runs (or "program") and
-    what it does (for a program, each node and its op), its mix, and one
-    line per knob."""
+    """One layer in words: its id, what it does (each node and its op),
+    its mix, and one line per knob."""
 
     id: str
-    pattern: str
     about: str
     mix: str
     knobs: tuple[str, ...]
@@ -71,7 +67,7 @@ class Explanation(Result):
         knobs, then each signal, its knobs and its routes, one a line."""
         lines = [self.summary]
         for note in self.layers:
-            lines.append(f"{note.id}: {note.pattern}, {note.mix}" + (f". {note.about}" if note.about else ""))
+            lines.append(f"{note.id}: {note.mix}" + (f". {note.about}" if note.about else ""))
             lines += [f"  {knob}" for knob in note.knobs]
         for signal in self.signals:
             lines.append(f"signals.{signal.id}: {signal.op}. {signal.about}")
@@ -85,8 +81,8 @@ def explain(look: LookDoc, *, name: str | None = None) -> Explanation:
     Raises Refused for a look with problems."""
     staged = ready(look, name=name)
     shown = staged.look
-    stack = ", then ".join(f"{r.label} ({_mix(r)})" for r in staged.layers)
-    count = len(staged.layers)
+    stack = ", then ".join(f"{layer.id} ({_mix(layer)})" for layer in shown.layers)
+    count = len(shown.layers)
     master = "leaves the master alone" if shown.master is None else f"sets the master to {shown.master:g}"
     cycle = "plays in the idle cycle" if shown.cycle else "stays out of the idle cycle"
     summary = (
@@ -100,10 +96,10 @@ def explain(look: LookDoc, *, name: str | None = None) -> Explanation:
                     f"{driven} knob{'s' if driven != 1 else ''} each frame (each signal's note says how far).")
     if shown.front:
         summary += f" A page shows {', '.join(shown.front)} first."
-    knobs = controls_of(staged.layers, shown.signals)
+    knobs = look_controls(shown)
     spans = ranges(signals)
     notes = tuple(_signal(node, spans[node.id], shown.routes, knobs) for node in signals)
-    return Explanation(summary, tuple(_note(r) for r in staged.layers), notes)
+    return Explanation(summary, tuple(_note(layer) for layer in shown.layers), notes)
 
 
 def _signal(node: Node, span: Range, routes: Sequence[Route], knobs: Controls) -> SignalNote:
@@ -129,35 +125,25 @@ def _route(route: Route, swings: bool, knobs: Controls) -> str:
     return f"moves {route.path} {way} by up to {abs(route.depth):g}{unit} from its value"
 
 
-def _note(resolved: Resolved) -> LayerNote:
-    layer = resolved.layer
-    program = layer.program
-    graph, resolve = runs(layer, resolved.resolve)  # a pattern file's program, for one whose class is one
-    if is_pattern_program(program) and graph is program.graph:
-        _, values = pattern_of(program.output)  # every param, written out by `ready`
-        knobs = tuple(_knob(record, values[record["name"]]) for record in ParamSet(resolved.cls).describe())
-        return LayerNote(layer.id, resolved.label, pattern_summary(resolved.cls), _mix(resolved), knobs)
-    about = "; ".join(_node(node, resolve) for node in graph) + "."
+def _note(layer: Layer) -> LayerNote:
+    graph = layer.program.graph
+    about = "; ".join(_node(node) for node in graph) + "."
     lines: list[str] = []
     for node in graph:
-        defaults = ParamSet(knob_class(node, resolve), OPS[node.op].knob_values(node.args)).snapshot_json()
-        records = ParamSet(knob_class(node, resolve)).describe()
-        lines += (f"{node.id}.{_knob(record, defaults[record['name']])}" for record in records)
+        records = ParamSet(OPS[node.op]).describe()
+        lines += (f"{node.id}.{_knob(record, node.args[record['name']])}" for record in records)
     count = len(graph)
-    return LayerNote(layer.id, resolved.label, f"{count} node{'s' if count != 1 else ''}: {about}", _mix(resolved),
-                     tuple(lines))
+    return LayerNote(layer.id, f"{count} node{'s' if count != 1 else ''}: {about}", _mix(layer), tuple(lines))
 
 
-def _node(node: Node, resolve: Resolve) -> str:
+def _node(node: Node) -> str:
     """A node in words: `id (op, label): what it does`, with no full stop."""
-    cls = knob_class(node, resolve) if node.op == PATTERN else OPS[node.op]
-    summary = pattern_summary(cls).rstrip(".")
-    head = f"{node.id} ({node.op}, {label_of(node, resolve)})"
+    summary = pattern_summary(OPS[node.op]).rstrip(".")
+    head = f"{node.id} ({node.op}, {label_of(node)})"
     return f"{head}: {summary}" if summary else head
 
 
-def _mix(resolved: Resolved) -> str:
-    layer = resolved.layer
+def _mix(layer: Layer) -> str:
     mix = f"{layer.blend} blend at opacity {layer.opacity:g}"
     return mix if layer.enabled else f"{mix}, switched off"
 

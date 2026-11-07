@@ -5,8 +5,7 @@ status line, a reload error or a refusal carries, and `scrub` the one
 filter it applies: every absolute path goes, and the home dir with it.
 `unknown` is the one wording for a name nothing answers to, and
 `typo_hint` its did-you-mean. `Refusal` is a refused request as the
-socket answers it. `LoadError` is a pattern name that no pattern answers
-to. `blame` marks an exception with the address of the part
+socket answers it. `blame` marks an exception with the address of the part
 that raised it (a node of an effect program), and `blamed` reads it back.
 Imports nothing from pewpew, so every layer can use them.
 """
@@ -26,7 +25,7 @@ _PART = r"[^/'\"(),:;\n]+"
 # keeps a ratio ("40/60"), a subnet ("/24") and a URL's path ("//host/x").
 _PATH = rf"(?<![\w.:/~-])(?:~|/{_PART})(?:/{_PART})+/?"
 # How alike two names must be (difflib's ratio) for one to be a typo of the
-# other: `sped` and `speed` are, `pattern` and `master` are not.
+# other: `sped` and `speed` are, `palette` and `master` are not.
 _TYPO = 0.75
 _WRAPPED = re.compile(rf" ?\({_PATH}\)")
 _BARE = re.compile(_PATH)
@@ -35,8 +34,8 @@ _BARE = re.compile(_PATH)
 @dataclass(frozen=True, slots=True)
 class Refusal:
     """Why a request was refused, and the address of what it refused: a
-    knob (`layers.base.comet.speed`), or a part of a look sent whole
-    (`layers.base.comet.pattern`, `master`); None when no one part is to
+    knob (`layers.base.waves.freq`), or a part of a look sent whole
+    (`layers.base.waves.op`, `master`); None when no one part is to
     blame. Both cross the preview socket, so neither names a path."""
 
     reason: str
@@ -47,10 +46,6 @@ class Worded(ValueError):
     """A refusal whose message is the whole account, in its own words:
     `describe_exception` gives it without its type, and a log needs no
     traceback for it."""
-
-
-class LoadError(ValueError):
-    """A pattern name that no pattern answers to (pewpew.load)."""
 
 
 def scrub(text: str) -> str:
@@ -70,10 +65,10 @@ def describe_exception(exc: BaseException) -> str:
     exception carries (`add_note`, such as the node of an effect program
     that raised) follow in brackets.
 
-    A `LoadError` or a `Worded` refusal is already in that form, so it
-    passes through unprefixed.
+    A `Worded` refusal is already in that form, so it passes through
+    unprefixed.
     """
-    if isinstance(exc, (LoadError, Worded)):
+    if isinstance(exc, Worded):
         text = str(exc)
     elif isinstance(exc, SyntaxError):
         where = f" (line {exc.lineno})" if exc.lineno is not None else ""

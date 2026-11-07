@@ -7,9 +7,8 @@ It runs on the caller's thread and returns why it was refused, or None:
 `request` a `Refusal`, a method its reason, or a `Refusal` that names the
 part of a look it refused; a `surprise` or a `vary` returns a future of
 its answer instead. A param is set by its address
-(pewpew.compose.controls), such as `layers.base.comet.speed`,
-`layers.base.opacity` or a signal's `signals.breath.rate`, and a pick runs
-a pattern on one layer, the bottom one unless it names another. A `look`
+(pewpew.compose.controls), such as `layers.base.waves.freq`,
+`layers.base.opacity` or a signal's `signals.breath.rate`. A `look`
 request runs a whole look sent by a client outside the package, only in a
 run that takes looks (`run --accept-looks`; ADR-020 amendment
 "capabilities"). A `surprise` fades to a look made from a seed, a `vary`
@@ -22,14 +21,13 @@ reason, and every value in `state`, may cross an unauthenticated socket
 Thread discipline. A request is checked on the caller's thread and only
 what passed reaches the loop thread, through `Calls`: `call_soon` for a
 change that cannot fail there (a param, the master, a blink), `ask` for
-one whose outcome only the loop knows (a pick builds a layer; a look
-request writes the looks file; a look sent whole resolves its patterns
-and builds its layers). A `surprise` or `vary` makes its look
+one whose outcome only the loop knows (an added layer builds; a look
+request writes the looks file; a look sent whole builds its layers). A `surprise` or `vary` makes its look
 on a thread of its own (pewpew.aura.variety `in_background`), which takes
 a second or more, and answers once the look starts or is refused: never
 on the loop thread, nor on the caller's, so a blackout or any other
 request sent after it is not held up. A request that changes what runs
-(a pick, a layer edit, a recall, a look, a made look) does not run once
+(a layer edit, a recall, a look, a made look) does not run once
 one asked for after it has run (`OVERTAKEN`): a look made while the
 operator recalled another never replaces it. Every request but `arm`,
 `fire`, `scan`, `rebind` and `blink` is operator input: on the loop thread
@@ -78,7 +76,6 @@ T = TypeVar("T")
 # `id`: any message may carry one, for its answer (pewpew.sinks.preview).
 REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "set": (("name", None), ("value", None)),
-    "pick": (("name", None), ("layer", None)),
     "add_layer": (("layer", None), ("below", None)),
     "remove_layer": (("lid", None),),
     "move_layer": (("lid", None), ("to", None)),
@@ -188,12 +185,10 @@ class AuraControl:
     def state(self) -> dict:
         """The aura state; JSON-ready, names only. Cheap: a sink reads it
         every frame. `fading` and `progress` are the crossfade's, whatever
-        started it: a recall, a pick, a pushed or a made look."""
+        started it: a recall, a pushed or a made look."""
         fader = self._deck.fader
         progress = fader.progress
         return {
-            "pattern": self._deck.current,
-            "patterns": self._deck.catalog.names,
             "stack": fader.current.state(),
             "fading": fader.fading,
             # Coarse, so the state message changes a few times per fade rather than every frame.
@@ -217,7 +212,7 @@ class AuraControl:
         the log says why once."""
         if self._catalog is None:
             try:
-                self._catalog = book.page(book.catalog(), self._deck.catalog.names)
+                self._catalog = book.page(book.catalog())
             except Exception:  # contained: one op must not take the page down
                 logger.warning("the page has no catalog: the catalog cannot be made", exc_info=True)
                 self._catalog = {"cards": [], "blends": []}
@@ -252,28 +247,10 @@ class AuraControl:
         self._calls.call_soon(lambda: self._set(name, knob, parsed))
         return None
 
-    def pick(self, name: object, layer: object = None) -> str | None:
-        """Run the named pattern, one of `state()["patterns"]`, fresh at its
-        defaults on `layer` (None: the bottom one). On a look of several
-        layers the pick is an edit of the look, which stays current and
-        changed; on a lone layer it replaces the look, and no look is
-        current. Waits for the loop thread; on refusal the old pattern keeps
-        running."""
-        if not isinstance(name, str):
-            return f"pick takes a pattern name, got {name!r}"
-        if layer is not None and (reason := self._layer(layer)) is not None:
-            return reason
-        names = self._deck.catalog.names
-        if name not in names:
-            return unknown("pattern", name, names)
-        return self._ask(self._runs(lambda: self._pick(name, layer)),
-                         f"{name!r} is still loading; the page shows it once it runs")
-
     def add_layer(self, layer: object, below: object = None) -> Refusal | str | None:
         """Add `layer`, a layer of a look in the looks file's form, to the
-        running look, under layer `below`, or on top when None. Its patterns
-        go by name, never by file, as a pick names one. Without an `id` it
-        gets a free one made from its `out` node (`plasma`, `plasma2`). It
+        running look, under layer `below`, or on top when None. Without an
+        `id` it gets a free one made from its `out` node (`tint`, `tint2`). It
         is checked as the looks file's loader checks a layer, a problem
         named by its address, and edits the running look, which a save
         keeps; the other layers run on. Like a remove or a move, it ends a
@@ -339,11 +316,10 @@ class AuraControl:
 
     def look(self, look: object, fade: object = None) -> Refusal | str | None:
         """Fade to `look`, one look in the looks file's form, over `fade`
-        seconds or its own fade; a running fade ends first, as a pick ends
-        it. Only a run that takes looks accepts one. It is checked as the
-        looks file's loader checks a look, with each pattern named as a
-        pick is, never by a file, and runs as a pick does: unsaved, with no
-        look current, until a save keeps it. A look refused never starts,
+        seconds or its own fade; a running fade ends first. Only a run that
+        takes looks accepts one. It is checked as the looks file's loader
+        checks a look, and runs unsaved, with no look current, until a save
+        keeps it. A look refused never starts,
         also when the loop is too busy to take it in time."""
         if not self._accept_looks:
             return NO_LOOKS
@@ -359,7 +335,7 @@ class AuraControl:
 
     def surprise(self, seed: object = None) -> str | Future[Refusal | None]:
         """Fade to a look made from `seed` (None: the run's next) for this
-        aura's map, over its own fade, unsaved, as a pick runs; a `save`
+        aura's map, over its own fade, unsaved, as a sent look runs; a `save`
         with no name saves it. Returns why `seed` is refused, else a future
         of the answer (`_made`). A look refused never starts."""
         if seed is not None and (reason := check_seed(seed)) is not None:
@@ -464,14 +440,14 @@ class AuraControl:
 
     def _set(self, path: str, knob: Knob, value: Any) -> None:
         """Operator input: set `knob` at address `path`, as it passed `parse`
-        on another thread. Must not raise: a pick or a recall queued first
-        runs another pattern by now, and a reload can narrow the range, so
-        either drops the set, with the reason in the log."""
+        on another thread. Must not raise: a layer edit or a recall queued
+        first runs another program by now, so it drops the set, with the
+        reason in the log."""
 
         def apply() -> None:
             found = self._deck.controls.find(path)
             if found is None or found.params is not knob.params:
-                logger.warning("dropped a live set of %r: the pattern it was for no longer runs", path)
+                logger.warning("dropped a live set of %r: the node it was for no longer runs", path)
                 return
             try:
                 knob.params.set(knob.name, value)
@@ -484,28 +460,6 @@ class AuraControl:
         """Why `layer` names no layer of the running stack, or None."""
         ids = [live.id for live in self._deck.fader.current.layers]
         return None if isinstance(layer, str) and layer in ids else unknown("layer", layer, ids)
-
-    def _pick(self, name: str, layer: object) -> str | None:
-        """Run `name` on `layer`, which `pick` checked: a layer id, or None
-        for the bottom layer."""
-        current = self._deck.fader.current
-        lid = layer if isinstance(layer, str) else current.layers[0].id
-        if (reason := self._layer(lid)) is not None:
-            return reason  # a recall since the check changed the layers
-        running = current.layer(lid).label
-        reason = self._deck.put(lid, name)
-        if reason is not None:
-            return f"cannot switch to {name!r}, {running} is still running: {reason}"
-        if self._looks is not None:
-            # The operator's pick wins over a waiting recall and a hold. On a layer among others it
-            # edits the look, which stays current, changed, as an added layer does; a lone layer's
-            # pick replaces the look.
-            if len(current.layers) > 1:
-                self._looks.edit()
-            else:
-                self._looks.leave()
-        logger.info("switched to %s", name)
-        return None
 
     def _add(self, doc: dict, below: object) -> Refusal | str | None:
         """Check layer `doc` and run it under layer `below` (None: on top),
@@ -565,11 +519,10 @@ class AuraControl:
         return None
 
     def _ready(self, doc: dict) -> Look | Refusal:
-        """Look `doc` as the looks file's loader checks one, each pattern
-        named as a pick is, or its refusal, named by its first problem's
-        part."""
+        """Look `doc` as the looks file's loader checks one, or its refusal,
+        named by its first problem's part."""
         try:
-            return ready(doc, catalog=self._deck.catalog).look
+            return ready(doc).look
         except Refused as exc:
             return Refusal(str(exc), exc.problems[0].path or None)
 

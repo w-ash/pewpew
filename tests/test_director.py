@@ -19,12 +19,15 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fakes import Painter, aura_rig, restore, rgb, solid
+from fakes import Painter, aura_rig, layered, restore, rgb, solid
 from pewpew.aura.book import CycleConfig, LookBook, LookError, load_looks, parse_looks
 from pewpew.aura.director import Director, Slot
 from pewpew.aura.variety import at_once
 from pewpew.compose import Look
+from pewpew.fx.host import ProgramPattern
 from pewpew.jsonfile import write_atomic
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 NAMES = ["a", "b", "c", "d"]
 
@@ -108,8 +111,7 @@ def test_no_idle_or_no_looks_plays_nothing():
 
 
 def looks_text(**cycle) -> str:
-    return json.dumps({"version": 4, "looks": {"a": {"layers": [{"id": "base", "nodes": {
-        "solid": {"op": "pattern", "args": {"pattern": "solid"}}}}]}}, "cycle": cycle})
+    return json.dumps({"version": 4, "looks": {"a": layered("solid_test")}, "cycle": cycle})
 
 
 def test_the_cycle_section_round_trips_with_a_dwell_range_seed_window_fresh_and_weights(tmp_path):
@@ -159,15 +161,22 @@ def test_the_aura_plays_the_director_s_slots_a_fresh_one_unsaved_and_input_stops
     assert not rig.looks.state()["cycling"]
 
 
+def solid_knobs(rig):
+    """The knobs of the `solid` node that the rig's layer `base` runs now."""
+    pattern = rig.renderer().pattern
+    assert isinstance(pattern, ProgramPattern)
+    return pattern.node_params["solid"]
+
+
 def test_unsaved_edits_hold_the_idle_cycle_off_until_they_are_undone(tmp_path: Path):
     looks = {"red": solid(1.0, fade=0.0, cycle=True), "blue": solid(0.0, 0.0, 1.0, fade=0.0, cycle=True)}
     rig = aura_rig(looks=looks, current="red", path=tmp_path / "looks.json", cycle=CycleConfig(idle=1.0, each=0.5))
     assert restore(rig) is None
-    rig.renderer().params.set("green", 0.5)
+    solid_knobs(rig).set("green", 0.5)
     for k in range(1, 9):
         rig.frame(k * 0.5)
     assert rig.looks.book.current == "red" and rig.looks.changed() and not rig.looks.state()["cycling"]
-    rig.renderer().params.set("green", 0.0)  # undone by hand, so the look is as saved
+    solid_knobs(rig).set("green", 0.0)  # undone by hand, so the look is as saved
     for k in range(9, 15):
         rig.frame(k * 0.5)
     assert rig.looks.state()["cycling"]

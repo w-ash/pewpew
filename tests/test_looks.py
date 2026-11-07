@@ -12,28 +12,25 @@ import pytest
 
 import pewpew.run as run_module
 from fakes import (
-    LOOK_CLASSES,
+    FLOW,
+    FLOW_LOOK,
     FakeTime,
-    FixtureRamp,
     LoopThread,
-    PixelRamp,
-    Raises,
-    Solid,
     aura_rig,
-    bar,
     build,
+    hosted,
     layer_renderer,
     layered,
     look,
     next_of,
+    one_node,
+    program_of,
     restore,
-    room,
     run_main,
     serving,
     solid,
     wait_until,
 )
-from pewpew import HSV, Renderer, line
 from pewpew.aura.book import (
     VERSION,
     CycleConfig,
@@ -41,26 +38,44 @@ from pewpew.aura.book import (
     LookError,
     load_looks,
     parse_looks,
-    pattern_problems,
+    route_reasons,
 )
 from pewpew.aura.looks import Looks
-from pewpew.compose import DEFAULT_FADE, Layer, Look, pattern_layer
+from pewpew.compose import DEFAULT_FADE, Layer, Look, Route
 from pewpew.crossfade import Crossfader
 from pewpew.fx import expr
-from pewpew.fx.graph import Program
+from pewpew.fx.graph import Graph, Node, Program
+from pewpew.fx.host import ProgramPattern
 from pewpew.jsonfile import write_atomic
-from pewpew.load import Catalog
+from pewpew.mapping import grid, line
 from pewpew.pace import PacedLoop
-from pewpew.patterns import Comet, Pulse, Wave, canopy
-from pewpew.room.map import compile_room
+from pewpew.params import HSV, ParamSet
+from pewpew.pattern import Pattern
+from pewpew.render import Renderer
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 CALM = {"h": 30.0, "s": 1.0, "v": 1.0}
+# A look of one zoo_test node at the calm color: a color knob to edit.
+CALM_LOOK = look("zoo_test", {"color": CALM})
 
 
-def make_rig(tmp_path, looks, mapping=None, grouping=None, current=None, cycle=None, start="solid"):
+def make_rig(tmp_path, looks, mapping=None, current=None, cycle=None, start=None):
     """An aura over a book of test looks, with no loop and no sinks."""
-    return aura_rig(LOOK_CLASSES[start], mapping=mapping, grouping=grouping, looks=looks, current=current,
-                    cycle=cycle, path=tmp_path / "looks.json")
+    return aura_rig(start, mapping=mapping, looks=looks, current=current, cycle=cycle, path=tmp_path / "looks.json")
+
+
+def knobs(source, nid: str = "solid") -> ParamSet:
+    """The knobs of node `nid` of the program `source` runs: a renderer,
+    or a rig's layer `base`."""
+    pattern = (source if isinstance(source, Renderer) else source.renderer()).pattern
+    assert isinstance(pattern, ProgramPattern)
+    return pattern.node_params[nid]
+
+
+def program_running(run) -> Program:
+    """The program a run's layer `base` runs now."""
+    return run.fader.current.layer("base").layer.program
 
 
 def looks_file(**fields) -> str:
@@ -73,7 +88,7 @@ def looks_file(**fields) -> str:
 
 def test_the_file_round_trips_and_keeps_look_order(tmp_path):
     book = LookBook(
-        {"b": solid(1.0, master=0.5, fade=3.0, cycle=True), "a": look("pulse", {"color": CALM}, seed=7)},
+        {"b": solid(1.0, master=0.5, fade=3.0, cycle=True), "a": look("zoo_test", {"color": CALM}, seed=7)},
         "a", CycleConfig(idle=120.0, each=20.0, rounds=2, end="b"),
     )
     path = tmp_path / "looks.json"
@@ -83,8 +98,8 @@ def test_the_file_round_trips_and_keeps_look_order(tmp_path):
     doc = json.loads(path.read_text())
     assert doc["version"] == 4 and "master" not in doc["looks"]["a"] and doc["looks"]["a"]["seed"] == 7
     assert doc["looks"]["a"]["layers"] == [{
-        "id": "base", "opacity": 1.0, "blend": "normal", "enabled": True, "out": "pulse",
-        "nodes": {"pulse": {"op": "pattern", "args": {"pattern": "pulse", "color": CALM}}},
+        "id": "base", "opacity": 1.0, "blend": "normal", "enabled": True, "out": "zoo_test",
+        "nodes": {"zoo_test": {"op": "zoo_test", "args": {"color": CALM}}},
     }]
     assert doc["looks"]["a"]["fade"] == DEFAULT_FADE
     assert again.in_cycle == ["b"]
@@ -98,11 +113,11 @@ BREATH = {"signals": {"breath": {"op": "lfo", "args": {"rate": 0.5}}},
 def test_a_look_holds_its_signals_routes_and_front_and_the_file_keeps_them():
     """The canonical v4 shape (ADR-006 amendment "layered paths"); empty
     or null ones load as none, and a rewrite keeps every one."""
-    book = parse_looks(looks_file(looks={"a": layered("solid", **BREATH), "b": layered("solid", signals={},
-                                                                                       routes=[], front=None)}))
+    book = parse_looks(looks_file(looks={"a": layered("solid_test", **BREATH),
+                                         "b": layered("solid_test", signals={}, routes=[], front=None)}))
     a = book.looks["a"]
     assert [node.op for node in a.signals or ()] == ["lfo"] and a.front == ("layers.base.solid.red",)
-    assert a.routes[0].depth == 0.25 and book.looks["b"] == look("solid")
+    assert a.routes[0].depth == 0.25 and book.looks["b"] == look("solid_test")
     assert parse_looks(book.to_bytes()) == book
 
 
@@ -137,26 +152,28 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     ("{", "invalid JSON"),
     ("[]", "a looks file is a JSON object"),
     (looks_file(looks={}, extra=1), "unknown key 'extra'"),
-    (looks_file(looks={"../x": layered("solid")}), "bad look name '../x'"),
-    (looks_file(looks={"a": layered("solid", master=0.9)}),
+    (looks_file(looks={"../x": layered("solid_test")}), "bad look name '../x'"),
+    (looks_file(looks={"a": layered("solid_test", master=0.9)}),
      "master must be within 0.0..0.6, got 0.9 (the cap set at launch)"),
-    (looks_file(looks={"a": layered("solid", fade=-1)}), "fade must be within 0.0..600.0"),
-    (looks_file(looks={"a": layered("solid", cycle="yes")}), "cycle takes true or false"),
-    (looks_file(looks={"a": layered("solid", seed=-1)}), "look 'a': 'seed' is a whole number of at least 0, got -1"),
-    (looks_file(looks={"a": layered("solid", [1])}), "look 'a': layers.base.solid: 'args' is an object of name: value"),
+    (looks_file(looks={"a": layered("solid_test", fade=-1)}), "fade must be within 0.0..600.0"),
+    (looks_file(looks={"a": layered("solid_test", cycle="yes")}), "cycle takes true or false"),
+    (looks_file(looks={"a": layered("solid_test", seed=-1)}),
+     "look 'a': 'seed' is a whole number of at least 0, got -1"),
+    (looks_file(looks={"a": layered("solid_test", [1])}),
+     "look 'a': layers.base.solid: 'args' is an object of name: value"),
     (looks_file(looks={"a": {"pattern": "solid"}}),
      "look 'a': unknown key 'pattern'; expected cycle, fade, front, layers, master, routes, seed, signals"),
-    (looks_file(looks={"a": layered("solid", routes=[{"source": "breath", "path": "layers.base.opacity",
+    (looks_file(looks={"a": layered("solid_test", routes=[{"source": "breath", "path": "layers.base.opacity",
                                                       "depth": 0.2}])}),
      "look 'a': routes[0]: unknown signal 'breath'; signals: (none)"),
-    (looks_file(looks={"a": layered("solid", signals={"breath": {"op": "lfo"}})}),
+    (looks_file(looks={"a": layered("solid_test", signals={"breath": {"op": "lfo"}})}),
      "look 'a': signals.breath: nothing reads signal 'breath'; route it to a knob, or remove it"),
-    (looks_file(looks={"a": layered("solid", signals={"w": {"op": "osc"}})}),
+    (looks_file(looks={"a": layered("solid_test", signals={"w": {"op": "osc"}})}),
      ("look 'a': signals.w: osc is not a signal op; a look's signals run band, beat, env, knob, lfo, smooth, walk, "
      "and osc goes in a layer's program")),
-    (looks_file(looks={"a": layered("solid", **{**BREATH, "routes": [{"source": "breath", "depth": "deep"}]})}),
+    (looks_file(looks={"a": layered("solid_test", **{**BREATH, "routes": [{"source": "breath", "depth": "deep"}]})}),
      "look 'a': routes[0]: 'path' is missing"),
-    (looks_file(looks={"a": layered("solid", front=0)}),
+    (looks_file(looks={"a": layered("solid_test", front=0)}),
      "look 'a': 'front' is a list of the addresses of the knobs a page shows first"),
     (looks_file(looks={"a": {"layers": []}}), "look 'a': a look has at least one layer"),
     (looks_file(looks={"a": {"layers": {}}}), "look 'a': 'layers' is a list of layers, the bottom one first"),
@@ -165,8 +182,7 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
      "look 'a': layers.b.opacity must be within 0.0..1.0, got 2"),
     (looks_file(looks={"a": {"layers": [{"id": "b", "blend": "glow", "nodes": {}}]}}),
      "look 'a': layers.b.blend takes one of 'normal', 'add', "),
-    (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"blend": {"op": "pattern",
-                                                                        "args": {"pattern": "solid"}}}}]}}),
+    (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"blend": {"op": "osc"}}}]}}),
      "look 'a': layers.b: bad node id 'blend': alpha, blend, enabled, nodes, opacity, out are reserved"),
     (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "glow", "args": {"pattern": "solid"}}}}]}}),
      "look 'a': layers.b.w: unknown op 'glow'"),
@@ -174,19 +190,19 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
      "look 'a': layers.b.w: unknown param 'pattern'; params: freq, sync, offset, axis"),
     (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"args": {"pattern": "solid"}}}}]}}),
      "look 'a': layers.b.w: 'op' is missing; name the node's op, one of "),
-    (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "pattern", "args": {"red": 1}}}}]}}),
-     "look 'a': layers.b.w: args: 'pattern' is a pattern name"),
-    (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "pattern", "pattern": "solid"}}}]}}),
+    (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "pattern",
+                                                                    "args": {"pattern": "solid"}}}}]}}),
+     "look 'a': layers.b.w: unknown op 'pattern'"),
+    (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "osc", "pattern": "solid"}}}]}}),
      "look 'a': layers.b.w: unknown key 'pattern'; expected args, in, op"),
-    (looks_file(looks={"a": {"layers": [{"id": "b", "out": "x",
-                                         "nodes": {"w": {"op": "pattern", "args": {"pattern": "solid"}}}}]}}),
+    (looks_file(looks={"a": {"layers": [{"id": "b", "out": "x", "nodes": {"w": {"op": "osc"}}}]}}),
      "look 'a': layers.b: 'out' names 'x', which is not a node"),
-    (looks_file(looks={"a": {"layers": [*layered("solid")["layers"], *layered("solid")["layers"]]}}),
+    (looks_file(looks={"a": {"layers": [*layered("solid_test")["layers"], *layered("solid_test")["layers"]]}}),
      "look 'a': layer id 'base' is used more than once"),
-    (looks_file(current="b", looks={"a": layered("solid")}), "'current' names 'b', which is not a look"),
+    (looks_file(current="b", looks={"a": layered("solid_test")}), "'current' names 'b', which is not a look"),
     (looks_file(cycle={"end": "b"}), "'end' names 'b', which is not a look"),
     # Not a name at all, and unhashable: a problem, not a TypeError at launch.
-    (looks_file(current=["a"], looks={"a": layered("solid")}), "'current' names ['a'], which is not a look"),
+    (looks_file(current=["a"], looks={"a": layered("solid_test")}), "'current' names ['a'], which is not a look"),
     (looks_file(cycle={"end": {"a": 1}}), "'end' names {'a': 1}, which is not a look"),
     (looks_file(cycle={"idle": 0}), "'idle' is a number of seconds above 0"),
     (looks_file(cycle={"rounds": 1.5}), "'rounds' is a whole number"),
@@ -216,71 +232,62 @@ def test_a_file_of_another_version_is_refused_alone(doc, start):
 
 
 def test_every_problem_is_reported_at_once():
-    text = looks_file(current="zz", looks={"a": layered("solid", cycle=1), "b": layered("solid", fade="slow")})
+    text = looks_file(current="zz", looks={"a": layered("solid_test", cycle=1),
+                                           "b": layered("solid_test", fade="slow")})
     with pytest.raises(LookError) as err:
         parse_looks(text)
     assert len(err.value.problems) == 3
 
 
-def test_pattern_problems_lists_looks_that_no_longer_fit_their_pattern():
-    def declared(name):
-        if name == "broken":
-            raise FileNotFoundError(2, "No such file or directory", "/secret/broken.py")
-        return LOOK_CLASSES.get(name)
+BREATHING = Graph((Node("breath", "lfo", {"rate": 0.5}),))
 
+
+def test_route_reasons_lists_looks_whose_routes_or_front_reach_no_knob():
     book = LookBook({
         "ok": solid(1.0),
-        "gone": look("nosuch"),
-        "wide": look("solid", {"red": 2.0}),
-        "renamed": look("solid", {"tint": 2.0}),
-        "broken": look("broken"),
-        "top": Look((pattern_layer("base", "solid"), pattern_layer("top", "nosuch"))),
+        "tint": look("solid_test", signals=BREATHING, routes=(Route("breath", "layers.base.solid.tint", 0.2),)),
+        "front": look("solid_test", front=("layers.base.nosuch.red",)),
     })
-    problems = pattern_problems(book, declared)
-    assert problems[0] == "look 'gone': layers.base.nosuch: unknown pattern 'nosuch'"
-    assert "look 'wide': layers.base.solid.red must be within 0.0..1.0" in problems[1]
-    assert "look 'renamed': layers.base.solid: unknown param 'tint'; params: red, green, blue" in problems[2]
-    assert problems[3] == (
-        "look 'broken': layers.base.broken: pattern 'broken' does not load: FileNotFoundError: No such file or "
-        "directory"
-    )
-    assert problems[4] == "look 'top': layers.top.nosuch: unknown pattern 'nosuch'"
-    assert len(problems) == 5
+    knobs = "layers.base.solid.red, layers.base.solid.green, layers.base.solid.blue, layers.base.opacity, "
+    assert route_reasons(book) == [
+        ("look 'tint': routes[0]: unknown knob 'layers.base.solid.tint' (did you mean 'layers.base.solid.green'?); "
+         f"knobs: {knobs}signals.breath.rate, signals.breath.offset"),
+        ("look 'front': front[0]: unknown knob 'layers.base.nosuch.red' (did you mean 'layers.base.solid.red'?); "
+         f"knobs: {knobs}layers.base.blend, layers.base.enabled"),
+    ]
 
 
 def test_a_bad_file_fails_the_launch_with_one_line_naming_it(tmp_path):
     path = tmp_path / "looks.json"
-    path.write_text(looks_file(looks={"a": layered("solid", fade=-1)}))
+    path.write_text(looks_file(looks={"a": layered("solid_test", fade=-1)}))
     with pytest.raises(SystemExit) as err:
         run_main(["run", str(path), "--map", "line:8", "--frames", "1"])
     assert str(err.value) == f"{path}: look 'a': fade must be within 0.0..600.0, got -1.0"
 
 
-def test_pattern_drift_warns_at_launch_and_the_aura_starts(tmp_path, caplog):
-    """A restart must not refuse a file whose looks have drifted from their
-    patterns: the current look starts at the values that still fit, and
-    the others are left to their recall."""
+def test_a_route_to_no_knob_warns_at_launch_and_the_aura_starts(tmp_path, caplog):
+    """A restart must not refuse a file whose routes reach no knob: the
+    launch names each, and the look is left to its recall."""
     path = tmp_path / "looks.json"
-    path.write_text(looks_file(
-        current="wide",
-        looks={"gone": layered("nosuch"), "wide": layered("pulse", {"color": {"h": 1e9, "s": 1, "v": 1}})},
-    ))
+    tint = [{"source": "breath", "path": "layers.base.solid.tint", "depth": 0.2}]
+    path.write_text(looks_file(current="calm", looks={
+        "tint": layered("solid_test", signals={"breath": {"op": "lfo"}}, routes=tint), "calm": layered("osc"),
+    }))
     with caplog.at_level("WARNING", logger="pewpew"):
         run = build(["run", str(path), "--map", "line:8", "--frames", "1"])
         assert run.serve() == 0
     warned = [r.getMessage() for r in caplog.records if r.name == "pewpew.run"]
-    assert f"{path}: look 'gone': layers.base.nosuch: unknown pattern 'nosuch'" in warned
-    assert any(m.startswith(f"{path}: look 'wide': layers.base.pulse.color.h must be within") for m in warned)
-    assert type(layer_renderer(run).pattern) is Pulse and layer_renderer(run).params["color"] == Pulse.color.default
+    assert any(m.startswith(f"{path}: look 'tint': routes[0]: unknown knob 'layers.base.solid.tint'") for m in warned)
+    assert run.looks.book.current == "calm"
 
 
 def test_the_notes_key_survives_a_rewrite(tmp_path):
     path = tmp_path / "looks.json"
     notes = {"mood": "calm", "todo": ["retune dusk"]}
-    path.write_text(looks_file(looks={"a": layered("solid")}, notes=notes))
+    path.write_text(looks_file(looks={"a": layered("solid_test")}, notes=notes))
     book = load_looks(path)
     assert book.notes == notes
-    rig = aura_rig(Solid)
+    rig = aura_rig()
     looks = Looks(path, book, rig.deck, rig.master)
     assert looks.save("b") is None and looks.delete("a") is None
     assert json.loads(path.read_text())["notes"] == notes
@@ -290,20 +297,22 @@ def test_the_notes_key_survives_a_rewrite(tmp_path):
 # ---- the crossfade -----------------------------------------------------------
 
 
-def renderer(cls, mapping=None, **params):
-    return Renderer(cls(), line(4) if mapping is None else mapping, params=params)
+def renderer(op: str = "solid_test", mapping=None, **args):
+    """A renderer, named `layers.base`, of one node of `op` at `args`."""
+    return Renderer(ProgramPattern.of(one_node(op, args))(), line(4) if mapping is None else mapping,
+                    name="layers.base")
 
 
 def test_between_fades_the_crossfader_is_the_renderer():
-    plain = renderer(Wave, canopy().mapping)
-    fader = Crossfader(renderer(Wave, canopy().mapping))
+    plain = hosted(FLOW, grid(8, 8))
+    fader = Crossfader(hosted(FLOW, grid(8, 8)))
     for i in range(1, 6):
         assert np.array_equal(fader.advance_to(i / 60), plain.advance_to(i / 60))
 
 
 def test_the_fade_midpoint_is_the_mean_of_the_two_frames():
-    fader = Crossfader(renderer(Solid, red=1.0))
-    fader.fade_to(renderer(Solid, red=0.0, blue=1.0), 1.0)
+    fader = Crossfader(renderer(red=1.0))
+    fader.fade_to(renderer(red=0.0, blue=1.0), 1.0)
     assert fader.fading
     np.testing.assert_array_equal(fader.advance_to(0.25), [[0.75, 0.0, 0.25]] * 4)
     mid = fader.advance_to(0.5)
@@ -314,42 +323,29 @@ def test_the_fade_midpoint_is_the_mean_of_the_two_frames():
     assert not fader.fading and fader.progress is None
 
 
-def test_a_fade_blends_across_units_pixel_for_pixel():
-    """A per-pixel look fading into a per-fixture one: each side gathers to
-    the pixel frame first, so the blend is of two (N,3) frames."""
-    r = compile_room(room(bar("a", pixels=4), bar("b", pixels=4, start=[0, 1], end=[1, 1], chain=2)))
-    out = Renderer(PixelRamp(), r.mapping, grouping=r.grouping)
-    fader = Crossfader(out)
-    fader.fade_to(out.spawn(FixtureRamp()), 2.0)
-    assert (out.units, fader.current.units) == ("pixel", "fixture")
-    frame = fader.advance_to(0.5)  # a = 0.25
-    want = np.zeros((8, 3), dtype=np.float32)
-    want[:, 0] = np.arange(8, dtype=np.float32) / 8 * np.float32(0.75)
-    want[:4, 2] = np.float32(0.5) * np.float32(0.25)
-    want[4:, 2] = np.float32(1.0) * np.float32(0.25)
-    np.testing.assert_array_equal(frame, want)
-
-
 def test_a_raising_side_still_renders_a_frame():
-    fader = Crossfader(renderer(Solid, red=0.0, green=1.0))
-    fader.fade_to(renderer(Raises), 1.0)
+    fader = Crossfader(renderer(red=0.0, green=1.0))
+    fader.fade_to(renderer("raises_test"), 1.0)
     frame = fader.advance_to(0.5)  # contained: the incoming side is the error frame
     assert frame.shape == (4, 3) and np.all(frame[:, 1] == np.float32(0.5))
-    assert fader.error is not None and fader.error.pattern == "raises"
+    assert fader.error is not None and fader.error.pattern == "layers.base"
 
 
-class FourOnly(Solid):
-    """Binds a 4-pixel map only: `setup` raises on any other."""
+class FourOnly(Pattern):
+    """Red that binds a 4-pixel map only: `setup` raises on any other."""
 
     def setup(self, n, x, y, z, index):
         if n != 4:
             raise RuntimeError("binds 4 pixels only")
 
+    def render(self, x, y, z, index):
+        return np.tile(np.array([1.0, 0.0, 0.0], np.float32), (self.n, 1))
+
 
 def test_an_outgoing_side_that_cannot_render_ends_the_fade_not_the_frame():
-    out = renderer(FourOnly)
+    out = Renderer(FourOnly(), line(4))
     fader = Crossfader(out)
-    fader.fade_to(renderer(Solid, red=0.0, blue=1.0), 1.0)
+    fader.fade_to(renderer(red=0.0, blue=1.0), 1.0)
     with pytest.raises(RuntimeError, match="binds 4 pixels only"):
         out.rebind(line(6))  # leaves it unbound
     np.testing.assert_array_equal(fader.advance_to(0.5), [[0.0, 0.0, 1.0]] * 4)
@@ -357,17 +353,17 @@ def test_an_outgoing_side_that_cannot_render_ends_the_fade_not_the_frame():
 
 
 def test_a_map_reload_the_outgoing_side_cannot_bind_ends_the_fade():
-    fader = Crossfader(renderer(FourOnly))
-    fader.fade_to(renderer(Solid, red=0.0, blue=1.0), 1.0)
+    fader = Crossfader(Renderer(FourOnly(), line(4)))
+    fader.fade_to(renderer(red=0.0, blue=1.0), 1.0)
     fader.rebind(line(6))
     assert not fader.fading
     np.testing.assert_array_equal(fader.advance_to(0.5), [[0.0, 0.0, 1.0]] * 6)
 
 
 def test_a_map_reload_mid_fade_rebinds_both_sides_and_keeps_the_fade():
-    out = renderer(Solid, red=1.0)
+    out = renderer(red=1.0)
     fader = Crossfader(out)
-    fader.fade_to(renderer(Solid, red=0.0, blue=1.0), 1.0)
+    fader.fade_to(renderer(red=0.0, blue=1.0), 1.0)
     fader.advance_to(0.25)
     fader.rebind(line(6))
     assert fader.fading and out.n == 6 and fader.current.n == 6
@@ -382,7 +378,7 @@ def test_live_sets_reach_the_look_fading_in(tmp_path):
     assert incoming is not out
     assert rig.control.set("layers.base.solid.green", 1.0) is None
     rig.calls.drain()
-    assert incoming.params["green"] == 1.0 and out.params["green"] == 0.0
+    assert knobs(incoming)["green"] == 1.0 and knobs(out)["green"] == 0.0
 
 
 # ---- recall --------------------------------------------------------------------
@@ -394,7 +390,7 @@ def test_recall_with_no_fade_is_an_instant_swap(tmp_path):
     assert rig.looks.recall("blue", 0.0) is None  # the page's override beats the stored 3 s
     assert not rig.fader.fading
     np.testing.assert_array_equal(rig.frame(2 / 60), [[0.0, 0.0, 1.0]] * 4)
-    assert rig.deck.current == "solid" and rig.looks.book.current == "blue"
+    assert rig.looks.book.current == "blue"
     assert json.loads(rig.path.read_text())["current"] == "blue"  # persisted
 
 
@@ -446,25 +442,14 @@ def test_a_look_master_is_set_outside_the_blend(tmp_path):
     np.testing.assert_array_equal(rig.frame(0.5), [[0.5, 0.0, 0.5]] * 4)
 
 
-def test_values_that_no_longer_fit_start_at_the_default(tmp_path):
-    rig = make_rig(tmp_path, {"old": look("solid", {"red": 0.5, "gone": 3.0})})
-    assert rig.looks.recall("old", 0.0) is None
-    assert rig.renderer().params.snapshot() == {"red": 0.5, "green": 0.0, "blue": 0.0}
-
-
-def test_a_look_whose_setup_raises_is_refused_and_the_aura_keeps_running(tmp_path):
-    class BadSetup(Solid):
-        def setup(self, n, x, y, z, index):
-            raise RuntimeError("no fixture")
-
-    LOOK_CLASSES["badsetup"] = BadSetup
-    try:
-        rig = make_rig(tmp_path, {"bad": look("badsetup")})
-        reason = rig.looks.recall("bad")
-        assert reason == "cannot recall 'bad': layers.base: RuntimeError: no fixture"
-        assert type(rig.renderer().pattern) is Solid and not rig.fader.fading
-    finally:
-        del LOOK_CLASSES["badsetup"]
+def test_a_look_that_cannot_bind_is_refused_and_the_aura_keeps_running(tmp_path):
+    fold = Look((Layer("base", program_of("osc(8).kaleid(5)")),))  # a fold, which a strip cannot run
+    rig = make_rig(tmp_path, {"bad": fold})
+    before = rig.renderer()
+    reason = rig.looks.recall("bad")
+    assert reason is not None and reason.startswith(
+        "cannot recall 'bad': layers.base: layers.base.kaleid: kaleid needs a map of 2 or 3 dimensions")
+    assert rig.renderer() is before and not rig.fader.fading
 
 
 def test_restore_comes_back_in_the_current_look_with_no_fade(tmp_path):
@@ -475,21 +460,21 @@ def test_restore_comes_back_in_the_current_look_with_no_fade(tmp_path):
 
 def test_a_run_starts_in_the_look_the_file_names_and_writes_nothing(tmp_path):
     path = tmp_path / "looks.json"
-    data = LookBook({"comet": look("comet"), "calm": look("pulse", {"color": CALM})}, "calm").to_bytes()
+    data = LookBook({"flow": FLOW_LOOK, "calm": CALM_LOOK}, "calm").to_bytes()
     path.write_bytes(data.replace(b"\n", b"\n\n"))  # spaced as no save writes it
     run = build(["run", str(path), "--frames", "2"])
     assert run.serve() == 0
-    assert type(layer_renderer(run).pattern) is Pulse and layer_renderer(run).params["color"] == HSV(30.0, 1.0, 1.0)
+    assert knobs(layer_renderer(run), "zoo_test")["color"] == HSV(30.0, 1.0, 1.0)
     assert run.looks.book.current == "calm" and not run.looks.changed()
     assert path.read_bytes() == data.replace(b"\n", b"\n\n")
 
 
-def test_the_status_says_which_part_failed_and_which_pattern_raised(tmp_path):
+def test_the_status_says_which_part_failed_and_which_layer_raised(tmp_path):
     """A looks error and a render error each reach the preview's status
-    with their source. During a fade away from a pattern that raises, the
-    status names that pattern, not the one fading in."""
+    with their source. During a fade away from a layer that raises, the
+    status names that layer, not the look fading in."""
     path = tmp_path / "looks.json"
-    book = LookBook({"comet": look("comet"), "calm": look("pulse", {"color": CALM}, fade=1.0)}, "comet")
+    book = LookBook({"flow": FLOW_LOOK, "calm": look("zoo_test", {"color": CALM}, fade=1.0)}, "flow")
     write_atomic(path, book.to_bytes())
     run = build(["run", str(path), "--preview", "--port", "0"])
     status = run.preview._status
@@ -499,12 +484,12 @@ def test_the_status_says_which_part_failed_and_which_pattern_raised(tmp_path):
     run.looks.error = None
     layer_renderer(run).pattern.render = None  # every frame now raises
     run.fader.advance_to(1 / 60)
-    assert status()[0::2] == ("render", "layers.base.comet")
-    assert status()[1].startswith("layers.base.comet.render raised")
+    assert status()[0::2] == ("render", "layers.base")
+    assert status()[1].startswith("layers.base.render raised")
     assert run.looks.recall("calm") is None
     run.fader.advance_to(2 / 60)
-    assert run.fader.fading and run.deck.current == "pulse"
-    assert status()[0::2] == ("render", "layers.base.comet")
+    assert run.fader.fading and run.looks.state()["fading"] == "calm"
+    assert status()[0::2] == ("render", "layers.base")
 
 
 def stalled_runs(tmp_path, monkeypatch, book: LookBook, *flags: str) -> tuple:
@@ -532,36 +517,37 @@ def test_a_start_after_a_stall_runs_the_next_look_of_the_cycle_and_says_so(tmp_p
     (`fold` folds a plane, which a line has not), says so, and leaves the
     file naming the operator's look. The next start is the operator's look."""
     fold = Look((Layer("base", Program.of(expr.osc(2).kaleid(5).palette("ember"))),), cycle=True)
-    book = LookBook({"calm": look("pulse", {"color": CALM}, cycle=True), "out": look("comet"), "fold": fold,
-                     "wave": look("wave", cycle=True)}, "calm")
+    book = LookBook({"calm": look("zoo_test", {"color": CALM}, cycle=True), "out": FLOW_LOOK, "fold": fold,
+                     "wave": look("osc", {"freq": 3.0}, cycle=True)}, "calm")
     first, second, after = stalled_runs(tmp_path, monkeypatch, book)
     said = "the last run stalled in 'calm', so 'wave' runs"
     assert capsys.readouterr().err.strip() == said and first.looks.error == said
-    assert first.looks.book.current is None and type(layer_renderer(first).pattern) is Wave  # run as a pick
+    wave, calm = (book.looks[name].layers[0].program for name in ("wave", "calm"))
+    assert first.looks.book.current is None and program_running(first) == wave  # run as no saved look
     assert after == book.to_bytes()  # the file still names calm
-    assert second.looks.error is None and type(layer_renderer(second).pattern) is Pulse
+    assert second.looks.error is None and program_running(second) == calm
     assert book.after("calm") == ["fold", "wave", "out"] and book.after("wave") == ["calm", "fold", "out"]
     assert first.looks.set_cycle("out", True) is None  # an unrelated write after the fallback
     assert load_looks(tmp_path / "looks.json").current == "calm"
 
 
 def test_a_start_after_a_stall_of_the_only_look_runs_it_again_and_says_so(tmp_path, monkeypatch, capsys):
-    book = LookBook({"calm": look("pulse", {"color": CALM})}, "calm")
+    book = LookBook({"calm": CALM_LOOK}, "calm")
     first, second, _ = stalled_runs(tmp_path, monkeypatch, book)
     said = "the last run stalled in 'calm', the only look that starts, so it runs again"
     assert capsys.readouterr().err.strip() == said and first.looks.error == said
-    assert type(layer_renderer(first).pattern) is type(layer_renderer(second).pattern) is Pulse
+    assert program_running(first) == program_running(second) == CALM_LOOK.layers[0].program
 
 
 def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):
-    """A look whose pattern hangs in `setup` as the run builds it: the
+    """A look whose program hangs in `setup` as the run builds it: the
     first frame never comes, and the watchdog fires after its startup
     allowance. The setup waits for the stall, so a watchdog armed too late
     leaves it hanging and the test fails."""
     from pewpew.watchdog import Watchdog
 
     path = tmp_path / "looks.json"
-    write_atomic(path, LookBook({"calm": look("pulse", {"color": CALM})}, "calm").to_bytes())
+    write_atomic(path, LookBook({"calm": CALM_LOOK}, "calm").to_bytes())
     monkeypatch.setenv("PEWPEW_STALL_MARKER", str(tmp_path / "stalled"))
     stalls: list[float] = []
     released = threading.Event()
@@ -572,8 +558,8 @@ def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):
 
     monkeypatch.setattr(run_module, "Watchdog", lambda timeout, **kw: Watchdog(
         timeout, **kw, startup=0.02, interval=0.005, on_stall=fired))
-    hangs = Pulse.setup
-    monkeypatch.setattr(Pulse, "setup", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
+    hangs = ProgramPattern.setup
+    monkeypatch.setattr(ProgramPattern, "setup", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
     run_main(["run", str(path), "--frames", "1", "--watchdog", "1"])
     assert len(stalls) == 1 and stalls[0] >= 0.02
 
@@ -588,22 +574,22 @@ def test_save_then_change_then_save_drives_the_changed_marker(tmp_path):
     saved = rig.looks.book.looks["warm"]
     assert saved == solid(1.0, master=1.0, fade=4.0)
     assert rig.looks.state()["current"] == "warm" and rig.looks.state()["changed"] is False
-    rig.renderer().params.set("green", 0.5)
+    knobs(rig).set("green", 0.5)
     assert rig.looks.state()["changed"] is True
-    rig.renderer().params.set("green", 0.0)
+    knobs(rig).set("green", 0.0)
     assert rig.looks.state()["changed"] is False
     rig.master.set(0.5)  # the look stores the master
     assert rig.looks.changed()
     assert rig.looks.save("warm") is None  # overwrite keeps the fade and cycle flag
     assert rig.looks.book.looks["warm"].fade == 4.0 and not rig.looks.changed()
-    rig.renderer().params.set("green", 0.0)
+    knobs(rig).set("green", 0.0)
     assert rig.control.set("layers.base.opacity", 0.5) is None  # a layer's mix is part of the look
     rig.calls.drain()
     assert rig.looks.changed()
     assert rig.control.set("layers.base.opacity", 1.0) is None
     rig.calls.drain()
     assert not rig.looks.changed()
-    assert rig.deck.put("base", "pulse") is None  # another pattern, started from outside the looks
+    assert rig.deck.recall(FLOW_LOOK) is None  # another look, started from outside the looks
     assert rig.looks.changed()
 
 
@@ -629,10 +615,10 @@ def test_the_state_holds_each_knobs_saved_value_for_a_page_to_revert_to(tmp_path
     assert rig.looks.save("warm") is None
     saved = rig.looks.state()["saved"]
     assert saved == rig.control.values() and saved["layers.base.solid.green"] == 0.0
-    rig.renderer().params.set("green", 0.5)
+    knobs(rig).set("green", 0.5)
     assert rig.looks.state()["saved"]["layers.base.solid.green"] == 0.0  # an edit leaves it
-    assert rig.deck.put("base", "pulse") is None and rig.looks.leave() is None
-    assert rig.looks.state()["saved"] is None  # no look is current after a pick
+    assert rig.deck.recall(FLOW_LOOK) is None and rig.looks.leave() is None
+    assert rig.looks.state()["saved"] is None  # no look is current after a leave
 
 
 def test_a_save_with_no_master_choice_keeps_the_replaced_looks(tmp_path):
@@ -654,20 +640,20 @@ def test_a_new_look_joins_the_idle_cycle_only_when_every_other_look_is_in_it(tmp
 def test_a_color_drives_the_changed_marker_across_a_hold(tmp_path):
     """Looks store and compare JSON values, so a color compares by its
     parts; a hold is not an edit, and the return brings the live tweak back."""
-    rig = make_rig(tmp_path, {"calm": look("pulse", {"color": CALM}, fade=0.0), "cue": look("pulse", fade=0.0)},
-              current="calm", start="pulse")
+    rig = make_rig(tmp_path, {"calm": look("zoo_test", {"color": CALM}, fade=0.0), "cue": look("zoo_test", fade=0.0)},
+                   current="calm")
     assert rig.looks.recall("calm") is None
     rig.frame(1 / 60)
     assert not rig.looks.changed()
-    rig.renderer().params.set("color", {"h": 90.0, "s": 1.0, "v": 1.0})
+    knobs(rig, "zoo_test").set("color", {"h": 90.0, "s": 1.0, "v": 1.0})
     assert rig.looks.changed()
     assert rig.looks.hold("door", "cue", 0.5, 0, rig.fader.t) is None
     rig.frame(2 / 60)
     assert rig.looks.held is not None and not rig.looks.changed()
     rig.frame(1.0)
-    assert rig.looks.held is None and rig.renderer().params["color"] == HSV(90.0, 1.0, 1.0)
+    assert rig.looks.held is None and knobs(rig, "zoo_test")["color"] == HSV(90.0, 1.0, 1.0)
     assert rig.looks.changed()
-    rig.renderer().params.set("color", HSV(30.0, 1.0, 1.0))
+    knobs(rig, "zoo_test").set("color", HSV(30.0, 1.0, 1.0))
     assert not rig.looks.changed()
 
 
@@ -693,7 +679,7 @@ def test_delete_and_the_cycle_flag_persist(tmp_path):
 def test_a_look_s_own_fade_is_stored_alone_and_edits_stay_unsaved(tmp_path):
     rig = make_rig(tmp_path, {"a": solid(1.0, fade=2.0)}, current="a")
     assert restore(rig) is None
-    rig.renderer().params.set("green", 0.5)
+    knobs(rig).set("green", 0.5)
     assert rig.looks.set_fade("a", 5.0) is None
     saved = load_looks(rig.path).looks["a"]
     assert saved == solid(1.0, fade=5.0) and rig.looks.changed()
@@ -705,13 +691,13 @@ def test_a_save_clears_the_last_recall_error(tmp_path):
     rig = make_rig(tmp_path, {"gone": look("nosuch", fade=0.0, cycle=True)}, cycle=CycleConfig(idle=0.1))
     for _ in range(10):
         rig.frame(rig.clock.advance())
-    assert rig.looks.error.startswith("cannot recall 'gone': layers.base: unknown pattern 'nosuch'")  # the cycle's
+    assert rig.looks.error.startswith("cannot recall 'gone': layers.base: layers.base.nosuch: unknown op 'nosuch'")
     assert rig.looks.save("fresh") is None
     assert rig.looks.error is None
 
 
-def test_after_a_pick_no_look_is_current_and_the_file_keeps_naming_the_last(tmp_path):
-    """A restart comes back in the look the file names: a pick, and every
+def test_after_a_leave_no_look_is_current_and_the_file_keeps_naming_the_last(tmp_path):
+    """A restart comes back in the look the file names: a leave, and every
     write while no look is current, leave it there."""
     rig = make_rig(tmp_path, {"a": solid(1.0, fade=0.0), "b": solid()}, current="a")
     assert restore(rig) is None
@@ -729,19 +715,19 @@ def test_after_a_pick_no_look_is_current_and_the_file_keeps_naming_the_last(tmp_
 
 
 def live_frames(tmp_path) -> list[bytes]:
-    """Wave on the canopy, then a 0.5 s recall of a sparkle look queued at
-    frame 10, through PacedLoop on fake time — the runner's live path."""
-    room = canopy()
-    rig = make_rig(tmp_path, {"spark": look("sparkle", {"speed": 1.0}, fade=0.5)},
-              mapping=room.mapping, grouping=room.grouping, start="wave")
+    """A moving field on a grid, then a 0.5 s recall of a stripes look
+    queued at frame 10, through PacedLoop on fake time — the runner's live
+    path."""
+    stripes = Look((Layer("base", program_of('osc(6, 0.3).palette("ember")')),), fade=0.5)
+    rig = make_rig(tmp_path, {"stripes": stripes}, mapping=grid(8, 8), start=FLOW_LOOK)
     ft = FakeTime()
     out: list[bytes] = []
     loop = PacedLoop(rig.fader, fps=60.0, before=[rig.looks.before_frame], after=[rig.master.apply],
                      on_frame=[lambda t, f: out.append(f.tobytes())], now=ft.now, sleep=ft.sleep)
     loop.run(frames=10)
-    loop.calls.call_soon(lambda: rig.looks.recall("spark"))
+    loop.calls.call_soon(lambda: rig.looks.recall("stripes"))
     loop.run(frames=50)
-    assert rig.looks.book.current == "spark" and not rig.fader.fading
+    assert rig.looks.book.current == "stripes" and not rig.fader.fading
     return out
 
 
@@ -786,25 +772,3 @@ def test_requests_without_a_looks_file_are_refused():
     control = aura_rig().control
     assert control.recall("a") == "no looks file: this aura saves no looks"
     assert control.state()["looks"] is None
-
-
-def test_a_pick_mid_fade_cuts_to_the_pick(tmp_path):
-    """Through the aura control: a pick during the fade cuts to the picked
-    pattern, drops the recall waiting behind the fade, and leaves no look
-    current, while the file keeps naming the last one."""
-    rig = aura_rig(mapping=line(8), catalog=Catalog(),
-                   looks={"calm": look("pulse", fade=1.0), "deep": look("wash", fade=0.0)},
-                   path=tmp_path / "looks.json")
-    with LoopThread(rig.calls):
-        assert rig.control.recall("calm") is None
-        assert rig.control.state()["pattern"] == "pulse"
-        assert rig.fader.fading
-        assert rig.control.recall("deep") is None  # waits for calm's fade
-        assert rig.control.state()["looks"]["pending"] == "deep"
-        assert rig.control.pick("comet") is None
-    assert type(rig.renderer().pattern) is Comet and not rig.fader.fading
-    looks = rig.control.state()["looks"]
-    assert (looks["current"], looks["changed"], looks["pending"]) == (None, False, None)
-    assert json.loads(rig.path.read_text())["current"] == "calm"  # a restart comes back in it
-    rig.looks.before_frame(rig.fader.t)  # no queued recall replaces the pick
-    assert type(rig.renderer().pattern) is Comet

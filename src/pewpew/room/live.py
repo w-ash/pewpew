@@ -96,9 +96,9 @@ class RoomLive:
                     "ddp-relayout", argv=self._argv, targets=[b.spec for b in room.boards], fps=self._ddp.max_fps,
                 )
         try:
-            self._live.rebind(room.mapping, room.grouping)
+            self._live.rebind(room.mapping)
         except Exception:
-            self._live.rebind(old.mapping, old.grouping)
+            self._live.rebind(old.mapping)
             raise
         if self._ddp is not None and layout is not None:
             self._ddp.commit(layout)

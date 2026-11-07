@@ -30,11 +30,9 @@ from pewpew.aura.looks import Looks
 from pewpew.aura.master import Master
 from pewpew.aura.triggers import Triggers
 from pewpew.aura.variety import Submit, Variety, in_background
-from pewpew.compose import Compositor, Look, Resolved
+from pewpew.compose import Compositor, Look
 from pewpew.crossfade import Crossfader
 from pewpew.features import EventFeatures, FakeFeatures
-from pewpew.load import Catalog
-from pewpew.mapping import Grouping
 from pewpew.pace import ASK_TIMEOUT_S, Calls, PacedLoop, PaceStats, Stage
 from pewpew.room.blink import Blink
 
@@ -78,13 +76,10 @@ class AuraPipeline:
 
 def build_aura_pipeline(
     look: Look,
-    layers: Sequence[Resolved],
     mapping: np.ndarray,
     *,
-    catalog: Catalog | None = None,
     seed: int = 0,
     features: EventFeatures | None = None,
-    grouping: Grouping | None = None,
     bypass: bool = False,
     now: Callable[[], float] | None = None,
     master_cap: float = 1.0,
@@ -104,11 +99,8 @@ def build_aura_pipeline(
     """Build the aura that starts in `look` on `mapping`, at the look's
     master when it has one.
 
-    `layers` are `look`'s layers ready to build
-    (`pewpew.aura.deck.ready_layer`). `catalog` holds the patterns a pick,
-    a recall and a layer edit start by name (default: the gallery). `seed`
-    seeds the made looks, and the default features (the seeded fake).
-    `grouping`, `bypass` and `now` are as for `Compositor`. `book`, with
+    `seed` seeds the made looks, and the default features (the seeded
+    fake). `bypass` and `now` are as for `Compositor`. `book`, with
     its file at `looks_path`, gives the saved looks and the triggers;
     without it there are no looks and no triggers. `blink`, `boards`, `health`,
     `accept_looks`, `max_making` and `timeout` are as for `AuraControl`.
@@ -118,13 +110,13 @@ def build_aura_pipeline(
     calls = Calls()
     features = features if features is not None else EventFeatures(FakeFeatures(seed))
     stack = Compositor(
-        layers, mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
-        features=features, grouping=grouping, bypass=bypass, now=now,
+        look.layers, mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
+        features=features, bypass=bypass, now=now,
     )
     # The loop drives the crossfader, and everything that would reach the
     # stack reaches it, so a look recall can put a new stack in place.
     fader = Crossfader(stack)
-    deck = Deck(fader, catalog if catalog is not None else Catalog())
+    deck = Deck(fader)
     master = Master(master_cap)
     if look.master is not None:
         master.set(look.master)

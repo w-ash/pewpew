@@ -717,12 +717,6 @@
     },
     {
       "type": "aura",
-      "pattern": "zoo",
-      "patterns": [
-        "colorplasma",
-        "wave",
-        "zoo"
-      ],
       "stack": {
         "layers": [
           {
@@ -730,8 +724,8 @@
             "nodes": [
               {
                 "id": "zoo",
-                "op": "pattern",
-                "label": "zoo",
+                "op": "zoo_test",
+                "label": "Zoo",
                 "in": []
               }
             ]
@@ -926,23 +920,86 @@
       "type": "catalog",
       "cards": [
         {
-          "kind": "pattern",
-          "name": "wave",
-          "label": "Wave",
-          "summary": "Bands of light cross the room in one direction.",
-          "sig": null,
-          "dims": null,
+          "kind": "op",
+          "name": "osc",
+          "label": "Oscillator",
+          "summary": "Stripes along one axis that travel across the room.",
+          "sig": "source",
+          "dims": [
+            1,
+            2,
+            3
+          ],
           "fix": "",
           "examples": [
             {
-              "py": "pattern(\"wave\")",
+              "py": "osc(8, 0.1)",
               "json": {
-                "out": "wave",
+                "out": "osc",
                 "nodes": {
-                  "wave": {
-                    "op": "pattern",
+                  "osc": {
+                    "op": "osc",
                     "args": {
-                      "pattern": "wave"
+                      "freq": 8.0,
+                      "sync": 0.1
+                    }
+                  }
+                }
+              },
+              "dims": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "py": "osc(3, 0.15, axis=\"u\").palette(\"ocean\")",
+              "json": {
+                "out": "palette",
+                "nodes": {
+                  "osc": {
+                    "op": "osc",
+                    "args": {
+                      "freq": 3.0,
+                      "sync": 0.15,
+                      "axis": "u"
+                    }
+                  },
+                  "palette": {
+                    "op": "palette",
+                    "in": [
+                      "osc"
+                    ],
+                    "args": {
+                      "palette": {
+                        "label": "ocean",
+                        "stops": [
+                          {
+                            "at": 0.0,
+                            "h": 225.0,
+                            "s": 1.0,
+                            "v": 0.05
+                          },
+                          {
+                            "at": 0.45,
+                            "h": 210.0,
+                            "s": 0.95,
+                            "v": 0.4
+                          },
+                          {
+                            "at": 0.8,
+                            "h": 190.0,
+                            "s": 0.8,
+                            "v": 0.85
+                          },
+                          {
+                            "at": 1.0,
+                            "h": 175.0,
+                            "s": 0.35,
+                            "v": 1.0
+                          }
+                        ]
+                      }
                     }
                   }
                 }
@@ -1123,12 +1180,6 @@
   "later": [
     {
       "type": "aura",
-      "pattern": "zoo",
-      "patterns": [
-        "colorplasma",
-        "wave",
-        "zoo"
-      ],
       "stack": {
         "layers": [
           {
@@ -1136,8 +1187,8 @@
             "nodes": [
               {
                 "id": "zoo",
-                "op": "pattern",
-                "label": "zoo",
+                "op": "zoo_test",
+                "label": "Zoo",
                 "in": []
               }
             ]
@@ -1220,16 +1271,16 @@
     {
       "type": "refused",
       "control": "look",
-      "name": "layers.base.x.pattern",
+      "name": "layers.base.osc.freq",
       "id": 7,
-      "reason": "layers.base.x: pattern '…' does not load: unknown pattern '…'; patterns: colorplasma, wave, zoo"
+      "reason": "layers.base.osc.freq must be within 0.5..32.0, got 99.0"
     },
     {
       "type": "refused",
       "control": "add_layer",
-      "name": "layers.x.x.pattern",
+      "name": "layers.layer.osc.freq",
       "id": 8,
-      "reason": "layers.x.x: pattern '…' does not load: unknown pattern '…'; patterns: colorplasma, wave, zoo"
+      "reason": "layers.layer.osc.freq must be within 0.5..32.0, got 99.0"
     },
     {
       "type": "ack",
@@ -1238,9 +1289,9 @@
     },
     {
       "type": "status",
-      "error": "layers.base.zoo.render raised: RuntimeError: boom",
+      "error": "layers.base.render raised: RuntimeError: boom",
       "source": "render",
-      "path": "layers.base.zoo"
+      "path": "layers.base"
     },
     {
       "type": "health",
@@ -1394,10 +1445,6 @@
     "set": [
       "name",
       "value"
-    ],
-    "pick": [
-      "name",
-      "layer"
     ],
     "add_layer": [
       "layer",

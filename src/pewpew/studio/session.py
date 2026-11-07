@@ -4,16 +4,15 @@ A session builds what `python -m pewpew run` builds (ADR-025,
 `pewpew.aura.pipeline`), with no looks file and no boards, and it takes
 whole looks (`accept_looks`), and makes at most one look at a time for a
 `surprise` or `vary`. It starts in the first of the looks it is given
-(the studio gives the example looks, `START` first), each layer resolved
-as a look recall resolves one (`pewpew.aura.deck.ready_layer`). Every request a
+(the studio gives the example looks, `START` first). Every request a
 visitor sends goes to the pipeline's `AuraControl`, which refuses what
 needs a looks file or boards; the session adds only `bind`, `pause` and
 `resume`.
 
 A bind is coalesced, not queued: one slot, applied by at most one queued
 closure on the loop thread, so a paused session holds a bounded amount of
-pending work. It rebinds the crossfader to the rig's mapping and fixture
-grouping; engine time continues. When the running look cannot run on the
+pending work. It rebinds the crossfader to the rig's mapping; engine time
+continues. When the running look cannot run on the
 new mapping (a strip under a look that folds a plane), the session cuts
 to the first of its looks that can, and the `status` message says so
 until another look runs; when none can, the bind is refused and the old
@@ -47,11 +46,9 @@ import numpy as np
 
 from pewpew.aura.book import VERSION, parse_looks
 from pewpew.aura.control import AuraControl
-from pewpew.aura.deck import ready_layer
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.compose import Look
-from pewpew.load import resolve
-from pewpew.mapping import Grouping, grid
+from pewpew.mapping import grid
 from pewpew.power import PowerLimiter
 from pewpew.sinks.base import to_display_u8
 from pewpew.sinks.preview import FRAME_HEADER, StateTexts, refusal
@@ -93,7 +90,6 @@ class FramePayload:
 @dataclass(frozen=True)
 class _Bind:
     mapping: np.ndarray
-    grouping: Grouping | None
     catalog_digest: str
     issues: list
     limiter: PowerLimiter | None
@@ -131,8 +127,7 @@ class Session:
         self._looks = looks
         look = next(iter(looks.values()))
         self._aura = build_aura_pipeline(
-            look, [ready_layer(layer, resolve) for layer in look.layers], grid(16, 16) if mapping is None else mapping,
-            seed=seed, accept_looks=True, max_making=1,
+            look, grid(16, 16) if mapping is None else mapping, seed=seed, accept_looks=True, max_making=1,
         )
         # The stack a bind cut to, and why, while it runs: the `status` says so.
         self._fallback: tuple[object, str] | None = None
@@ -281,20 +276,19 @@ class Session:
         self,
         mapping: np.ndarray,
         *,
-        grouping: Grouping | None = None,
         catalog_digest: str,
         issues: list,
         limiter: PowerLimiter | None,
     ) -> None:
-        """Ask for a rebind to a compiled rig's mapping and its fixture
-        grouping; engine time continues.
+        """Ask for a rebind to a compiled rig's mapping; engine time
+        continues.
 
         `limiter` caps the rig's frames and estimates their power; None
         streams them uncapped with no power messages. A later bind replaces
         a pending one."""
         with self._lock:
             queue = self._next_bind is None
-            self._next_bind = _Bind(mapping, grouping, catalog_digest, issues, limiter)
+            self._next_bind = _Bind(mapping, catalog_digest, issues, limiter)
         if queue:
             self._aura.calls.call_soon(self._apply_bind)
 
@@ -306,15 +300,15 @@ class Session:
         if bind is None:
             return
         fader = self._aura.fader
-        old = fader.current.mapping, fader.current.grouping
+        old = fader.current.mapping
         try:
-            fader.rebind(bind.mapping, bind.grouping)
+            fader.rebind(bind.mapping)
         except Exception as exc:
             # The stack keeps the new mapping, so a look recalled now starts on it.
             name = self._cut_to_one_that_runs()
             if name is None:
                 logger.warning("no look runs on the arrangement", exc_info=True)
-                fader.rebind(*old)  # if this raises too, the loop ends
+                fader.rebind(old)  # if this raises too, the loop ends
                 self._sink.control(refusal("bind", "no look could start on this arrangement"))
                 return
             self._fallback = (fader.current, f"the look could not run on this arrangement ({exc}), so {name} runs")
