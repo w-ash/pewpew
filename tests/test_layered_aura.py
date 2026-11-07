@@ -175,6 +175,8 @@ def test_run_plays_layered_looks_and_an_unattended_run_leaves_a_failing_layer_ou
         assert [layer.id for layer in run.fader.current.layers] == ["base", "top"]
         runs.append(np.stack([run.fader.advance_to(i / 60).copy() for i in range(1, 30)]))
         assert run.fader.error is not None and run.fader.error.pattern == "layers.top.boom"
+        if run.watchdog is not None:
+            run.watchdog.stop()  # armed as the run was built; it is never served
     dev, unattended = runs
     comet = build(["run", pattern_looks(), "--map", "line:300", "--frames", "1"])
     alone = np.stack([comet.fader.advance_to(i / 60).copy() for i in range(1, 30)])

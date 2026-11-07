@@ -747,8 +747,11 @@ series (batch mode).
   `vary`, `verify looks` and the MCP tools default to it too. `--seed`
   seeds the stand-in features and the made looks; each look's own seed
   seeds its layers. After a pick no look is current, and the file keeps
-  naming the last one, so a restart comes back in it. The LaunchAgent
-  template runs `run __LOOKS__ --room __ROOM__`.
+  naming the last one, so a restart comes back in it. After a watchdog
+  stall a restart starts in the next look of the idle cycle's order that
+  can start, not the one that stalled, and says so on the status line; the
+  watchdog is armed before the look is built. The LaunchAgent template
+  runs `run __LOOKS__ --room __ROOM__`.
 - The studio runs the aura (ADR-025): each session builds the pipeline
   `run` builds (`pewpew.aura.pipeline.build_aura_pipeline`), starts in
   `examples/tide.look.json`'s look, takes every aura request

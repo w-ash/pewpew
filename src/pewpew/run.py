@@ -11,10 +11,12 @@ builds the parts, each from the ones before it:
     -> the aura (pewpew.aura.pipeline) -> room -> sinks -> the paced loop
 
 so every part gets what it needs at construction. The health monitor
-reaches the room, built after the aura, only once the run starts. The run
-starts in the looks file's current look (else its first), its layers
-resolved as a recall resolves them (pewpew.aura.deck.ready_layer), and
-saves go to the same file. The map is `--map`, the room's, or
+reaches the room, built after the aura, only once the run starts. The
+watchdog is armed before the aura is built, so a look that hangs while it
+builds still ends the run. The run starts in the looks file's current
+look (else its first), its layers resolved as a recall resolves them
+(pewpew.aura.deck.ready_layer), and saves go to the same file; after a
+stall it starts in the next look instead (`after_stall`). The map is `--map`, the room's, or
 `DEFAULT_MAP`. An arrangement `--map` (`pewpew.rig`) gives the mapping,
 one unit per fixture, and a power model. Its `power` block,
 with `--max-watts` and `--max-brightness` replacing its values, is the
@@ -239,20 +241,31 @@ class Run:
                 argv=launch.argv, on_rebind=self._rebind_board if room is not None else None,
                 audio=self.audio.state if self.audio is not None else None,
             )
+        # Armed before the stack is built, so a look that hangs in its setup or
+        # its first render still ends the run.
+        if self.watchdog is not None:
+            self.watchdog.start()
+        book, layers, stalled = after_stall(launch, take_marker(marker_path()))
+        assert book.current is not None  # the launch made the look it starts in current
         # An unattended run leaves a failing layer out of the mix (`bypass`); its
         # error still reaches the status line.
         try:
             self.aura = build_aura_pipeline(
-                launch.look, launch.layers, launch.mapping, seed=args.seed, features=features,
+                book.looks[book.current], layers, launch.mapping, seed=args.seed, features=features,
                 grouping=launch.grouping, bypass=args.unattended, now=now, master_cap=args.master_cap,
-                looks_path=args.looks, book=launch.book, trigger_log=self.trigger_log,
+                looks_path=args.looks, book=book, trigger_log=self.trigger_log,
                 trigger_log_max=int(args.trigger_log_max * 1_000_000), blink=self.blink,
                 boards=self.monitor if self.ddp is not None else None,
                 health=self.monitor.state if self.monitor is not None else None, accept_looks=args.accept_looks,
             )
         except (LayerError, ValueError) as exc:  # ValueError: a signal or route the stack cannot run
-            raise SystemExit(f"{args.looks}: cannot start look {launch.book.current!r}: {exc}") from None
+            if self.watchdog is not None:
+                self.watchdog.stop()
+            raise SystemExit(f"{args.looks}: cannot start look {book.current!r}: {exc}") from None
         assert self.aura.looks is not None  # a run always has its looks file
+        if stalled is not None:
+            print(stalled, file=sys.stderr, flush=True)
+            self.aura.looks.error = stalled
         self.calls, self.features, self.fader, self.deck = self.aura.calls, features, self.aura.fader, self.aura.deck
         self.master, self.variety, self.looks = self.aura.master, self.aura.variety, self.aura.looks
         self.triggers, self.control = self.aura.triggers, self.aura.control
@@ -328,12 +341,7 @@ class Run:
         return 0
 
     def _start(self, services: list) -> None:
-        # Armed before the first frame, so a look that hangs in its first
-        # render still ends the run.
-        if self.watchdog is not None:
-            self.watchdog.start()
         self.looks.begin()
-        self._stalled()
         self.triggers.begin_run(
             seed=self.args.seed, fps=self.args.fps, pattern=self.deck.current, look=self.looks.book.current,
             armed=self.args.armed,
@@ -372,15 +380,6 @@ class Run:
         if self.preview_retry is not None:
             self.preview_retry.join()  # so no listener opens after the teardown
         teardown(self.drivers, [sink for sink, _ in self.outputs])
-
-    def _stalled(self) -> None:
-        """Say so when the last run's watchdog fired (pewpew.watchdog): the
-        run starts in the current look, not in the one that stalled."""
-        stalled = take_marker(marker_path())
-        if stalled is not None:
-            reason = f"the last run stalled {stalled:.0f} s ago; starting in look {self.looks.book.current!r}"
-            print(reason, file=sys.stderr, flush=True)
-            self.looks.error = reason
 
     def _start_preview(self) -> None:
         """Listen and print the URL; if the address cannot be bound, say so
@@ -514,20 +513,52 @@ def looks_book(path: Path, cap: float) -> LookBook:
 
 def start_look(path: Path, book: LookBook, mapping: np.ndarray) -> tuple[LookBook, tuple[Resolved, ...]]:
     """`book` with the look the run starts in current (its current look,
-    else its first), and that look's layers ready to build on `mapping`,
-    each resolved as a recall resolves it. One clean exit line when the
-    file holds no look, or the look cannot start on `mapping`."""
+    else its first), and that look's layers ready to build on `mapping`
+    (`ready_look`). One clean exit line when the file holds no look, or the
+    look cannot start on `mapping`."""
     name = book.current if book.current is not None else next(iter(book.looks), None)
     if name is None:
         raise SystemExit(f"{path}: the looks file holds no look")
     try:
-        layers = tuple(ready_layer(layer, resolve) for layer in book.looks[name].layers)
-    except LayerError as exc:
+        return book.with_current(name), ready_look(book.looks[name], mapping)
+    except ValueError as exc:
         raise SystemExit(f"{path}: cannot start look {name!r}: {exc}") from None
+
+
+def ready_look(look: Look, mapping: np.ndarray) -> tuple[Resolved, ...]:
+    """`look`'s layers ready to build on `mapping`, each resolved as a
+    recall resolves it. Raises ValueError saying why the look cannot start
+    there, with a map that can (`map_hint`)."""
+    try:
+        layers = tuple(ready_layer(layer, resolve) for layer in look.layers)
+    except LayerError as exc:
+        raise ValueError(str(exc)) from None
     if reasons := dims_reasons(layers, dimensions(mapping)):
         reason = "; ".join(reasons)
-        raise SystemExit(f"{path}: cannot start look {name!r}: {reason}{map_hint(reason)}")
-    return book.with_current(name), layers
+        raise ValueError(f"{reason}{map_hint(reason)}")
+    return layers
+
+
+def after_stall(launch: Launch, stalled: float | None) -> tuple[LookBook, tuple[Resolved, ...], str | None]:
+    """The book with the look the run starts in current, that look's
+    layers, and what to say about it. After a stall (`stalled`, the
+    marker's age, pewpew.watchdog), the run does not start in the look that
+    stalled, the launch's current one, but in the first that can start of
+    the others in the idle cycle's order after it (`LookBook.after`); with
+    no other, in that look again. The file is not written: its `current`
+    stays the operator's."""
+    book = launch.book
+    stalled_in = book.current
+    if stalled is None:
+        return book, launch.layers, None
+    for name in book.after(stalled_in):
+        try:
+            layers = ready_look(book.looks[name], launch.mapping)
+        except ValueError as exc:
+            logger.warning("after the stall, look %r cannot start either: %s", name, exc)
+            continue
+        return book.with_current(name), layers, f"the last run stalled in {stalled_in!r}, so {name!r} runs"
+    return book, launch.layers, f"the last run stalled in {stalled_in!r}, the only look that starts, so it runs again"
 
 
 Source = Literal["render", "reload", "looks"]  # the part an error comes from

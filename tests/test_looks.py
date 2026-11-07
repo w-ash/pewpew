@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import json
 import os
-import re
+import threading
 
 import numpy as np
 import pytest
 
+import pewpew.run as run_module
 from fakes import (
     LOOK_CLASSES,
     FakeTime,
@@ -43,8 +44,10 @@ from pewpew.aura.book import (
     pattern_problems,
 )
 from pewpew.aura.looks import Looks
-from pewpew.compose import DEFAULT_FADE, Look, pattern_layer
+from pewpew.compose import DEFAULT_FADE, Layer, Look, pattern_layer
 from pewpew.crossfade import Crossfader
+from pewpew.fx import expr
+from pewpew.fx.graph import Program
 from pewpew.jsonfile import write_atomic
 from pewpew.load import Catalog
 from pewpew.pace import PacedLoop
@@ -504,26 +507,73 @@ def test_the_status_says_which_part_failed_and_which_pattern_raised(tmp_path):
     assert status()[0::2] == ("render", "layers.base.comet")
 
 
-def test_a_start_after_a_stall_says_so_once(tmp_path, monkeypatch, capsys):
-    """A fresh stall marker: the run starts in the current look, not in
-    whatever ran when the loop stalled, and says so on the status line. The
-    marker is used up."""
+def stalled_runs(tmp_path, monkeypatch, book: LookBook, *flags: str) -> tuple:
+    """Two runs of `book` on a line, the first after a fresh stall marker:
+    each run, and the looks file's bytes after the first."""
     path = tmp_path / "looks.json"
-    write_atomic(path, LookBook({"calm": look("pulse", {"color": CALM})}, "calm").to_bytes())
+    write_atomic(path, book.to_bytes())
     marker = tmp_path / "state" / "stalled"
     monkeypatch.setenv("PEWPEW_STALL_MARKER", str(marker))
-    argv = ["run", str(path), "--frames", "1"]
+    argv = ["run", str(path), "--frames", "1", "--map", "line:8", *flags]
     marker.parent.mkdir()
     marker.write_text("5.2\n")
     first = build(argv)
     first.serve()
-    said = r"^the last run stalled \d+ s ago; starting in look 'calm'$"
-    assert re.match(said, capsys.readouterr().err.strip()) and not marker.exists()
-    assert re.match(said, first.looks.error or "")
+    after = path.read_bytes()
+    assert not marker.exists()  # used up
     second = build(argv)
     second.serve()
-    assert second.looks.error is None
+    return first, second, after
+
+
+def test_a_start_after_a_stall_runs_the_next_look_of_the_cycle_and_says_so(tmp_path, monkeypatch, capsys):
+    """A fresh stall marker: the run does not start in the look that
+    stalled, but in the next of the idle cycle's order that can start
+    (`fold` folds a plane, which a line has not), says so, and leaves the
+    file naming the operator's look. The next start is the operator's look."""
+    fold = Look((Layer("base", Program.of(expr.osc(2).kaleid(5).palette("ember"))),), cycle=True)
+    book = LookBook({"calm": look("pulse", {"color": CALM}, cycle=True), "out": look("comet"), "fold": fold,
+                     "wave": look("wave", cycle=True)}, "calm")
+    first, second, after = stalled_runs(tmp_path, monkeypatch, book)
+    said = "the last run stalled in 'calm', so 'wave' runs"
+    assert capsys.readouterr().err.strip() == said and first.looks.error == said
+    assert first.looks.book.current == "wave" and type(layer_renderer(first).pattern) is Wave
+    assert after == book.to_bytes()  # the file still names calm
+    assert second.looks.error is None and type(layer_renderer(second).pattern) is Pulse
+    assert book.after("calm") == ["fold", "wave", "out"] and book.after("wave") == ["calm", "fold", "out"]
+
+
+def test_a_start_after_a_stall_of_the_only_look_runs_it_again_and_says_so(tmp_path, monkeypatch, capsys):
+    book = LookBook({"calm": look("pulse", {"color": CALM})}, "calm")
+    first, second, _ = stalled_runs(tmp_path, monkeypatch, book)
+    said = "the last run stalled in 'calm', the only look that starts, so it runs again"
+    assert capsys.readouterr().err.strip() == said and first.looks.error == said
     assert type(layer_renderer(first).pattern) is type(layer_renderer(second).pattern) is Pulse
+
+
+def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):
+    """A look whose pattern hangs in `setup` as the run builds it: the
+    first frame never comes, and the watchdog fires after its startup
+    allowance. The setup waits for the stall, so a watchdog armed too late
+    leaves it hanging and the test fails."""
+    from pewpew.watchdog import Watchdog
+
+    path = tmp_path / "looks.json"
+    write_atomic(path, LookBook({"calm": look("pulse", {"color": CALM})}, "calm").to_bytes())
+    monkeypatch.setenv("PEWPEW_STALL_MARKER", str(tmp_path / "stalled"))
+    stalls: list[float] = []
+    released = threading.Event()
+
+    def fired(stalled: float) -> None:
+        stalls.append(stalled)
+        released.set()
+
+    monkeypatch.setattr(run_module, "Watchdog", lambda timeout, **kw: Watchdog(
+        timeout, **kw, startup=0.02, interval=0.005, on_stall=fired))
+    hangs = Pulse.setup
+    monkeypatch.setattr(Pulse, "setup", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
+    run_main(["run", str(path), "--frames", "1", "--watchdog", "1"])
+    assert len(stalls) == 1 and stalls[0] >= 0.02
 
 
 # ---- saving and the changed marker ---------------------------------------------

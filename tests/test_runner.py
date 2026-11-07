@@ -477,6 +477,7 @@ def test_an_unattended_run_holds_the_sleep_assertion_and_arms_the_watchdog():
     assert dev.awake is None and dev.watchdog is None  # a dev run holds neither
     held = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--keep-awake", "--watchdog", "2"])
     assert held.awake is not None and held.watchdog is not None and held.watchdog.timeout == 2.0
+    held.watchdog.stop()  # armed as the run was built; it is never served
     off = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--unattended", "--watchdog", "0"])
     assert off.watchdog is None and off.monitor is not None and off.monitor.state()["loop"]["watchdog"] is None
 

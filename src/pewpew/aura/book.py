@@ -195,6 +195,16 @@ class LookBook:
         """The looks the idle cycle plays, in file order."""
         return [name for name, look in self.looks.items() if look.cycle]
 
+    def after(self, name: str | None) -> list[str]:
+        """Every look but `name`, in the idle cycle's order from `name` on:
+        the looks of the cycle (`in_cycle`) after it, round to the start,
+        then the others in file order."""
+        cycle = self.in_cycle
+        if name in cycle:
+            i = cycle.index(name)
+            cycle = cycle[i + 1:] + cycle[:i]
+        return [*cycle, *(other for other in self.looks if other not in cycle and other != name)]
+
     def with_look(self, name: str, look: Look) -> LookBook:
         return replace(self, looks={**self.looks, name: look})
 
