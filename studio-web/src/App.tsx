@@ -1,4 +1,4 @@
-import { Badge, IconButton } from "@pewpew/page";
+import { Badge, IconButton } from "@pewpew/page/design";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api/client";
 import { getArrangement } from "./api/endpoints";

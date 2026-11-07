@@ -4,7 +4,7 @@ Transport is `websockets.sync.server` (ADR-020): one thread per connection,
 no asyncio. One port serves the page (any HTTP GET), the floor plan
 (`GET /plan`) and the websocket upgrade (any path; the page uses `/ws`).
 
-Wire protocol. web/src/infra/wire/protocol.ts types every message and says
+Wire protocol. web/src/wire/protocol.ts types every message and says
 what its fields mean. Each message has one source here: `hello` and
 `layout` are `_View.of` (`room` is `RoomMap.describe()`), `status` is the
 `status` supplier, and `declare`, `params`, `mod`, `aura`, `health` and

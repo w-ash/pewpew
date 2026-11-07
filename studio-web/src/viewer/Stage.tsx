@@ -1,4 +1,4 @@
-import { Button, ToggleButton } from "@pewpew/page";
+import { Button, ToggleButton } from "@pewpew/page/design";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";

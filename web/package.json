@@ -33,7 +33,7 @@
     "vitest-browser-react": "2.3.0"
   },
   "exports": {
-    ".": "./src/lib.ts",
-    "./styles.css": "./src/ui/styles.css"
+    "./design": "./src/design.ts",
+    "./styles.css": "./src/styles.css"
   }
 }

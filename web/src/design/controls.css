@@ -1,0 +1,325 @@
+/* The shared components (design/): icons, buttons in three ranks, toggles, tiles, badges and notes.
+   Rank shows in style, never in size; selected is neutral; amber is what the room is shown. */
+
+/* ---- icons ---------------------------------------------------------------------------------- */
+
+/* An icon is drawn at its own grid's size, whatever the text's, so its strokes land on pixels; in a line of
+   text it centres on the capitals. A mark in a corner or a caption (the live ●, ↩, a badge's sign) is smaller. */
+.icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--icon);
+  height: var(--icon);
+  vertical-align: calc(0.4em - var(--icon) / 2);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ---- buttons -------------------------------------------------------------------------------- */
+
+.button,
+.tile {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+  margin: 0;
+  padding: 0 var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-1);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.button:hover,
+.tile:hover {
+  background-color: var(--state-hover);
+}
+/* Under a finger a control is drawn --control-h tall and answers --hit tall: its target reaches past its top
+   and bottom edges, into the space every row keeps from the next. */
+@media (pointer: coarse) {
+  :is(.button, .tile, .bool-control, .layer-on, .details > summary, [data-scope="accordion"][data-part="item-trigger"], [data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"])) {
+    position: relative;
+  }
+  :is(.button, .tile, .bool-control, .layer-on, .details > summary, [data-scope="accordion"][data-part="item-trigger"], [data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"]))::before {
+    content: "";
+    position: absolute;
+    /* The target is placed in the padding box, so it reaches past a border too (--edge, its width). */
+    inset: calc((var(--control-h) - var(--hit)) / 2 - var(--edge, 0px)) calc(-1 * var(--edge, 0px));
+  }
+  :is(.button, .tile) {
+    --edge: 1px;
+  }
+}
+.button:active,
+.tile:active {
+  background-color: var(--state-press);
+}
+
+/* Primary: the one solid amber of its region. */
+.button[data-variant="primary"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: var(--fw-strong);
+}
+.button[data-variant="primary"]:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+/* Secondary: a quiet edge. Its words or sign say it is a control, so the edge need not hold 3:1; a field keeps
+   --border-strong, where the edge is what shows it. Hovered, the edge comes up. */
+.button[data-variant="secondary"] {
+  border-color: var(--border-control);
+}
+.button[data-variant="secondary"]:hover {
+  border-color: var(--border-strong);
+}
+/* Tertiary: a word or a sign in text-1, in a fixed slot. */
+.button[data-variant="tertiary"] {
+  padding: 0 var(--space-xs);
+}
+.button[data-square] {
+  padding: 0;
+  width: var(--control-h);
+}
+/* Under a finger a tertiary sign answers a control tall, but its fill (hovered, pressed, open) is a mouse's
+   control, centred on the sign: so at a row's end, where the sign's ink meets the column's edge, the fill
+   reaches 8 past it, as a row's fill does, on every pointer. */
+@media (pointer: coarse) {
+  .button[data-variant="tertiary"][data-square] {
+    padding: 5px;
+    border-radius: calc(var(--radius-control) + 6px);
+    background-clip: content-box;
+  }
+}
+.button[data-tone="danger"] {
+  color: var(--danger-fg);
+}
+
+/* Toggles: on is the selected fill and weight 600; an accent toggle on arms what the room answers. */
+.button[aria-pressed="true"] {
+  background-color: var(--surface-selected);
+  font-weight: var(--fw-strong);
+}
+.button[data-tone="accent"][aria-pressed="true"],
+.button[data-held] {
+  background-color: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--text-1);
+}
+
+/* Off for now: it keeps focus, and a press says why (aria-disabled); or off for good (disabled). */
+.button[data-variant]:is(:disabled, [aria-disabled="true"]) {
+  color: var(--text-disabled);
+  border-color: transparent;
+  background: none;
+  font-weight: var(--fw-regular);
+  cursor: default;
+}
+.button[data-variant="secondary"]:is(:disabled, [aria-disabled="true"]) {
+  border-color: var(--border-subtle);
+}
+
+/* Confirming: filled red, its words saying what a second press does. Doubled, it outranks every state. */
+.button[data-armed][data-armed],
+.tile[data-armed][data-armed] {
+  background: var(--danger-fill);
+  border-color: var(--danger-fill);
+  color: var(--on-danger);
+}
+
+/* A copy of words that holds the room they can take, never drawn. */
+.sizer {
+  visibility: hidden;
+}
+
+/* A button holds both its faces, one hidden, so confirming moves nothing. */
+.faces {
+  display: inline-grid;
+  justify-items: center;
+  align-items: center;
+}
+.faces > * {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+/* A tertiary word keeps its place by the column's edge, its room for the confirm before it. */
+.button[data-variant="tertiary"] > .faces {
+  justify-items: end;
+}
+:not([data-armed]) > .faces > .armed-face,
+[data-armed] > .faces > .idle-face {
+  visibility: hidden;
+}
+
+/* ---- tiles ---------------------------------------------------------------------------------- */
+
+/* A thing to pick: raised, no edge. */
+.tile {
+  position: relative;
+  gap: var(--space-2xs);
+  background-color: var(--surface-raised);
+  border-color: var(--surface-raised);
+}
+.tile:hover {
+  background-image: linear-gradient(var(--state-hover), var(--state-hover));
+}
+.tile:active {
+  background-image: linear-gradient(var(--state-press), var(--state-press));
+}
+/* A row of a list: flat on its region until hovered, picked or live. */
+.tile[data-flat] {
+  background-color: transparent;
+  border-color: transparent;
+}
+.tile[data-selected] {
+  background-image: linear-gradient(var(--surface-selected), var(--surface-selected));
+  font-weight: var(--fw-strong);
+}
+.tile:is([data-live], [data-held]) {
+  background-image: linear-gradient(var(--accent-tint), var(--accent-tint));
+}
+.tile[data-live] {
+  font-weight: var(--fw-strong);
+}
+.tile[data-held] {
+  border-color: var(--accent);
+}
+/* Its name as wide as at weight 600, so being picked or live moves nothing. A row of a list starts its name
+   at its edge whatever its weight. */
+.tile-name {
+  display: inline-grid;
+}
+.tile-name > * {
+  grid-area: 1 / 1;
+}
+.tile-name > .sizer {
+  font-weight: var(--fw-strong);
+}
+.tile[data-flat] .tile-name {
+  justify-items: start;
+}
+/* The live ●, a 12 px mark: a pip in a tile's corner, out of the name's way, so the name sits centred whether
+   or not it is live; in a list, right after the name, its room kept on every row. */
+.tile > .icon[data-icon="dot"] {
+  visibility: hidden;
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+}
+.tile:not([data-flat]) > .icon[data-icon="dot"] {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+}
+.tile[data-live] > .icon[data-icon="dot"] {
+  visibility: visible;
+}
+.tile:is(:disabled, [aria-disabled="true"]) {
+  color: var(--text-disabled);
+  cursor: default;
+}
+/* Picked and not to be picked again (a pattern file that runs): picked, not off. */
+.tile[data-selected]:disabled {
+  color: var(--text-1);
+}
+
+/* ---- badges --------------------------------------------------------------------------------- */
+
+/* A badge is a fixed-height pill of its own, smaller than a control, its sign centred on its word. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  height: 20px;
+  padding: 0 var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  white-space: nowrap;
+}
+.badge > .icon {
+  width: 12px;
+  height: 12px;
+}
+.badge[data-tone="accent"] {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--text-1);
+}
+.badge[data-tone="danger"] {
+  color: var(--danger-fg);
+}
+@media (pointer: coarse) {
+  .badge {
+    height: 24px;
+  }
+  .badge > .icon {
+    width: 14px;
+    height: 14px;
+  }
+  .badge[data-compact] {
+    min-width: 24px;
+    padding: 0;
+  }
+  .badge[data-compact] > .badge-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* ---- notes and folds ------------------------------------------------------------------------ */
+
+/* The "?" of a word: quiet, a sign in text-2 until its note is open. */
+.button.about {
+  color: var(--text-2);
+}
+.button.about[aria-expanded="true"] {
+  color: var(--text-1);
+  background-color: var(--surface-selected);
+}
+.disclosure-note {
+  overflow-wrap: anywhere;
+}
+
+/* A fold: its chevron points right while shut. */
+.details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--control-h);
+  width: fit-content;
+  list-style: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.details > summary::-webkit-details-marker {
+  display: none;
+}
+.details > summary > .icon,
+[data-scope="accordion"][data-part="item-indicator"] > .icon {
+  transition: transform 0.15s;
+}
+.details:not([open]) > summary > .icon,
+[data-scope="accordion"][data-part="item-indicator"][data-state="closed"] > .icon {
+  transform: rotate(-90deg);
+}

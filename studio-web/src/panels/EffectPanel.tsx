@@ -1,4 +1,4 @@
-import { Button, Switch } from "@pewpew/page";
+import { Button, Switch } from "@pewpew/page/design";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   BoolParam,

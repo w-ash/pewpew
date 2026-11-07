@@ -1,0 +1,4 @@
+/* The page's one stylesheet, in cascade order: the foundations, the shared components, then the regions. */
+@import "./design/theme.css";
+@import "./design/controls.css";
+@import "./app/page.css";

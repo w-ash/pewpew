@@ -2,9 +2,9 @@ import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { useShortcuts } from "../../src/ui/common/shortcuts";
-import { ParamField } from "../../src/ui/params/ParamField";
-import { ShortcutHelp } from "../../src/ui/status/ShortcutHelp";
+import { useShortcuts } from "../../src/design/shortcuts";
+import { ParamField } from "../../src/params/ParamField";
+import { ShortcutHelp } from "../../src/status/ShortcutHelp";
 import { param } from "../fixtures/describe";
 import { renderWired } from "./harness";
 

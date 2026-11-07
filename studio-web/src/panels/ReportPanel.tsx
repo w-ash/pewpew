@@ -1,4 +1,4 @@
-import { Details } from "@pewpew/page";
+import { Details } from "@pewpew/page/design";
 import type { ReactNode } from "react";
 import type { Issue, IssueLevel, RigReport } from "@/api/types";
 import { powerOf, setPower } from "@/editor/arrangement";

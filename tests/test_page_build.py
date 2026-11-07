@@ -63,7 +63,7 @@ def test_the_page_carries_the_fonts_licence():
     """OFL-1.1 §2: every copy carries the copyright notice and the licence."""
     page = PAGE.read_text()
     licence = page[page.rindex("<!--") :]
-    for line in (SRC / "ui" / "fonts" / "OFL.txt").read_text().splitlines()[:2]:
+    for line in (SRC / "design" / "fonts" / "OFL.txt").read_text().splitlines()[:2]:
         assert line in licence
     assert "SIL OPEN FONT LICENSE Version 1.1" in licence
 

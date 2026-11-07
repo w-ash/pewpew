@@ -90,7 +90,7 @@ Records the event core of the "Room-event triggers" story
 triggers are `src/pewpew/aura/triggers.py`, the `triggers` section is read
 in `src/pewpew/aura/book.py`, `Looks.hold` is in `src/pewpew/aura/looks.py`,
 `Event` and `EventFeatures` are in `src/pewpew/features.py`, and the wire
-is described in `web/src/infra/wire/protocol.ts`.)* Scope
+is described in `web/src/wire/protocol.ts`.)* Scope
 set by the maintainer on 2026-10-26: the core, the JSONL log, and the page's fire-cue
 buttons and arm switch as the only input. HTTP and OSC inputs wait for a decision on what
 the room events are.

@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { WireStore } from "../../src/infra/wire/store";
+import { WireStore } from "../../src/wire/store";
 import { PATTERNS } from "../fixtures/describe";
 import { board, greeting, health, hello, refused, AURA } from "../fixtures/messages";
 

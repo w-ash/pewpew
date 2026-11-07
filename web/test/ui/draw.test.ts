@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import type { Layout } from "../../src/domain/room/layout";
-import { drawScene, newLayers } from "../../src/ui/stage/draw";
+import type { Layout } from "../../src/room/layout";
+import { drawScene, newLayers } from "../../src/stage/draw";
 
 /** The centre pixel of `dots` dots of color `rgb` drawn on one spot; with
  * `rgb` null, the background the dots are added onto. */

@@ -1,4 +1,4 @@
-import { Button } from "@pewpew/page";
+import { Button } from "@pewpew/page/design";
 import { useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { saveArrangement } from "@/api/endpoints";

@@ -213,7 +213,7 @@ stack the programs run in.
 - The aura addresses a layer by id. A live set names a full path
   (ADR-006 amendment "layered paths"), and the page lists layers from
   `aura.stack`.
-- The wire golden, `web/src/infra/wire/protocol.ts` and the page's wire
+- The wire golden, `web/src/wire/protocol.ts` and the page's wire
   test change with the first compositor, because the page checks the
   `aura` keys and the controls exactly.
 - Normal blending at 50% mixes light, not encoded values, so a dim layer

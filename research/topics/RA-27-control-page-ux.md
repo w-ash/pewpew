@@ -1322,7 +1322,7 @@ The aura and unattended-run rows were named on 2026-11-06, after this study
 word for that region (§3), used for it from the same date. The aura is the
 running engine, `pewpew.aura`: it plays looks on the lights and takes
 operator requests. The frame is the deck's region (`aria-label="frame"`,
-`web/src/ui/deck/Deck.tsx:149`): the saved looks, the make actions, the cues,
+`web/src/deck/Deck.tsx:149`): the saved looks, the make actions, the cues,
 brightness and blackout. An unattended run is `run --unattended`: it holds a
 sleep assertion, arms the loop watchdog and leaves a failing layer out of
 the mix (`src/pewpew/__main__.py:191-193`).

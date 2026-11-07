@@ -1,7 +1,7 @@
 import { act } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import { ARM_MS, CONFIRM_MIN_MS, disarmAll, useArm } from "../../src/ui/common/useArm";
+import { ARM_MS, CONFIRM_MIN_MS, disarmAll, useArm } from "../../src/design/useArm";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

@@ -1,4 +1,4 @@
-import { Select, type SelectItem } from "@pewpew/page";
+import { Select, type SelectItem } from "@pewpew/page/design";
 import { type ReactNode, useEffect, useId, useState } from "react";
 
 export function SectionHeading({ children }: { children: ReactNode }) {

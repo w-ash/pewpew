@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import { typedNote } from "../../src/domain/params/format";
-import type { NumberSpec } from "../../src/domain/params/schema";
+import { typedNote } from "../../src/params/format";
+import type { NumberSpec } from "../../src/params/schema";
 
 const level: NumberSpec = { lo: 0, hi: 1, step: 0.005, decimals: 3, periodic: false, unit: "", text: [] };
 const phase: NumberSpec = { ...level, periodic: true };

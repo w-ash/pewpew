@@ -1,14 +1,14 @@
 import { act, type ReactNode } from "react";
 import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { AuraState } from "../../src/domain/aura/aura";
+import type { AuraState } from "../../src/aura/aura";
 import { App } from "../../src/app/App";
-import { StepStatus } from "../../src/ui/common/StepStatus";
-import { ArmStatus } from "../../src/ui/common/press";
-import { Deck } from "../../src/ui/deck/Deck";
-import { looksAbout } from "../../src/ui/deck/Looks";
-import { LookPanel } from "../../src/ui/deck/LookPanel";
-import { barLines, failedText, StatusBar } from "../../src/ui/status/StatusBar";
+import { StepStatus } from "../../src/design/StepStatus";
+import { ArmStatus } from "../../src/design/press";
+import { Deck } from "../../src/deck/Deck";
+import { looksAbout } from "../../src/deck/Looks";
+import { LookPanel } from "../../src/deck/LookPanel";
+import { barLines, failedText, StatusBar } from "../../src/status/StatusBar";
 import { greeting, hello, refused, AURA } from "../fixtures/messages";
 import { Layers, pastDoubleTap, renderWired } from "./harness";
 

@@ -84,7 +84,7 @@ test.describe("on a phone", () => {
     await expect(page.getByTestId("entity-list")).toContainText("inner");
     await page.getByRole("button", { name: /^inner/ }).click();
     // A control under a finger is drawn smaller and answers on a ::before
-    // that reaches past its edges (web/src/ui/common/controls.css).
+    // that reaches past its edges (web/src/design/controls.css).
     const heights = await page
       .locator("button:visible, [role=tab]:visible")
       .evaluateAll((els) =>

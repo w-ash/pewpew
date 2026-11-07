@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { MAX_LOOKS, type LooksState } from "../../src/domain/aura/looks";
-import { Deck } from "../../src/ui/deck/Deck";
-import { LookPanel } from "../../src/ui/deck/LookPanel";
-import { StatusBar } from "../../src/ui/status/StatusBar";
-import { TopBar } from "../../src/ui/status/TopBar";
+import { MAX_LOOKS, type LooksState } from "../../src/aura/looks";
+import { Deck } from "../../src/deck/Deck";
+import { LookPanel } from "../../src/deck/LookPanel";
+import { StatusBar } from "../../src/status/StatusBar";
+import { TopBar } from "../../src/status/TopBar";
 import { refused, AURA } from "../fixtures/messages";
 import { pastDoubleTap, renderWired } from "./harness";
 

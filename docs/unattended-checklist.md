@@ -185,7 +185,7 @@ the admin panel does not show are in LuCI, under Advanced Settings
       the sleep assertion (`src/pewpew/health.py`).
 - [ ] Turn on Layout on the page, blink each fixture, and check every
       output lights in the right place. Turn Layout off (backlog,
-      Simulation view; `web/src/ui/layout/LayoutTools.tsx`).
+      Simulation view; `web/src/layout/LayoutTools.tsx`).
 - [ ] Unplug the laptop's Ethernet for 5 s: each board falls back to its boot
       preset after the realtime timeout, and returns to the stream when
       plugged back in (backlog, Unattended checklist notes). Meanwhile the phone
@@ -198,11 +198,11 @@ the admin panel does not show are in LuCI, under Advanced Settings
       10 s: `ThrottleInterval` defaults to 10 s [S1296].
 - [ ] Blackout from the phone: first tap arms, and a second tap 0.4–3 s
       after the first fires; a faster one is taken as a double tap and
-      does nothing (`web/src/ui/common/useArm.ts`). One tap on RESTORE
-      brings the look back (`web/src/ui/deck/Blackout.tsx`).
+      does nothing (`web/src/design/useArm.ts`). One tap on RESTORE
+      brings the look back (`web/src/deck/Blackout.tsx`).
 - [ ] Triggers show ARMED on the page (`--armed`). Disarm takes two taps,
       timed as for blackout. Arming is one tap
-      (`web/src/ui/deck/Triggers.tsx`).
+      (`web/src/deck/Triggers.tsx`).
 
 Things a restart or a trigger changes:
 

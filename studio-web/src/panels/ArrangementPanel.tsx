@@ -1,4 +1,4 @@
-import { Button, Tile, ToggleButton } from "@pewpew/page";
+import { Button, Tile, ToggleButton } from "@pewpew/page/design";
 import { useRef } from "react";
 import { ApiError } from "@/api/client";
 import { compileArrangement } from "@/api/endpoints";

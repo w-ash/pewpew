@@ -1,4 +1,4 @@
-import { Button } from "@pewpew/page";
+import { Button } from "@pewpew/page/design";
 import { Component, type ReactNode } from "react";
 import { useDoc } from "./store/doc";
 

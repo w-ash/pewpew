@@ -176,10 +176,10 @@ Status stays **Accepted**; the transport above is unchanged.
   bounds the page at that size plus 15%.
 - Zag's AngleSlider clamps values to 0..359 [S1364], while ADR-006's
   `widget="angle"` floats span 0..360 and wrap, so the angle control maps
-  360 to 0 itself (`web/src/ui/params/controls/angle.tsx`). *(Since
+  360 to 0 itself (`web/src/params/controls/angle.tsx`). *(Since
   2026-11-05 the control turns degrees into dial angles, `(90 − deg) mod
   360`, and the float kind wraps the value that comes back into 0..360,
-  `web/src/domain/params/schema.ts`.)*
+  `web/src/params/schema.ts`.)*
 - The dev proxy weakens the engine's `Origin` check while it runs. Vite
   checks no websocket origin before proxying, and `rewriteWsOrigin` "can
   leave the proxying open to CSRF attacks" [S1368]: any site open in the
@@ -233,9 +233,9 @@ dismiss all turned off. Code: `web/src/`.
   when it gives the same accessibility and behaviour on phone Chromium,
   phone WebKit and desktop, with no hand-written focus, keyboard or
   gesture logic, checked live.
-- **Swapped**: Select → `<select>` (`web/src/ui/common/Select.tsx`);
+- **Swapped**: Select → `<select>` (`web/src/design/Select.tsx`);
   Switch → `<input type=checkbox role=switch>`, the APG's switch on a
-  checkbox [S1393] (`web/src/ui/params/controls/bool.tsx`); Toggle →
+  checkbox [S1393] (`web/src/params/controls/bool.tsx`); Toggle →
   `<button aria-pressed>`, the APG's toggle button [S1394].
 - **Removed**: the Drawer. The health panel, and on a phone the layout
   tools, open in the side slot in place of the editor, so no panel covers
@@ -250,16 +250,16 @@ dismiss all turned off. Code: `web/src/`.
   AngleSlider, ColorPicker, NumberInput, SegmentGroup and Field are
   unchanged.
 - **Layout**: the split layout follows `WIDE`, min-width 900px or
-  landscape with min-height 300px (`web/src/ui/common/useMedia.ts`), so a
+  landscape with min-height 300px (`web/src/design/useMedia.ts`), so a
   phone on its side gets it. Target sizes follow the pointer, not `WIDE`
-  (`web/src/ui/theme.css`).
+  (`web/src/design/theme.css`).
 - **Single-key shortcuts can be turned off** from the shortcut list, as
   WCAG 2.1.4 requires of a shortcut on a character key [S1392]; the
   choice is kept on the device. Esc is not a character key and stays on
-  (`web/src/ui/common/shortcuts.ts`).
+  (`web/src/design/shortcuts.ts`).
 - **A two-tap confirm ignores a second tap less than 0.4 s after the
   first**, so a bounce or a double tap cannot black out the room; a
-  second tap 0.4–3 s after the first fires (`web/src/ui/common/useArm.ts`).
+  second tap 0.4–3 s after the first fires (`web/src/design/useArm.ts`).
   The 0.4 s is an engineering choice, not a measured limit.
 - **React Compiler runs with `panicThreshold: all_errors`**
   (`web/vite.config.ts`), so a component the compiler cannot optimise
@@ -342,7 +342,7 @@ Status stays **Accepted**; the transport above is unchanged.
 
 ### Consequences
 
-- `web/src/infra/wire/protocol.ts` and `tests/goldens/wire.json` change in
+- `web/src/wire/protocol.ts` and `tests/goldens/wire.json` change in
   the same commit as the engine, as for any wire change; `refused` gains
   `id` and an always-present `name`, so the golden's refusals change.
 - An agent learns from the hello whether `push` can work before it sends
@@ -392,13 +392,13 @@ Status stays **Accepted**; the transport above is unchanged.
 - **Two subset fonts, inlined.** `tools/fonts.py` (`just fonts`) downloads
   Martian Grotesk at evilmartians/grotesk@0b66b31 and Martian Mono v1.1.0,
   checks each file's sha256 and each licence's git blob id against its pin
-  [S1700][S1701], and writes `web/src/ui/fonts/`: Grotesk instanced to wght
+  [S1700][S1701], and writes `web/src/design/fonts/`: Grotesk instanced to wght
   400–600 at wdth 100 (13,232 B woff2), Mono to wght 400 at wdth 87.5
   (5,056 B), both unhinted and subset to the characters the page uses, and
   `OFL.txt`. The three files are committed; the tool runs only when the
   fonts change, with fontTools and brotli for that run alone, so pewpew
   gains no dependency. Two runs give byte-identical files.
-- **Inline, as everything else is.** `web/src/ui/theme.css` declares the
+- **Inline, as everything else is.** `web/src/design/theme.css` declares the
   faces with `url(./fonts/*.woff2)`, which vite-plugin-singlefile turns into
   data URIs like every other asset [S1369]; the page stays one file with no
   config change. Mono is declared twice: as itself, and as "Martian Figures"
@@ -423,7 +423,7 @@ Status stays **Accepted**; the transport above is unchanged.
 - The page grows by about 22 KB gzipped for the fonts and their notice.
 - Characters neither subset holds fall back to the system sans one glyph at
   a time; the page draws its own signs (✕ ↻ ▾ ▲ ⋯ ● and the rest) as inline
-  SVG icons (`web/src/ui/common/Icon.tsx`), and `domain/` returns a sign as
+  SVG icons (`web/src/design/Icon.tsx`), and `domain/` returns a sign as
   data, never as a glyph in a string.
 - Martian runs wider than the system sans, so on a phone fewer look names
   fit whole (RA-27c §3.1).

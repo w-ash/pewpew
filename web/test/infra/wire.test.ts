@@ -6,20 +6,20 @@ import { expect, test } from "vitest";
 import wire from "../../../tests/goldens/wire.json";
 import type {
   AwakeHealth, BoardHealth, FoundBoard, HealthState, LoopHealth, ScanState,
-} from "../../src/domain/health/health";
-import { chip, healthRows, scanNote } from "../../src/domain/health/health";
-import { decodeParam, readValue } from "../../src/domain/params/kinds";
-import { makeLayout, planUrl, roomOf, type RoomFixture, type RoomPlan, type RoomShape } from "../../src/domain/room/layout";
-import type { Held, LastEvent, TriggersState } from "../../src/domain/aura/triggers";
-import { cueText, lastText } from "../../src/domain/aura/triggers";
-import type { LookItem, LooksState } from "../../src/domain/aura/looks";
-import { lookStatus } from "../../src/domain/aura/looks";
-import { nowOf, patternList } from "../../src/domain/aura/aura";
-import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/domain/stack/catalog";
-import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/domain/stack/stack";
-import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/domain/stack/stack";
-import { parseMessage, type ClientMessage, type Control, type ServerMessage } from "../../src/infra/wire/protocol";
-import { WireStore } from "../../src/infra/wire/store";
+} from "../../src/health/health";
+import { chip, healthRows, scanNote } from "../../src/health/health";
+import { decodeParam, readValue } from "../../src/params/kinds";
+import { makeLayout, planUrl, roomOf, type RoomFixture, type RoomPlan, type RoomShape } from "../../src/room/layout";
+import type { Held, LastEvent, TriggersState } from "../../src/aura/triggers";
+import { cueText, lastText } from "../../src/aura/triggers";
+import type { LookItem, LooksState } from "../../src/aura/looks";
+import { lookStatus } from "../../src/aura/looks";
+import { nowOf, patternList } from "../../src/aura/aura";
+import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/stack/catalog";
+import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/stack/stack";
+import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/stack/stack";
+import { parseMessage, type ClientMessage, type Control, type ServerMessage } from "../../src/wire/protocol";
+import { WireStore } from "../../src/wire/store";
 import { first, GREETING, LATER } from "../fixtures/messages";
 
 type Message<T extends ServerMessage["type"]> = Extract<ServerMessage, { type: T }>;
