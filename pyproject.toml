@@ -28,7 +28,7 @@ audio = [
 studio = [
     "fastapi>=0.143",
     "manifold3d>=3.5.4",
-    "psycopg[binary]>=3.3",
+    "psycopg[binary]>=3.3.6",
     "uvicorn[standard]>=0.54",
 ]
 
