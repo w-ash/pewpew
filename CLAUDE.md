@@ -11,8 +11,8 @@ every major decision has an ADR in `research/synthesis/decisions/`.
 ## Verify loop (T-1…T-5)
 
 - `just check` — the gate: ruff, the bibliography check, basedpyright, the
-  page in `web/` and `studio-web/` (built and tested; needs Node, pnpm and the Playwright
-  browsers), and the L1 suite. CI
+  two pages in `web/`, the control page and the studio (built and tested; needs Node, pnpm
+  and the Playwright browsers), and the L1 suite. CI
   (`.github/workflows/ci.yml`) runs the same recipe; run it unpiped before
   every commit. There is no lint or type baseline: suppress a finding only
   inline, with its reason.

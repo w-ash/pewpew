@@ -60,7 +60,7 @@ runs on the laptop and on fly.io.
   | Layer | Choice |
   |---|---|
   | Backend | FastAPI + uvicorn + pydantic 2.14 |
-  | Frontend | React 19, @react-three/fiber 9.8, drei 10.7, three r186, zustand 5, Vite 8, TypeScript 7, the control page's styles and controls (`@pewpew/page`), Biome, Vitest, Playwright, pnpm |
+  | Frontend | React 19, @react-three/fiber 9.8, drei 10.7, three r186, zustand 5, Vite 8, TypeScript 7, the control page's styles and controls (one package, `web/`), Vitest, Playwright, pnpm |
   | Type sharing | `scripts/export_openapi.py` → orval |
   | Database | Neon Postgres in production, SQLite locally and in tests |
 
@@ -202,7 +202,7 @@ already look.
 | 1b | Geometry: `rig/geometry.py` CSG profiles → manifold3d → deterministic GLB with part `extras` and the pixel axis; the point and eye attachments | general-purpose, Opus | 1's models |
 | 2 | Wiring and electrical per A6 §4: auto-wiring, output timing, feeds, fuse windows, drop, PSU packing, Class 2, effect power from the linear frame, BOM, the three validation tiers | general-purpose, Opus | 1 |
 | 3 | Backend: FastAPI app, session threads and frame bridge, REST (catalog, arrangements, share), websocket protocol, store (SQLite/Neon), limits, health, SIGTERM drain, OpenAPI export | general-purpose, Sonnet | 1 |
-| 4 | Frontend: `studio-web/` Vite + React + R3F; orval client; GLB parts drawn as instanced meshes using server matrices; LED `DataTexture` shader reading each part's `glow` and `gain`; editor (select, gizmo with snaps, inspector, duplicate, flip, ring/array tools, undo), report and share panels | general-purpose, Opus for the viewer and shader, Sonnet for the panels | 1b's GLB; 3's OpenAPI |
+| 4 | Frontend: `web/src/studio/` Vite + React + R3F; orval client; GLB parts drawn as instanced meshes using server matrices; LED `DataTexture` shader reading each part's `glow` and `gain`; editor (select, gizmo with snaps, inspector, duplicate, flip, ring/array tools, undo), report and share panels | general-purpose, Opus for the viewer and shader, Sonnet for the panels | 1b's GLB; 3's OpenAPI |
 | 5 | Rainbow pattern + goldens + liveness, in `STUDY_CASES` on the golden-rings mapping | general-purpose, Sonnet | 1 |
 | 6 | Deploy: Dockerfile (uv + node + runtime stages), `.dockerignore`, `fly.toml`, `release.yml`, `docs/deployment.md`, copied from another of the maintainer's fly.io apps | general-purpose, Haiku | 3, 4 |
 | 7 | Records: ADR-024 (hosted studio, stack, trust model), ADR-007 amendment (format), source fragments + `merge_sources.py`, backlog epic, CHANGELOG | general-purpose, Sonnet | the design |
@@ -231,7 +231,7 @@ The uncommitted backlog edits in the working tree are not mine. Every commit lea
   - the report's arithmetic against hand-worked cases;
   - the server: session, edit-rebind with `t` kept, pattern swap, oversize refusal, save and load;
   - the rainbow pattern's golden frames and liveness.
-- `pnpm check` and `pnpm test` pass in `studio-web/`.
+- `pnpm check` and `pnpm test` pass in `web/`.
 - The visual check uses a headless Playwright screenshot of the golden rings, compared with
   `overview.png`, plus `getImageData` statistics including the low-end glow band. The bar's lit
   face must turn with `roll`.
