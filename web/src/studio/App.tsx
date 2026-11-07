@@ -17,6 +17,7 @@ import { ReportPanel } from "./panels/ReportPanel";
 import { SharePanel } from "./panels/SharePanel";
 import { SessionClient } from "./session/client";
 import { useDoc } from "./store/doc";
+import { useSettledPreview } from "./viewer/dragPreview";
 import { Stage } from "./viewer/Stage";
 
 type Tab = "arrange" | "effect" | "report" | "share";
@@ -115,11 +116,13 @@ function Studio({ session }: { session: SessionClient }) {
     query: compiled,
     rig,
     current,
+    answered,
   } = useCompiled(arrangement, share.mode !== "loading");
   // The editor shows a refused knob and a refused layer in place.
   const refusal = useRefusalExcept("set", "add_layer");
   const [showRefusal, setShowRefusal] = useState(false);
 
+  useSettledPreview(answered);
   useSharedLink(setNotice);
   useEditorKeys();
 

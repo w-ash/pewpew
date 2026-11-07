@@ -9,6 +9,7 @@ import { AddLayerPanel } from "../../stack/AddLayer";
 import { LayerList } from "../../stack/LayerList";
 import type { ClientMessage, Sender } from "../../wire/protocol";
 import { useStandingAura, useWire, WireContext } from "../../wire/store";
+import { useOnChange } from "../../design/useOnChange";
 import { useContext, useState } from "react";
 import { useLooks } from "../api/queries";
 import { useSession } from "../store/session";
@@ -25,7 +26,8 @@ const FIRST = "tide";
  * every look and the cards a layer is added from open in the editor's place.
  * A press on an example sends it whole, over its own fade. The example last
  * started is marked as playing, `tide` on each new session, until a surprise
- * or a variation plays. Nothing is saved: the session has no looks file.
+ * or a variation plays, or a bind cuts to another look. Nothing is saved:
+ * the session has no looks file.
  */
 export function EffectPanel() {
   const wire = useContext(WireContext);
@@ -45,13 +47,13 @@ export function EffectPanel() {
   });
   const looksNote = useDisclosure();
   const current = marked.session === session ? marked.name : FIRST;
+  // A bind the look cannot run on cuts to an example that can, which the
+  // status names only in words: no example is marked then.
+  const cut = useWire((s) => (s.error?.source === "bind" ? s.error : null));
+  useOnChange(cut, () => {
+    if (cut) setMarked({ session, name: null });
+  });
 
-  /** Whether the engine took `msg`, once `asked` settles: no refusal of its kind came meanwhile. */
-  const took = async (msg: ClientMessage, asked: Promise<void>) => {
-    const before = store.getState().refusals[msg.type]?.seq;
-    await asked;
-    return store.getState().refusals[msg.type]?.seq === before;
-  };
   const mark = (name: string | null) =>
     setMarked({ session: store.getState().session, name });
   const play = (name: string) => {
@@ -59,8 +61,9 @@ export function EffectPanel() {
     if (!look || pending) return;
     setPending(name);
     const msg: ClientMessage = { type: "look", look, fade: null };
-    void took(msg, sender.ask(msg))
-      .then((ok) => ok && mark(name))
+    void sender
+      .ask(msg)
+      .then((took) => took && mark(name))
       .finally(() => setPending(null));
   };
   // Surprise me and vary this, which drop the mark once what they made plays.
@@ -69,7 +72,7 @@ export function EffectPanel() {
     sendLatest: (msg) => sender.sendLatest(msg),
     ask: (msg) => {
       const asked = sender.ask(msg);
-      void took(msg, asked).then((ok) => ok && mark(null));
+      void asked.then((took) => took && mark(null));
       return asked;
     },
   };

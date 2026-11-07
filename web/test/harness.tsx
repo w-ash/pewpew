@@ -24,7 +24,7 @@ export async function renderWired(ui: ReactNode, heard: string | readonly Server
   const store = new WireStore();
   for (const msg of typeof heard === "string" ? greeting(heard) : heard) store.receive(msg);
   const sent: ClientMessage[] = [];
-  const asked: (() => void)[] = [];
+  const asked: ((took: boolean) => void)[] = [];
   const sender: Sender = {
     send: (msg) => sent.push(msg),
     sendLatest: (msg) => sent.push(msg),
@@ -43,8 +43,8 @@ export async function renderWired(ui: ReactNode, heard: string | readonly Server
   // The inlined fonts, so a width measured now is the width the page keeps.
   await document.fonts.ready;
   const receive = (msg: ServerMessage) => act(() => store.receive(msg));
-  /** Settle the oldest request still asked. */
-  const answer = () => act(async () => asked.shift()?.());
+  /** Settle the oldest request still asked: taken, unless `took` is false. */
+  const answer = (took = true) => act(async () => asked.shift()?.(took));
   return { screen, store, sent, receive, answer };
 }
 

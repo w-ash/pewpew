@@ -91,3 +91,21 @@ test("a layer is added from the catalog's cards, above the one picked", async ()
   });
   await expect.element(screen.getByRole("button", { name: /kaleidoscope/i })).not.toBeInTheDocument();
 });
+
+test("an example the engine did not take, refused or never sent, is not marked as playing", async () => {
+  const { screen, answer } = await renderPanel();
+  const looks = screen.getByRole("toolbar", { name: "looks" });
+  await looks.getByRole("button", { name: "copper-tide" }).click();
+  await answer(false);
+  await expect.element(looks.getByRole("button", { name: "copper-tide" })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("a bind that cuts to another look leaves no example marked", async () => {
+  const { screen, answer, receive } = await renderPanel();
+  const looks = screen.getByRole("toolbar", { name: "looks" });
+  await looks.getByRole("button", { name: "copper-tide" }).click();
+  await answer();
+  await expect.element(looks.getByRole("button", { name: "copper-tide" })).toHaveAttribute("aria-pressed", "true");
+  await receive({ type: "status", error: "the look could not run on this arrangement (x), so tide runs", source: "bind", path: null });
+  await expect.element(looks.getByRole("button", { name: "copper-tide" })).toHaveAttribute("aria-pressed", "false");
+});

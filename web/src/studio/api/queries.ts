@@ -41,7 +41,8 @@ function useDebounced<T>(value: T, ms: number): T {
  *
  * `rig` is the last compile that succeeded, so the view keeps it while a new
  * compile is in flight and after one fails. `current` is true only when `rig`
- * is the compile of `arrangement` itself.
+ * is the compile of `arrangement` itself; `answered`, when the server has
+ * answered for `arrangement` itself, with its compile or a refusal.
  */
 export function useCompiled(arrangement: Arrangement, enabled = true) {
   const settled = useDebounced(arrangement, COMPILE_DEBOUNCE_MS);
@@ -62,5 +63,6 @@ export function useCompiled(arrangement: Arrangement, enabled = true) {
     query,
     rig: fresh ? query.data : lastGood,
     current: fresh && settled === arrangement,
+    answered: settled === arrangement && (fresh || query.isError),
   };
 }

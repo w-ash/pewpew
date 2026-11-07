@@ -104,12 +104,6 @@ export function Rig({ rig, catalog, selected, accent, onPick }: RigProps) {
     () => buildBatches(rig, assemblies),
     [rig, assemblies],
   );
-  // A new compile carries the dragged pose, so the preview has done its job.
-  // Runs on each new rig.
-  useEffect(() => {
-    dragPreview.clear();
-  }, [rig]);
-
   const seen = useRef(-1);
   useFrame(() => {
     if (frameBus.version === seen.current) return;

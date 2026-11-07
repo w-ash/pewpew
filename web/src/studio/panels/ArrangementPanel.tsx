@@ -329,7 +329,10 @@ function SelectionEditor({
   edit: (next: Arrangement, key?: string) => void;
 }) {
   const select = useDoc((s) => s.select);
-  const pose = poseOf(arrangement, selection, rig?.fixtures);
+  // Compiled poses are read from the compile of this arrangement only: an older one may have resolved
+  // another aim, or other members, and what is written from it would not match the document.
+  const compiled = rigIsCurrent ? rig?.fixtures : undefined;
+  const pose = poseOf(arrangement, selection, compiled);
   const group =
     selection.kind === "group"
       ? arrangement.groups.find((g) => g.id === selection.id)
@@ -340,11 +343,9 @@ function SelectionEditor({
       : undefined;
   if (!group && !fixture) return null;
 
-  const canExplode =
-    group !== undefined &&
-    rigIsCurrent &&
-    (rig?.fixtures.some((f) => f.group === group.id) ?? false);
-  const flipped = flip(arrangement, selection, rig?.fixtures);
+  const exploded =
+    group && compiled ? explodeGroup(arrangement, group.id, compiled) : null;
+  const flipped = flip(arrangement, selection, compiled);
   const endAttach = group?.preset === "array" ? group.attach : fixture?.attach;
 
   return (
@@ -370,13 +371,11 @@ function SelectionEditor({
         </Button>
         {group && (
           <Button
-            disabled={!canExplode}
+            disabled={!exploded}
             title="Turn this group into free fixtures at their compiled poses"
             onPress={() => {
-              const next =
-                rig && explodeGroup(arrangement, group.id, rig.fixtures);
-              if (next) {
-                edit(next);
+              if (exploded) {
+                edit(exploded);
                 select(null);
               }
             }}
@@ -407,8 +406,11 @@ function SelectionEditor({
         />
       ) : (
         <p className="t-label">
-          This group's rotation is an <span className="t-code">aim</span>, which
-          only the server resolves. Explode it to edit its fixtures.
+          {group ? "This group's" : "This fixture's"} rotation is an{" "}
+          <span className="t-code">aim</span>, which only the server resolves.{" "}
+          {group
+            ? "Explode it to edit its fixtures."
+            : "Its pose shows once the server has compiled this arrangement."}
         </p>
       )}
 
