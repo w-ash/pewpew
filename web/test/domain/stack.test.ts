@@ -1,14 +1,14 @@
 import { expect, test } from "vitest";
 import {
-  chainSaysMore, contextOf, depthOf, depthSign, frontFirst, isMix, isPattern, isSignal, layerOf, mixAddress, movedBy, moveTo, nodeAt, nodeOrder, ownerOf,
+  chainSaysMore, contextOf, depthOf, depthSign, frontFirst, isMix, isSignal, layerOf, mixAddress, movedBy, moveTo, nodeAt, nodeOrder, ownerOf,
   pageCase, panelOf, pickedFront, routesInto, runs, sectionOf, signalKind, summaryOf, type SignalItem,
 } from "../../src/stack/stack";
 import catalog from "../../../tests/goldens/catalog.json";
 import { param } from "../fixtures/describe";
 
 const layers = [
-  { id: "base", nodes: [{ id: "wash", op: "pattern", label: "wash", in: [] }] },
-  { id: "top", nodes: [{ id: "sparkle", op: "pattern", label: "Sparkle", in: [] }] },
+  { id: "base", nodes: [{ id: "wash", op: "osc", label: "Oscillator", in: [] }] },
+  { id: "top", nodes: [{ id: "sparkle", op: "particles", label: "Particles", in: [] }] },
 ];
 const knob = (layer: string, node: string, group = "") => ({ layer, node, group });
 const SWING = [-1, 1] as const, LEVEL = [0, 1] as const;
@@ -16,7 +16,7 @@ const SWING = [-1, 1] as const, LEVEL = [0, 1] as const;
 test("an address names its layer and node, and the node's label", () => {
   expect(layerOf("layers.top.sparkle")).toBe("top");
   expect(layerOf("signals.lfo")).toBeNull();
-  expect(nodeAt("layers.top.sparkle", layers)?.label).toBe("Sparkle");
+  expect(nodeAt("layers.top.sparkle", layers)?.label).toBe("Particles");
   expect(nodeAt("layers.top.wash", layers)).toBeNull();
   expect(nodeAt("layers.gone.wash", layers)).toBeNull();
 });
@@ -59,8 +59,9 @@ test("a look that lists no front shows the knobs the engine would pick: routed, 
   const stack = { layers, signals: [], routes, front: [], dims: 2 as const };
   expect(panelOf(params, stack, null).front.map((p) => p.name)).toEqual(["layers.top.sparkle.rate", "layers.base.wash.speed"]);
   expect(pickedFront({ ...stack, routes: [] }, params)).toEqual(["layers.base.wash.speed", "layers.top.sparkle.rate"]);
-  // A lone pattern shows its knobs under it: nothing in front.
-  expect(pickedFront({ ...stack, layers: layers.slice(0, 1) }, params)).toEqual([]);
+  // A lone layer's first knob is in front too, as the engine picks it.
+  expect(pickedFront({ ...stack, layers: layers.slice(0, 1), routes: [] }, params)).toEqual(["layers.base.wash.speed"]);
+  expect(pickedFront({ ...stack, layers: [] }, params)).toEqual([]);
 });
 
 test("the panel shows the front knobs and the signals', then a lone layer's knobs, its mix only off its defaults, or the picked layer's", () => {
@@ -86,10 +87,10 @@ test("the panel shows the front knobs and the signals', then a lone layer's knob
   ]);
   expect(names(panelOf(params, stack, "base"))[1]).toEqual(["layers.base.wash.speed", "level"]);
   const lone = { ...stack, layers: layers.slice(0, 1), front: [] };
-  expect(names(panelOf(params.slice(0, 2), lone, "base"))).toEqual([[], ["layers.base.wash.speed"], []]);
+  expect(names(panelOf(params.slice(0, 2), lone, "base"))).toEqual([["layers.base.wash.speed"], ["layers.base.wash.speed"], []]);
   // Off its defaults, a lone layer's mix shows, so it can be put back; with more layers it is in the rows.
   expect(names(panelOf(params.slice(0, 2), lone, "base", true))).toEqual([
-    [], ["layers.base.wash.speed", "layers.base.opacity"], [],
+    ["layers.base.wash.speed"], ["layers.base.wash.speed", "layers.base.opacity"], [],
   ]);
   expect(names(panelOf(params, stack, "top", true))).toEqual(names(panelOf(params, stack, "top")));
 });
@@ -119,7 +120,7 @@ test("a layer shows what it runs along its wiring, what it makes in a few words,
   };
   const echo = { id: "echo", nodes: [{ id: "below", op: "below", label: "Below", in: [] }, { id: "fb", op: "feedback", label: "Feedback", in: ["below"] }] };
   const below = { id: "x", nodes: [{ id: "below", op: "below", label: "Below", in: [] }] };
-  expect([runs(layers[1]!), runs(program), runs(below)]).toEqual(["Sparkle", "Oscillator → Kaleidoscope → Ripple (+ Noise) → Palette", "Below"]);
+  expect([runs(layers[1]!), runs(program), runs(below)]).toEqual(["Particles", "Oscillator → Kaleidoscope → Ripple (+ Noise) → Palette", "Below"]);
   // The chain line shows only what the node sections do not: a node with no knobs, which has none.
   const all = new Set(program.nodes.map((n) => n.id));
   expect([chainSaysMore(program, all), chainSaysMore(program, new Set(["waves", "fold", "warp"])), chainSaysMore(echo, new Set(["fb"])), chainSaysMore(layers[1]!, new Set())]).toEqual([
@@ -129,12 +130,10 @@ test("a layer shows what it runs along its wiring, what it makes in a few words,
   const tinted = { id: "t", nodes: [{ id: "bars", op: "osc", label: "Oscillator", in: [] }, { id: "tint", op: "palette", label: "Palette", in: ["bars"] }] };
   const twins = { id: "n", nodes: [{ id: "a", op: "noise", label: "Noise", in: [] }, { id: "b", op: "noise", label: "Noise", in: ["a"] }] };
   expect([summaryOf(tinted), runs(twins)]).toEqual(["Oscillator", "Noise ‘a’ → Noise ‘b’"]);
-  const comet = { id: "comet", nodes: [{ id: "comet", op: "pattern", label: "comet", in: [] }] };
   const ripple = { id: "ripple", nodes: [{ id: "ripple", op: "ripple", label: "Ripple", in: [] }] };
-  expect([summaryOf(comet), summaryOf(ripple), summaryOf(layers[1]!), summaryOf(program), summaryOf(echo)]).toEqual([
-    "", "", "Sparkle", "Oscillator\u00a0· Kaleidoscope", "Feedback on layers below", // a layer named as what it runs says nothing more; the dot stays with the source
+  expect([summaryOf(ripple), summaryOf(layers[1]!), summaryOf(program), summaryOf(echo)]).toEqual([
+    "", "Particles", "Oscillator\u00a0· Kaleidoscope", "Feedback on layers below", // a layer named as what it runs says nothing more; the dot stays with the source
   ]);
-  expect([isPattern(layers[0]!), isPattern(program), isPattern(below)]).toEqual([true, false, false]);
   const three = [...layers, program];
   expect([moveTo(three, "top", true), moveTo(three, "top", false), moveTo(three, "fx", true), moveTo(three, "base", false)]).toEqual([
     2, 0, null, null,
@@ -171,10 +170,10 @@ test("the routes into a knob include a part's, and say what modulates it, ± whe
 });
 
 test("how far a route moves a knob reads as its control shows a value, the sign left to the line", () => {
-  const opacity = { ...param("zoo", "level"), name: "layers.top.opacity", layer: "top", node: "" };
+  const opacity = { ...param("zoo_test", "level"), name: "layers.top.opacity", layer: "top", node: "" };
   expect(depthOf(opacity, "", 0.3)).toBe("30%");
-  expect(depthOf(param("wave", "speed"), "", 0.1)).toBe("0.1 /s");
-  const color = param("zoo", "color");
+  expect(depthOf(param("noise", "speed"), "", 0.1)).toBe("0.1 /s");
+  const color = param("zoo_test", "color");
   expect([depthOf(color, "h", 60), depthOf(color, "s", 0.25)]).toEqual(["60°", "25%"]);
 });
 
@@ -182,10 +181,10 @@ test("a main knob names its owner: its step where its layer has several, its lay
   const program = { id: "base", nodes: [{ id: "fb", op: "feedback", label: "Feedback", in: [] }, { id: "tint", op: "palette", label: "Palette", in: ["fb"] }] };
   const two = [program, layers[1]!];
   expect(ownerOf(knob("base", "fb"), two)).toBe("fb · base");
-  expect(ownerOf(knob("top", "sparkle"), two)).toBe("top"); // a pattern is its layer's one step
+  expect(ownerOf(knob("top", "sparkle"), two)).toBe("top"); // its layer's one step
   expect(ownerOf(knob("top", ""), two)).toBe("top"); // a layer's own mix
   expect(ownerOf(knob("base", "fb"), [program])).toBe("fb"); // one layer: the step alone
-  expect(ownerOf(knob("base", "wash"), layers.slice(0, 1))).toBe(""); // a lone pattern's knob
+  expect(ownerOf(knob("base", "wash"), layers.slice(0, 1))).toBe(""); // a lone one-step layer's knob
   expect(ownerOf(knob("", "breath"), two)).toBe("breath"); // a modulator's knob
 });
 

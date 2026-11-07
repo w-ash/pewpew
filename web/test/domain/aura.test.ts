@@ -5,12 +5,12 @@ import {
 } from "../../src/aura/looks";
 import { param } from "../fixtures/describe";
 import { capText, stepMaster } from "../../src/aura/master";
-import { neighbour, nowOf, patternList, type AuraState } from "../../src/aura/aura";
+import { nowOf, type AuraState } from "../../src/aura/aura";
 import { armable, cueText, lastText } from "../../src/aura/triggers";
 
-const stack = { layers: [{ id: "base", nodes: [{ id: "wash", op: "pattern", label: "wash", in: [] }] }], signals: [], routes: [], front: [], dims: 1 } as const;
+const stack = { layers: [{ id: "base", nodes: [{ id: "osc", op: "osc", label: "Oscillator", in: [] }] }], signals: [], routes: [], front: [], dims: 1 } as const;
 const aura = (patch: Partial<AuraState>): AuraState => ({
-  pattern: "wash", patterns: ["comet", "wash", "wave"], stack, fading: false, progress: null, master: 1, cap: 1,
+  stack, fading: false, progress: null, master: 1, cap: 1,
   blackout: false, looks: null, triggers: null, ...patch,
 });
 /** The looks: none current, made or waiting, idle cycle at its defaults, but for `patch`. */
@@ -20,24 +20,6 @@ const looksOf = (patch: Partial<LooksState>): LooksState => ({
 });
 /** A cue that holds look cool. */
 const HELD = { armed: true, names: ["door"], cues: {}, held: { trigger: "door", look: "cool", until: 9 }, last: null };
-
-test("a launch pattern given as a file leads the list and cannot be picked", () => {
-  expect(patternList(aura({ pattern: "mine.py" }))).toEqual([
-    { name: "mine.py", current: true, pickable: false },
-    { name: "comet", current: false, pickable: true },
-    { name: "wash", current: false, pickable: true },
-    { name: "wave", current: false, pickable: true },
-  ]);
-});
-
-test("neighbour wraps and starts at an end when the current one is not pickable", () => {
-  expect(neighbour(aura({}), 1)).toBe("wave");
-  expect(neighbour(aura({ pattern: "wave" }), 1)).toBe("comet");
-  expect(neighbour(aura({ pattern: "comet" }), -1)).toBe("wave");
-  expect(neighbour(aura({ pattern: "x.py" }), 1)).toBe("comet");
-  expect(neighbour(aura({ pattern: "x.py" }), -1)).toBe("wave");
-  expect(neighbour(aura({ patterns: ["wash"] }), 1)).toBeNull();
-});
 
 test("look status", () => {
   const looks = looksOf({ items: [{ name: "warm", cycle: true, fade: 2 }], current: "warm", changed: true, fading: "cool", progress: 0.4, pending: "deep" });
@@ -90,14 +72,14 @@ test("brightness and its max", () => {
   expect(stepMaster(0.02, 1, -1)).toBe(0);
 });
 
-test("the look's header names what plays: the live look, else a draft, else the pattern", () => {
+test("the look's header names what plays: the live look, else a draft, else nothing", () => {
   const looks = looksOf({ current: "warm", offered: "warm 2" });
   const now = (patch: Partial<AuraState>) => nowOf(aura(patch));
-  expect(now({ master: 0.6 })).toEqual({ name: "wash", changed: false, draft: false, master: "60%" }); // no looks file
+  expect(now({ master: 0.6 })).toEqual({ name: "", changed: false, draft: false, master: "60%" }); // no looks file
   expect(now({ looks })).toMatchObject({ name: "warm", changed: false, draft: false });
   expect(now({ looks: { ...looks, changed: true } })).toMatchObject({ name: "warm", changed: true });
   expect(now({ looks, triggers: HELD })).toMatchObject({ name: "cool", changed: false });
-  // A made look, or a pattern picked: a draft, never "changed".
+  // A made look: a draft, never "changed".
   const made = { ...looks, current: null, made: "surprise 7", offered: "surprise 7", changed: true };
   expect(now({ looks: made })).toMatchObject({ name: "surprise 7", changed: false, draft: true });
   // A made look by its label, new for each make, even where a save counts past a saved name to another.
@@ -149,8 +131,8 @@ test("unsaved edits are a current look changed; a look name is what the engine t
 });
 
 test("a part of the look is off saved when a knob in it moved, or a knob under it came or went", () => {
-  const level = { ...param("zoo", "level"), name: "layers.top.zoo.level" };
-  const bands = { ...param("zoo", "bands"), name: "layers.top.zoo.bands" };
+  const level = { ...param("zoo_test", "level"), name: "layers.top.zoo.level" };
+  const bands = { ...param("zoo_test", "bands"), name: "layers.top.zoo.bands" };
   const saved = { "layers.top.zoo.level": 0.5, "layers.top.zoo.bands": 2 };
   const at = (values: Record<string, unknown>) => (p: { name: string }) => values[p.name] as never;
   expect(offSaved([level, bands], at(saved), saved, "layers.top.")).toBe(false);

@@ -68,8 +68,8 @@ test("text goes to the store, frames carry engine time and bytes", () => {
 
 test("sets coalesce per animation frame, the newest winning per param", () => {
   const { socket, ws, flush } = setup();
-  const level = decodeParam(record("zoo", "level"));
-  const color = decodeParam(record("zoo", "color"));
+  const level = decodeParam(record("zoo_test", "level"));
+  const color = decodeParam(record("zoo_test", "color"));
   setParam(socket, level, 0.1);
   setParam(socket, level, 0.2);
   setParam(socket, color, { h: 1, s: 1, v: 1 });
@@ -86,7 +86,7 @@ test("sets coalesce per animation frame, the newest winning per param", () => {
 
 test("a message sent at once goes after the held sets; masters coalesce like sets", () => {
   const { socket, ws, flush } = setup();
-  const level = decodeParam(record("zoo", "level"));
+  const level = decodeParam(record("zoo_test", "level"));
   setParam(socket, level, 0.4);
   socket.sendLatest({ type: "master", value: 0.2 });
   socket.sendLatest({ type: "master", value: 0.3 });
@@ -133,7 +133,7 @@ test("nothing is sent while the socket is not open", () => {
 test("an ask goes with an id and settles on the engine's answer to that id, or when the socket closes", async () => {
   const { socket, store, ws, flush } = setup();
   ws.onmessage!({ data: JSON.stringify(hello()) });
-  const level = decodeParam(record("zoo", "level"));
+  const level = decodeParam(record("zoo_test", "level"));
   setParam(socket, level, 0.5);
   const settled: string[] = [];
   void socket.ask({ type: "surprise", seed: null }).then(() => settled.push("surprise"));

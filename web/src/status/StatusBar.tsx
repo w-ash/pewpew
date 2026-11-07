@@ -33,20 +33,21 @@ export function barLines(
 }
 
 /** What the room shows when the layer node at `address` raises, and what to do, naming the node
- * by its label (the pattern's name): after `edit`, put it back (the bar offers it); else pick
- * over it. Only a lone layer surely pulses red: with others, an unattended run leaves the failing one
- * out of the mix, and its row can turn it off or pick over it. */
+ * by its label (its op's): after `edit`, put it back (the bar offers it); else move off it: another
+ * look, or for a lone layer without looks, a new layer in its place. Only a lone layer surely pulses
+ * red: with others, an unattended run leaves the failing one out of the mix, and its row can turn it
+ * off or remove it. */
 function failedLine(address: string, layers: readonly LayerItem[], looks: boolean, edit: string | null): string {
   const label = nodeAt(address, layers)?.label;
   const lone = layers.length <= 1;
   const layer = layerOf(address);
   const what = lone ? `The room is pulsing red: ${label ?? address}` : label ? `Layer ${layer} (${label})` : `Layer ${layer ?? address}`;
   if (edit) return `${what} failed after ${edit}.`;
-  if (lone) return `${what} failed. ${looks ? "Pick another pattern or look." : "Pick another pattern."}`;
-  return `${what} failed. Turn it off or pick another pattern for it.`;
+  if (lone) return `${what} failed. ${looks ? "Pick another look." : "Add a layer, then remove this one."}`;
+  return `${what} failed. Turn it off or remove it.`;
 }
 
-/** What failed while a layer's render raises, in a few words (`base · boomer failed`), else null: the bar's
+/** What failed while a layer's render raises, in a few words (`base · Oscillator failed`), else null: the bar's
  * lead on touch, and the health panel's reason. */
 export function failedText(error: EngineError | null, layers: readonly LayerItem[]): string | null {
   const path = error?.source === "render" ? error.path : null;

@@ -36,7 +36,7 @@ export function SizedName({ name, className }: { name: string; className?: strin
   );
 }
 
-/** A thing to pick, not an action: a saved look, a pattern. Raised, with no edge (an edge is a verb's); `flat`,
+/** A thing to pick, not an action: a saved look. Raised, with no edge (an edge is a verb's); `flat`,
  * a row of a list. Its name holds the room its weight 600 takes, so being picked or live moves nothing. */
 export function Tile(props: TileProps) {
   const [options, { name, children, onPress, live, held, selected, flat, ref, className, onClick, ...native }] = splitPress(props);

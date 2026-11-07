@@ -1,11 +1,11 @@
 import { expect, test, vi } from "vitest";
 import { WireStore } from "../../src/wire/store";
-import { PATTERNS } from "../fixtures/describe";
+import { OPS } from "../fixtures/describe";
 import { board, greeting, health, hello, refused, AURA } from "../fixtures/messages";
 
 function storeWithZoo() {
   const store = new WireStore();
-  for (const msg of greeting("zoo")) store.receive(msg);
+  for (const msg of greeting()) store.receive(msg);
   const p = (name: string) => store.getState().params.find((x) => x.name === name)!;
   return { store, p };
 }
@@ -62,7 +62,7 @@ test("a value the param cannot hold is ignored", () => {
 test("a declare keeps the values of the params it keeps", () => {
   const { store } = storeWithZoo();
   store.receive({ type: "params", values: { level: 0.9 } });
-  const records = (PATTERNS.zoo ?? []).filter((r) => r.name !== "invert");
+  const records = (OPS.zoo_test ?? []).filter((r) => r.name !== "invert");
   store.receive({ type: "declare", params: records });
   const params = store.getState().params;
   expect(params.map((x) => x.name)).not.toContain("invert");
@@ -72,10 +72,10 @@ test("a declare keeps the values of the params it keeps", () => {
 test("refusals are routed by control, and a set's by name", () => {
   const { store } = storeWithZoo();
   store.receive(refused("set", "level must be within 0.0..1.0, got 2.0", "level"));
-  store.receive(refused("pick", "no pattern named x"));
+  store.receive(refused("recall", "no look named x"));
   const s = store.getState();
   expect(s.refusals.set).toMatchObject({ name: "level", seq: 1 });
-  expect(s.refusals.pick).toMatchObject({ name: null, seq: 2, reason: "no pattern named x" });
+  expect(s.refusals.recall).toMatchObject({ name: null, seq: 2, reason: "no look named x" });
   expect(s.paramRefusals.level).toBe(s.refusals.set);
 });
 

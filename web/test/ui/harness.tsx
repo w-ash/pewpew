@@ -17,11 +17,11 @@ import { greeting } from "../fixtures/messages";
 let now = 0;
 const clock: ArmClock = { now: () => now, after: () => () => {} };
 
-/** A page wired to a store and a sender that records what it sends. What it `ask`s waits until `answer`
- * settles it, as the engine's ack or refusal would. */
-export async function renderWired(ui: ReactNode, pattern = "zoo") {
+/** A page wired to a store, its knobs op `op`'s (`greeting`), and a sender that records what it sends.
+ * What it `ask`s waits until `answer` settles it, as the engine's ack or refusal would. */
+export async function renderWired(ui: ReactNode, op = "zoo_test") {
   const store = new WireStore();
-  for (const msg of greeting(pattern)) store.receive(msg);
+  for (const msg of greeting(op)) store.receive(msg);
   const sent: ClientMessage[] = [];
   const asked: (() => void)[] = [];
   const sender: Sender = {

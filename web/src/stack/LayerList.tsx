@@ -5,7 +5,7 @@ import { percent } from "../params/format";
 import type { BoolParam, ChoiceParam, Param } from "../params/schema";
 import { blendsAbout, showsBlack, type BlendNote } from "./catalog";
 import { liveLook } from "../aura/looks";
-import { chainSaysMore, isPattern, layerOf, mixAddress, moveTo, runs, summaryOf, type LayerItem } from "./stack";
+import { chainSaysMore, layerOf, mixAddress, moveTo, runs, summaryOf, type LayerItem } from "./stack";
 import { setParam } from "../wire/protocol";
 import { useAtDefaults, useLayers, useOffSaved, useParamValue, useRefusal, useSender, useWire } from "../wire/store";
 import { Badge } from "../design/Badge";
@@ -19,12 +19,10 @@ import { SizedName } from "../design/Tile";
 import { useDraft } from "../design/useDraft";
 import { FINE_POINTER, useMedia } from "../design/useMedia";
 import { useOnChange } from "../design/useOnChange";
-import { PatternPicker } from "../deck/PatternPicker";
 import { ParamField } from "../params/ParamField";
 import { DefaultsButton, LayerKnobList, useLayerKnobs } from "../params/ParamPanel";
 import { ADD, type LayerSelection } from "./selection";
 
-const NO_NAMES: readonly string[] = [];
 const NO_BLENDS: readonly BlendNote[] = [];
 const TRIGGER = '[data-part="item-trigger"]';
 /** The most layers a look holds (pewpew.aura.control MAX_LAYERS). */
@@ -44,18 +42,15 @@ const OPEN_MS = 600;
  * a glance and its on switch, the glances of every row in columns. Its opacity has one home: with a mouse
  * its row's slider, on touch its open row (`MixGlance`). The picked row opens under its name, its knobs
  * starting where the name does: ▲ ▼ (Alt+↑ ↓ on the row) and remove, its blend, what it runs (its wiring,
- * when that says more than the row does, or its pattern pick; a program's behind "replace with
- * pattern…"; no pick where the aura offers no patterns), its own knobs, and defaults. The rows start closed, so the stack reads at a glance. A row
+ * when that says more than the row does), its own knobs, and defaults. The rows start closed, so the stack reads at a glance. A row
  * opened by hand scrolls up to under the look's header when it would run past the slot's bottom. A control
  * an edit takes away hands focus on: a moved row's to its new place, which stays where it was in the slot,
  * a removed row's to the next; a move says where it put the layer, and a remove which it took, for
  * assistive tech. At MAX_LAYERS, a press on "+ layer" says why it is off, in a note under it. */
 export function LayerList({ selection, onAdd }: { selection: LayerSelection; onAdd(): void }) {
   const layers = useLayers();
-  const pattern = useWire((s) => s.aura?.pattern ?? "");
-  const patterns = useWire((s) => s.aura?.patterns) ?? NO_NAMES;
   const sender = useSender();
-  const look = useWire((s) => (s.aura ? liveLook(s.aura.looks, s.aura.triggers) ?? s.aura.looks?.made ?? s.aura.pattern : null));
+  const look = useWire((s) => (s.aura ? liveLook(s.aura.looks, s.aura.triggers) ?? s.aura.looks?.made ?? "" : null));
   const add = useRef<HTMLButtonElement>(null);
   const full = useDisclosure();
   const rows = useRef(new Map<string, HTMLElement>());
@@ -149,7 +144,7 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
       + layer
     </Button>
   );
-  if (layers.length === 1) return <LoneLayer layer={layers[0]!} pattern={pattern} patterns={patterns} add={addButton} />;
+  if (layers.length === 1) return <LoneLayer layer={layers[0]!} add={addButton} />;
   return (
     <Block
       className="layers"
@@ -181,7 +176,6 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
           <LayerRow
             key={layer.id}
             layer={layer}
-            patterns={patterns}
             bottom={layer.id === ids[0]}
             picked={layer.id === selection.id}
             rowRef={(el) => {
@@ -199,30 +193,26 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
   );
 }
 
-/** The heading a lone layer's knobs go under: its id and what it is, `pattern` or `3 steps` (RA-27b §3). */
+/** The heading a lone layer's knobs go under: its id and how many steps it has, `3 steps` (RA-27b §3). */
 function loneTitle(layer: LayerItem): string {
   const n = layer.nodes.length;
-  return `${layer.id} · ${isPattern(layer) ? "pattern" : `${n} step${n === 1 ? "" : "s"}`}`;
+  return `${layer.id} · ${n} step${n === 1 ? "" : "s"}`;
 }
 
 /** A look of one layer, with no layer chrome (RA-27b §3): no list, switch, opacity or order, only its
- * knobs under its heading (`loneTitle`) with "reset to defaults". A pattern shows its pick, which [ and ]
- * step through, then its knobs; a program its wiring, when that says more than its steps do, then its
- * steps, folded to their names. Its mix (on, opacity, blend) shows while any of it is off its defaults,
+ * knobs under its heading (`loneTitle`) with "reset to defaults": its wiring, when that says more than its
+ * steps do, then its steps, folded to their names; a layer of one step shows its knobs' groups open. Its mix (on, opacity, blend) shows while any of it is off its defaults,
  * and "reset to defaults" then covers it too, so a page that left it so, a layer switched off above all,
- * can put it back. Then, quiet, "replace with pattern…" for a program, and "+ layer" (`add`) at the column's
- * edge. Where the aura offers no patterns, there is no pick and no "replace with pattern…". */
-function LoneLayer({ layer, pattern, patterns, add }: { layer: LayerItem; pattern: string; patterns: readonly string[]; add: ReactNode }) {
+ * can put it back. Then, quiet, "+ layer" (`add`) at the column's edge. */
+function LoneLayer({ layer, add }: { layer: LayerItem; add: ReactNode }) {
   const { id } = layer;
   const params = useWire((s) => s.params);
   const { all } = useLayerKnobs(id);
   const headId = useId();
-  const [replacing, setReplacing] = useState(false);
   const enabled = mixOf(params, id, "enabled"), opacity = mixOf(params, id, "opacity"), blend = mixOf(params, id, "blend");
   const mix = [enabled, opacity, blend].filter((p): p is Param => !!p);
   const mixed = !useAtDefaults(mix);
   const knobs = mixed ? [...mix, ...all] : all;
-  const program = !isPattern(layer);
   return (
     <section className="block lone-layer" aria-labelledby={headId}>
       <header className="block-head">
@@ -231,31 +221,18 @@ function LoneLayer({ layer, pattern, patterns, add }: { layer: LayerItem; patter
         </h3>
         {knobs.length > 0 && <DefaultsButton knobs={knobs} />}
       </header>
-      {program ? <Chain layer={layer} params={params} /> : patterns.length > 0 && <PatternPicker pattern={pattern} patterns={patterns} keys />}
+      <Chain layer={layer} params={params} />
       {mixed && enabled && <ParamField p={enabled} />}
       {mixed && opacity && <ParamField p={opacity} />}
       {mixed && blend && <BlendField blend={blend} bottom />}
-      <LayerKnobList layer={id} open={!program} level={4} />
-      <div className="row lone-actions">
-        {program &&
-          patterns.length > 0 &&
-          (replacing ? (
-            <PatternPicker pattern="custom" patterns={patterns} layer={id} narrow autoFocus />
-          ) : (
-            <Button variant="tertiary" className="replace" onPress={() => setReplacing(true)}>
-              replace with pattern…
-            </Button>
-          ))}
-        {add}
-      </div>
-      {replacing && <p className="note">picking a pattern replaces this layer's parts</p>}
+      <LayerKnobList layer={id} open={layer.nodes.length === 1} level={4} />
+      <div className="row lone-actions">{add}</div>
     </section>
   );
 }
 
 interface RowProps {
   readonly layer: LayerItem;
-  readonly patterns: readonly string[];
   /** Whether it is the bottom layer, with nothing under it. */
   readonly bottom: boolean;
   /** Whether it is the one open. */
@@ -287,17 +264,16 @@ function BlendField({ blend, bottom, owner }: { blend: Param; bottom: boolean; o
   return <ParamField p={blendOver(blend, blends, bottom)} owner={owner} about={(mode) => blendsAbout(blends, String(mode), bottom)} />;
 }
 
-/** A program layer's wiring, when it says more than its steps' sections do (`chainSaysMore`). */
+/** A layer's wiring, when it says more than its steps' sections do (`chainSaysMore`). */
 function Chain({ layer, params }: { layer: LayerItem; params: readonly Param[] }) {
   const knobbed = new Set(params.flatMap((p) => (p.layer === layer.id && p.node ? [p.node] : [])));
   return chainSaysMore(layer, knobbed) ? <p className="chain">{runs(layer)}</p> : null;
 }
 
-function LayerRow({ layer, patterns, bottom, picked, rowRef, up, down, onMove, onRemove }: RowProps) {
+function LayerRow({ layer, bottom, picked, rowRef, up, down, onMove, onRemove }: RowProps) {
   const { id } = layer;
   const params = useWire((s) => s.params);
   const failed = useWire((s) => s.error?.source === "render" && !!s.error.path && layerOf(s.error.path) === id);
-  const [replacing, setReplacing] = useState(false);
   // A knob of its own off the look as saved, or its program changed since: a save would change it.
   const off = useOffSaved(params.filter((p) => p.layer === id), `layers.${id}.`);
   const opacity = mixOf(params, id, "opacity"), blend = mixOf(params, id, "blend"), enabled = mixOf(params, id, "enabled");
@@ -308,7 +284,6 @@ function LayerRow({ layer, patterns, bottom, picked, rowRef, up, down, onMove, o
     e.preventDefault(); // before the accordion's own arrow keys, which move focus
     onMove(e.key === "ArrowUp", "row");
   };
-  const program = !isPattern(layer);
   const summary = summaryOf(layer).toLowerCase();
   return (
     <Accordion.Item ref={rowRef} value={id} className="layer" data-picked={picked || undefined}>
@@ -344,23 +319,7 @@ function LayerRow({ layer, patterns, bottom, picked, rowRef, up, down, onMove, o
         </div>
         {opacity && !rowSlider && <ParamField p={opacity} owner={id} />}
         {blend && <BlendField blend={blend} bottom={bottom} owner={id} />}
-        {program ? (
-          <>
-            <Chain layer={layer} params={params} />
-            {patterns.length === 0 ? null : replacing ? (
-              <>
-                <PatternPicker pattern="custom" patterns={patterns} layer={id} narrow autoFocus />
-                <p className="note">picking a pattern replaces this layer's parts</p>
-              </>
-            ) : (
-              <Button variant="tertiary" className="replace" onPress={() => setReplacing(true)}>
-                replace with pattern…
-              </Button>
-            )}
-          </>
-        ) : (
-          patterns.length > 0 && <PatternPicker pattern={runs(layer)} patterns={patterns} layer={id} narrow />
-        )}
+        <Chain layer={layer} params={params} />
         <LayerKnobList layer={id} />
         <RowDefaults layer={id} />
       </Accordion.ItemContent>

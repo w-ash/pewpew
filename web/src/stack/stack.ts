@@ -5,8 +5,8 @@ import type { Param } from "../params/schema";
 // `layers.<layer>.opacity|blend|enabled` for a layer's own mix, or
 // `signals.<signal>.<arg>` for a knob of one of the look's signals.
 
-/** One node of a layer's program or a look's signals: its id, its op, what the page calls it (for
- * a `pattern` node, the pattern's name), and the ids of the nodes it reads (`in`). */
+/** One node of a layer's program or a look's signals: its id, its op, what the page calls it (its
+ * op's label), and the ids of the nodes it reads (`in`). */
 export interface NodeItem {
   readonly id: string;
   readonly op: string;
@@ -38,7 +38,7 @@ export interface StackState {
   readonly layers: readonly LayerItem[];
   /** The look's signals, in the order they run. */
   readonly signals: readonly SignalItem[];
-  /** The routes that run; a route whose knob a pick replaced rests and is left out. */
+  /** The routes that run; a route whose knob is gone rests and is left out. */
   readonly routes: readonly RouteItem[];
   /** The addresses of the knobs a page shows first. */
   readonly front: readonly string[];
@@ -165,8 +165,8 @@ export function contextOf<P extends Placed & { readonly name: string }>(
 }
 
 /** Who owns main knob `p`, shown outside its step, among `layers` (RA-27b §3): its step, when its layer has
- * several, then its layer, when the look has several (`fb · base`); a signal's knob its signal; "" for a
- * knob of a lone pattern. */
+ * several, then its layer, when the look has several (`fb · base`); a signal's knob its signal; "" for the
+ * knob of a lone one-step layer. */
 export function ownerOf(p: Placed, layers: readonly LayerItem[]): string {
   if (!p.layer) return p.node;
   const layer = layers.find((l) => l.id === p.layer);
@@ -237,12 +237,10 @@ const FRONT = 3;
 
 /** The knobs a look that lists none shows first, by the rule the engine picks a made look's by
  * (pewpew.fx.surprise `_front`): those the routes move, then each layer's first knob, the bottom
- * layer's first, at most FRONT. A layer's opacity is never one: its row shows it. None for a lone
- * pattern, whose knobs show under it. */
+ * layer's first, at most FRONT. A layer's opacity is never one: its row shows it. */
 export function pickedFront(stack: StackState, params: readonly { readonly name: string }[]): string[] {
   const { layers, routes } = stack;
-  const bottom = layers[0];
-  if (!bottom || (layers.length === 1 && isPattern(bottom))) return [];
+  if (!layers.length) return [];
   const firsts = layers.flatMap((l) => {
     const node = l.nodes[0];
     const first = node && params.find((p) => p.name.startsWith(`layers.${l.id}.${node.id}.`));
@@ -308,12 +306,6 @@ export function nodeAt(address: string, layers: readonly LayerItem[]): NodeItem 
   return layer?.nodes.find((n) => `layers.${layer.id}.${n.id}` === address) ?? null;
 }
 
-/** Whether layer `layer` runs one gallery pattern, which a pick replaces as it is. */
-export function isPattern(layer: LayerItem): boolean {
-  const [only, ...more] = layer.nodes;
-  return !!only && !more.length && only.op === "pattern";
-}
-
 /** Whether layer `layer` reads the layers under it (a `below` node): an effect on them. */
 export function readsBelow(layer: LayerItem): boolean {
   return layer.nodes.some((n) => n.op === "below");
@@ -327,7 +319,7 @@ function chainOf(layer: LayerItem): NodeItem[] {
   return chain;
 }
 
-/** What layer `layer` makes, in a few words: its pattern; for an effect on the layers under it,
+/** What layer `layer` makes, in a few words: for an effect on the layers under it,
  * what it does to them (`feedback on layers below`); else what it starts from and its first step
  * after that, a palette that only colors it left out (`Oscillator · Kaleidoscope`). "" when that
  * would only say its id again (a source added as `ripple`). */
@@ -339,7 +331,6 @@ export function summaryOf(layer: LayerItem): string {
 function summaryText(layer: LayerItem): string {
   const [first] = layer.nodes, last = layer.nodes.at(-1);
   if (!first || !last) return "";
-  if (isPattern(layer)) return first.label;
   if (readsBelow(layer)) {
     const what = layer.nodes.filter((n) => n.op !== "below").map((n) => n.label).join(" · ");
     return what ? `${what} on layers below` : "the layers below";
@@ -355,11 +346,10 @@ function opName(n: NodeItem, layer: LayerItem): string {
   return twin ? `${n.label} ‘${n.id}’` : n.label;
 }
 
-/** What layer `layer` runs, in full: its pattern, or its program along its wiring, from what it
+/** What layer `layer` runs, in full: its program along its wiring, from what it
  * starts from to its output, each node by what it does (`opName`), each node a node reads besides
  * the one before it after it (`Oscillator → Kaleidoscope → Modulate (+ Noise) → Palette`). */
 export function runs(layer: LayerItem): string {
-  if (isPattern(layer)) return layer.nodes[0]!.label;
   const byId = new Map(layer.nodes.map((n) => [n.id, n]));
   const name = (id: string) => (byId.has(id) ? opName(byId.get(id)!, layer) : id);
   return chainOf(layer).map((n) => {
@@ -372,7 +362,7 @@ export function runs(layer: LayerItem): string {
  * node sections, which name each node with knobs (those in `knobbed`) in order, with what it reads: a
  * program of more than two nodes, one of which has no knobs, and so no section. */
 export function chainSaysMore(layer: LayerItem, knobbed: ReadonlySet<string>): boolean {
-  return !isPattern(layer) && layer.nodes.length > 2 && layer.nodes.some((n) => !knobbed.has(n.id));
+  return layer.nodes.length > 2 && layer.nodes.some((n) => !knobbed.has(n.id));
 }
 
 /** The render index a `move_layer` sends to move layer `id` one place `up` (towards the top) or

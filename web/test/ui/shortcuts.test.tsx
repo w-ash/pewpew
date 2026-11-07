@@ -42,7 +42,7 @@ test("a key on a focused param is the param's, and the list turns single keys of
     useShortcuts([{ hotkey: "2", label: "two", action: press }]);
     return (
       <>
-        <ParamField p={param("zoo", "level")} />
+        <ParamField p={param("zoo_test", "level")} />
         <button type="button" onClick={() => setOpen(true)}>
           help
         </button>

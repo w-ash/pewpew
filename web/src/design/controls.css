@@ -234,10 +234,6 @@
   color: var(--text-disabled);
   cursor: default;
 }
-/* Picked and not to be picked again (a pattern file that runs): picked, not off. */
-.tile[data-selected]:disabled {
-  color: var(--text-1);
-}
 
 /* ---- badges --------------------------------------------------------------------------------- */
 

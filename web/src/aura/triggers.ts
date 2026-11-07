@@ -17,7 +17,7 @@ export interface LastEvent {
   readonly error: string | null;
 }
 
-/** What a cue fires: the look it holds, for `hold` seconds; null: the event only reaches the pattern. */
+/** What a cue fires: the look it holds, for `hold` seconds; null: the event only reaches the running look. */
 export interface Cue {
   readonly look: string | null;
   readonly hold: number;
@@ -54,8 +54,8 @@ export interface Outcome {
 /** The engine's reasons an event was dropped, where the page's words differ (pewpew.aura.triggers). */
 const DROPPED: Readonly<Record<string, string>> = { disarmed: "cues off" };
 
-/** What became of the last event: fired, or why not; one that holds no look was sent, to the pattern
- * alone. `short`, a fire that went through is its name and a ✓. */
+/** What became of the last event: fired, or why not; one that holds no look was sent, to the running
+ * look alone. `short`, a fire that went through is its name and a ✓. */
 export function lastText(last: LastEvent | null, short = false, cues: TriggersState["cues"] = {}): Outcome {
   if (!last) return { text: "", tick: false };
   if (!last.fired) return { text: `${last.name}: ${DROPPED[last.reason ?? ""] ?? last.reason ?? "dropped"}`, tick: false };
@@ -64,10 +64,10 @@ export function lastText(last: LastEvent | null, short = false, cues: TriggersSt
   return { text: `${last.name} ${cues[last.name]?.look === null ? "sent" : "fired"}`, tick: false };
 }
 
-/** What cue `name` does, in a few words: `cue1 → depth-charge for 20 s`, or `door → tells the pattern,
+/** What cue `name` does, in a few words: `cue1 → depth-charge for 20 s`, or `door → tells the look,
  * no look change`. */
 export function cueDoes(name: string, cues: TriggersState["cues"]): string {
   const cue = cues[name];
   if (!cue) return name;
-  return `${name} → ${cue.look === null ? "tells the pattern, no look change" : `${cue.look} for ${cue.hold} s`}`;
+  return `${name} → ${cue.look === null ? "tells the look, no look change" : `${cue.look} for ${cue.hold} s`}`;
 }

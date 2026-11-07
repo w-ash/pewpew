@@ -159,7 +159,7 @@ const MODULATORS_ABOUT = "A modulator keeps a knob moving: a wave, the beat, the
 export function LookSignals() {
   const { view } = usePanel(null);
   const signals = useWire((s) => s.aura?.stack.signals);
-  const look = useWire((s) => (s.aura ? (liveLook(s.aura.looks, s.aura.triggers) ?? s.aura.looks?.made ?? s.aura.pattern) : ""));
+  const look = useWire((s) => (s.aura ? (liveLook(s.aura.looks, s.aura.triggers) ?? s.aura.looks?.made ?? "") : ""));
   const about = useDisclosure();
   const shown = view.signals.filter((s) => !s.params.some((p) => ownKnob(p, signals) && view.front.includes(p)));
   if (!shown.length) return null;
@@ -209,7 +209,8 @@ export function useLayerKnobs(layer: string): { loose: readonly Param[]; section
 }
 
 /** Layer `layer`'s knobs (`useLayerKnobs`), in its open row or as the look's lone layer: its sections
- * (a program's steps) start folded to their titles unless `open`, headed at `level` (5 unless named). A
+ * (a program's steps, or one step's groups) start folded to their titles unless `open`, headed at `level`
+ * (5 unless named). A
  * layer of one section shows its knobs loose: the fold would hide them for nothing. For assistive tech,
  * each knob names its layer where the look has several. */
 export function LayerKnobList({ layer, open, level }: { layer: string; open?: boolean; level?: 4 | 5 }) {

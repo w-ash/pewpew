@@ -26,7 +26,7 @@ function useShown(refusal: Refusal | null, looks: LooksState, key: unknown): Ref
  * box; it says what a name needs as it is typed. "save as new" saves it under the name; a name a look has
  * makes it "overwrite", in two presses; Enter in the box presses it, and `onSave` gets what the save waits
  * for. Whether the look holds the brightness (`master`) goes with it. While what plays is a draft (a made
- * look, a pattern picked), the box starts empty, the name it offers shown in it, and an empty box keeps it
+ * look), the box starts empty, the name it offers shown in it, and an empty box keeps it
  * under that name, as the header's save does. It is the header's form, so its button is secondary: save
  * stays the header's one primary. While a cue holds a look, a save waits and says why: what plays is not
  * the operator's. */

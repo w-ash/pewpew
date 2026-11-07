@@ -25,7 +25,7 @@ const NO_LOOKS = "this run can't keep looks";
 /** The look in the room, first in the editor. Its header stays at the slot's top at every depth, its height
  * measured for what pins under it: its name, the only display text, whole, which gives way first on a narrow
  * screen, onto more lines; "· changed" while it is changed since saved, or ✦ draft while what plays is no
- * saved look (a made look, by its label, or a pattern picked, by the name a save gives it); then the
+ * saved look (a made look, by its label); then the
  * header's one primary, save, shown only while there is something to save (RA-27b §4 B): one press saves the
  * edits into the look, or keeps the draft under the name it offers, each keeping the look's own fade and its
  * choice of holding the brightness. With MAX_LOOKS saved, a draft's save is off, and a press says why under

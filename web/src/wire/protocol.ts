@@ -66,9 +66,9 @@ interface ModMessage {
 }
 
 /** Every knob of the running look in display order (pewpew.params spec()), each record's `name`
- * its address (`layers.base.comet.speed`, `signals.breath.rate`), plus the `layer` and `node` it
+ * its address (`layers.base.osc.freq`, `signals.breath.rate`), plus the `layer` and `node` it
  * belongs to (`node` "" for a layer's opacity, blend and enabled; `layer` "" and `node` the
- * signal's id for a signal's knob); when they change (a hot reload, a pick, a recall). A `params`
+ * signal's id for a signal's knob); when they change (a layer added or removed, a recall). A `params`
  * message always follows. */
 interface DeclareMessage {
   readonly type: "declare";
@@ -85,7 +85,7 @@ interface HealthMessage extends HealthState {
 }
 
 /** What a layer can run, for the page's "add layer" cards, and what each blend mode does
- * (pewpew.fx.catalog.page); again when an op file loads or the pattern names change. */
+ * (pewpew.fx.catalog.page). */
 interface CatalogMessage extends Catalog {
   readonly type: "catalog";
 }
@@ -94,14 +94,14 @@ interface CatalogMessage extends Catalog {
 export type RequestId = string | number;
 
 /** A declined request, to the client that sent it. The reason names the param,
- * pattern, look, fixture or cap, never a path, and carries no hint: the port has no login. */
+ * op, look, fixture or cap, never a path, and carries no hint: the port has no login. */
 interface RefusedMessage {
   readonly type: "refused";
   /** The request's type; for a request with an `id`, maybe one the engine does not know, or
    * null when its `type` is not text. */
   readonly control: Control | null;
   /** The address of what was refused: the param of a `set`, or the part of a `look`
-   * (`layers.base.comet.pattern`, `master`); null when no one part is to blame. */
+   * (`layers.base.osc.freq`, `master`); null when no one part is to blame. */
   readonly name: string | null;
   /** The request's `id`; null without one. */
   readonly id: RequestId | null;
@@ -127,11 +127,9 @@ export type ServerMessage =
 export type ClientMessage =
   /** `value` as JSON, in the param's kind, for the knob at address `name`. */
   | { readonly type: "set"; readonly name: string; readonly value: unknown }
-  /** One of the aura's `patterns`, by name, never a path, on `layer`; null for the bottom layer. */
-  | { readonly type: "pick"; readonly name: string; readonly layer: string | null }
-  /** A layer for the running look, in the looks file's form, its patterns by name, put under layer
+  /** A layer for the running look, in the looks file's form, put under layer
    * `below`, or on top when null. Without an `id` the engine gives it a free one made from its `out`
-   * node (`plasma`, `plasma2`). The look stays current, changed until a save keeps it. */
+   * node (`osc`, `osc2`). The look stays current, changed until a save keeps it. */
   | { readonly type: "add_layer"; readonly layer: Readonly<Record<string, unknown>>; readonly below: string | null }
   /** Stop layer `lid` of the running look; the last one stays. */
   | { readonly type: "remove_layer"; readonly lid: string }
@@ -145,11 +143,11 @@ export type ClientMessage =
   /** Crossfade over `fade` seconds, or the look's own fade when null. A recall during a fade waits for it to end. */
   | { readonly type: "recall"; readonly name: string; readonly fade: number | null }
   /** Fade to a whole look (looks v4, one look), unsaved, over `fade` seconds or its own fade when
-   * null; it ends a running fade. Its patterns go by name, never a file. Needs `run --accept-looks`;
+   * null; it ends a running fade. Needs `run --accept-looks`;
    * sent by clients outside the package, never by this page. */
   | { readonly type: "look"; readonly look: unknown; readonly fade: number | null }
   /** Fade to a look the engine makes from `seed` for its map, or from its own next seed when null; it plays
-   * unsaved, as a pick does, until a `save`. Refused when nothing it made passed its gate. */
+   * unsaved until a `save`. Refused when nothing it made passed its gate. */
   | { readonly type: "surprise"; readonly seed: number | null }
   /** Fade to a look the engine makes like the running one, moved by `strength` (above 0, at most 1; null for the
    * default) from `seed` (null for its own next), unsaved, as `surprise` does. */

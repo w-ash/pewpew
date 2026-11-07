@@ -18,10 +18,9 @@ const ICONS = {
   down: { fill: "M3.5 4.5h9L8 11.5z" },
   left: { fill: "M10.5 4.5v7L5 8z" },
   right: { fill: "M5.5 4.5v7L11 8z" },
-  // ● live; ✦ draft; ◼ a pattern; ≡ steps
+  // ● live; ✦ draft; ≡ steps
   dot: { fill: "M5 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0" },
   sparkle: { fill: "M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z" },
-  square: { fill: "M5 4h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" },
   lines: { stroke: "M3 4.5h10M3 8h10M3 11.5h10" },
   // ↻ in shuffle; ↺ back to saved; ↩ returns here; ⤒ shown above
   cycle: { stroke: "M13 8a5 5 0 1 1-1.46-3.54M11.54 1.9v2.56H8.98" },

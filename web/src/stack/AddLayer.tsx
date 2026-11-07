@@ -8,7 +8,7 @@ import { Panel } from "../design/Panel";
 import { useOnChange } from "../design/useOnChange";
 
 /** What a layer can run, as cards on shelves in two groups, each named for what a press adds: under
- * "ready to play" the patterns, open, the sources and the effects on the layers below; then, under "new
+ * "ready to play" the sources, open, and the effects on the layers below; then, under "new
  * layer from parts (advanced)", the ops by what they do, each card led by what a press adds first when its
  * example brings a source. A card adds its example right above layer `above`, the one picked, as the title
  * says, or on top when that is the top one. An add waits for its layer to run, which then `onAdded`
@@ -62,7 +62,7 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
           {held}
         </p>
       )}
-      <Accordion.Root className="shelves" inert={!!held} collapsible lazyMount unmountOnExit defaultValue={["patterns"]}>
+      <Accordion.Root className="shelves" inert={!!held} collapsible lazyMount unmountOnExit defaultValue={["sources"]}>
         {shelves.map(({ shelf, held }, i) => [
           i === 0 && (
             <h3 key="ready" className="group-head t-heading">
@@ -132,8 +132,7 @@ interface CardProps {
 /** `text`, its first letter in lower case after what a card brings (`new stripes → mirrors…`). */
 const lead = (text: string, after: boolean) => (after ? text.charAt(0).toLowerCase() + text.slice(1) : text);
 
-/** A card: one button, a row with its label (a pattern's in lower case, its file's name in its tooltip) and
- * under it its gist, led by what a press adds first when it
+/** A card: one button, a row with its label and under it its gist, led by what a press adds first when it
  * brings sources (`new stripes → mirrors one side of a pattern onto the other`), or why the map cannot
  * run it. The gist is the summary's first clause: what the rest says of how it works is for the docs. */
 function CardItem({ card, at, brings: bringing, dims, pending, busy, onAdd }: CardProps) {
@@ -149,7 +148,6 @@ function CardItem({ card, at, brings: bringing, dims, pending, busy, onAdd }: Ca
         className="card-add"
         aria-labelledby={`${id}name`}
         aria-describedby={`${id}gist`}
-        title={card.kind === "pattern" && card.label.toLowerCase() !== card.name ? card.name : undefined}
         disabled={off !== null}
         aria-disabled={(busy && off === null) || undefined}
         data-busy={pending === key || undefined}
@@ -160,7 +158,7 @@ function CardItem({ card, at, brings: bringing, dims, pending, busy, onAdd }: Ca
           <span className="plus" aria-hidden="true">
             +{" "}
           </span>
-          {card.kind === "pattern" ? card.label.toLowerCase() : card.label}
+          {card.label}
         </span>
         <span id={`${id}gist`} className="note gist">
           {off ?? (

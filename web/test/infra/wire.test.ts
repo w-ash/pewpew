@@ -14,7 +14,7 @@ import type { Held, LastEvent, TriggersState } from "../../src/aura/triggers";
 import { cueText, lastText } from "../../src/aura/triggers";
 import type { LookItem, LooksState } from "../../src/aura/looks";
 import { lookStatus } from "../../src/aura/looks";
-import { nowOf, patternList } from "../../src/aura/aura";
+import { nowOf } from "../../src/aura/aura";
 import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/stack/catalog";
 import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/stack/stack";
 import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/stack/stack";
@@ -54,7 +54,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
   mod: { keys: keys<Message<"mod">>({ type: true, values: true }) },
   aura: {
     keys: keys<Message<"aura">>({
-      type: true, pattern: true, patterns: true, stack: true, fading: true, progress: true, master: true, cap: true,
+      type: true, stack: true, fading: true, progress: true, master: true, cap: true,
       blackout: true, looks: true, triggers: true,
     }),
     fields: {
@@ -129,7 +129,6 @@ type Fields<K extends Control> = Readonly<Record<Exclude<keyof Extract<ClientMes
 
 const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   set: { name: true, value: true },
-  pick: { name: true, layer: true },
   add_layer: { layer: true, below: true },
   remove_layer: { lid: true },
   move_layer: { lid: true, to: true },
@@ -197,8 +196,7 @@ test("every message decodes through the wire and the store, and reads through th
   for (const p of declared) expect(store.value(p)).toEqual(readValue(p, values[p.name]));
 
   const aura = store.getState().aura!;
-  expect(patternList(aura).find((e) => e.current)).toEqual({ name: "zoo", current: true, pickable: true });
-  expect(aura.stack.layers.map((l) => [l.id, l.nodes.map((n) => n.label)])).toEqual([["base", ["zoo"]]]);
+  expect(aura.stack.layers.map((l) => [l.id, l.nodes.map((n) => [n.op, n.label])])).toEqual([["base", [["zoo_test", "Zoo"]]]]);
   expect(declared.map((p) => p.name)).toContain("layers.base.opacity");
   const { stack } = first("aura"); // the greeting's look, before the held trigger's
   expect(stack.signals.map((n) => [n.label, n.range])).toEqual([["LFO", [-1, 1]], ["Macro", [0, 1]]]);
@@ -214,20 +212,20 @@ test("every message decodes through the wire and the store, and reads through th
   expect(cueText("door", aura.triggers!.held, 0)).toBe("door · 9s");
   expect(lastText(aura.triggers!.last).text).toBe("door fired");
   expect(store.getState().error).toEqual({
-    text: "layers.base.zoo.render raised: RuntimeError: boom", source: "render", path: "layers.base.zoo",
+    text: "layers.base.render raised: RuntimeError: boom", source: "render", path: "layers.base",
   });
   expect(store.getState().refusals.set).toMatchObject({
     name: "layers.base.zoo.level", reason: "layers.base.zoo.level must be within 0.0..1.0, got 3.0",
   });
-  expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.x.pattern" });
-  expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.x.x.pattern" });
+  expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.osc.freq" });
+  expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.layer.osc.freq" });
 
   const catalog = store.getState().catalog!;
   const shelfOf = (c: Card): Shelf | undefined => [...shelve(catalog.cards)].find(([, held]) => held.some((h) => h.card === c))?.[0];
   expect(catalog.cards.map((c) => [c.name, shelfOf(c), offReason(c, stack.dims)])).toEqual([
-    ["wave", "patterns", null], ["kaleid", "space", "a strip has no plane to fold; use mirror along the strip"],
+    ["osc", "sources", null], ["kaleid", "space", "a strip has no plane to fold; use mirror along the strip"],
   ]);
-  expect(newLayer(catalog.cards[0]!.examples[0]!)).toMatchObject({ out: "wave", blend: "screen", opacity: 0.7 });
+  expect(newLayer(catalog.cards[0]!.examples[0]!)).toMatchObject({ out: "osc", blend: "screen", opacity: 0.7 });
 
   const health = store.getState().health as HealthState;
   expect(chip(health, 0).text).toBe("1 ok");

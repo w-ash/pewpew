@@ -152,7 +152,7 @@ test("the arm switch is absent with no trigger to arm", async () => {
 });
 
 test("the live look is scrolled into view in its row, and only the row moves", async () => {
-  const items = Array.from({ length: 12 }, (_, i) => ({ name: `look${i}`, pattern: "wave", fade: 1, cycle: false, master: false }));
+  const items = Array.from({ length: 12 }, (_, i) => ({ name: `look${i}`, fade: 1, cycle: false, master: false }));
   const { screen, receive } = await renderWired(
     <div className="panel" style={{ width: 320, height: 60, overflowY: "auto" }}>
       <Played />
@@ -201,49 +201,6 @@ test("focus on a knob when the connection is lost comes back to that knob once t
   await expect.element(screen.getByRole("heading", { name: "warm" })).toHaveFocus(); // meanwhile on the look
   for (const msg of rest) receive(msg);
   await expect.element(screen.getByRole("spinbutton", { name: "bands" })).toHaveFocus();
-});
-
-test("on a phone a lone pattern's pick is a list choice, pending until the engine runs it", async () => {
-  const { screen, sent, receive } = await renderWired(<Editor />);
-  const list = screen.getByRole("combobox", { name: "pattern" });
-  await list.selectOptions("wave");
-  expect(sent).toEqual([{ type: "pick", name: "wave", layer: null }]);
-  await expect.element(list).toHaveAttribute("data-busy");
-  receive(aura({ pattern: "wave" }));
-  await expect.element(list).not.toHaveAttribute("data-busy");
-  await expect.element(list).toHaveValue("wave");
-});
-
-test("wide, the patterns are a row; [ and ] step through them, but not over unsaved edits", async () => {
-  await page.viewport(1280, 800);
-  const { screen, sent, receive } = await renderWired(<Editor />);
-  await screen.getByRole("button", { name: "wave", exact: true }).click();
-  expect(sent).toEqual([{ type: "pick", name: "wave", layer: null }]);
-  await expect.element(screen.getByRole("button", { name: "wave", exact: true })).toHaveAttribute("data-busy");
-  receive(aura({ pattern: "wave" }));
-  await expect.element(screen.getByRole("button", { name: "wave", exact: true })).not.toHaveAttribute("data-busy");
-  await userEvent.keyboard("]");
-  expect(sent.at(-1)).toEqual({ type: "pick", name: "zoo", layer: null });
-  receive(aura({ pattern: "zoo", looks: { ...AURA.looks!, changed: true } }));
-  await expect.element(screen.getByRole("button", { name: "zoo", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await userEvent.keyboard("]");
-  expect(sent.filter((m) => m.type === "pick")).toHaveLength(2);
-  await page.viewport(414, 896);
-});
-
-test("wide, Tab into the patterns lands on the one pressed; the arrows move focus and pick nothing, as the role says", async () => {
-  await page.viewport(1280, 800);
-  const { screen, sent } = await renderWired(<Editor />);
-  screen.getByRole("button", { name: "reset to defaults" }).element().focus();
-  await userEvent.keyboard("{Tab}");
-  const zoo = screen.getByRole("button", { name: "zoo", exact: true });
-  await expect.element(zoo).toHaveFocus();
-  await expect.element(zoo).toHaveAttribute("aria-pressed", "true");
-  await expect.element(screen.getByRole("group", { name: "pattern" })).toBeVisible();
-  await userEvent.keyboard("{ArrowRight}");
-  await expect.element(zoo).not.toHaveFocus();
-  expect(sent.filter((m) => m.type === "pick")).toHaveLength(0);
-  await page.viewport(414, 896);
 });
 
 test("looks recall over the chosen fade, by tap and by number key", async () => {
@@ -351,18 +308,6 @@ test("Esc in the deck's ⋯ note closes it and hands focus back to the ⋯, whic
   // With nothing behind it there is no ⋯, rather than one that opens an empty note.
   receive(aura({ looks: null, triggers: null }));
   await expect.element(screen.getByRole("button", { name: /^more/ })).not.toBeInTheDocument();
-});
-
-test("a pattern from a file of the author's own says so, chosen, as a pattern from the gallery is", async () => {
-  await page.viewport(1280, 800);
-  const { screen, receive } = await renderWired(<Editor />);
-  receive(aura({ pattern: "boomer" }));
-  await expect.element(screen.getByText("your own file, not in the gallery")).toBeVisible();
-  const own = screen.getByRole("button", { name: "boomer" });
-  await expect.element(own).toHaveAttribute("aria-pressed", "true");
-  expect(getComputedStyle(own.element()).opacity).toBe("1");
-  expect(getComputedStyle(own.element()).borderStyle).toBe("solid");
-  await page.viewport(414, 896);
 });
 
 test("↻ marks the looks shuffle plays, for assistive tech in words, only when some are left out", async () => {
@@ -497,7 +442,7 @@ test("without a looks file, a look of layers says it cannot be saved", async () 
   const { screen, receive } = await renderWired(<Editor />);
   const note = screen.getByText(/^not saved: this run can't keep looks/);
   await expect.element(note).not.toBeInTheDocument();
-  const zoo = { id: "zoo", op: "pattern", label: "zoo", in: [] };
+  const zoo = { id: "zoo", op: "zoo_test", label: "Zoo", in: [] };
   const layers = [{ id: "base", nodes: [zoo] }, { id: "top", nodes: [zoo] }];
   receive(aura({ looks: null, stack: { ...AURA.stack, layers, front: ["level"] } }));
   await expect.element(note).toBeVisible();
@@ -669,30 +614,30 @@ test("a render error says what the room shows and what to do; the others show as
   const bar = screen.getByRole("status");
   await expect.element(screen.getByText("layers.base.zoo.render raised: ZeroDivisionError")).toHaveClass("status-detail");
   expect(document.querySelector(".status-bar")?.firstChild?.textContent).toBe(
-    "The room is pulsing red: zoo failed. Pick another pattern or look.",
+    "The room is pulsing red: Zoo failed. Pick another look.",
   );
-  const top = { id: "top", nodes: [{ id: "boom", op: "pattern", label: "boom", in: [] }] };
+  const top = { id: "top", nodes: [{ id: "boom", op: "osc", label: "Oscillator", in: [] }] };
   receive(aura({ stack: { ...AURA.stack, layers: [...AURA.stack.layers, top] } }));
   receive({ type: "status", error: "layers.top.boom.render raised: ZeroDivisionError", source: "render", path: "layers.top.boom" });
   await expect.element(screen.getByText("layers.top.boom.render raised: ZeroDivisionError")).toHaveClass("status-detail");
   expect(document.querySelector(".status-bar")?.firstChild?.textContent).toBe(
-    "Layer top (boom) failed. Turn it off or pick another pattern for it.",
+    "Layer top (Oscillator) failed. Turn it off or remove it.",
   );
-  receive({ type: "status", error: "reload failed, last-good pattern still running: SyntaxError", source: "reload", path: null });
-  await expect.element(bar).toHaveTextContent("reload failed, last-good pattern still running: SyntaxError");
+  receive({ type: "status", error: "reload failed, last-good room still running: ValueError", source: "reload", path: null });
+  await expect.element(bar).toHaveTextContent("reload failed, last-good room still running: ValueError");
   expect(document.querySelector(".status-detail")).toBeNull();
 });
 
 test("the bar's lines: a refusal first, then the error, then the plan note", () => {
   const render = { text: "layers.base.zoo.render raised", source: "render", path: "layers.base.zoo" } as const;
-  const refusal = { control: "pick", name: null, reason: "no pattern named x", seq: 1 } as const;
+  const refusal = { control: "recall", name: null, reason: "no look named x", seq: 1 } as const;
   const lone = AURA.stack.layers;
-  expect(barLines(refusal, render, lone, true, "plan")).toEqual(["no pattern named x"]);
+  expect(barLines(refusal, render, lone, true, "plan")).toEqual(["no look named x"]);
   expect(barLines(null, render, lone, false, null)).toEqual([
-    "The room is pulsing red: zoo failed. Pick another pattern.", "layers.base.zoo.render raised",
+    "The room is pulsing red: Zoo failed. Add a layer, then remove this one.", "layers.base.zoo.render raised",
   ]);
   expect(barLines(null, { ...render, path: "layers.base.gone" }, lone, false, null)[0]).toBe(
-    "The room is pulsing red: layers.base.gone failed. Pick another pattern.",
+    "The room is pulsing red: layers.base.gone failed. Add a layer, then remove this one.",
   );
   expect(barLines(null, { ...render, source: "looks", path: null }, lone, true, "plan")).toEqual(["layers.base.zoo.render raised"]);
   expect(barLines(null, null, lone, true, "plan")).toEqual(["plan"]);
@@ -700,17 +645,17 @@ test("the bar's lines: a refusal first, then the error, then the plan note", () 
 });
 
 test("a failing layer among others is named, not said to turn the room red, and its row is what fixes it", () => {
-  const layers = [{ id: "base", nodes: [{ id: "wave", op: "pattern", label: "wave", in: [] }] }, { id: "top", nodes: [] }];
+  const layers = [{ id: "base", nodes: [{ id: "wave", op: "osc", label: "Oscillator", in: [] }] }, { id: "top", nodes: [] }];
   const failed = (path: string) => barLines(null, { text: `${path}.render raised`, source: "render", path }, layers, true, null)[0];
-  expect(failed("layers.top.boom")).toBe("Layer top failed. Turn it off or pick another pattern for it.");
-  expect(failed("layers.base.wave")).toBe("Layer base (wave) failed. Turn it off or pick another pattern for it.");
+  expect(failed("layers.top.boom")).toBe("Layer top failed. Turn it off or remove it.");
+  expect(failed("layers.base.wave")).toBe("Layer base (Oscillator) failed. Turn it off or remove it.");
 });
 
 test("what failed, in a few words: the phone bar's lead and the health panel's reason", () => {
-  const layers = [{ id: "base", nodes: [{ id: "wave", op: "pattern", label: "wave", in: [] }] }, { id: "top", nodes: [] }];
+  const layers = [{ id: "base", nodes: [{ id: "wave", op: "osc", label: "Oscillator", in: [] }] }, { id: "top", nodes: [] }];
   const render = (path: string) => ({ text: "raised", source: "render", path }) as const;
-  expect(failedText(render("layers.base.wave"), layers)).toBe("base · wave failed");
-  expect(failedText(render("layers.base.wave"), layers.slice(0, 1))).toBe("wave failed");
+  expect(failedText(render("layers.base.wave"), layers)).toBe("base · Oscillator failed");
+  expect(failedText(render("layers.base.wave"), layers.slice(0, 1))).toBe("Oscillator failed");
   expect(failedText(render("layers.top.boom"), layers)).toBe("top failed");
   expect(failedText({ text: "reload failed", source: "reload", path: null }, layers)).toBeNull();
   expect(failedText(null, layers)).toBeNull();
@@ -731,10 +676,6 @@ test("a refusal puts back what the control was waiting on", async () => {
       <Played />
     </>,
   );
-  await screen.getByRole("combobox", { name: "pattern" }).selectOptions("wave");
-  receive(refused("pick", "no"));
-  await expect.element(screen.getByRole("combobox", { name: "pattern" })).not.toHaveAttribute("data-busy");
-  await expect.element(screen.getByRole("combobox", { name: "pattern" })).toHaveValue("zoo");
   await screen.getByRole("textbox", { name: "look name" }).fill("warm");
   await screen.getByRole("button", { name: "overwrite" }).click();
   receive(refused("save", "no"));

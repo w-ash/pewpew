@@ -1,28 +1,27 @@
 import { expect, test } from "vitest";
 import {
-  argParts, blendsAbout, brings, fits, newLayer, newText, offReason, patternLabels, SHELVES, shelve, shortText, showsBlack, sourceLabels, summaryText, type Card,
+  argParts, blendsAbout, brings, fits, newLayer, newText, offReason, SHELVES, shelve, shortText, showsBlack, sourceLabels, summaryText, type Card,
 } from "../../src/stack/catalog";
 import { first } from "../fixtures/messages";
 
 const { cards, blends } = first("catalog");
-const [wave, kaleid] = cards as [Card, Card];
+const [osc, kaleid] = cards as [Card, Card];
 const op = (sig: string): Card => ({ ...kaleid, sig });
 
 const BELOW = { py: "below().hue(90)", json: { out: "hue", nodes: { below: { op: "below" }, hue: { op: "hue", in: ["below"] } } }, dims: [1, 2, 3] };
 
-test("a card goes on one shelf: a pattern's, an op that can act on the layers below on theirs, else its op's by what it does", () => {
+test("a card goes on one shelf: an op that can act on the layers below on theirs, else its op's by what it does", () => {
   const names = (cs: readonly Card[]) => [...shelve(cs)].map(([shelf, held]) => [shelf, held.map((h) => `${h.card.name}/${h.at}`)]);
-  expect(names([wave])[0]).toEqual(["patterns", ["wave/0"]]);
+  expect(names([osc])[0]).toEqual(["sources", ["osc/0"]]);
   expect(["source", "coord", "color", "state", "combine", "modulate"].map((sig) => names([op(sig)]).find(([, held]) => held?.length)?.[0])).toEqual([
     "sources", "space", "color", "trails and glow", "combine two patterns", "combine two patterns",
   ]);
-  expect(SHELVES.slice(0, 3)).toEqual(["patterns", "sources", "effects on the layers below"]); // what runs as it is, first
+  expect(SHELVES.slice(0, 2)).toEqual(["sources", "effects on the layers below"]); // what runs as it is, first
   const hue: Card = { ...kaleid, name: "hue", sig: "color", examples: [kaleid.examples[0]!, BELOW] };
   expect(names([hue]).filter(([, held]) => held?.length)).toEqual([["effects on the layers below", ["hue/1"]]]);
   // Plumbing that means something only inside a program is no card.
-  const plumbing = ["below", "prev", "pattern"].map((name): Card => ({ ...kaleid, name, sig: "source" }));
+  const plumbing = ["below", "prev"].map((name): Card => ({ ...kaleid, name, sig: "source" }));
   expect(names(plumbing).filter(([, held]) => held?.length)).toEqual([]);
-  expect(SHELVES[0]).toBe("patterns");
 });
 
 test("a card names the sources its example brings, none for a source or an effect on the layers below", () => {
@@ -33,20 +32,20 @@ test("a card names the sources its example brings, none for a source or an effec
   expect([newText(["Oscillator"]), newText(["Noise", "Ripple"])]).toEqual(["new stripes", "new noise hills and ripple"]);
 });
 
-test("a card the map cannot run says what to use instead; a pattern runs on any map", () => {
+test("a card the map cannot run says what to use instead; a source of every dimension runs on any map", () => {
   expect(offReason(kaleid, 1)).toBe("a strip has no plane to fold; use mirror along the strip");
   expect(offReason(kaleid, 0)).toBe(offReason(kaleid, 1)); // a point runs what a strip runs
-  expect([offReason(kaleid, 2), offReason(kaleid, 3), offReason(wave, 0)]).toEqual([null, null, null]);
+  expect([offReason(kaleid, 2), offReason(kaleid, 3), offReason(osc, 0)]).toEqual([null, null, null]);
   expect(offReason({ ...kaleid, fix: "" }, 1)).toBe("needs a map of 2 or 3 dimensions");
 });
 
 test("a card whose op runs on the map but whose own example does not says so; its other examples that run stay", () => {
-  // The pattern op runs on a strip; its own example folds it with kaleid, which does not.
+  // The hue op runs on a strip; its own example folds its source with kaleid, which does not.
   const folded = { ...kaleid.examples[0]!, dims: [2, 3] };
   const tinted = { ...kaleid.examples[0]!, dims: [1, 2, 3] };
-  const pattern: Card = { ...kaleid, name: "pattern", dims: [1, 2, 3], fix: "", examples: [folded, tinted] };
-  expect(offReason(pattern, 1)).toBe("its example needs a map of 2 or 3 dimensions");
-  expect(offReason(pattern, 2)).toBeNull();
+  const hue: Card = { ...kaleid, name: "hue", sig: "color", dims: [1, 2, 3], fix: "", examples: [folded, tinted] };
+  expect(offReason(hue, 1)).toBe("its example needs a map of 2 or 3 dimensions");
+  expect(offReason(hue, 2)).toBeNull();
   expect([fits(folded, 1), fits(folded, 0), fits(folded, 3), fits(tinted, 0)]).toEqual([false, false, true, true]);
 });
 
@@ -75,9 +74,4 @@ test("a blend's help leads with what the chosen mode does, and on the bottom lay
   expect(blendsAbout(blends, "multiply", true).lead.split("\n").at(-1)).toBe("Nothing is below this layer, so multiply shows black.");
   expect(blendsAbout(blends, "screen", true).lead.split("\n")).toHaveLength(1);
   expect([showsBlack(blends, "multiply"), showsBlack(blends, "screen"), showsBlack(blends, "nope")]).toEqual([true, false, false]);
-});
-
-test("a pattern goes by its card's label in lower case, its doc's title; one no card names, by its name", () => {
-  const labels = patternLabels([{ ...wave, name: "colorplasma", label: "Color plasma" }, kaleid]);
-  expect([...labels]).toEqual([["colorplasma", "color plasma"]]);
 });

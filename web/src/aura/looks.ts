@@ -16,7 +16,7 @@ export interface LooksState {
   readonly items: readonly LookItem[];
   /** The look last recalled or saved. */
   readonly current: string | null;
-  /** The live pattern, a param or a stored master has moved off `current`, or off the made look. */
+  /** A layer, a param or a stored master has moved off `current`, or off the made look. */
   readonly changed: boolean;
   /** The look fading in. */
   readonly fading: string | null;
@@ -83,8 +83,8 @@ export function varyReason(looks: LooksState): string | null {
 export const MAX_LOOKS = 64;
 
 /** What the look header's one save does now (RA-27b §4 B, the save states): `over`, the edits into the
- * current look, changed since saved; `draft`, what plays and no saved look is (a made look, or a pattern
- * picked), kept under the name it offers, or, at MAX_LOOKS, off and `full` says why; else `none`, and
+ * current look, changed since saved; `draft`, what plays and no saved look is (a made look), kept
+ * under the name it offers, or, at MAX_LOOKS, off and `full` says why; else `none`, and
  * `why`, which `k` says. */
 export type Save =
   | { readonly kind: "over"; readonly name: string }
@@ -120,7 +120,7 @@ export function pendingText(looks: LooksState | null): string | null {
   return looks?.pending ? `${looks.pending} next, when this fade ends` : null;
 }
 
-/** Whether the live state holds edits a recall, a made look or a pick would lose: the current look, or the
+/** Whether the live state holds edits a recall or a made look would lose: the current look, or the
  * made look that plays, changed, and no recall waits to replace it (which a cue's end can leave over the
  * held look's layers). */
 export function unsaved(looks: LooksState | null): boolean {

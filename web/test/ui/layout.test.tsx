@@ -13,7 +13,7 @@ test("on a phone the layout tools take the editor's place, and the deck stays", 
   await expect.element(screen.getByText(NO_ROOM)).not.toBeInTheDocument();
   await toggle.click();
   await expect.element(screen.getByText(NO_ROOM)).toBeVisible();
-  await expect.element(screen.getByRole("combobox", { name: "pattern" })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("switch", { name: "invert" })).not.toBeInTheDocument(); // the editor's
   await expect.element(screen.getByRole("button", { name: "blackout" })).toBeVisible();
   await userEvent.keyboard("l");
   await expect.element(screen.getByText(NO_ROOM)).not.toBeInTheDocument();
@@ -24,7 +24,7 @@ test("wide, the layout tools sit under the canvas beside the editor", async () =
   const { screen } = await renderWired(<App />);
   await screen.getByRole("button", { name: "layout" }).click();
   await expect.element(screen.getByText(NO_ROOM)).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "zoo", exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("switch", { name: "invert" })).toBeVisible(); // the editor's
   await page.viewport(414, 896);
 });
 

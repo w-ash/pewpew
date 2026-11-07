@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { decodeParam, readValue } from "../../src/params/kinds";
-import { PATTERNS } from "../fixtures/describe";
+import { OPS } from "../fixtures/describe";
 
-const records = Object.entries(PATTERNS).flatMap(([pattern, rs]) => rs.map((r) => [`${pattern}.${r.name}`, r] as const));
+const records = Object.entries(OPS).flatMap(([op, rs]) => rs.map((r) => [`${op}.${r.name}`, r] as const));
 
 test("describe.json covers every kind", () => {
   const kinds = new Set(records.map(([, r]) => r.kind));

@@ -2,7 +2,7 @@ import wire from "../../../tests/goldens/wire.json";
 import type { BoardHealth, HealthState } from "../../src/health/health";
 import type { AuraState } from "../../src/aura/aura";
 import type { Control, HelloMessage, ServerMessage } from "../../src/wire/protocol";
-import { PATTERNS } from "./describe";
+import { OPS } from "./describe";
 
 type Message<T extends ServerMessage["type"]> = Extract<ServerMessage, { type: T }>;
 
@@ -22,7 +22,7 @@ export function first<T extends ServerMessage["type"]>(type: T, messages: readon
 const { type: _aura, ...aura } = first("aura");
 const { type: _health, ...greetingHealth } = first("health");
 
-/** The greeting's aura state: zoo of colorplasma, wave and zoo, at master 0.8, in look warm of warm and
+/** The greeting's aura state: one layer running the zoo_test op, at master 0.8, in look warm of warm and
  * cool, with triggers door and bell disarmed. */
 export const AURA: AuraState = aura;
 
@@ -35,13 +35,14 @@ export function refused(control: Control, reason: string, name: string | null = 
   return { type: "refused", control, name, id: null, reason };
 }
 
-/** The greeting of an engine running `pattern`: its declarations and defaults stand in for the zoo's. */
-export function greeting(pattern = "zoo"): ServerMessage[] {
-  const records = PATTERNS[pattern] ?? [];
+/** The greeting of an engine whose knobs are op `op`'s: its declarations and defaults stand in for the
+ * golden's. */
+export function greeting(op = "zoo_test"): ServerMessage[] {
+  const records = OPS[op] ?? [];
   return GREETING.map((msg): ServerMessage => {
     if (msg.type === "declare") return { type: "declare", params: records };
     if (msg.type === "params") return { type: "params", values: Object.fromEntries(records.map((r) => [r.name, r.default])) };
-    return msg.type === "aura" ? { ...msg, pattern } : msg;
+    return msg;
   });
 }
 

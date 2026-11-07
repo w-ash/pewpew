@@ -1,5 +1,5 @@
 // What a page adds a layer from: the `catalog` message (pewpew.fx.catalog.page), a card for each
-// pattern and each op that draws, and what each blend mode does.
+// op that draws, and what each blend mode does.
 
 /** A program a card adds: its builder chain, the program in the looks file's form, and the map
  * dimensions it runs on (those each of its ops takes). */
@@ -10,16 +10,15 @@ export interface Example {
 }
 
 export interface Card {
-  readonly kind: "pattern" | "op";
+  readonly kind: "op";
   readonly name: string;
   readonly label: string;
-  /** One sentence, an arg's name in backticks (`summaryText` shows it plain); "" for a pattern the
-   * gallery does not describe. */
+  /** One sentence, an arg's name in backticks (`summaryText` shows it plain). */
   readonly summary: string;
-  /** An op's signature (`source`, `coord`, `color`, `combine`, `modulate`); null for a pattern. */
-  readonly sig: string | null;
-  /** The map dimensions the op runs on; null: any map. */
-  readonly dims: readonly number[] | null;
+  /** The op's signature (`source`, `coord`, `color`, `combine`, `modulate`). */
+  readonly sig: string;
+  /** The map dimensions the op runs on. */
+  readonly dims: readonly number[];
   /** What to use on a map the op does not run on, or "". */
   readonly fix: string;
   /** The programs it adds, the first the card's own. */
@@ -39,11 +38,11 @@ export interface Catalog {
   readonly blends: readonly BlendNote[];
 }
 
-/** The catalog's shelves, in the order a page lists them: what runs as it is (patterns, the sources a
+/** The catalog's shelves, in the order a page lists them: what runs as it is (the sources a
  * layer is drawn from, each with its own color, and the effects on the layers below, each op whose
  * example reads them); then the parts a new layer is built from, by what they do. Two fields an op
  * combines are its own; the layer stack's blend modes are another thing. */
-export const SHELVES = ["patterns", "sources", "effects on the layers below", "space", "color", "trails and glow", "combine two patterns"] as const;
+export const SHELVES = ["sources", "effects on the layers below", "space", "color", "trails and glow", "combine two patterns"] as const;
 export type Shelf = (typeof SHELVES)[number];
 
 /** The first shelf of the parts a new layer is built from. */
@@ -51,9 +50,9 @@ export const PARTS_SHELF: Shelf = "space";
 
 const BY_SIG: Readonly<Record<string, Shelf>> = { source: "sources", coord: "space", color: "color", state: "trails and glow" };
 
-/** Ops that mean something only inside a program: the layers below as they are, the layer's own last
- * frame, a pattern (the patterns shelf has them). The page edits no program, so they are no card. */
-const PLUMBING = new Set(["below", "prev", "pattern"]);
+/** Ops that mean something only inside a program: the layers below as they are, and the layer's own
+ * last frame. The page edits no program, so they are no card. */
+const PLUMBING = new Set(["below", "prev"]);
 
 /** A card on a shelf, and the example its press adds. */
 export interface Shelved {
@@ -62,28 +61,24 @@ export interface Shelved {
   readonly at: number;
 }
 
-/** What each shelf holds of `cards`, each card on one: a pattern on "patterns"; an op with an
- * example that reads the layers below on "effects on the layers below", with that example; any
- * other op on its signature's shelf, with its own. */
+/** What each shelf holds of `cards`, each card on one: an op with an example that reads the layers
+ * below on "effects on the layers below", with that example; any other op on its signature's shelf,
+ * with its own. */
 export function shelve(cards: readonly Card[]): ReadonlyMap<Shelf, readonly Shelved[]> {
   const out = new Map<Shelf, Shelved[]>(SHELVES.map((s) => [s, []]));
   for (const card of cards) {
-    if (card.kind === "pattern") {
-      out.get("patterns")!.push({ card, at: 0 });
-      continue;
-    }
     if (PLUMBING.has(card.name)) continue;
     const at = card.examples.findIndex((e) => readsBelow(e.json));
     if (at >= 0) out.get("effects on the layers below")!.push({ card, at });
-    else out.get(BY_SIG[card.sig ?? ""] ?? "combine two patterns")!.push({ card, at: 0 });
+    else out.get(BY_SIG[card.sig] ?? "combine two patterns")!.push({ card, at: 0 });
   }
   return out;
 }
 
-/** Whether `takes`, a list of map dimensions (null: any), holds a map of `dims` dimensions (the
- * stack's: 0 to 3). As the engine counts them, a point runs what a strip runs. */
-function holds(takes: readonly number[] | null, dims: number): boolean {
-  return !takes || takes.includes(Math.max(dims, 1));
+/** Whether `takes`, a list of map dimensions, holds a map of `dims` dimensions (the stack's: 0 to 3).
+ * As the engine counts them, a point runs what a strip runs. */
+function holds(takes: readonly number[], dims: number): boolean {
+  return takes.includes(Math.max(dims, 1));
 }
 
 const needs = (takes: readonly number[]) => `needs a map of ${takes.join(" or ")} dimensions`;
@@ -96,7 +91,7 @@ export function fits(example: Example, dims: number): boolean {
 /** Why a map of `dims` dimensions cannot run `card`'s own example, or null when it can: the op's own
  * reason first, with what to use instead. */
 export function offReason(card: Card, dims: number): string | null {
-  if (!holds(card.dims, dims)) return card.fix || needs(card.dims ?? []);
+  if (!holds(card.dims, dims)) return card.fix || needs(card.dims);
   const own = card.examples[0];
   return !own || fits(own, dims) ? null : `its example ${needs(own.dims)}`;
 }
@@ -118,23 +113,16 @@ export function argParts(text: string): readonly string[] {
   return text.split("`");
 }
 
-/** What a page calls each pattern among `cards`, by its name: its card's label (the title its doc starts
- * with: `color plasma` for colorplasma), in lower case, as every label shows. A pattern no card names
- * (a file of the author's own) goes by its name. */
-export function patternLabels(cards: readonly Card[]): ReadonlyMap<string, string> {
-  return new Map(cards.filter((c) => c.kind === "pattern").map((c) => [c.name, c.label.toLowerCase()]));
-}
-
 /** The label of each source op among `cards`, by op. */
 export function sourceLabels(cards: readonly Card[]): ReadonlyMap<string, string> {
-  return new Map(cards.filter((c) => c.kind === "op" && c.sig === "source").map((c) => [c.name, c.label]));
+  return new Map(cards.filter((c) => c.sig === "source").map((c) => [c.name, c.label]));
 }
 
 /** What a press of `card` brings besides its own op: the labels of the sources (`sources`, by op)
- * its example at `at` starts from; none for a source, a pattern, or an effect on the layers below. */
+ * its example at `at` starts from; none for a source or an effect on the layers below. */
 export function brings(card: Card, at: number, sources: ReadonlyMap<string, string>): readonly string[] {
   const json = card.examples[at]?.json;
-  if (card.kind === "pattern" || card.sig === "source" || !json || readsBelow(json)) return [];
+  if (card.sig === "source" || !json || readsBelow(json)) return [];
   const nodes = json.nodes;
   if (typeof nodes !== "object" || nodes === null) return [];
   const ops = Object.values(nodes).map((n: unknown) => String((n as { op?: unknown })?.op ?? ""));

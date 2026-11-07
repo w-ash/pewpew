@@ -35,13 +35,12 @@ async function app(...ids: string[]) {
 const last = (sent: ClientMessage[]) => sent.at(-1);
 const focused = () => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent;
 
-test("a look of one layer has no layer chrome: its pattern pick and knobs under its heading, then a quiet + layer to the catalog; Esc closes it", async () => {
+test("a look of one layer has no layer chrome: its knobs under its heading, then a quiet + layer to the catalog; Esc closes it", async () => {
   const { screen } = await app("base");
-  await expect.element(screen.getByRole("heading", { name: "base · pattern" })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "base · 1 step" })).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: /^layers/ })).not.toBeInTheDocument();
   await expect.element(screen.getByRole("button", { name: /^base/ })).not.toBeInTheDocument(); // no row
   await expect.element(screen.getByRole("switch", { name: "layer base" })).not.toBeInTheDocument();
-  await expect.element(screen.getByRole("combobox", { name: "pattern" })).toBeVisible();
   const add = screen.getByRole("button", { name: "+ layer" });
   await expect.element(add).toHaveAttribute("data-variant", "tertiary"); // quiet
   // Its knobs sit under its heading, before + layer: not after a list.
@@ -49,7 +48,7 @@ test("a look of one layer has no layer chrome: its pattern pick and knobs under 
   expect(knob.bottom).toBeLessThan(add.element().getBoundingClientRect().top);
   await add.click();
   await expect.element(screen.getByRole("region", { name: "add layer" })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "patterns" })).toHaveFocus();
+  await expect.element(screen.getByRole("button", { name: "sources" })).toHaveFocus();
   await expect.element(screen.getByRole("textbox", { name: "look name" })).not.toBeInTheDocument(); // hidden under it
   await screen.getByRole("button", { name: "close add layer" }).click();
   await expect.element(screen.getByRole("button", { name: "+ layer" })).toHaveFocus();
@@ -66,8 +65,6 @@ test("a lone layer that runs a program heads its steps, folded, with no row, ord
   receive(aura({ stack: { ...AURA.stack, layers: [{ id: "base", nodes: program }], routes: [], front: [] } }));
   await expect.element(screen.getByRole("heading", { level: 3, name: "base · 2 steps" })).toBeVisible();
   expect(document.querySelector(".chain")).toBeNull(); // its wiring would say no more than its steps
-  await expect.element(screen.getByRole("combobox", { name: "pattern" })).not.toBeInTheDocument();
-  await expect.element(screen.getByRole("button", { name: "replace with pattern…" })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "move base up" })).not.toBeInTheDocument();
   await expect.element(screen.getByRole("button", { name: "remove" })).not.toBeInTheDocument();
   await expect.element(screen.getByRole("combobox", { name: "blend · base" })).not.toBeInTheDocument();
@@ -178,7 +175,7 @@ test("a row says so while a knob of its layer is off the look as saved", async (
   await expect.element(screen.getByRole("button", { name: "base zoo", exact: true })).toBeVisible();
 });
 
-test("the layers list the top one first; the picked row's mix and pattern go to its layer", async () => {
+test("the layers list the top one first; the picked row's mix goes to its layer", async () => {
   const { screen, sent, receive } = await app("base", "top");
   const rows = [...document.querySelectorAll(".layer .layer-id")].map((el) => el.textContent);
   expect(rows).toEqual(["top", "base"]);
@@ -194,8 +191,6 @@ test("the layers list the top one first; the picked row's mix and pattern go to 
   expect(last(sent)).toEqual({ type: "set", name: "layers.top.opacity", value: 0.995 });
   await screen.getByRole("combobox", { name: "blend · top" }).selectOptions("screen");
   expect(last(sent)).toEqual({ type: "set", name: "layers.top.blend", value: "screen" });
-  await screen.getByRole("combobox", { name: "pattern" }).selectOptions("wave");
-  expect(last(sent)).toEqual({ type: "pick", name: "wave", layer: "top" });
   receive({ type: "status", error: "layers.base.zoo.render raised: boom", source: "render", path: "layers.base.zoo" });
   await expect.element(screen.getByRole("button", { name: "base zoo failed" })).toBeVisible();
   // Picking the other row shows its controls and its knobs instead.
@@ -282,17 +277,17 @@ test("remove takes two presses; focus goes to the next row, or to + layer when o
 test("a card adds its example screened over the look, then its row opens with focus", async () => {
   const { screen, sent, receive } = await app("base");
   await screen.getByRole("button", { name: "+ layer" }).click();
-  const wave = screen.getByRole("button", { name: "wave", exact: true });
-  await expect.element(wave).toHaveAccessibleDescription("Bands of light cross the room in one direction");
-  await wave.click();
+  const osc = screen.getByRole("button", { name: "Oscillator", exact: true });
+  await expect.element(osc).toHaveAccessibleDescription("Stripes along one axis that travel across the room");
+  await osc.click();
   expect(last(sent)).toEqual({
     type: "add_layer", below: null,
-    layer: { out: "wave", nodes: { wave: { op: "pattern", args: { pattern: "wave" } } }, blend: "screen", opacity: 0.7 },
+    layer: { out: "osc", nodes: { osc: { op: "osc", args: { freq: 8, sync: 0.1 } } }, blend: "screen", opacity: 0.7 },
   });
-  await expect.element(wave).toHaveAttribute("data-busy");
-  for (const msg of stacked("base", "wave")) receive(msg);
+  await expect.element(osc).toHaveAttribute("data-busy");
+  for (const msg of stacked("base", "osc")) receive(msg);
   await expect.element(screen.getByRole("region", { name: "add layer" })).not.toBeInTheDocument();
-  const row = screen.getByRole("button", { name: "wave zoo" });
+  const row = screen.getByRole("button", { name: "osc zoo" });
   await expect.element(row).toHaveFocus();
   await expect.element(row).toHaveAttribute("aria-expanded", "true");
 });
@@ -302,10 +297,10 @@ test("a card adds its layer right above the picked one, as the title says; a sec
   await screen.getByRole("button", { name: "base zoo" }).click();
   await screen.getByRole("button", { name: "+ layer" }).click();
   await expect.element(screen.getByRole("region", { name: "add above base" })).toBeVisible();
-  const wave = screen.getByRole("button", { name: "wave", exact: true });
-  await wave.dblClick();
+  const osc = screen.getByRole("button", { name: "Oscillator", exact: true });
+  await osc.dblClick();
   expect(sent.filter((m) => m.type === "add_layer")).toEqual([expect.objectContaining({ below: "top" })]);
-  await expect.element(wave).toHaveAttribute("aria-disabled", "true");
+  await expect.element(osc).toHaveAttribute("aria-disabled", "true");
 });
 
 test("Esc closes the catalog after a press on its empty ground", async () => {
@@ -322,7 +317,7 @@ test("while a cue holds a look the open catalog waits, inert, and says why, as t
   const { screen, receive } = await app("base");
   await screen.getByRole("button", { name: "+ layer" }).click();
   const panel = screen.getByRole("region", { name: "add layer" });
-  await expect.element(screen.getByRole("button", { name: "wave", exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Oscillator", exact: true })).toBeVisible();
   receive(aura({ triggers: { ...AURA.triggers!, armed: true, held: { trigger: "door", look: "cool", until: 9 } } }));
   await expect.element(panel.getByText("door is playing cool: add a layer when it ends")).toBeVisible();
   expect(document.querySelector(".shelves")?.hasAttribute("inert")).toBe(true);
@@ -351,20 +346,19 @@ test("a card whose own example the map cannot run says so; one that reads the la
   const { screen, sent, receive } = await app("base");
   const { cards, blends } = first("catalog");
   const kaleid = cards[1]!;
-  const folded = { ...kaleid.examples[0]!, py: 'pattern("plasma").kaleid(5)', dims: [2, 3] };
+  const folded = { ...kaleid.examples[0]!, py: "noise(3).kaleid(5)", dims: [2, 3] };
   const tinted = {
-    py: 'pattern("wave").hue(60)', dims: [1, 2, 3],
-    json: { out: "hue", nodes: { wave: { op: "pattern", args: { pattern: "wave" } }, hue: { op: "hue", in: ["wave"], args: { shift: 60 } } } },
+    py: "osc(8).hue(60)", dims: [1, 2, 3],
+    json: { out: "hue", nodes: { osc: { op: "osc", args: { freq: 8 } }, hue: { op: "hue", in: ["osc"], args: { amount: 60 } } } },
   };
   const shape = { ...kaleid, name: "shape", label: "Shape", sig: "source", dims: [1, 2, 3], fix: "", examples: [folded, tinted] };
   receive({ type: "catalog", blends, cards: [shape] });
-  await screen.getByRole("button", { name: "+ layer" }).click();
-  await screen.getByRole("button", { name: "sources" }).click();
+  await screen.getByRole("button", { name: "+ layer" }).click(); // sources, open
   const card = screen.getByRole("button", { name: "Shape" });
   await expect.element(card).toBeDisabled();
   await expect.element(card).toHaveAccessibleDescription("its example needs a map of 2 or 3 dimensions");
   const below = { py: "below().hue(90)", dims: [1, 2, 3], json: { out: "hue", nodes: { below: { op: "below" }, hue: { op: "hue", in: ["below"] } } } };
-  receive({ type: "catalog", blends, cards: [{ ...kaleid, name: "hue", label: "Hue", sig: "color", dims: null, fix: "", examples: [tinted, below] }] });
+  receive({ type: "catalog", blends, cards: [{ ...kaleid, name: "hue", label: "Hue", sig: "color", dims: [1, 2, 3], fix: "", examples: [tinted, below] }] });
   await screen.getByRole("button", { name: "effects on the layers below" }).click();
   await screen.getByRole("button", { name: "Hue" }).click();
   expect(last(sent)).toMatchObject({ type: "add_layer", layer: below.json }); // it acts on them as they are: normal, at 1
@@ -411,10 +405,3 @@ test("▲ that moves a layer to the top hands focus to its ▼; a press on + lay
   await expect.element(screen.getByRole("region", { name: "add layer" })).not.toBeInTheDocument();
 });
 
-test("where the aura offers no patterns, a layer has no pattern pick and no replace with pattern…", async () => {
-  const { screen, receive } = await app("base", "top");
-  receive(aura({ patterns: [], stack: { ...AURA.stack, layers: [{ id: "base", nodes: [{ id: "osc", op: "osc", label: "Osc", in: [] }] }, { id: "top", nodes: [{ id: "osc", op: "osc", label: "Osc", in: [] }] }], routes: [], front: [] } }));
-  await screen.getByRole("button", { name: /^top/ }).first().click();
-  await expect.element(screen.getByRole("button", { name: "remove" })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "replace with pattern…" })).not.toBeInTheDocument();
-});

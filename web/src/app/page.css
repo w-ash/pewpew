@@ -654,7 +654,7 @@
     grid-column: 1 / -1;
   }
   /* The make actions take the tiles' columns, a column each, so they start and end on the tiles' lines. */
-  [data-wide] :is(.looks, .pattern-pick > .scroller, .made-row > .variety) {
+  [data-wide] :is(.looks, .made-row > .variety) {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
   }
@@ -1114,11 +1114,6 @@
 }
 .number-field > .note {
   grid-column: 1 / -1;
-}
-.pattern-pick {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
 }
 /* What a header's "save as…" or "⋯" opens: rows of a setting's words or action on the left and its control at
    the column's edge, in a nested card (.look-forms) that starts and ends in view. */
@@ -1733,8 +1728,7 @@
 /* A tertiary word that starts or ends a row lines its ink up with the column's edge, not its box (8 of
    padding and the 1 px edge); a tertiary sign that ends one does too, its icon past the edge by the 2 px its
    16-unit grid keeps round a glyph, so ⋯, ✕, "?" and "delete" end on one line. */
-:is(.row, .block-head) > .button[data-variant="tertiary"]:not([data-square]):first-child,
-.replace {
+:is(.row, .block-head) > .button[data-variant="tertiary"]:not([data-square]):first-child {
   margin-left: calc(-1 * var(--space-xs) - 1px);
 }
 :is(.row, .block-head) > .button[data-variant="tertiary"]:not([data-square]):last-child {
@@ -1742,9 +1736,6 @@
 }
 :is(.row, .block-head, .panel-head, .look-actions, .knob-end, .master-head) > .button[data-variant="tertiary"][data-square]:last-child {
   margin-right: calc((var(--icon) - var(--control-h)) / 2 - 2px);
-}
-.replace {
-  align-self: flex-start;
 }
 /* Off: the switch says so, and the row's words step back to text-2; its knobs in front say "(off)". */
 .layer:has(.layer-head .switch:not(:checked)) :is(.layer-id, .mix-glance > *) {

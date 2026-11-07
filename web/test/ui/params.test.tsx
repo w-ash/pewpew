@@ -16,19 +16,19 @@ type SetMessage = Extract<ClientMessage, { type: "set" }>;
 const sets = (sent: ClientMessage[]) => sent.filter((m): m is SetMessage => m.type === "set");
 
 test("a float slider works from the keyboard and reads its value with the unit", async () => {
-  const { screen, sent } = await renderWired(<ParamField p={param("wave", "speed")} />, "wave");
+  const { screen, sent } = await renderWired(<ParamField p={param("metaballs", "speed")} />, "metaballs");
   const slider = screen.getByRole("slider");
-  await expect.element(slider).toHaveAttribute("aria-valuetext", "0.250 /s");
+  await expect.element(slider).toHaveAttribute("aria-valuetext", "0.100 Hz");
   await expect.element(slider).toHaveAccessibleName("speed");
-  await expect.element(screen.getByText("/s")).toBeVisible();
+  await expect.element(screen.getByText("Hz")).toBeVisible();
   slider.element().focus();
   await userEvent.keyboard("{ArrowRight}");
-  expect(sets(sent).at(-1)).toEqual({ type: "set", name: "speed", value: 0.255 });
-  await expect.element(slider).toHaveAttribute("aria-valuetext", "0.255 /s");
+  expect(sets(sent).at(-1)).toEqual({ type: "set", name: "speed", value: 0.105 });
+  await expect.element(slider).toHaveAttribute("aria-valuetext", "0.105 Hz");
 });
 
 test("a render error just after a knob of the node that raised was set names the knob and offers its value back", async () => {
-  const p = decodeParam({ ...record("zoo", "level"), name: "layers.base.zoo.level" });
+  const p = decodeParam({ ...record("zoo_test", "level"), name: "layers.base.zoo.level" });
   const { screen, sent, receive } = await renderWired(
     <>
       <StatusBar planNote={null} />
@@ -39,18 +39,18 @@ test("a render error just after a knob of the node that raised was set names the
   receive({ type: "params", values: { "layers.base.zoo.level": 0.505 } });
   await screen.getByRole("button", { name: "increase level" }).click();
   receive({ type: "status", error: "layers.base.zoo.render raised: boom", source: "render", path: "layers.base.zoo" });
-  await expect.element(screen.getByText("The room is pulsing red: zoo failed after level went to 0.510.")).toBeVisible();
+  await expect.element(screen.getByText("The room is pulsing red: Zoo failed after level went to 0.510.")).toBeVisible();
   await screen.getByRole("button", { name: "put back 0.500" }).click(); // the value before the edit, not the step before
   expect(sets(sent).at(-1)).toEqual({ type: "set", name: "layers.base.zoo.level", value: 0.5 });
 });
 
 test("a knob's help shows under its line, by its ?, while the ? is open, and describes its control always", async () => {
-  const { screen } = await renderWired(<ParamField p={param("plasma", "speed")} />, "plasma");
+  const { screen } = await renderWired(<ParamField p={param("noise", "speed")} />, "noise");
   const slider = screen.getByRole("slider", { name: "speed" });
-  const help = screen.getByText("Cycles of the field per second");
+  const help = screen.getByText("How fast the hills change");
   await expect.element(help).not.toBeVisible();
-  await expect.element(slider).toHaveAccessibleDescription("Cycles of the field per second");
-  await expect.element(screen.getByRole("spinbutton", { name: "speed" })).toHaveAccessibleDescription("Cycles of the field per second");
+  await expect.element(slider).toHaveAccessibleDescription("How fast the hills change");
+  await expect.element(screen.getByRole("spinbutton", { name: "speed" })).toHaveAccessibleDescription("How fast the hills change");
   const ask = screen.getByRole("button", { name: "about speed" });
   await ask.click();
   await expect.element(ask).toHaveAttribute("aria-expanded", "true");
@@ -64,7 +64,7 @@ test("a knob's help shows under its line, by its ?, while the ? is open, and des
 });
 
 test("from a value between steps, − and + step to the nearest step that way, not past it", async () => {
-  const p = decodeParam({ ...record("zoo", "level"), lo: 0.5, hi: 5, step: 0.2, decimals: 1, default: 3 });
+  const p = decodeParam({ ...record("zoo_test", "level"), lo: 0.5, hi: 5, step: 0.2, decimals: 1, default: 3 });
   const { screen, receive, sent } = await renderWired(<ParamField p={p} />);
   receive({ type: "params", values: { level: 3 } });
   await expect.element(screen.getByRole("spinbutton", { name: "level" })).toHaveValue("3.0");
@@ -79,7 +79,7 @@ test("from a value between steps, − and + step to the nearest step that way, n
 });
 
 test("− and + step once on a click no press came before, as assistive tech sends, and once on a real one", async () => {
-  const p = decodeParam({ ...record("zoo", "level"), lo: 0, hi: 5, step: 0.5, decimals: 1, default: 1 });
+  const p = decodeParam({ ...record("zoo_test", "level"), lo: 0, hi: 5, step: 0.5, decimals: 1, default: 1 });
   const { screen, receive, sent } = await renderWired(<ParamField p={p} />);
   receive({ type: "params", values: { level: 1 } });
   await expect.element(screen.getByRole("spinbutton", { name: "level" })).toHaveValue("1.0");
@@ -92,7 +92,7 @@ test("− and + step once on a click no press came before, as assistive tech sen
 });
 
 test("every entry of a panel ends at one edge, with a unit or without", async () => {
-  await renderWired(<Layers />, "plasma");
+  await renderWired(<Layers />, "noise");
   const ends = [...document.querySelectorAll(".number-control .number-entry [data-part='control']")].map((el) => Math.round(el.getBoundingClientRect().right));
   expect(ends.length).toBeGreaterThan(1);
   expect(new Set(ends).size).toBe(1);
@@ -102,7 +102,7 @@ test("every entry of a panel ends at one edge, with a unit or without", async ()
 // a new value into the box, and puts the caret back, an animation frame later,
 // so a `fill` at once can lose its select-all to it. No person types that fast.
 test("a typed value outside the range says what it became; garbage says it is not a number", async () => {
-  const { screen, sent, receive } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, sent, receive } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   const box = screen.getByRole("spinbutton", { name: "level" });
   await box.fill("5");
   await userEvent.keyboard("{Enter}");
@@ -119,7 +119,7 @@ test("a typed value outside the range says what it became; garbage says it is no
 });
 
 test("a letter typed into an entry says it is not a number, and sends nothing", async () => {
-  const { screen, sent } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, sent } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   screen.getByRole("spinbutton", { name: "level" }).element().focus();
   await userEvent.keyboard("x");
   await expect.element(screen.getByRole("status")).toHaveTextContent("‘x’ is not a number");
@@ -128,7 +128,7 @@ test("a letter typed into an entry says it is not a number, and sends nothing", 
 });
 
 test("Esc drops a typed number: the box shows the knob's value again, and leaving it sends nothing", async () => {
-  const { screen, sent } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, sent } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   const box = screen.getByRole("spinbutton", { name: "level" });
   const before = (box.element() as HTMLInputElement).value;
   box.element().focus();
@@ -140,7 +140,7 @@ test("Esc drops a typed number: the box shows the knob's value again, and leavin
 });
 
 test("a typed value between steps says which step it became; one on a step, or a hue past 360, says nothing", async () => {
-  const { screen, sent, receive } = await renderWired(<ParamField p={param("zoo", "color")} />);
+  const { screen, sent, receive } = await renderWired(<ParamField p={param("zoo_test", "color")} />);
   const hue = screen.getByRole("spinbutton", { name: "color hue" });
   await hue.fill("201");
   await userEvent.keyboard("{Enter}");
@@ -155,7 +155,7 @@ test("a typed value between steps says which step it became; one on a step, or a
 });
 
 test("each kind renders its own control", async () => {
-  const { screen } = await renderWired(<Layers />, "zoo");
+  const { screen } = await renderWired(<Layers />);
   await expect.element(screen.getByRole("slider", { name: "level" })).toBeVisible();
   await expect.element(screen.getByRole("slider", { name: "bands" })).toHaveAttribute("aria-valuetext", "2");
   await expect.element(screen.getByRole("switch", { name: "invert" })).toBeVisible();
@@ -167,7 +167,7 @@ test("each kind renders its own control", async () => {
 
 test("a choice of more than five options is a list, and Backspace on it resets", async () => {
   const keys = ["a", "b", "c", "d", "e", "f"];
-  const many = { ...record("zoo", "shape"), default: "a", options: keys.map((k) => ({ value: k, label: k.toUpperCase() })) };
+  const many = { ...record("zoo_test", "shape"), default: "a", options: keys.map((k) => ({ value: k, label: k.toUpperCase() })) };
   const { screen, receive, sent } = await renderWired(<ParamField p={decodeParam(many)} />);
   const list = screen.getByRole("combobox", { name: "shape" });
   await list.selectOptions("d"); // options read in lower case
@@ -179,24 +179,24 @@ test("a choice of more than five options is a list, and Backspace on it resets",
 });
 
 test("an angle is a slider as every number knob is, with a compass that points where the param points", async () => {
-  const { screen, receive } = await renderWired(<ParamField p={param("wave", "direction")} />, "wave");
-  receive({ type: "params", values: { direction: 90 } });
-  const slider = screen.getByRole("slider", { name: "direction" });
+  const { screen, receive } = await renderWired(<ParamField p={param("rotate", "angle")} />, "rotate");
+  receive({ type: "params", values: { angle: 90 } });
+  const slider = screen.getByRole("slider", { name: "angle" });
   await expect.element(slider).toHaveAttribute("aria-valuetext", "90°");
   const compass = document.querySelector<HTMLElement>(".compass")!;
   expect(compass.getAttribute("aria-hidden")).toBe("true");
   expect(compass.style.rotate).toBe("-90deg"); // counterclockwise from +x, as the room plan reads
-  receive({ type: "params", values: { direction: 0 } });
+  receive({ type: "params", values: { angle: 0 } });
   await expect.poll(() => compass.style.rotate).toBe("0deg");
 });
 
-test("a cycle of 0 reads hold", async () => {
-  const { screen } = await renderWired(<Layers />, "colorplasma");
-  await expect.element(screen.getByRole("slider", { name: "cycle" }).first()).toHaveAttribute("aria-valuetext", "hold");
+test("a value with a text label reads it: sides of 0 reads round", async () => {
+  const { screen } = await renderWired(<Layers />, "shape");
+  await expect.element(screen.getByRole("slider", { name: "sides" })).toHaveAttribute("aria-valuetext", "round");
 });
 
 test("a drag holds its value against an echo, then follows the agreeing echo at once", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   const control = document.querySelector<HTMLElement>('[data-scope="slider"][data-part="control"]')!;
   const box = control.getBoundingClientRect();
   const at = (f: number) => ({ clientX: box.left + f * box.width, clientY: box.top + box.height / 2, pointerId: 1, bubbles: true });
@@ -218,7 +218,7 @@ test("a drag holds its value against an echo, then follows the agreeing echo at 
 });
 
 test("↺ sends the default as declared, even between steps", async () => {
-  const p = decodeParam({ ...record("zoo", "level"), default: 0.333 });
+  const p = decodeParam({ ...record("zoo_test", "level"), default: 0.333 });
   const { screen, receive, sent } = await renderWired(<ParamField p={p} />);
   receive({ type: "params", values: { level: 0.9 } });
   const dot = screen.getByRole("button", { name: "reset level to 0.333" });
@@ -229,7 +229,7 @@ test("↺ sends the default as declared, even between steps", async () => {
 });
 
 test("an edit of one color part snaps that part and sends the others as they were", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "color")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "color")} />);
   let at = { h: 123.4, s: 0.5555, v: 0.777 };
   const echo = async (next: HSV) => {
     at = next;
@@ -257,7 +257,7 @@ test("an edit of one color part snaps that part and sends the others as they wer
 });
 
 test("reset by ↺", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "bands")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "bands")} />);
   const dot = screen.getByRole("button", { name: "reset bands to 2" });
   expect(dot.query()).toBeNull();
   receive({ type: "params", values: { bands: 5 } });
@@ -267,7 +267,7 @@ test("reset by ↺", async () => {
 });
 
 test("a knob off the saved look shows ↺ at rest, its sign of changed, and ↺ puts the saved value back, never past it", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "bands")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "bands")} />);
   receive({ type: "aura", ...AURA, looks: { ...AURA.looks!, saved: { bands: 4 } } });
   receive({ type: "params", values: { bands: 4 } });
   const reset = () => document.querySelector<HTMLButtonElement>(".reset")!;
@@ -283,7 +283,7 @@ test("a knob off the saved look shows ↺ at rest, its sign of changed, and ↺ 
 });
 
 test("reset by Backspace on the control, not in a text box", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   receive({ type: "params", values: { level: 0.9 } });
   // A click, not focus(): a Backspace that reaches the page makes WebKit go back.
   const box = screen.getByRole("spinbutton");
@@ -297,7 +297,7 @@ test("reset by Backspace on the control, not in a text box", async () => {
 });
 
 test("reset by Backspace on a switch", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "invert")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "invert")} />);
   receive({ type: "params", values: { invert: true } });
   const box = screen.getByRole("switch", { name: "invert" });
   box.element().focus();
@@ -308,17 +308,17 @@ test("reset by Backspace on a switch", async () => {
 });
 
 test("a periodic value steps round its end", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("wave", "direction")} />, "wave");
-  receive({ type: "params", values: { direction: 360 } });
-  await screen.getByRole("button", { name: "increase direction" }).click();
-  expect(sets(sent).at(-1)).toEqual({ type: "set", name: "direction", value: 2 });
-  screen.getByRole("spinbutton", { name: "direction" }).element().focus();
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("rotate", "angle")} />, "rotate");
+  receive({ type: "params", values: { angle: 360 } });
+  await screen.getByRole("button", { name: "increase angle" }).click();
+  expect(sets(sent).at(-1)).toEqual({ type: "set", name: "angle", value: 2 });
+  screen.getByRole("spinbutton", { name: "angle" }).element().focus();
   await userEvent.keyboard("{Home}");
-  expect(sets(sent).at(-1)).toEqual({ type: "set", name: "direction", value: 0 });
+  expect(sets(sent).at(-1)).toEqual({ type: "set", name: "angle", value: 0 });
 });
 
 test("a step key after typing steps from the typed value and shows the result", async () => {
-  const { screen, sent } = await renderWired(<ParamField p={param("zoo", "bands")} />);
+  const { screen, sent } = await renderWired(<ParamField p={param("zoo_test", "bands")} />);
   const box = screen.getByRole("spinbutton", { name: "bands" });
   await box.fill("5");
   await userEvent.keyboard("{ArrowUp}");
@@ -327,7 +327,7 @@ test("a step key after typing steps from the typed value and shows the result", 
 });
 
 test("a refusal stops showing once another tab moves the value", async () => {
-  const { screen, receive } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, receive } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   receive(refused("set", "no, not that", "level"));
   await expect.element(screen.getByText("no, not that")).toBeVisible();
   receive({ type: "params", values: { level: 0.3 } });
@@ -335,7 +335,7 @@ test("a refusal stops showing once another tab moves the value", async () => {
 });
 
 test("typed entry sends on Enter, and ± steps send at once", async () => {
-  const { screen, sent } = await renderWired(<ParamField p={param("zoo", "bands")} />);
+  const { screen, sent } = await renderWired(<ParamField p={param("zoo_test", "bands")} />);
   const box = screen.getByRole("spinbutton", { name: "bands" });
   await box.fill("4");
   expect(sets(sent)).toEqual([]);
@@ -346,7 +346,7 @@ test("typed entry sends on Enter, and ± steps send at once", async () => {
 });
 
 test("a refused set shows its reason and the control snaps back", async () => {
-  const { screen, receive } = await renderWired(<ParamField p={param("zoo", "level")} />);
+  const { screen, receive } = await renderWired(<ParamField p={param("zoo_test", "level")} />);
   screen.getByRole("slider").element().focus();
   await userEvent.keyboard("{End}");
   await expect.element(screen.getByRole("slider")).toHaveAttribute("aria-valuenow", "1");
@@ -356,12 +356,12 @@ test("a refused set shows its reason and the control snaps back", async () => {
 });
 
 test("groups follow the ungrouped params and fold, remembered on this device", async () => {
-  const { screen } = await renderWired(<Layers />, "colorplasma");
-  const low = screen.getByRole("button", { name: "low" });
-  await expect.element(low).toHaveAttribute("aria-expanded", "true");
-  await low.click();
-  await expect.element(low).toHaveAttribute("aria-expanded", "false");
-  expect(localStorage.getItem("pewpew.closed-groups")).toBe('["Low"]');
+  const { screen } = await renderWired(<Layers />);
+  const group = screen.getByRole("button", { name: "shape", exact: true });
+  await expect.element(group).toHaveAttribute("aria-expanded", "true");
+  await group.click();
+  await expect.element(group).toHaveAttribute("aria-expanded", "false");
+  expect(localStorage.getItem("pewpew.closed-groups")).toBe('["Shape"]');
   localStorage.clear();
 });
 
@@ -376,7 +376,7 @@ test("defaults takes two presses", async () => {
 });
 
 test("the hue strip's keys step by the hue's own step, and wrap past 360°", async () => {
-  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo", "color")} />);
+  const { screen, receive, sent } = await renderWired(<ParamField p={param("zoo_test", "color")} />);
   receive({ type: "params", values: { color: { h: 350, s: 1, v: 1 } } });
   screen.getByRole("slider", { name: "color hue" }).element().focus();
   const hues: number[] = [];
@@ -387,7 +387,7 @@ test("the hue strip's keys step by the hue's own step, and wrap past 360°", asy
   expect(hues).toEqual([10, 8, 10, 12, 352, 12]);
 });
 
-const PALETTE = param("zoo", "palette") as PaletteParam;
+const PALETTE = param("zoo_test", "palette") as PaletteParam;
 const palettes = (sent: ClientMessage[]) => sets(sent).map((m) => m.value as Gradient);
 
 test("a palette picks a preset, and shows custom once a stop is edited", async () => {
@@ -462,7 +462,7 @@ test("a palette's strip draws the gradient as the LEDs show it", async () => {
   expect(end.style.color).toBe("rgb(255, 229, 148)"); // ember's last stop, (42°, 0.7, 1) at gamma 2.2
 });
 
-test("the main knobs are the look's own block, each also in its own place; a lone pattern's are under its heading", async () => {
+test("the main knobs are the look's own block, each also in its own place; a lone layer's are under its heading", async () => {
   const { screen, receive } = await renderWired(
     <>
       <LookKnobs />
@@ -476,7 +476,7 @@ test("the main knobs are the look's own block, each also in its own place; a lon
   await expect.element(screen.getByRole("slider", { name: "macro", exact: true })).toBeVisible();
   await expect.element(screen.getByRole("slider", { name: "macro", exact: true })).toHaveAccessibleDescription(/^→ color/);
   expect(screen.getByRole("slider", { name: "level", exact: true }).elements()).toHaveLength(2); // a main knob, and in its place
-  await expect.element(screen.getByRole("heading", { name: "base · pattern" })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "base · 1 step" })).toBeVisible();
   await expect.element(screen.getByRole("slider", { name: "bands" })).toBeVisible();
   // After the layers, the modulators, with a ? that says what one is: the sections start folded, each titled by its name,
   // then its kind and what it moves. The macro, in front by its name, is not one of them.
@@ -495,7 +495,7 @@ test("the main knobs are the look's own block, each also in its own place; a lon
     ? [{ ...r, name: String(r.name).replace("layers.base.", "layers.top."), layer: "top" }] : []));
   receive({ type: "declare", params: [...records, ...top] });
   receive({ type: "aura", ...AURA, stack: { ...AURA.stack, layers: [...AURA.stack.layers, { id: "top", nodes: AURA.stack.layers[0]!.nodes }] } });
-  await expect.element(screen.getByRole("heading", { name: "base · pattern" })).not.toBeInTheDocument(); // each layer's are in its row
+  await expect.element(screen.getByRole("heading", { name: "base · 1 step" })).not.toBeInTheDocument(); // each layer's are in its row
   await expect.element(screen.getByRole("heading", { name: "layers · top first" })).toBeVisible();
   await expect.element(screen.getByRole("slider", { name: "level · base" })).toBeVisible(); // with two layers, a main knob names its owner
   await expect.element(screen.getByRole("slider", { name: "opacity" })).not.toBeInTheDocument(); // in the layer's row
