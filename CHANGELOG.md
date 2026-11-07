@@ -1257,6 +1257,10 @@ series (batch mode).
 
 ### Fixed
 
+- A restart after a watchdog stall no longer alternates between two looks that
+  both hang: the stall marker names the looks that stalled, the restart
+  skips every one of them, and it starts the current look again only when
+  all have stalled.
 - A number entry's − and + answer a finger over the full 44 px, as a
   bordered button does; they were 2 px short.
 - A bordered button or tile answers a finger over the full 44 px, not 42.

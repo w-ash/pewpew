@@ -15,7 +15,7 @@ reaches the room, built after the aura, only once the run starts. The
 watchdog is armed before the aura is built, so a look that hangs while it
 builds still ends the run. The run starts in the looks file's current
 look (else its first), and saves go to the same file; after a stall it
-starts in the next look instead (`after_stall`). The map is `--map`, the
+starts in the next look the stall marker does not name instead (`after_stall`). The map is `--map`, the
 room's, or `DEFAULT_MAP`. An arrangement `--map` (`pewpew.rig`) gives the
 mapping and a power model. Its `power` block,
 with `--max-watts` and `--max-brightness` replacing its values, is the
@@ -96,7 +96,7 @@ from pewpew.sinks.ddp import DdpSink, parse_board
 from pewpew.sinks.preview import PreviewSink
 from pewpew.sinks.sink import Sink, SinkDriver
 from pewpew.watchdog import TIMEOUT_S as WATCHDOG_S
-from pewpew.watchdog import Watchdog, marker_path, take_marker
+from pewpew.watchdog import Stall, Watchdog, marker_path, take_marker
 
 if TYPE_CHECKING:
     from pewpew.rig import CompiledRig
@@ -219,7 +219,12 @@ class Run:
         # `--watchdog`, else on for an unattended run only, so a debugger stopped at
         # a breakpoint in a dev run is not killed; 0 is off.
         watchdog_s = (args.watchdog if args.watchdog is not None else WATCHDOG_S if args.unattended else 0.0) or None
-        self.watchdog = Watchdog(watchdog_s, marker=marker_path()) if watchdog_s is not None else None
+        stall = take_marker(marker_path())
+        # The look the run starts in, then the one that plays; what a stall marker names.
+        self._started: str | None = None
+        self.watchdog = Watchdog(
+            watchdog_s, marker=marker_path(), earlier=stall, playing=self._playing,
+        ) if watchdog_s is not None else None
         self.awake = KeepAwake() if args.keep_awake or args.unattended else None
         # The monitor also restarts caffeinate when it ends, so `awake` needs it.
         self.monitor = None
@@ -235,7 +240,7 @@ class Run:
         if self.watchdog is not None:
             self.watchdog.start()
         book = launch.book
-        start, stalled = after_stall(launch, take_marker(marker_path()))
+        start, stalled = after_stall(launch, stall)
         # An unattended run leaves a failing layer out of the mix (`bypass`); its
         # error still reaches the status line.
         try:
@@ -251,6 +256,7 @@ class Run:
             if self.watchdog is not None:
                 self.watchdog.stop()
             raise SystemExit(f"{args.looks}: cannot start look {start!r}: {exc}") from None
+        self._started = start
         if start != book.current:
             self.looks.leave()  # runs as a sent look does: no look is current, and the file keeps its own
         if stalled is not None:
@@ -304,6 +310,12 @@ class Run:
             after=[power_stage(launch.limiter)] if launch.limiter is not None else [],
             on_frame=[*self.drivers, *([self.watchdog.beat] if self.watchdog is not None else [])],
         )
+
+    def _playing(self) -> str | None:
+        """The name of the look that plays: the aura's, else the one the run
+        started in (a start after a stall plays as a sent look). Any thread."""
+        looks = self.aura.looks if hasattr(self, "aura") else None
+        return (looks.source if looks is not None else None) or self._started
 
     @property
     def looks(self) -> Looks:
@@ -530,26 +542,33 @@ def check_map(look: Look, mapping: np.ndarray) -> None:
         raise ValueError(f"{reason}{map_hint(reason)}")
 
 
-def after_stall(launch: Launch, stalled: float | None) -> tuple[str, str | None]:
+def after_stall(launch: Launch, stall: Stall | None) -> tuple[str, str | None]:
     """The look the run starts in, and what to say about it. After a stall
-    (`stalled`, the marker's age, pewpew.watchdog), the run does not start
-    in the look that stalled, the launch's current one, but in the first
-    that can start of the others in the idle cycle's order after it
-    (`LookBook.after`), which the run plays as a sent look, so the file's
-    `current` stays the operator's; with no other, in that look again."""
+    (`stall`, the marker, pewpew.watchdog), the run does not start in a look
+    the marker names, or in the launch's current one when it names none: it
+    starts in the first of the launch's current look and the others in the
+    idle cycle's order after it (`LookBook.after`) that is not named and
+    can start, which the run plays as a sent look, so the file's `current`
+    stays the operator's. With none, it starts the current look again."""
     book = launch.book
-    stalled_in = book.current
-    assert stalled_in is not None, "the launch made the look it starts in current"
-    if stalled is None:
-        return stalled_in, None
-    for name in book.after(stalled_in):
+    current = book.current
+    assert current is not None, "the launch made the look it starts in current"
+    if stall is None:
+        return current, None
+    stalled = stall.looks or (current,)
+    named = ", ".join(repr(name) for name in stalled)
+    for name in (current, *book.after(current)):
+        if name in stalled:
+            continue
         try:
             check_map(book.looks[name], launch.mapping)
         except ValueError as exc:
             logger.warning("after the stall, look %r cannot start either: %s", name, exc)
             continue
-        return name, f"the last run stalled in {stalled_in!r}, so {name!r} runs"
-    return stalled_in, f"the last run stalled in {stalled_in!r}, the only look that starts, so it runs again"
+        return name, f"the last run stalled in {named}, so {name!r} runs"
+    if len(stalled) == 1:
+        return current, f"the last run stalled in {named}, the only look that starts, so it runs again"
+    return current, f"the last run stalled in {named}, no other look starts, so {current!r} runs again"
 
 
 Source = Literal["render", "reload", "looks"]  # the part an error comes from

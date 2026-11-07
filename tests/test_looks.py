@@ -493,16 +493,17 @@ def test_the_status_says_which_part_failed_and_which_layer_raised(tmp_path):
     assert status()[0::2] == ("render", "layers.base")
 
 
-def stalled_runs(tmp_path, monkeypatch, book: LookBook, *flags: str) -> tuple:
-    """Two runs of `book` on a line, the first after a fresh stall marker:
-    each run, and the looks file's bytes after the first."""
+def stalled_runs(tmp_path, monkeypatch, book: LookBook, *flags: str, marked: str = "5.2\n") -> tuple:
+    """Two runs of `book` on a line, the first after a fresh stall marker
+    with the text `marked` (by default the older shape): each run, and the
+    looks file's bytes after the first."""
     path = tmp_path / "looks.json"
     write_atomic(path, book.to_bytes())
     marker = tmp_path / "state" / "stalled"
     monkeypatch.setenv("PEWPEW_STALL_MARKER", str(marker))
     argv = ["run", str(path), "--frames", "1", "--map", "line:8", *flags]
     marker.parent.mkdir()
-    marker.write_text("5.2\n")
+    marker.write_text(marked)
     first = build(argv)
     first.serve()
     after = path.read_bytes()
@@ -538,6 +539,34 @@ def test_a_start_after_a_stall_of_the_only_look_runs_it_again_and_says_so(tmp_pa
     said = "the last run stalled in 'calm', the only look that starts, so it runs again"
     assert capsys.readouterr().err.strip() == said and first.looks.error == said
     assert program_running(first) == program_running(second) == CALM_LOOK.layers[0].program
+
+
+def marker_naming(*names: str) -> str:
+    return json.dumps({"stalled": 5.2, "looks": list(names)})
+
+
+def test_two_looks_that_both_stall_do_not_alternate_and_a_third_runs(tmp_path, monkeypatch, capsys):
+    """The marker names the looks that stalled: with 'calm' and 'wave' named,
+    the run starts in 'out', not back in either."""
+    book = LookBook({"calm": CALM_LOOK, "wave": look("osc", {"freq": 3.0}, cycle=True), "out": FLOW_LOOK}, "calm")
+    first, _, _ = stalled_runs(tmp_path, monkeypatch, book, marked=marker_naming("calm", "wave"))
+    said = "the last run stalled in 'calm', 'wave', so 'out' runs"
+    assert capsys.readouterr().err.strip() == said and first.looks.error == said
+    assert program_running(first) == FLOW_LOOK.layers[0].program
+
+
+def test_a_marker_that_names_other_looks_leaves_the_current_one_running(tmp_path, monkeypatch):
+    book = LookBook({"calm": CALM_LOOK, "wave": look("osc", {"freq": 3.0}, cycle=True)}, "calm")
+    first, _, _ = stalled_runs(tmp_path, monkeypatch, book, marked=marker_naming("wave"))
+    assert program_running(first) == CALM_LOOK.layers[0].program and first.looks.book.current == "calm"
+
+
+def test_a_start_after_every_look_stalled_runs_the_current_one_again_and_says_so(tmp_path, monkeypatch, capsys):
+    book = LookBook({"calm": CALM_LOOK, "wave": look("osc", {"freq": 3.0}, cycle=True)}, "calm")
+    first, _, _ = stalled_runs(tmp_path, monkeypatch, book, marked=marker_naming("wave", "calm"))
+    said = "the last run stalled in 'wave', 'calm', no other look starts, so 'calm' runs again"
+    assert capsys.readouterr().err.strip() == said and first.looks.error == said
+    assert program_running(first) == CALM_LOOK.layers[0].program
 
 
 def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):

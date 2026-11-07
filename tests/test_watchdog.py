@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 
 import numpy as np
@@ -14,7 +15,7 @@ from pewpew.mapping import line
 from pewpew.pace import PacedLoop
 from pewpew.pattern import Pattern
 from pewpew.render import Renderer
-from pewpew.watchdog import EXIT_STALL, MARKER_FRESH_S, Watchdog, marker_path, take_marker
+from pewpew.watchdog import EXIT_STALL, MARKER_FRESH_S, Stall, Watchdog, marker_path, take_marker
 
 
 def armed(ft: FakeTime) -> Watchdog:
@@ -85,7 +86,7 @@ def test_the_default_stall_action_marks_says_and_exits_with_70(monkeypatch, capf
     marker = tmp_path / "state" / "stalled"
     Watchdog(1.0, marker=marker)._fire(1.2)
     assert codes == [EXIT_STALL] == [70]
-    assert marker.read_text() == "1.2\n"
+    assert json.loads(marker.read_text()) == {"stalled": 1.2, "looks": []}
     # Straight to the process's stderr: a deferring log handler would lose it at os._exit.
     assert "CRITICAL pewpew.watchdog: render loop stalled" in capfd.readouterr().err
 
@@ -94,7 +95,9 @@ def test_a_fresh_stall_marker_is_taken_once_and_a_stale_one_is_ignored(tmp_path)
     marker = tmp_path / "stalled"
     marker.write_text("6.0\n")
     written = marker.stat().st_mtime
-    assert take_marker(marker, now=lambda: written + 30.0) == pytest.approx(30.0)
+    # the older shape names no look
+    taken = take_marker(marker, now=lambda: written + 30.0)
+    assert taken is not None and taken.age == pytest.approx(30.0) and taken.looks == ()
     assert not marker.exists()
     assert take_marker(marker, now=lambda: written + 30.0) is None
     marker.write_text("6.0\n")
@@ -207,3 +210,22 @@ def test_keep_awake_reports_a_missing_caffeinate():
     awake = KeepAwake(spawn=lambda args: pytest.fail("spawned"), which=lambda name: None)
     awake.start()
     assert awake.state() == {"requested": True, "held": False, "detail": "caffeinate not found: macOS only"}
+
+
+def test_the_marker_names_the_look_that_played_and_the_fresh_ones_it_took(monkeypatch, tmp_path):
+    monkeypatch.setattr(watchdog_module, "_exit", lambda code: None)
+    marker = tmp_path / "stalled"
+    ft = FakeTime()
+    dog = Watchdog(1.0, interval=3600.0, marker=marker, playing=lambda: "b",
+                   earlier=Stall(100.0, ("a", "b")), now=ft.now)
+    dog.start()
+    dog.stop()
+    dog._fire(1.0)
+    assert json.loads(marker.read_text())["looks"] == ["a", "b"]  # once each
+    ft.t = MARKER_FRESH_S  # the earlier stall is now past the window
+    dog._fire(1.0)
+    assert json.loads(marker.read_text())["looks"] == ["b"]
+    marker.write_text(json.dumps({"stalled": 1.0, "looks": ["x", 3, "x", "y"]}))
+    assert take_marker(marker, now=lambda: marker.stat().st_mtime + 1.0) == Stall(1.0, ("x", "y"))
+    marker.write_text("not json")
+    assert take_marker(marker, now=lambda: marker.stat().st_mtime + 1.0) == Stall(1.0, ())

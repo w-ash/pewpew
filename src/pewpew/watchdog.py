@@ -16,12 +16,17 @@ also shows the cursor again.
 
 The stall marker (`marker_path()`: `$PEWPEW_STALL_MARKER`, else
 `~/.local/state/pewpew/stalled`, beside the audit log) tells the next start
-that the last run stalled. The runner takes it at start (`take_marker`):
-a marker younger than `MARKER_FRESH_S` makes it start in the next look
-of the idle cycle's order instead of the file's current one, and say so
-on the status line, which breaks a restart loop on a look that hangs
-(pewpew.run.after_stall). The marker's age is wall-clock time, because it
-has to survive the process.
+that the last run stalled. It is one JSON object: `stalled`, the seconds
+without a frame, and `looks`, the names of the looks that stalled within
+the freshness window, each once. The runner takes it at start
+(`take_marker`): a marker younger than `MARKER_FRESH_S` makes it start in
+the first look of the idle cycle's order that the marker does not name,
+instead of the file's current one, and say so on the status line, which
+breaks a restart loop on looks that hang (pewpew.run.after_stall). The
+run carries the names it took into its own marker, for as long as they
+stay fresh. A marker of the older shape (the seconds alone) names no
+look. The marker's age is wall-clock time, because it has to survive the
+process.
 
 Until the first beat the limit is `startup` (default
 `max(3 * timeout, STARTUP_S)`), which covers building the look, the sinks
@@ -34,6 +39,7 @@ wall-clock step cannot fire it.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -41,7 +47,7 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from pewpew.audit import state_file
 
@@ -64,17 +70,32 @@ def marker_path() -> Path:
     return state_file(MARKER_ENV, "stalled")
 
 
+class Stall(NamedTuple):
+    """A fresh stall marker: its age in seconds and the looks it names."""
+
+    age: float
+    looks: tuple[str, ...]
+
+
 def take_marker(path: Path, *, now: Callable[[], float] = time.time,
-                fresh: float = MARKER_FRESH_S) -> float | None:
-    """Remove the stall marker at `path`. Returns its age in seconds when
-    it is younger than `fresh`, else None (also when there is none).
-    Never raises."""
+                fresh: float = MARKER_FRESH_S) -> Stall | None:
+    """Remove the stall marker at `path`. Returns it when it is younger
+    than `fresh`, else None (also when there is none). A marker that names
+    no look, as one of the older shape, gives no `looks`. Never raises."""
     try:
         age = now() - Path(path).stat().st_mtime
+        text = Path(path).read_text(encoding="utf-8")
         Path(path).unlink()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
-    return age if age < fresh else None
+    if age >= fresh:
+        return None
+    try:
+        named = json.loads(text).get("looks")
+    except (ValueError, AttributeError):
+        named = None
+    looks = tuple(dict.fromkeys(n for n in named if isinstance(n, str))) if isinstance(named, list) else ()
+    return Stall(age, looks)
 
 
 def _last_words(line: str) -> None:
@@ -97,7 +118,9 @@ class Watchdog:
     seconds after the first one, or when the first one does not arrive
     within `startup` seconds of `start`. Without `on_stall` it writes the
     stall marker to `marker` (None: no marker), writes its line to stderr,
-    and exits the process."""
+    and exits the process. The marker names `playing()` (any thread) and
+    the looks of the `earlier` stall that this run took, while they are
+    still fresh."""
 
     def __init__(
         self,
@@ -107,6 +130,8 @@ class Watchdog:
         startup: float | None = None,
         on_stall: Callable[[float], None] | None = None,
         marker: Path | None = None,
+        playing: Callable[[], str | None] | None = None,
+        earlier: Stall | None = None,
         now: Callable[[], float] = time.monotonic,
     ) -> None:
         if timeout <= 0.0:
@@ -118,6 +143,8 @@ class Watchdog:
         self._interval = interval if interval is not None else min(1.0, timeout / 4)
         self._on_stall = on_stall
         self._marker = marker
+        self._playing = playing
+        self._earlier = earlier
         self._now = now
         self._armed: float | None = None
         self._last: float | None = None
@@ -162,6 +189,20 @@ class Watchdog:
                 self._fire(stalled)
                 return
 
+    def _stalled_looks(self) -> list[str]:
+        """The looks the marker names: those of `earlier` while the window
+        that began at its stall still holds, then the one playing."""
+        earlier = self._earlier
+        names: list[str] = []
+        if earlier is not None and self._armed is not None and (
+            earlier.age + (self._now() - self._armed) < MARKER_FRESH_S
+        ):
+            names.extend(earlier.looks)
+        playing = self._playing() if self._playing is not None else None
+        if playing is not None:
+            names.append(playing)
+        return list(dict.fromkeys(names))
+
     def _fire(self, stalled: float) -> None:
         self.fired = True
         message = f"render loop stalled: no frame for {stalled:.1f} s; exiting {EXIT_STALL} so launchd restarts pewpew"
@@ -172,11 +213,12 @@ class Watchdog:
         if self._marker is not None:
             try:
                 self._marker.parent.mkdir(parents=True, exist_ok=True)
-                self._marker.write_text(f"{stalled:.1f}\n", encoding="utf-8")
+                record = {"stalled": round(stalled, 1), "looks": self._stalled_looks()}
+                self._marker.write_text(json.dumps(record) + "\n", encoding="utf-8")
             except OSError:
                 pass  # the exit matters more than the marker
         _last_words(f"CRITICAL {__name__}: {message}")
         _exit(EXIT_STALL)
 
 
-__all__ = ["EXIT_STALL", "MARKER_FRESH_S", "STARTUP_S", "TIMEOUT_S", "Watchdog", "marker_path", "take_marker"]
+__all__ = ["EXIT_STALL", "MARKER_FRESH_S", "STARTUP_S", "TIMEOUT_S", "Stall", "Watchdog", "marker_path", "take_marker"]
