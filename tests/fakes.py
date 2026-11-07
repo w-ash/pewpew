@@ -508,7 +508,7 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
              looks: Mapping[str, Look] | None = None, current: str | None = None, cycle=None,
              triggers: Mapping | None = None, path=None, timeout: float = 5.0,
              log=None, blink=None, boards=None, health=None, accept_looks: bool = False,
-             variety=None, submit=None) -> SimpleNamespace:
+             max_making: int | None = None, variety=None, submit=None) -> SimpleNamespace:
     """An aura without a loop or sinks: a stack running `start` (default a
     red `solid`, which needs `fake_ops`), crossfader, deck, master, looks (when `looks` is given),
     triggers and the aura control, built as `pewpew.run.Run` builds them
@@ -525,7 +525,7 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
     aura = build_aura_pipeline(
         start or solid(1.0), line(4) if mapping is None else mapping, master_cap=cap, looks_path=path, book=r.book,
         trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
-        make_variety=variety, submit=submit or at_once,
+        max_making=max_making, make_variety=variety, submit=submit or at_once,
     )
     r.calls, r.features, r.fader, r.deck, r.master = aura.calls, aura.features, aura.fader, aura.deck, aura.master
     r.variety, r.looks, r.triggers, r.control = aura.variety, aura.looks, aura.triggers, aura.control

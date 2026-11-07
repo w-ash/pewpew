@@ -556,7 +556,12 @@ class AuraControl:
             answer = self._ask(self._runs(lambda: self._play_made(made), number), BUSY, definite=True)
             return Refusal(answer) if isinstance(answer, str) else answer
 
-        return in_background(job)
+        try:
+            return in_background(job)
+        except BaseException:  # the thread did not start, so `job` never frees the slot
+            if making is not None:
+                making.release()
+            raise
 
     def _play_made(self, made: Made) -> str | None:
         return self._looks.play(made) if self._looks is not None else fade_to(self._deck, made)

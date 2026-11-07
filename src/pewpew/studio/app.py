@@ -40,7 +40,7 @@ from starlette.requests import HTTPConnection
 
 from pewpew.jsonfile import TooDeep, loads
 from pewpew.rig import Catalog, CompiledRig, compile_rig, load_arrangement, load_catalog
-from pewpew.sinks.preview import answer_request, refusal
+from pewpew.sinks.preview import answer_request, refusal, unanswered
 from pewpew.studio.limits import (
     Admission,
     BodyLimit,
@@ -532,7 +532,8 @@ class _Visitor:
         """`pause`, `resume` and `bind` are the session's own; any other
         message goes whole to the aura's control, which may block until
         the loop thread answers, so it runs on a worker thread; while the
-        session is paused, it is refused at once."""
+        session is paused, it is refused at once. A message that gets no
+        reply (`unanswered`) gets none either way."""
         session, outbox = self.session, self.outbox
         if kind == "pause":
             session.pause()
@@ -540,6 +541,8 @@ class _Visitor:
             session.resume()
         elif kind == "bind":
             await self._bind(msg.get("arrangement"))
+        elif unanswered(msg):
+            return
         elif session.paused:
             name = msg.get("name") if kind == "set" else None
             outbox.control(refusal(kind if isinstance(kind, str) else None, PAUSED,

@@ -272,18 +272,26 @@ def answer(control: str | None, rid: object, refused: Refusal | None) -> dict[st
 def answer_request(control: Control, request: dict, reply: Callable[[dict[str, Any]], None]) -> None:
     """Pass `request`, one inbound message, whole to `control`, and `reply`
     with its `answer`: at once, or for a request that answers later (a look
-    to make) on the thread that finishes it. A message with no `id` that
-    names no control, or sets no knob, is passed over: there is nobody to
-    tell. May block until the loop thread has answered (`Control.request`)."""
-    kind, rid = request.get("type"), request.get("id")
-    if rid is None and (not isinstance(kind, str) or (kind == "set" and not isinstance(request.get("name"), str))):
+    to make) on the thread that finishes it. A message `unanswered` passes
+    is passed over. May block until the loop thread has answered
+    (`Control.request`)."""
+    if unanswered(request):
         return
+    kind, rid = request.get("type"), request.get("id")
     name = kind if isinstance(kind, str) else None
     answered = control.request(request)
     if isinstance(answered, Future):
         answered.add_done_callback(lambda done: _reply(reply, answer(name, rid, done.result())))
     else:
         _reply(reply, answer(name, rid, answered))
+
+
+def unanswered(request: dict) -> bool:
+    """Whether `request` gets no reply: it has no `id`, and names no
+    control or sets no knob, so there is nobody to tell."""
+    kind = request.get("type")
+    no_name = kind == "set" and not isinstance(request.get("name"), str)
+    return request.get("id") is None and (not isinstance(kind, str) or no_name)
 
 
 def _reply(reply: Callable[[dict[str, Any]], None], message: dict[str, Any] | None) -> None:

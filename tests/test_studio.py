@@ -611,6 +611,7 @@ def test_a_request_while_paused_is_refused_at_once(client):
         ws.send_text(json.dumps({"type": "pause"}))
         assert wait_for(lambda: session_of(client).paused)
         start = time.monotonic()
+        ws.send_text(json.dumps({"type": "set", "value": 1}))  # no id, no knob: passed over, as when running
         ws.send_text(json.dumps({"type": "look", "look": LOOKS["warp-lane"], "id": 4}))
         refused = read_until(ws, is_type("refused"))
         assert (refused["control"], refused["id"]) == ("look", 4) and "paused" in refused["reason"]
