@@ -30,7 +30,7 @@ advances the source's time makes the run jump forward. `stop()` is
 thread-safe and takes effect at the tick boundary.
 
 An `on_frame(t, frame)` callable must never block or raise (ADR-010): wrap
-a blocking `send` in a `pewpew.sinks.base.SinkDriver`.
+a blocking `send` in a `pewpew.sinks.sink.SinkDriver`.
 """
 
 from __future__ import annotations

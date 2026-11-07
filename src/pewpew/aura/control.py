@@ -65,7 +65,7 @@ from pewpew.problems import Refused
 from pewpew.room.blink import Blink
 
 if TYPE_CHECKING:
-    from pewpew.sinks.base import Control
+    from pewpew.sinks.sink import Control
 
 logger = logging.getLogger(__name__)
 

@@ -24,7 +24,7 @@ errors and refusals name it. Each frame:
 One enabled layer at normal blend, opacity 1 and no mask is the identity:
 its frame is returned as its renderer gave it, unclamped, so a one-layer
 stack is byte for byte its renderer. The sinks clip every frame
-(pewpew.sinks.base.sanitize), so a master below 1 dims a clamped stack.
+(pewpew.sinks.sink.sanitize), so a master below 1 dims a clamped stack.
 Every layer reads one feature frame per slot (`MemoFeatures`).
 
 Containment: each layer's renderer contains its program's failures, so a

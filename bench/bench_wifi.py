@@ -58,8 +58,8 @@ from pewpew.health import extract
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
 from pewpew.render import Renderer
-from pewpew.sinks.base import SinkDriver
 from pewpew.sinks.ddp import Board, DdpSink, check_boards, is_ipv4, parse_board
+from pewpew.sinks.sink import SinkDriver
 from pewpew.wled import TIMEOUT_S, fetch_info, sender_address
 
 DEFAULT_PX = 1280

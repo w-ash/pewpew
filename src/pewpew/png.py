@@ -32,7 +32,7 @@ def encode_png(rgb: np.ndarray) -> bytes:
     PNG file (8-bit RGB, no alpha). Raises ValueError for any other array."""
     if not isinstance(rgb, np.ndarray) or rgb.dtype != np.uint8 or rgb.ndim != 3 or rgb.shape[2] != 3 or 0 in rgb.shape:
         got = f"{rgb.dtype} {rgb.shape}" if isinstance(rgb, np.ndarray) else type(rgb).__name__
-        hint = "; a float frame goes through pewpew.sinks.base.to_display_u8 first" if _is_float(rgb) else ""
+        hint = "; a float frame goes through pewpew.sinks.sink.to_display_u8 first" if _is_float(rgb) else ""
         raise ValueError(f"encode_png takes an (H, W, 3) uint8 array with H, W >= 1, got {got}{hint}")
     height, width = rgb.shape[:2]
     rows = np.zeros((height, 1 + 3 * width), np.uint8)  # byte 0 of each row is its filter type, 0

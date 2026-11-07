@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from pewpew.rig import EXAMPLES, RigError, compile_rig, load_arrangement, load_catalog, read_catalog
-from pewpew.rig.catalog import DATA_ROOT
+from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
 from pewpew.rig.electrical import (
     AUTO_WHITE_TERMS,
     BUCK_EFFICIENCY,
@@ -228,7 +228,7 @@ def test_drop_hop_lead_and_timing_warnings():
 
 def test_psu_load_overlap_and_voltage(tmp_path):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     wled = root / "firmware" / "wled-16.0.1.json"
     brighter = json.loads(wled.read_text())
     brighter["ingest"]["auto_white"] = (
@@ -288,7 +288,7 @@ def test_effect_power_sanitizes_and_checks_the_frame(example):
 
 def test_a_flat_fixture_draws_max_w_whatever_it_lights(tmp_path):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / "fixture_type" / f"{BAR}.json"
     obj = json.loads(path.read_text())
     obj["power"]["model"] = {
@@ -324,7 +324,7 @@ def test_effect_power_is_vectorized(golden):
 def edited_catalog(tmp_path, rel, edit):
     """The bundled catalog with `edit(entity)` applied to the file `rel` under data/."""
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / rel
     obj = json.loads(path.read_text())
     edit(obj)
@@ -487,7 +487,10 @@ def test_a_zero_divisor_in_the_catalog_is_refused(tmp_path, rel, keys):
     with pytest.raises(RigError) as exc:
         edited_catalog(tmp_path, rel, _zero(*keys))
     assert [(i.code, i.ref) for i in exc.value.issues] == [
-        ("bad_value", f"{rel.split('/')[0]}/{json.loads((DATA_ROOT / rel).read_text())['id']}.{'.'.join(keys)}")
+        (
+            "bad_value",
+            f"{rel.split('/')[0]}/{json.loads((CATALOG_ENTRIES_DIR / rel).read_text())['id']}.{'.'.join(keys)}",
+        )
     ]
 
 
@@ -607,7 +610,7 @@ def test_a_psu_output_connector_limits_its_feeds(tmp_path):
     rig = compiled(EXAMPLES / "golden-rings-4-bricks.json")
     assert {f.connector_a for f in rig.report.feeds} == {4.0}  # the bars' 4 A binds under the barrel's 5 A
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / "connector" / "barrel-5.5x2.1.json"
     barrel = json.loads(path.read_text())
     barrel["rated_a"]["v"] = 2

@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from pewpew.rig import EXAMPLES, RigError, compile_rig, contain, load_arrangement, load_catalog, read_catalog
-from pewpew.rig.catalog import DATA_ROOT
+from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
 from pewpew.rig.pose import from_three, matrix_to_quat, quat_to_matrix
 
 BAR = "clen-rgbw-bar-1m"
@@ -318,7 +318,7 @@ def test_attachment_errors():
 
 def test_missing_led_type_is_an_error(tmp_path):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     fw = root / "firmware" / "wled-16.0.1.json"
     obj = json.loads(fw.read_text())
     obj["led_types"] = [t for t in obj["led_types"] if t["chipset"] != "ucs1903n"]

@@ -31,8 +31,8 @@ from pewpew.mapping import grid, line
 from pewpew.params import HSV, Bool, Color, Float, Int, ParamSet
 from pewpew.room.map import compile_room
 from pewpew.sinks import preview
-from pewpew.sinks.base import DISPLAY_GAMMA, to_display_u8
 from pewpew.sinks.preview import PreviewSink
+from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
 
 
 class Knobs:

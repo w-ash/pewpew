@@ -740,6 +740,9 @@ series (batch mode).
 
 ### Changed
 
+- Modules take precise names: `harness` is `pewpew.testing`, `sinks/base.py`
+  is `sinks/sink.py`, `agent.py` is `mcp_cli.py`, `command.py` is
+  `cli_args.py`, and the rig catalog's JSON lives in `rig/catalog_entries/`.
 - `run LOOKS` plays a looks file (ADR-025): a version-4 book, a
   `.look.json` included, which it starts in at its `current` look (else
   its first) and saves to. It replaces `run PATTERN --looks FILE`. Without

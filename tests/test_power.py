@@ -12,7 +12,7 @@ from fakes import FLOW, hosted
 from fakes import frames as render_frames
 from pewpew.power import EffectPower, PowerCap, PowerLimiter, clean, power_stage
 from pewpew.rig import EXAMPLES, compile_rig, load_arrangement, load_catalog
-from pewpew.sinks.base import to_display_u8
+from pewpew.sinks.sink import to_display_u8
 
 
 def golden(power: dict | None = None):

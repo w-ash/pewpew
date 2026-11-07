@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 
 from fakes import build, frames, hosted, one_node, program_layer, rgb, stack
-from harness.goldens import assert_matches_golden
 from pewpew.aura.book import LookBook
 from pewpew.compose import Compositor, Controls, Layer, LayerControls, LayerError, Look, Route, layer_seed
 from pewpew.crossfade import Crossfader
@@ -28,6 +27,7 @@ from pewpew.fx.types import Fn, Sig, Ty
 from pewpew.mapping import grid, line
 from pewpew.params import Int, declared_params
 from pewpew.render import Renderer, SlotClock
+from pewpew.testing.goldens import assert_matches_golden
 
 GOLDEN = Path(__file__).parent / "goldens" / "compose.npz"
 

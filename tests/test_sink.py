@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from fakes import FakeTime
-from pewpew.sinks.base import RateGate, from_display_u8, to_display_u8
+from pewpew.sinks.sink import RateGate, from_display_u8, to_display_u8
 
 
 def test_display_u8_applies_display_gamma():

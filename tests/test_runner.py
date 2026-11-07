@@ -27,7 +27,7 @@ from pewpew.pace import PacedLoop
 from pewpew.rig import EXAMPLES
 from pewpew.run import preview_url, status_line
 from pewpew.sinks import ddp, preview
-from pewpew.sinks.base import to_linear_u8
+from pewpew.sinks.sink import to_linear_u8
 
 # A program that keeps a trail: what it renders next depends on what it rendered.
 TRAIL = 'osc(2, 0.4).trails(0.8).palette("ember")'

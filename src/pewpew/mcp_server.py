@@ -1,5 +1,5 @@
 """The MCP server: pewpew's tools, resources and prompts for an AI agent,
-over stdio (`python -m pewpew mcp --tier 0|1`, pewpew.agent; ADR-023).
+over stdio (`python -m pewpew mcp --tier 0|1`, pewpew.mcp_cli; ADR-023).
 
 A thin adapter. Each tool calls the function its command line verb calls,
 in the lab (pewpew.lab), the fleet survey (pewpew.boards) or the engine

@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from pewpew import lab
-from pewpew.command import whole
+from pewpew.cli_args import whole
 from pewpew.lab.handles import Cache
 from pewpew.lab.variations import MAX_VARIANTS
 

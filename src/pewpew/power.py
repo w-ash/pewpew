@@ -72,7 +72,7 @@ class PowerCap:
 
 def clean(frame: np.ndarray) -> np.ndarray:
     """A float32 copy of `frame` with NaN at 0 and every value clipped to
-    [0, 1], as `pewpew.sinks.base.to_display_u8` sanitizes it."""
+    [0, 1], as `pewpew.sinks.sink.to_display_u8` sanitizes it."""
     v = np.nan_to_num(np.asarray(frame, dtype=np.float32), nan=0.0, posinf=1.0, neginf=0.0)
     np.clip(v, 0.0, 1.0, out=v)
     return v
@@ -127,7 +127,7 @@ class EffectPower:
         """The watts drawn to show the (N, 3) linear-light RGB `frame_linear`.
 
         Values are cleaned as `to_display_u8` cleans them
-        (src/pewpew/sinks/base.py:82-91).
+        (src/pewpew/sinks/sink.py:82-91).
         """
         return float(self.flat_w.sum() + self.pixel_watts(clean(frame_linear)).sum())
 

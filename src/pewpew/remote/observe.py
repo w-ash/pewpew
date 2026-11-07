@@ -37,13 +37,13 @@ from typing import Any
 
 import numpy as np
 
-from pewpew.command import GONE, OK, PROBLEMS, parsed_by, png_path, positive
+from pewpew.cli_args import GONE, OK, PROBLEMS, parsed_by, png_path, positive
 from pewpew.jsonfile import write_atomic
 from pewpew.metrics import Metrics, measure
 from pewpew.remote.client import Client, Frame, Unreachable, engine_url
 from pewpew.result import Result
 from pewpew.sheet import Sheet, contact_sheet
-from pewpew.sinks.base import from_display_u8
+from pewpew.sinks.sink import from_display_u8
 
 WATCH_S = 2.0  # engine time to watch by default
 MAX_FRAMES = 600  # frames kept at most: 10 s at 60 fps

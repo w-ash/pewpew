@@ -26,7 +26,7 @@ everything below it needs the bench (ADR-018).
   medium, with injectable faults (per-link loss, partitions, node churn,
   clock drift). Contract: **same (nodes, schedule, seed) → byte-identical
   trace**, so fleet behavior is golden-testable exactly like render frames.
-  Interfaces already scaffolded in `src/harness/fleetsim.py`. *(2026-11-05:
+  Interfaces already scaffolded in `src/pewpew/testing/fleetsim.py`. *(2026-11-05:
   that stub held no implementation and was deleted; the twin's interfaces
   are written with its first code.)*
 - **Property-based testing is the default above the radio line**:
@@ -45,7 +45,7 @@ everything below it needs the bench (ADR-018).
   logic and RMT-TX smoke tests. Neither touches mesh-radio or timing
   claims; timing measured in emulators is explicitly untrusted.
 - **Golden artifacts across levels**: golden frames (L1, shipped in
-  `src/harness/`), golden fleet traces (L2), decoded-waveform goldens from the
+  `src/pewpew/testing/`), golden fleet traces (L2), decoded-waveform goldens from the
   bench (L4) — all compared with tolerance appropriate to the level.
 
 ## Consequences

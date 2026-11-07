@@ -13,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from harness.goldens import assert_matches_golden
 from pewpew.compose import Look, layer_seed
 from pewpew.fx.catalog import example
 from pewpew.fx.expr import layer, look
@@ -23,6 +22,7 @@ from pewpew.fx.ops import OPS
 from pewpew.lab.check import ready
 from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.rendering import play
+from pewpew.testing.goldens import assert_matches_golden
 
 GOLDEN = Path(__file__).parent / "goldens" / "fx_programs.npz"
 FRAMES, FPS = 10, 30.0

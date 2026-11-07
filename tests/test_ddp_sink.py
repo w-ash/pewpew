@@ -9,8 +9,8 @@ import pytest
 
 from fakes import ddp_sink
 from pewpew.sinks import ddp
-from pewpew.sinks.base import to_linear_u8
 from pewpew.sinks.ddp import Board, check_boards, parse_board
+from pewpew.sinks.sink import to_linear_u8
 
 
 def header(packet: bytes) -> tuple[int, int, int, int, int, int]:

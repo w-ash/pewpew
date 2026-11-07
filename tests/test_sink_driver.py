@@ -15,7 +15,7 @@ import pytest
 from fakes import FLOW, FakeTime, hosted
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.sinks.base import SinkDriver
+from pewpew.sinks.sink import SinkDriver
 
 N_PX = 16
 
