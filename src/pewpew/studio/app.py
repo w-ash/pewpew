@@ -60,6 +60,7 @@ IMMUTABLE = "public, max-age=31536000, immutable"
 IDLE_TIMEOUT_S = 600.0  # no inbound message for this long pauses a session
 PAUSED_TIMEOUT_S = 1800.0  # paused for this long closes it
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
+PAUSED = "the session is paused; send resume first"
 _WEB_DIST = Path(__file__).resolve().parents[3] / "studio-web" / "dist"
 _EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
 
@@ -245,7 +246,8 @@ def create_app(
     if START not in looks:
         raise RuntimeError(f"no example look {START!r}: every session starts in it")
     looks_body = json.dumps(looks).encode()
-    start = as_look(looks[START])
+    # The looks a session starts in, and falls back on in a bind, in that order.
+    starts = {name: as_look(looks[name]) for name in [START, *(name for name in looks if name != START)]}
 
     def catalog_of() -> Any:
         nonlocal catalog
@@ -427,7 +429,7 @@ def create_app(
         pump: asyncio.Future | None = None
         try:
             outbox = Outbox(asyncio.get_running_loop())
-            session = Session(outbox, start, fps=fps)
+            session = Session(outbox, starts, fps=fps)
             registry.add(session, ticket, lambda: outbox.close_with(refusal("session", EVICTED)))
             outbox.hello(session.hello())
             session.start()
@@ -531,7 +533,8 @@ class _Visitor:
     async def _dispatch(self, kind: object, msg: dict) -> None:
         """`pause`, `resume` and `bind` are the session's own; any other
         message goes whole to the aura's control, which may block until
-        the loop thread answers, so it runs on a worker thread."""
+        the loop thread answers, so it runs on a worker thread; while the
+        session is paused, it is refused at once."""
         session, outbox = self.session, self.outbox
         if kind == "pause":
             session.pause()
@@ -539,6 +542,10 @@ class _Visitor:
             session.resume()
         elif kind == "bind":
             await self._bind(msg.get("arrangement"))
+        elif session.paused:
+            name = msg.get("name") if kind == "set" else None
+            outbox.control(refusal(kind if isinstance(kind, str) else None, PAUSED,
+                                   name=name if isinstance(name, str) else None, id=msg.get("id")))
         else:
             await asyncio.to_thread(answer_request, session.control, msg, outbox.control)
 

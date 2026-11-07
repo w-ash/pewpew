@@ -1,19 +1,27 @@
 {
     "files": {
-        "./tests/fakes.py": [
+        "./tests/test_aura_control.py": [
             {
                 "code": "reportArgumentType",
                 "range": {
-                    "startColumn": 27,
-                    "endColumn": 36,
+                    "startColumn": 22,
+                    "endColumn": 26,
                     "lineCount": 1
                 }
             },
             {
                 "code": "reportArgumentType",
                 "range": {
-                    "startColumn": 24,
-                    "endColumn": 28,
+                    "startColumn": 22,
+                    "endColumn": 26,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 22,
+                    "endColumn": 27,
                     "lineCount": 1
                 }
             }
@@ -1060,32 +1068,6 @@
                 "range": {
                     "startColumn": 11,
                     "endColumn": 40,
-                    "lineCount": 1
-                }
-            }
-        ],
-        "./tests/test_aura_control.py": [
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 26,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 26,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 27,
                     "lineCount": 1
                 }
             }

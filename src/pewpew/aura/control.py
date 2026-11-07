@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import threading
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
@@ -106,6 +107,7 @@ NO_LOOKS_FILE = "no looks file: start the run with --looks PATH"
 BUSY = "the engine is busy, so the look did not start; send it again"
 BUSY_LAYER = "the engine is busy, so the layer was not added; send it again"
 OVERTAKEN = "a request sent after this one changed what runs first, so this one did not run"
+MAKING = "a look is still being made; send this again once it has started"
 # What an added layer's id is made from when it has no node to make one from.
 LAYER = "layer"
 
@@ -122,7 +124,9 @@ class Boards(Protocol):
 class AuraControl:
     """The aura's controls over one run: the deck, the master, the looks
     and triggers, and, when the run has them, the blink, the boards and the
-    health snapshot. `accept_looks` lets a client send a whole look."""
+    health snapshot. `accept_looks` lets a client send a whole look.
+    `max_making` bounds how many looks a `surprise` or `vary` makes at
+    once; one asked for past it is refused at once (`MAKING`)."""
 
     def __init__(
         self,
@@ -138,6 +142,7 @@ class AuraControl:
         accept_looks: bool = False,
         variety: Variety | None = None,
         timeout: float = ASK_TIMEOUT_S,
+        max_making: int | None = None,
     ) -> None:
         self._calls = calls
         self._deck = deck
@@ -150,6 +155,8 @@ class AuraControl:
         self._accept_looks = accept_looks
         self._variety = variety if variety is not None else Variety(deck)
         self._timeout = timeout
+        # One slot per look a `surprise` or `vary` may be making at once; None: no limit.
+        self._making = threading.BoundedSemaphore(max_making) if max_making is not None else None
         # The catalog a page shows, and what it was made from: the ops and the pattern names.
         self._catalog: tuple[tuple[object, ...], dict] | None = None
         # Each request that changes what runs is numbered as it is asked
@@ -579,15 +586,26 @@ class AuraControl:
         except Refused as exc:
             return Refusal(str(exc), exc.problems[0].path or None)
 
-    def _made(self, make: Callable[[], Made]) -> Future[Refusal | None]:
+    def _made(self, make: Callable[[], Made]) -> str | Future[Refusal | None]:
         """Make a look on a thread of its own, then start it on the loop
         thread (`Looks.play`, or the deck alone without a looks file), as a
         request numbered now (`_runs`). The future holds the answer once
         it starts or is refused; a look that cannot be made, or is
-        refused, never starts."""
+        refused, never starts. Refused at once (`MAKING`) while
+        `max_making` looks are being made."""
+        making = self._making
+        if making is not None and not making.acquire(blocking=False):
+            return MAKING
         number = next(self._numbers)
 
         def job() -> Refusal | None:
+            try:
+                return start()
+            finally:
+                if making is not None:
+                    making.release()
+
+        def start() -> Refusal | None:
             try:
                 made = make()
             except ValueError as exc:  # nothing made passed the content gate, or the look does not check

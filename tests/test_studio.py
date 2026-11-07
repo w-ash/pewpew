@@ -16,6 +16,7 @@ import struct
 import sys
 import threading
 import time
+from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, cast
 
@@ -44,6 +45,9 @@ FPS = 120.0  # fast enough that a test waits milliseconds, not seconds
 ROOT = Path(__file__).resolve().parents[1]
 LOOKS = example_looks(ROOT / "examples")
 START_LOOK = as_look(LOOKS[START])
+# The looks a session starts in and falls back on, as the app gives them: the start look first.
+STARTS = {START: START_LOOK, **{name: as_look(doc) for name, doc in LOOKS.items() if name != START}}
+STRIP = np.column_stack([np.linspace(0, 1, 8), np.zeros(8), np.zeros(8)]).astype(np.float32)
 
 
 class FakeRigError(ValueError):
@@ -541,7 +545,7 @@ class RecordingSink:
 def stepped(sink, **kw) -> Session:
     """A session in the start look that a test steps itself, paced on fake time, so no slot is
     skipped; never started."""
-    session = Session(sink, START_LOOK, **{"fps": FPS, **kw})
+    session = Session(sink, kw.pop("looks", STARTS), **{"fps": FPS, **kw})
     clock = FakeTime()
     session._loop._now, session._loop._sleep = clock.now, clock.sleep
     return session
@@ -570,14 +574,53 @@ def test_a_bind_passes_the_rigs_fixture_grouping_to_the_stack_and_keeps_engine_t
     assert session.t > t
 
 
-def test_a_bind_the_look_cannot_run_on_is_refused_and_the_old_map_stays():
+def test_a_bind_the_look_cannot_run_on_cuts_to_the_first_look_that_runs_and_says_so():
     sink = RecordingSink()
     session = stepped(sink)
-    strip = np.column_stack([np.linspace(0, 1, 8), np.zeros(8), np.zeros(8)]).astype(np.float32)
-    session.bind(strip, catalog_digest="d", issues=[], limiter=None)  # tide folds a plane: a strip has none
+    session.bind(STRIP, catalog_digest="d", issues=[], limiter=None)  # tide folds a plane: a strip has none
+    session._loop.run(frames=2)
+    assert [m["type"] for m in sink.controls] == ["bound", "hello"] and session.n == 8
+    first = next(name for name, look in STARTS.items() if name != START)  # copper-tide runs on a strip
+    stack = json.loads(sink.frames[-1].texts[4])["stack"]
+    assert [layer["id"] for layer in stack["layers"]] == [layer.id for layer in STARTS[first].layers]
+    status = json.loads(sink.frames[-1].texts[0])
+    assert status["source"] == "bind" and f"so {first} runs" in status["error"] and "kaleid" in status["error"]
+    assert session._aura.deck.recall(STARTS["warp-lane"]) is None  # another look: the status clears
+    session._loop.run(frames=1)
+    assert json.loads(sink.frames[-1].texts[0])["error"] is None
+
+
+def test_a_bind_no_look_can_run_on_is_refused_and_the_old_map_stays():
+    sink = RecordingSink()
+    session = stepped(sink, looks={START: START_LOOK})
+    session.bind(STRIP, catalog_digest="d", issues=[], limiter=None)
     session._loop.run(frames=2)
     assert sink.controls[-1]["type"] == "refused" and sink.controls[-1]["control"] == "bind"
     assert session.n == 256 and len(sink.frames[-1].data) == 8 + 3 * 256
+
+
+def test_a_session_makes_one_look_at_a_time():
+    session = stepped(RecordingSink())
+    try:
+        first = session.control.request({"type": "surprise", "seed": 1})
+        second = session.control.request({"type": "vary", "id": 2})
+        assert isinstance(first, Future)
+        assert second is not None and not isinstance(second, Future) and "still being made" in second.reason
+    finally:
+        session.close()  # answers the made look's wait for the loop
+    assert first.result(timeout=30) is not None  # refused: the loop never ran
+
+
+def test_a_request_while_paused_is_refused_at_once(client):
+    with client.websocket_connect("/ws/session") as ws:
+        ws.receive_text()
+        ws.send_text(json.dumps({"type": "pause"}))
+        assert wait_for(lambda: session_of(client).paused)
+        start = time.monotonic()
+        ws.send_text(json.dumps({"type": "look", "look": LOOKS["warp-lane"], "id": 4}))
+        refused = read_until(ws, is_type("refused"))
+        assert (refused["control"], refused["id"]) == ("look", 4) and "paused" in refused["reason"]
+        assert time.monotonic() - start < 2
 
 
 def test_the_cap_runs_after_the_master_and_streams_both_power_readings():

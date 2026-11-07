@@ -21,7 +21,7 @@ from concurrent.futures import Future
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Self, TypeVar
+from typing import Any, Self, TypeVar, cast
 
 import numpy as np
 from websockets.sync.client import connect
@@ -31,16 +31,11 @@ from pewpew.__main__ import main, parse
 from pewpew.audio import keys
 from pewpew.aura.book import CycleConfig, LookBook
 from pewpew.aura.control import AuraControl
-from pewpew.aura.deck import Deck
-from pewpew.aura.looks import Looks
-from pewpew.aura.master import Master
-from pewpew.aura.triggers import Triggers
-from pewpew.aura.variety import Made, Variety, at_once
+from pewpew.aura.pipeline import build_aura_pipeline
+from pewpew.aura.variety import Made, at_once
 from pewpew.classinfo import pattern_name
 from pewpew.compose import Compositor, Layer, Look, Resolved, pattern_layer, pattern_of
-from pewpew.crossfade import Crossfader
 from pewpew.errors import LoadError, unknown
-from pewpew.features import EventFeatures, FakeFeatures
 from pewpew.fx import expr, surprise
 from pewpew.fx.catalog import example as catalog_example
 from pewpew.fx.compile import is_pattern_program
@@ -48,7 +43,7 @@ from pewpew.fx.expr import noise
 from pewpew.fx.graph import Program
 from pewpew.fx.host import ProgramPattern
 from pewpew.lab import handles
-from pewpew.load import LoadedPattern, from_class
+from pewpew.load import Catalog, LoadedPattern, from_class
 from pewpew.pace import Calls
 from pewpew.patterns import Pulse, Sparkle, Wave
 from pewpew.render import SlotClock
@@ -496,7 +491,8 @@ def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, 
              variety=None, submit=None) -> SimpleNamespace:
     """An aura without a loop or sinks: a one-layer stack (`base`, running
     `start`), crossfader, deck, master, looks (when `looks` is given),
-    triggers and the aura control, built as `pewpew.run.Run` builds them;
+    triggers and the aura control, built as `pewpew.run.Run` builds them
+    (`build_aura_pipeline`);
     `variety(deck)` makes the looks a surprise, a vary and the director's
     fresh slots play, and `submit` runs a fresh slot's making (default: at
     once, on the caller's thread).
@@ -504,26 +500,21 @@ def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, 
     `calls.drain()` runs what the controls queued. `renderer(lid)` is the
     renderer layer `lid` runs now, and `reloader(lid)` its reloader."""
     r = SimpleNamespace()
-    r.calls = Calls()
-    r.features = EventFeatures(FakeFeatures(0))
     name = pattern_name(start)
-    stack = Compositor([Resolved(pattern_layer("base", name), start, name)], line(4) if mapping is None else mapping,
-                       features=r.features, grouping=grouping)
-    r.fader = Crossfader(stack)
     r.catalog = catalog if catalog is not None else FakeCatalog(LOOK_CLASSES)
-    r.deck = Deck(r.fader, r.catalog, r.calls.call_soon, {"base": from_class(start)}, watch=watch)
+    r.path = path
+    r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {}) if looks is not None else None
+    layer = pattern_layer("base", name)
+    aura = build_aura_pipeline(
+        Look((layer,)), [(Resolved(layer, start, name), from_class(start))], line(4) if mapping is None else mapping,
+        catalog=cast(Catalog, r.catalog), grouping=grouping, watch=watch, master_cap=cap, looks_path=path, book=r.book,
+        trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
+        make_variety=variety, submit=submit or at_once,
+    )
+    r.calls, r.features, r.fader, r.deck, r.master = aura.calls, aura.features, aura.fader, aura.deck, aura.master
+    r.variety, r.looks, r.triggers, r.control = aura.variety, aura.looks, aura.triggers, aura.control
     r.renderer = lambda lid="base": layer_renderer(r, lid)
     r.reloader = lambda lid="base": r.deck.reloaders[lid]
-    r.master = Master(cap)
-    r.variety = variety(r.deck) if variety is not None else Variety(r.deck)
-    r.looks = None
-    if looks is not None:
-        r.path = path
-        r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {})
-        r.looks = Looks(path, r.book, r.deck, r.master, variety=r.variety, submit=submit or at_once)
-    r.triggers = Triggers(triggers or {}, looks=r.looks, features=r.features, log=log)
-    r.control = AuraControl(r.calls, r.deck, r.master, r.triggers, looks=r.looks, blink=blink, boards=boards,
-                            health=health, accept_looks=accept_looks, variety=r.variety, timeout=timeout)
     r.clock = SlotClock(60.0)
 
     def frame(t: float):

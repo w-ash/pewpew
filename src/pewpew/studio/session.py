@@ -2,9 +2,10 @@
 
 A session builds what `python -m pewpew run` builds (ADR-025,
 `pewpew.aura.pipeline`), with no looks file and no boards, and it takes
-whole looks (`accept_looks`). It starts in a look given whole (the studio
-starts every session in an example look), each layer resolved as a look
-recall resolves one (`pewpew.aura.deck.ready_layer`). Every request a
+whole looks (`accept_looks`), and makes at most one look at a time for a
+`surprise` or `vary`. It starts in the first of the looks it is given
+(the studio gives the example looks, `START` first), each layer resolved
+as a look recall resolves one (`pewpew.aura.deck.ready_layer`). Every request a
 visitor sends goes to the pipeline's `AuraControl`, which refuses what
 needs a looks file or boards; the session adds only `bind`, `pause` and
 `resume`.
@@ -12,7 +13,11 @@ needs a looks file or boards; the session adds only `bind`, `pause` and
 A bind is coalesced, not queued: one slot, applied by at most one queued
 closure on the loop thread, so a paused session holds a bounded amount of
 pending work. It rebinds the crossfader to the rig's mapping and fixture
-grouping; engine time continues.
+grouping; engine time continues. When the running look cannot run on the
+new mapping (a strip under a look that folds a plane), the session cuts
+to the first of its looks that can, and the `status` message says so
+until another look runs; when none can, the bind is refused and the old
+mapping stays.
 
 Each frame passes the master, then the bound rig's `PowerLimiter`, an
 `after` stage, before it is quantized, so the stream carries the capped
@@ -33,7 +38,7 @@ import json
 import logging
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -116,18 +121,24 @@ class SessionSink(Protocol):
 
 class Session:
     def __init__(
-        self, sink: SessionSink, look: Look, *, fps: float = FPS, mapping: np.ndarray | None = None, seed: int = 0,
+        self, sink: SessionSink, looks: Mapping[str, Look], *, fps: float = FPS, mapping: np.ndarray | None = None,
+        seed: int = 0,
     ) -> None:
-        """A session that starts in `look` on `mapping` (default a 16 x 16
-        grid, which every example look renders on), its made looks seeded
-        from `seed`. Raises as `Compositor` does for a look it cannot start."""
+        """A session that starts in the first of `looks` on `mapping`
+        (default a 16 x 16 grid, which every example look renders on), its
+        made looks seeded from `seed`; a bind falls back on `looks` in
+        order. Raises as `Compositor` does for a look it cannot start."""
         catalog = Catalog(None)
+        self._looks = looks
+        look = next(iter(looks.values()))
         self._aura = build_aura_pipeline(
             look, [ready_layer(layer, catalog.resolve, catalog.names) for layer in look.layers],
-            grid(16, 16) if mapping is None else mapping, catalog=catalog, seed=seed, accept_looks=True,
+            grid(16, 16) if mapping is None else mapping, catalog=catalog, seed=seed, accept_looks=True, max_making=1,
         )
         if look.master is not None:
             self._aura.master.set(look.master)
+        # The stack a bind cut to, and why, while it runs: the `status` says so.
+        self._fallback: tuple[object, str] | None = None
         self._sink = sink
         self._fps = fps
         self._texts = StateTexts(self._aura.control, now=lambda: self._aura.fader.t)
@@ -210,9 +221,15 @@ class Session:
                 "capabilities": ["ack", *self._aura.control.capabilities]}
 
     def _status(self) -> tuple[str, str, str | None] | None:
-        """The render error and the address of the part that raised, or None."""
+        """The render error and the address of the part that raised, else
+        the look a bind cut to while it runs, or None."""
         error = self._aura.fader.error
-        return None if error is None else ("render", str(error), error.path)
+        if error is not None:
+            return "render", str(error), error.path
+        fallback = self._fallback
+        if fallback is not None and fallback[0] is self._aura.fader.current:
+            return "bind", fallback[1], None
+        return None
 
     def _limit(self, t: float, frame: np.ndarray) -> np.ndarray:
         """The `after` stage behind the master: the frame under the bound
@@ -295,15 +312,30 @@ class Session:
         old = fader.current.mapping, fader.current.grouping
         try:
             fader.rebind(bind.mapping, bind.grouping)
-        except Exception:
-            logger.warning("rebind failed", exc_info=True)
-            fader.rebind(*old)  # if this raises too, the loop ends
-            self._sink.control(refusal("bind", "the look could not start on this arrangement"))
-            return
+        except Exception as exc:
+            # The stack keeps the new mapping, so a look recalled now starts on it.
+            name = self._cut_to_one_that_runs()
+            if name is None:
+                logger.warning("no look runs on the arrangement", exc_info=True)
+                fader.rebind(*old)  # if this raises too, the loop ends
+                self._sink.control(refusal("bind", "no look could start on this arrangement"))
+                return
+            self._fallback = (fader.current, f"the look could not run on this arrangement ({exc}), so {name} runs")
         self._limiter = bind.limiter
         self._sink.control({"type": "bound", "n": self.n, "catalog_digest": bind.catalog_digest,
                             "issues": bind.issues})
         self._sink.hello(self.hello())
+
+    def _cut_to_one_that_runs(self) -> str | None:
+        """Cut to the first of the session's looks that starts on the
+        running stack's mapping, at its master. Returns its name, or None
+        when none starts. Loop thread."""
+        for name, look in self._looks.items():
+            if self._aura.deck.recall(look) is None:
+                if look.master is not None:
+                    self._aura.master.set(look.master)
+                return name
+        return None
 
     @property
     def n(self) -> int:

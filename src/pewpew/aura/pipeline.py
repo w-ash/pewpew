@@ -29,13 +29,13 @@ from pewpew.aura.deck import Deck
 from pewpew.aura.looks import Looks
 from pewpew.aura.master import Master
 from pewpew.aura.triggers import Triggers
-from pewpew.aura.variety import Variety
+from pewpew.aura.variety import Submit, Variety, in_background
 from pewpew.compose import Compositor, Look, Resolved
 from pewpew.crossfade import Crossfader
 from pewpew.features import EventFeatures, FakeFeatures
 from pewpew.load import Catalog, LoadedPattern
 from pewpew.mapping import Grouping
-from pewpew.pace import Calls, PacedLoop, PaceStats, Stage
+from pewpew.pace import ASK_TIMEOUT_S, Calls, PacedLoop, PaceStats, Stage
 from pewpew.reload import Watch
 from pewpew.room.blink import Blink
 
@@ -99,6 +99,10 @@ def build_aura_pipeline(
     boards: Boards | None = None,
     health: Callable[[], dict] | None = None,
     accept_looks: bool = False,
+    max_making: int | None = None,
+    timeout: float = ASK_TIMEOUT_S,
+    make_variety: Callable[[Deck], Variety] | None = None,
+    submit: Submit = in_background,
 ) -> AuraPipeline:
     """Build the aura that starts in `look` on `mapping`.
 
@@ -107,8 +111,11 @@ def build_aura_pipeline(
     made looks, and the default features (the seeded fake). `grouping`,
     `units`, `bypass` and `now` are as for `Compositor`. `book`, with its
     file at `looks_path`, gives the saved looks and the triggers; without
-    it there are no looks and no triggers. `blink`, `boards`, `health` and
-    `accept_looks` are as for `AuraControl`. Raises as `Compositor` does."""
+    it there are no looks and no triggers. `blink`, `boards`, `health`,
+    `accept_looks`, `max_making` and `timeout` are as for `AuraControl`.
+    `make_variety(deck)` makes the made looks' `Variety` (default: one
+    seeded from `seed`), and `submit` is how the looks make a fresh slot's
+    look (`Looks`). Raises as `Compositor` does."""
     calls = Calls()
     features = features if features is not None else EventFeatures(FakeFeatures(seed))
     stack = Compositor(
@@ -121,17 +128,17 @@ def build_aura_pipeline(
     loaded: Mapping[str, LoadedPattern] = {resolved.layer.id: found for resolved, found in layers}
     deck = Deck(fader, catalog, calls.call_soon, loaded, watch=watch)
     master = Master(master_cap)
-    variety = Variety(deck, seed=seed)
+    variety = make_variety(deck) if make_variety is not None else Variety(deck, seed=seed)
     looks = None
     if book is not None:
         assert looks_path is not None, "a looks book needs the path of its file"
-        looks = Looks(looks_path, book, deck, master, variety=variety)
+        looks = Looks(looks_path, book, deck, master, variety=variety, submit=submit)
     triggers = Triggers(
         book.triggers if book is not None else {}, looks=looks, features=features, log=trigger_log,
         log_max=trigger_log_max,
     )
     control = AuraControl(
         calls, deck, master, triggers, looks=looks, blink=blink, boards=boards, health=health,
-        accept_looks=accept_looks, variety=variety,
+        accept_looks=accept_looks, variety=variety, timeout=timeout, max_making=max_making,
     )
     return AuraPipeline(calls, features, fader, deck, master, variety, looks, triggers, blink, control)
