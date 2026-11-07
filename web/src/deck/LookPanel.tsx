@@ -190,7 +190,7 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
             )}
           </div>
         ) : (
-          <span className="note">not saved: {NO_LOOKS}{onEngineHost() && " (start it with --looks)"}</span>
+          <span className="note">not saved: {NO_LOOKS}{onEngineHost() && " (start it with run LOOKS)"}</span>
         )}
         {held && (
           <p className="note held-note" role="status" tabIndex={-1}>

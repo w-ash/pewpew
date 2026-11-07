@@ -162,7 +162,7 @@ export const sessionHandler = sessionLink.addEventListener(
           break;
         default:
           if (NO_FILE.includes(String(msg.type)))
-            reason = "no looks file: start the run with --looks PATH";
+            reason = "no looks file: this aura saves no looks";
           else if (NO_BOARDS.includes(String(msg.type)))
             reason = "this session drives no boards";
           else if (msg.id === undefined) return;

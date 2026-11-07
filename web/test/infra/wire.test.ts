@@ -218,7 +218,7 @@ test("every message decodes through the wire and the store, and reads through th
     name: "layers.base.zoo.level", reason: "layers.base.zoo.level must be within 0.0..1.0, got 3.0",
   });
   expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.osc.freq" });
-  expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.layer.osc.freq" });
+  expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.osc.osc.freq" });
 
   const catalog = store.getState().catalog!;
   const shelfOf = (c: Card): Shelf | undefined => [...shelve(catalog.cards)].find(([, held]) => held.some((h) => h.card === c))?.[0];

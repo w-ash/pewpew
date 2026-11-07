@@ -175,30 +175,30 @@ def _locate(text: str, doc: Any) -> tuple[list[str], Any, list[str] | None, str]
     while True:
         if m := _LOOK.match(rest):
             name = _unrepr(m[1])
-            path, node = ["looks", name], _child(_child(doc, "looks"), name)
+            path, node = ["looks", name], member(member(doc, "looks"), name)
             look = list(path)
         elif m := _TRIGGER.match(rest):
             name = _unrepr(m[1])
-            path, node = ["triggers", name], _child(_child(doc, "triggers"), name)
+            path, node = ["triggers", name], member(member(doc, "triggers"), name)
         elif m := _CYCLE.match(rest):
-            path, node = ["cycle"], _child(doc, "cycle")
+            path, node = ["cycle"], member(doc, "cycle")
         elif m := _INDEX.match(rest):
             i = int(m[1])
-            layers = _child(node, "layers")
+            layers = member(node, "layers")
             path, node = [*path, f"layers[{i}]"], layers[i] if isinstance(layers, list) and i < len(layers) else None
         elif m := _ITEM.match(rest):
             key, i = m[1], int(m[2])
-            items = _child(node, key)
+            items = member(node, key)
             path, node = [*path, f"{key}[{i}]"], items[i] if isinstance(items, list) and i < len(items) else None
         elif m := _PLACE.match(rest):
             head, *ids = m[1].split(".")
             if head == "signals":
-                node = _child(node, "signals")
-                node = _child(node, ids[0]) if ids else node
+                node = member(node, "signals")
+                node = member(node, ids[0]) if ids else node
             else:
                 node = _layer(node, ids[0])
                 if len(ids) > 1:
-                    node = _child(_child(node, "nodes"), ids[1])
+                    node = member(member(node, "nodes"), ids[1])
             path = [*path, *m[1].split(".")]
         else:
             return path, node, look, rest
@@ -268,7 +268,7 @@ def _classify(rest: str, node: Any) -> tuple[Code, list[str], tuple[str, ...], s
         return Code.OUT_OF_RANGE, [m[1]], (), None, None
     if m := re.match(rf"args: ({_REPR}) is ", rest):  # a node's arg, addressed as a knob is
         key = _unrepr(m[1])
-        args = _child(node, "args")
+        args = member(node, "args")
         if isinstance(node, dict) and not (isinstance(args, dict) and key in args):
             return Code.MISSING, [key], (), None, _MISSING_EXAMPLES.get(key)
         return Code.WRONG_KIND, [key], (), None, None
@@ -327,13 +327,14 @@ def _listed(text: str) -> tuple[str, ...]:
     return tuple(_unrepr(item.strip()) for item in text.split(", "))
 
 
-def _child(node: Any, key: str) -> Any:
+def member(node: Any, key: str) -> Any:
+    """`node[key]` when `node` is a JSON object, else None."""
     return node.get(key) if isinstance(node, dict) else None
 
 
 def _layer(look: Any, lid: str) -> Any:
     """The layer of `look` whose id is `lid`, or None."""
-    layers = _child(look, "layers")
+    layers = member(look, "layers")
     if not isinstance(layers, list):
         return None
     return next((item for item in layers if isinstance(item, dict) and item.get("id") == lid), None)

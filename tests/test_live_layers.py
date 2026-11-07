@@ -117,8 +117,11 @@ def test_a_layer_the_look_or_the_map_cannot_run_is_refused_and_nothing_changes(t
     rig = rig_of(tmp_path, solid_on("base", RED))
     before = rig.fader.current.layers
     refusal = ask(rig, type="add_layer", layer=solid_layer({"red": 7.0}))
-    # A layer that does not decode has no out node to name it by.
-    assert refusal == Refusal("layers.layer.solid.red must be within 0.0..1.0, got 7.0", "layers.layer.solid.red")
+    # A refused arg leaves the program's shape, so the id is still its out node's.
+    assert refusal == Refusal("layers.solid.solid.red must be within 0.0..1.0, got 7.0", "layers.solid.solid.red")
+    broken = {"nodes": {"solid": {"op": "solid_test", "in": ["gone"]}}}
+    refused = ask(rig, type="add_layer", layer=broken)
+    assert refused is not None and refused.reason.startswith("layers.layer: ")  # no program: no out node
     fold = {"nodes": {"ramp": {"op": "osc"}, "fold": {"op": "kaleid", "in": ["ramp"]}}}
     assert ask(rig, type="add_layer", layer=fold) == Refusal(
         "layers.fold: layers.fold.fold: kaleid needs a map of 2 or 3 dimensions, and this map has 1; "

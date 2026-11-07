@@ -14,7 +14,7 @@ export interface AuraState {
   /** The master's cap, set at launch. */
   readonly cap: number;
   readonly blackout: boolean;
-  /** Null without a looks file (`run --looks`). */
+  /** Null without a looks file, which `run LOOKS` gives. */
   readonly looks: LooksState | null;
   readonly triggers: TriggersState | null;
 }

@@ -275,6 +275,9 @@ def test_a_problem_keeps_the_words_the_aura_uses_and_gives_an_example():
     (problem,) = check_look({"layers": [stripes(freq=99)]}).problems
     assert problem.reason == ParamSet(Osc, name="layers.base.waves").check("freq", 99)
     assert problem.valid == ("0.5..32.0",)
+    assert problem.example == Osc.freq.default  # the knob's default, as a route's out-of-range depth gives
+    (mixed,) = check_look(book(a={"layers": [stripes(mix={"opacity": 3})]})).problems
+    assert (mixed.path, mixed.example) == ("looks.a.layers.base.opacity", 1.0)
     (missing,) = check_look({"seed": 1}).problems
     assert missing.example[0]["nodes"]["waves"]["op"] == "osc"  # a layer to start from
     assert check_look(missing.example and {"layers": missing.example}).ok
