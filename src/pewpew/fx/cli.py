@@ -44,7 +44,7 @@ compares looks. Tier 0: nothing is sent to an engine or a board.
     fx vary [FILE]                      looks made from a seed, or like FILE
 
 catalog and show read the package only. The others also write the render
-cache and the --out file. FILE is a looks file, as run --looks reads it; -
+cache and the --out file. FILE is a looks file, as run LOOKS reads it; -
 reads a looks file or a single look, as JSON, from stdin. With --json a
 verb prints one JSON document on stdout. Exit codes: 0 ok; 1 an unknown
 name, problems with a look or nothing made; 2 a usage error; 3 a render

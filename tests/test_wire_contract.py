@@ -21,7 +21,6 @@ from pathlib import Path
 import numpy as np
 
 from fakes import (
-    FakeCatalog,
     FakeTime,
     LoopThread,
     aura_rig,
@@ -32,6 +31,7 @@ from fakes import (
     look,
     next_text,
     preview_sink,
+    restore,
     room,
     wait_until,
 )
@@ -42,6 +42,7 @@ from pewpew.aura.control import REQUESTS
 from pewpew.compose import Route
 from pewpew.fx.graph import Graph, Node
 from pewpew.health import HealthMonitor
+from pewpew.load import Catalog
 from pewpew.pace import PaceStats
 from pewpew.patterns import ColorPlasma, Wave
 from pewpew.room.map import compile_room
@@ -76,7 +77,7 @@ def capture(folder: Path) -> dict:
     monitor.step()
     ddp.frames_sent, stats.ticks, ft.t = 40, 60, 1.0
     monitor.step()
-    catalog = FakeCatalog({"colorplasma": ColorPlasma, "wave": Wave, "zoo": Zoo})
+    catalog = Catalog({"colorplasma": ColorPlasma, "wave": Wave, "zoo": Zoo})
     warm = replace(
         look("zoo", fade=0.0, cycle=True),
         signals=Graph((Node("breath", "lfo", {"rate": 0.5}), Node("macro", "knob", {"value": 0.5}))),
@@ -87,7 +88,7 @@ def capture(folder: Path) -> dict:
     triggers = {"door": Trigger(look="cool", hold=8.0, debounce=0.0), "bell": Trigger()}
     rig = aura_rig(Zoo, mapping=line(2), catalog=catalog, looks=looks, current="warm", triggers=triggers,
                    path=folder / "looks.json", boards=monitor, health=monitor.state, accept_looks=True)
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     rig.master.set(0.8)
     rig.frame(rig.clock.advance())
     status = status_line(("render", rig.fader), ("looks", rig.looks))
@@ -159,7 +160,9 @@ def test_the_page_never_reads_the_capabilities():
     """`hello.capabilities` is for clients outside the package: the page
     ships with its engine and never branches on it (ADR-020 amendment
     "capabilities"). Only the protocol's description names it."""
-    files = sorted(PAGE_SOURCE.rglob("*.ts")) + sorted(PAGE_SOURCE.rglob("*.tsx"))
+    studio = PAGE_SOURCE / "studio"  # the hosted studio's source, beside the page's
+    sources = PAGE_SOURCE.rglob("*.ts*")
+    files = sorted(f for f in sources if f.suffix in {".ts", ".tsx"} and not f.is_relative_to(studio))
     assert len(files) > 10
     readers = [f.relative_to(PAGE_SOURCE).as_posix() for f in files if "capabilities" in f.read_text()]
     assert readers == ["wire/protocol.ts"]

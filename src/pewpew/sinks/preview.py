@@ -8,10 +8,10 @@ Wire protocol. web/src/wire/protocol.ts types every message and says
 what its fields mean. Each message has one source here: `hello` and
 `layout` are `_View.of` (`room` is `RoomMap.describe()`), `status` is the
 `status` supplier, and `declare`, `params`, `mod`, `aura`, `health` and
-`catalog` are `Control.describe()`, `values()`, `mod()`, `state()`,
-`health()` and `catalog()`. A state that is the same object as the last
-one read keeps its text, so the large `catalog` is serialized once, and
-again only when it changes (an op file loads).
+`catalog` are the control's states (`pewpew.aura.control.wire_states`),
+made text by `StateTexts`, which the studio uses too. A state that is the
+same object as the last one read keeps its text, so the large `catalog`
+is serialized once, and again only when it changes (an op file loads).
 `mod`, the live values of the knobs a route drives, changes every frame,
 so it is read at most `MOD_HZ` times a second on the injected clock, and
 sent no more often (ADR-006 amendment "layered paths"). The hello
@@ -25,7 +25,8 @@ text message is absolute state, so the last write wins on every tab.
 pattern, look, fixture or cap, never a path. Each inbound message goes
 whole to `Control.request`, in the order it came; a request that answers
 later (a look to make) is answered when its future is done, and the
-messages after it are read meanwhile.
+messages after it are read meanwhile (`answer_request`, which the studio
+uses too).
 
 Any client may give a message an `id`; the engine then answers it,
 accepted or not: `ack` with the `id` and the control, or `refused` with
@@ -66,7 +67,7 @@ import re
 import struct
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from concurrent.futures import Future
 from dataclasses import dataclass
 from importlib import resources
@@ -78,6 +79,7 @@ from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Request, Response
 from websockets.sync.server import Server, ServerConnection, serve
 
+from pewpew.aura.control import wire_states
 from pewpew.errors import Refusal
 from pewpew.jsonfile import loads
 from pewpew.room.map import IMAGE_TYPES
@@ -257,21 +259,108 @@ def _bytes_response(conn: ServerConnection, body: bytes, headers: dict[str, str]
     return response
 
 
-def _answer(conn: ServerConnection, control: str | None, rid: object, refused: Refusal | None) -> None:
-    """Answer a request on `conn`: `refused` with that refusal's reason,
-    else `ack` when it carries an `id`, `rid`. An accepted request without
-    an id needs no reply: `send` republishes the whole state on the next
-    frame, and every tab converges on what won."""
+def answer(control: str | None, rid: object, refused: Refusal | None) -> dict[str, Any] | None:
+    """The answer to a request: `refused` with that refusal's reason, else
+    `ack` when it carries an `id`, `rid`, else None. An accepted request
+    without an id needs no reply: the next frame carries the whole state,
+    and every tab converges on what won."""
     if refused is not None:
-        conn.send(json.dumps(refusal(control, refused.reason, name=refused.name, id=rid)))
-    elif rid is not None:
-        conn.send(json.dumps({"type": "ack", "id": rid, "control": control}))
+        return refusal(control, refused.reason, name=refused.name, id=rid)
+    return None if rid is None else {"type": "ack", "id": rid, "control": control}
 
 
-def _answer_late(conn: ServerConnection, control: str | None, rid: object, done: Future[Refusal | None]) -> None:
-    """`_answer` with what `done` holds, on the thread that finished it."""
+def answer_request(control: Control, request: dict, reply: Callable[[dict[str, Any]], None]) -> None:
+    """Pass `request`, one inbound message, whole to `control`, and `reply`
+    with its `answer`: at once, or for a request that answers later (a look
+    to make) on the thread that finishes it. A message with no `id` that
+    names no control, or sets no knob, is passed over: there is nobody to
+    tell. May block until the loop thread has answered (`Control.request`)."""
+    kind, rid = request.get("type"), request.get("id")
+    if rid is None and (not isinstance(kind, str) or (kind == "set" and not isinstance(request.get("name"), str))):
+        return
+    name = kind if isinstance(kind, str) else None
+    answered = control.request(request)
+    if isinstance(answered, Future):
+        answered.add_done_callback(lambda done: _reply(reply, answer(name, rid, done.result())))
+    else:
+        _reply(reply, answer(name, rid, answered))
+
+
+def _reply(reply: Callable[[dict[str, Any]], None], message: dict[str, Any] | None) -> None:
+    if message is not None:
+        reply(message)
+
+
+def changed_texts(texts: tuple[str | None, ...], last: dict[str, str | None]) -> Iterator[str]:
+    """Each of `texts`, the current text of each of `_MESSAGES` in order,
+    that differs from `last`, the text a client last got of each kind;
+    `last` is updated as each is yielded. A new `declare` makes the
+    `params` after it go too, even when its text is the same: the client
+    builds its controls empty, and a reload that keeps every value still
+    leaves them to be filled in."""
+    for kind, text in zip(_MESSAGES, texts):
+        if text is None or text == last.get(kind):
+            continue
+        last[kind] = text
+        if kind == "declare":
+            last["params"] = None
+        yield text
+
+
+class StateTexts:
+    """The current text of each of `_MESSAGES` for one control (None: no
+    control), read whole each time (the module docstring): the `status`
+    given, and the control's states (`wire_states`), None for a source not
+    wired. Read every frame rather than pushed when a set lands: a set is
+    queued onto the loop thread, so when it is accepted the value has not
+    moved yet. Serialized every frame, so a client compares texts, and a
+    value that changes kind (1 to true) is sent even when it compares
+    equal."""
+
+    def __init__(self, control: Control | None, now: Callable[[], float]) -> None:
+        self._control = control
+        self._now = now
+        # When the `mod` values may next be read, and the last read.
+        self._mod: tuple[float, dict | None] = (0.0, None)
+        # Each message's last state and its text, by message type: see `_text`.
+        self._texts: dict[str, tuple[object, str]] = {}
+
+    def __call__(self, status: tuple[str, str, str | None] | None) -> tuple[str | None, ...]:
+        states: dict[str, Any] = {"status": status_state(status)}
+        if self._control is not None:
+            states |= wire_states(self._control, self._mod_values(self._control))
+        return tuple(self._text(kind, states.get(kind)) for kind in _MESSAGES)
+
+    def _text(self, kind: str, state: Any) -> str | None:
+        """Message `kind`'s text for `state` (`message`), or None for no
+        state. A state that is the same object as the last one keeps its
+        text: a source replaces its state whole when it changes."""
+        if state is None:
+            return None
+        last = self._texts.get(kind)
+        if last is not None and last[0] is state:
+            return last[1]
+        text = message(kind, state)
+        self._texts[kind] = (state, text)
+        return text
+
+    def _mod_values(self, control: Control) -> dict:
+        """The driven knobs' live values (`Control.mod`), read at most
+        `MOD_HZ` times a second; between reads, the last one. Each read is
+        one swap of `_mod`, so a connection thread and the sending thread
+        share it safely."""
+        due, values = self._mod
+        t = self._now()
+        if values is None or t >= due:
+            values = control.mod()
+            self._mod = (t + 1.0 / MOD_HZ, values)
+        return values
+
+
+def _send(conn: ServerConnection, message: dict[str, Any]) -> None:
+    """Send `message` on `conn`, unless the tab has closed."""
     try:
-        _answer(conn, control, rid, done.result())
+        conn.send(json.dumps(message))
     except ConnectionClosed:
         pass  # the tab closed while its request ran
 
@@ -298,17 +387,8 @@ class _Client:
             self.last_view = view.generation
             self.conn.send(view.layout)
         self.conn.send(data)
-        for kind, message in zip(_MESSAGES, messages):
-            if message is None or message == self.last[kind]:
-                continue
-            self.last[kind] = message
-            if kind == "declare":
-                # New controls, built empty. The values echo must follow even
-                # when its text is identical to the last one sent: a reload
-                # that keeps every value still leaves the rebuilt controls
-                # to be filled in.
-                self.last["params"] = None
-            self.conn.send(message)
+        for text in changed_texts(messages, self.last):
+            self.conn.send(text)
 
 
 class PreviewSink:
@@ -334,9 +414,7 @@ class PreviewSink:
         self._capabilities = ("ack", *control.capabilities) if control is not None else ()
         self._view = _View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities)
         self._control = control
-        self._now = now
-        # When the `mod` values may next be read, and the last read.
-        self._mod: tuple[float, dict | None] = (0.0, None)
+        self._states = StateTexts(control, now)
         self._gate = RateGate(max_fps, now=now, sleep=sleep)
         self._status = status
         self._current_status: tuple[str, str, str | None] | None = None
@@ -349,8 +427,6 @@ class PreviewSink:
         self._lock = threading.Lock()
         self._stopping = threading.Event()
         self._seq = 0
-        # Each message's last state and its text, by message type: see `_text`.
-        self._texts: dict[str, tuple[object, str]] = {}
 
     # -- transport lifecycle --------------------------------------------------
 
@@ -436,48 +512,9 @@ class PreviewSink:
         u8 = to_display_u8(frame if view.idx is None else frame[view.idx])
         self._seq = (self._seq + 1) & 0xFFFFFFFF
         data = FRAME_HEADER.pack(t, self._seq) + u8.tobytes()
-        messages = self._messages(status)
+        messages = self._states(status)
         for client in clients:
             client.driver.submit(t, (data, view, messages))
-
-    def _messages(self, status: tuple[str, str, str | None] | None) -> tuple[str | None, ...]:
-        """The current text of each of `_MESSAGES`, None for a source not
-        wired. Read every frame rather than pushed when a set lands: a set is
-        queued onto the loop thread, so when it is accepted the value has not
-        moved yet. Serialized every frame, so a client compares texts, and
-        a value that changes kind (1 to true) is sent even when it compares
-        equal."""
-        control = self._control
-        states: dict[str, Any] = {"status": status_state(status)}
-        if control is not None:
-            states |= {"declare": control.describe(), "params": control.values(), "mod": self._mod_values(control),
-                       "aura": control.state(), "health": control.health(), "catalog": control.catalog()}
-        return tuple(self._text(kind, states.get(kind)) for kind in _MESSAGES)
-
-    def _text(self, kind: str, state: Any) -> str | None:
-        """Message `kind`'s text for `state` (`message`), or None for no
-        state. A state that is the same object as the last one keeps its
-        text: a source replaces its state whole when it changes."""
-        if state is None:
-            return None
-        last = self._texts.get(kind)
-        if last is not None and last[0] is state:
-            return last[1]
-        text = message(kind, state)
-        self._texts[kind] = (state, text)
-        return text
-
-    def _mod_values(self, control: Control) -> dict:
-        """The driven knobs' live values (`Control.mod`), read at most
-        `MOD_HZ` times a second; between reads, the last one. Each read is
-        one swap of `_mod`, so a connection thread and the sending thread
-        share it safely."""
-        due, values = self._mod
-        t = self._now()
-        if values is None or t >= due:
-            values = control.mod()
-            self._mod = (t + 1.0 / MOD_HZ, values)
-        return values
 
     # -- server side (per-connection threads) ---------------------------------
 
@@ -521,10 +558,8 @@ class PreviewSink:
         return _bytes_response(conn, data, {"Content-Type": kind, "Cache-Control": "no-store"})
 
     def _handler(self, conn: ServerConnection) -> None:
-        if self._control is not None:
-            self._control.rescan()  # a pattern file added since launch is offered on the next load
         view = self._view
-        messages = self._messages(self._current_status)
+        messages = self._states(self._current_status)
         conn.send(view.hello)
         for message in messages:
             if message is not None:
@@ -563,14 +598,5 @@ class PreviewSink:
             return
         if not isinstance(request, dict):
             return
-        kind, rid = request.get("type"), request.get("id")
-        if self._control is None:
-            return
-        if rid is None and (not isinstance(kind, str) or (kind == "set" and not isinstance(request.get("name"), str))):
-            return  # no control, or a set of no knob, and no id to answer
-        control = kind if isinstance(kind, str) else None
-        answer = self._control.request(request)
-        if isinstance(answer, Future):
-            answer.add_done_callback(lambda done: _answer_late(conn, control, rid, done))
-        else:
-            _answer(conn, control, rid, answer)
+        if self._control is not None:
+            answer_request(self._control, request, lambda reply: _send(conn, reply))

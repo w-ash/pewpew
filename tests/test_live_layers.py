@@ -11,7 +11,7 @@ from concurrent.futures import Future
 import numpy as np
 import pytest
 
-from fakes import LOOK_CLASSES, FakeCatalog, LoopThread, Painter, Solid, aura_rig, look, next_text, rgb, serving, spec
+from fakes import LOOK_CLASSES, LoopThread, Painter, Solid, aura_rig, look, next_text, restore, rgb, serving, spec
 from pewpew import grid, line
 from pewpew.aura.book import load_looks
 from pewpew.aura.control import BUSY_LAYER
@@ -43,7 +43,7 @@ def solid_layer(color: dict, **mix) -> dict:
 def rig_of(tmp_path, *layers, **look):
     """An aura on a 4-pixel line in look `duo` of `layers` and the rest of `look` (signals, routes)."""
     rig = aura_rig(Solid, looks={"duo": Look(layers, **look)}, current="duo", path=tmp_path / "looks.json")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     return rig
 
 
@@ -66,7 +66,6 @@ def test_an_added_layer_runs_on_top_with_a_free_id_and_the_rest_run_on(tmp_path)
     assert ask(rig, type="add_layer", layer=solid_layer(BLUE, blend="add", enabled=False)) is None
     assert ids(rig) == ["base", "solid", "solid2"]
     assert rig.renderer("base") is base  # the other layers run on
-    assert list(rig.deck.reloaders) == ["base", "solid", "solid2"]
     np.testing.assert_array_equal(rig.frame(1 / 60), rgb(0.5, 0.0, 0.5, 4))
     assert rig.control.state()["stack"]["layers"][1] == {
         "id": "solid", "nodes": [{"id": "solid", "op": "pattern", "label": "solid", "in": []}],
@@ -97,14 +96,14 @@ def test_a_layer_added_below_another_goes_under_it_and_keeps_the_id_it_gives(tmp
     assert ids(rig) == ["base", "mid", "top"]
 
 
-def test_a_layer_that_names_its_pattern_by_file_is_refused_with_its_address_and_never_read(tmp_path):
+def test_a_layer_that_names_its_pattern_by_file_is_an_unknown_pattern_and_never_read(tmp_path):
     rig = rig_of(tmp_path, pattern_layer("base", "solid", RED))
     pathed = tmp_path / "x.py"
     pathed.write_text("raise SystemExit('a pattern file sent over the socket ran')\n")
     refusal = ask(rig, type="add_layer", layer={"out": "x", "nodes": {"x": {"op": "pattern",
                                                                             "args": {"pattern": str(pathed)}}}})
     assert refusal is not None and refusal.name == "layers.x.x.pattern"
-    assert str(tmp_path) not in refusal.reason and "by name, never by file" in refusal.reason
+    assert "unknown pattern" in refusal.reason
     assert ids(rig) == ["base"]
 
 
@@ -118,7 +117,7 @@ def test_a_layer_the_look_or_the_map_cannot_run_is_refused_and_nothing_changes(t
         "layers.fold: layers.fold.fold: kaleid needs a map of 2 or 3 dimensions, and this map has 1; "
         "a strip has no plane to fold; use mirror along the strip",
     )
-    assert rig.fader.current.layers == before and list(rig.deck.reloaders) == ["base"]
+    assert rig.fader.current.layers == before
 
 
 def test_a_look_holds_at_most_its_layers_cap(tmp_path, monkeypatch):
@@ -130,15 +129,14 @@ def test_a_look_holds_at_most_its_layers_cap(tmp_path, monkeypatch):
     assert MAX_LAYERS == 16  # the looks file's cap, which the patch above stands in for
 
 
-def test_a_removed_layer_stops_with_its_reloader_and_a_route_into_it_rests(tmp_path):
+def test_a_removed_layer_stops_and_a_route_into_it_rests(tmp_path):
     rig = rig_of(
         tmp_path, pattern_layer("base", "solid", RED), pattern_layer("top", "solid", BLUE, opacity=0.5),
         signals=Graph((Node("breath", "lfo", {"rate": 0.5}),)), routes=(Route("breath", "layers.top.opacity", 0.2),),
     )
-    base, top = rig.renderer("base"), rig.deck.reloaders["top"]
+    base = rig.renderer("base")
     assert ask(rig, type="remove_layer", lid="top") is None
     assert ids(rig) == ["base"] and rig.renderer("base") is base
-    assert list(rig.deck.reloaders) == ["base"] and top._stopped
     assert rig.control.state()["stack"]["routes"] == []
     np.testing.assert_array_equal(rig.frame(1 / 60), rgb(1.0, 0.0, 0.0, 4))
     assert ask(rig, type="remove_layer", lid="base") == Refusal("a look has at least one layer")
@@ -164,7 +162,7 @@ def test_a_moved_layer_blends_in_its_new_place_as_it_ran(tmp_path):
 def test_an_edit_ends_a_running_fade_and_is_operator_input(tmp_path):
     rig = aura_rig(Solid, looks={"red": look("solid", RED), "blue": look("solid", BLUE)}, current="red",
                    path=tmp_path / "looks.json")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     assert rig.looks.recall("blue", 2.0) is None and rig.fader.fading
     touched = []
     rig.looks.touch = lambda: touched.append(True)
@@ -178,7 +176,7 @@ def test_an_edit_drops_a_recall_that_waits_for_the_fade_it_ends(tmp_path):
     the next frame and drop the layer just acked."""
     rig = aura_rig(Solid, looks={"red": look("solid", RED), "blue": look("solid", BLUE), "green": look("solid", RED)},
                    current="red", path=tmp_path / "looks.json")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     assert rig.looks.recall("blue", 2.0) is None and rig.looks.recall("green", 2.0) is None
     assert rig.looks.state()["pending"] == "green"
     assert ask(rig, type="add_layer", layer=solid_layer(RED, opacity=0.5)) is None
@@ -200,7 +198,7 @@ def test_an_edit_during_a_trigger_hold_ends_it_and_the_aura_does_not_return(tmp_
     duo = Look((pattern_layer("base", "solid", RED), pattern_layer("top", "solid", BLUE, opacity=0.5)))
     rig = aura_rig(Solid, looks={"solo": look("solid", BLUE), "duo": duo}, current="solo",
                    path=tmp_path / "looks.json")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     assert rig.looks.hold("door", "duo", 0.5, 0, rig.fader.t) is None and rig.looks.held is not None
     assert ask(rig, **edit) is None
     edited = ids(rig)
@@ -214,7 +212,7 @@ def test_a_keep_after_a_layer_edit_saves_the_made_look_as_edited_under_its_own_n
     """An edit changes the made look that runs; it does not leave it, as a pick does."""
     rig = aura_rig(Solid, looks={"blue": look("solid", BLUE)}, current="blue", path=tmp_path / "looks.json",
                    variety=Painter)
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     assert ask(rig, type="surprise", seed=7) is None  # Painter's surprise: solid green on `base`
     assert ask(rig, type="add_layer", layer=solid_layer(RED, opacity=0.5)) is None
     assert rig.looks.book.current is None  # still the made look, unsaved
@@ -233,7 +231,7 @@ def test_an_edit_to_a_made_look_is_changed_until_a_keep_saves_it(tmp_path):
     look is with itself as saved: the page marks its edits and guards them."""
     rig = aura_rig(Solid, looks={"blue": look("solid", BLUE)}, current="blue", path=tmp_path / "looks.json",
                    variety=Painter)
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     assert ask(rig, type="surprise", seed=7) is None
     state = rig.looks.state()
     assert not rig.looks.changed() and state["made"] == "surprise 7" and state["saved"] is not None
@@ -246,7 +244,7 @@ def test_an_edit_to_a_made_look_is_changed_until_a_keep_saves_it(tmp_path):
 def test_each_card_adds_its_example_as_it_is(tmp_path):
     """The page sends a card's example program with the mix it picks; the
     engine runs it. A card names the map dimensions it takes."""
-    rig = aura_rig(Solid, mapping=grid(4, 4), catalog=FakeCatalog(LOOK_CLASSES))
+    rig = aura_rig(Solid, mapping=grid(4, 4), catalog=Catalog(LOOK_CLASSES))
     cards = {card["name"]: card for card in rig.control.catalog()["cards"]}
     assert [name for name, card in cards.items() if card["kind"] == "pattern"] == sorted(LOOK_CLASSES)
     assert cards["solid"] == {
@@ -267,7 +265,7 @@ def test_each_card_adds_its_example_as_it_is(tmp_path):
 
 def test_a_card_names_its_record_as_a_catalog_search_does():
     """The page and an agent describe one record in the same words."""
-    rig = aura_rig(Solid, catalog=FakeCatalog(LOOK_CLASSES))
+    rig = aura_rig(Solid, catalog=Catalog(LOOK_CLASSES))
     cards = {(card["kind"], card["name"]): card for card in rig.control.catalog()["cards"]}
     found = {(item.kind, item.name): item.to_json() for item in index().items}
     short = ("kind", "name", "label", "summary", "sig")
@@ -276,10 +274,11 @@ def test_a_card_names_its_record_as_a_catalog_search_does():
     assert cards["pattern", "wave"]["summary"] == "Bands of light cross the room in one direction."
 
 
-def test_the_catalog_is_one_object_until_an_op_registers_or_a_pattern_file_comes(tmp_path, monkeypatch):
-    rig = aura_rig(Solid, catalog=Catalog(tmp_path))
+def test_the_catalog_is_made_once(monkeypatch):
+    """The ops and the patterns are fixed for a run, so the page's catalog
+    is made on first use and is the same object after."""
+    rig = aura_rig(Solid)
     first = rig.control.catalog()
-    assert rig.control.catalog() is first
     assert [blend["name"] for blend in first["blends"]][:3] == ["normal", "add", "screen"]
 
     class Glow(fx_op.Op):
@@ -289,19 +288,13 @@ def test_the_catalog_is_one_object_until_an_op_registers_or_a_pattern_file_comes
 
     Glow.op = "glow"
     monkeypatch.setitem(fx_op.REGISTRY, "glow", Glow)
-    second = rig.control.catalog()
-    assert second is not first and "glow" in [card["name"] for card in second["cards"]]
-    (tmp_path / "mine.py").write_text("")
-    rig.control.rescan()
-    assert "mine" in [card["name"] for card in rig.control.catalog()["cards"]]
+    assert rig.control.catalog() is first and "glow" not in [card["name"] for card in first["cards"]]
 
 
-def test_an_op_whose_example_does_not_build_leaves_the_page_its_last_catalog(monkeypatch, caplog):
-    """A typo in one op file's example must not take the page down: the
-    page keeps the cards it had, or gets none, the log says why once, and
-    a client is still greeted."""
+def test_an_op_whose_example_does_not_build_leaves_the_page_no_cards(monkeypatch, caplog):
+    """A typo in one op's example must not take the page down: the page
+    gets no cards, the log says why once, and a client is still greeted."""
     rig = aura_rig(Solid, mapping=line(4))
-    first = rig.control.catalog()
 
     class Glow(fx_op.Op):
         """Glows."""
@@ -312,11 +305,10 @@ def test_an_op_whose_example_does_not_build_leaves_the_page_its_last_catalog(mon
     Glow.op = "glow"
     monkeypatch.setitem(fx_op.REGISTRY, "glow", Glow)
     with caplog.at_level(logging.WARNING, logger="pewpew.aura.control"):
-        assert rig.control.catalog() is first and rig.control.catalog() is first
-    assert [r.getMessage() for r in caplog.records] == ["the page keeps its last catalog: the catalog cannot be made"]
+        assert rig.control.catalog() is rig.control.catalog()
+    assert [r.getMessage() for r in caplog.records] == ["the page has no catalog: the catalog cannot be made"]
     with serving(rig.control, rig.calls) as (_, _ws, greeting):
-        assert greeting["catalog"]["cards"] == first["cards"]
-    assert aura_rig(Solid, mapping=line(4)).control.catalog() == {"cards": [], "blends": []}
+        assert greeting["catalog"]["cards"] == []
 
 
 def test_a_layer_without_an_id_or_an_out_is_named_by_the_node_it_draws(tmp_path):

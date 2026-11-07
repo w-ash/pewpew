@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from audio_signals import RATE, JitterSource, frame_bytes, kick_loop, noise, sine, ticks, write_wav
-from fakes import build, run_python
+from fakes import build, pattern_looks, run_python
 from harness.goldens import assert_matches_golden
 from pewpew.__main__ import main, parse
 from pewpew.audio import ArraySource, AudioFeatures, Block, FeatureLog, ReplayFeatures
@@ -120,14 +120,14 @@ def test_a_jittered_live_run_replays_byte_for_byte_at_its_fps_and_at_or_before_t
 def test_a_run_logs_its_features_and_a_replay_renders_the_same_bytes(tmp_path: Path) -> None:
     wav = write_wav(tmp_path / "k.wav", kick_loop(120.0, 2.0))
     log = tmp_path / "f.jsonl"
-    live = build(["run", "geq", "--audio", str(wav), "--feature-log", str(log), "--ansi"])
+    live = build(["run", pattern_looks("geq"), "--audio", str(wav), "--feature-log", str(log), "--ansi"])
     assert isinstance(live.audio, AudioFeatures) and live.audio.source.state()["kind"] == "file"
     live.audio.source = JitterSource(kick_loop(120.0, 2.0), seed=5)  # samples as a device delivers them
     assert live.feature_log is not None
     live.feature_log.start()
     shown = drive(live, 90)
     live.feature_log.close()
-    replay = build(["run", "geq", "--audio", f"replay:{log}", "--ansi"])
+    replay = build(["run", pattern_looks("geq"), "--audio", f"replay:{log}", "--ansi"])
     assert replay.audio is None and replay.loop._before[0] == replay.triggers.before_frame
     assert drive(replay, 90) == shown and len(set(shown)) > 20
     header = json.loads(log.read_text().splitlines()[0])["run"]
@@ -184,16 +184,16 @@ def test_the_log_stops_at_its_cap_and_on_a_failed_write_with_one_warning(tmp_pat
 ])
 def test_audio_options_that_rule_each_other_out_are_usage_errors(capsys, argv: list[str], problem: str) -> None:
     with pytest.raises(SystemExit) as exit_:
-        parse(["run", "pulse", *argv])
+        parse(["run", pattern_looks("pulse"), *argv])
     assert exit_.value.code == 2 and problem in capsys.readouterr().err
 
 
 def test_an_input_a_run_cannot_open_is_one_exit_line(tmp_path: Path) -> None:
     with pytest.raises(SystemExit,
                        match="--audio net:pewpew-line-1: outside --unattended, a capture node is a bench node"):
-        main(["run", "pulse", "--audio", "net:pewpew-line-1", "--frames", "1"])
+        main(["run", pattern_looks("pulse"), "--audio", "net:pewpew-line-1", "--frames", "1"])
     with pytest.raises(SystemExit, match="feature log for appending: No such file or directory"):
-        main(["run", "pulse", "--audio", str(write_wav(tmp_path / "a.wav", noise(0.1))),
+        main(["run", pattern_looks("pulse"), "--audio", str(write_wav(tmp_path / "a.wav", noise(0.1))),
               "--feature-log", str(tmp_path / "missing" / "f.jsonl"), "--frames", "1"])
 
 
@@ -298,9 +298,14 @@ sys.modules["sounddevice"] = None  # an import of it now raises ImportError
 sys.path.insert(0, sys.argv[1])
 from audio_signals import kick_loop, write_wav
 from pewpew.__main__ import main
-wav = write_wav(pathlib.Path(tempfile.mkdtemp()) / "k.wav", kick_loop(120.0, 1.0))
+from pewpew.aura.book import LookBook
+from pewpew.compose import Look, pattern_layer
+folder = pathlib.Path(tempfile.mkdtemp())
+wav = write_wav(folder / "k.wav", kick_loop(120.0, 1.0))
+looks = folder / "pulse.look.json"
+looks.write_bytes(LookBook({"pulse": Look((pattern_layer("base", "pulse"),))}, "pulse").to_bytes())
 main(["audio", "analyse", str(wav), "--json"])
-main(["run", "pulse", "--audio", str(wav), "--frames", "3", "--ansi", "--no-reload"])
+main(["run", str(looks), "--audio", str(wav), "--frames", "3", "--ansi"])
 print("CAPTURE", sorted(m for m in sys.modules if m.split(".")[0] in {"sounddevice", "_sounddevice", "cffi"}))
 """
 

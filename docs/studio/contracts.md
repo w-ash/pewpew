@@ -14,7 +14,7 @@ needs to change a contract says so in its report rather than changing it on its 
 | `schemas/arrangement.v1.json`, `schemas/catalog.v1.json` (generated, committed) | ws1 |
 | `examples/*.look.json` (the studio's example looks) | ws5 |
 | `src/pewpew/studio/` (FastAPI app, sessions, store, limits) and `python -m pewpew studio` | ws3 |
-| `studio-web/` (Vite + React + R3F) | ws4 |
+| `web/src/studio/` (Vite + React + R3F) | ws4 |
 | `Dockerfile`, `.dockerignore`, `fly.toml`, `.github/workflows/release.yml`, `docs/deployment.md` | ws6 |
 | `research/` ADRs and source fragments, `CHANGELOG.md` | ws7 |
 | `docs/studio/reports/<workstream>.md` | each workstream writes its own |
@@ -101,10 +101,10 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
   output gives `fps`, the wire's rate at most the firmware's `min_frame_interval_s`. New warnings:
   `relies_on_cap_and_fuse` and `psu_full_white_overload`.
 - **Session.** `Session.bind(mapping, grouping=..., catalog_digest=..., issues=..., limiter=...)`.
-  Each frame passes the limiter before it is quantized. A frame that fails is dropped and the
-  limiter stays bound. A session has no master dimmer, so the arrangement's `max_brightness`
-  stays in the limiter, and `uncapped_watts` is the draw before both the brightness and the watt
-  cap.
+  Each frame passes the master, then the limiter (an `after` stage), before it is quantized. A
+  frame that fails is dropped and the limiter stays bound. The arrangement's `max_brightness`
+  stays in the limiter, and `uncapped_watts` is the draw of the frame at the master's level,
+  before both the brightness and the watt cap.
 
 **Geometry (ws1b).** `build_glb(type_id: str, catalog: Catalog) -> bytes`. The output is
 deterministic bytes. `assembly_digest(type_id, catalog) -> str` gives the URL key. In the GLB,
@@ -127,7 +127,7 @@ as a method or function that takes a linear-light float frame.
 | `POST /api/arrangements` (body: arrangement) | `{"id": "<22-char base64url>"}`; the id is the first 128 bits of SHA-256 over the canonical JSON |
 | `GET /api/arrangements/{id}` | the stored arrangement |
 | `GET /api/looks` | `{name: look}`: the current look of each `examples/*.look.json`, by file name, in the looks file's form, ready to send as a `look` request (`PEWPEW_STUDIO_EXAMPLES` names another folder) |
-| `GET /`, `GET /a/{id}`, `/assets/*` | the SPA from `studio-web/dist` when it exists |
+| `GET /`, `GET /a/{id}`, `/assets/*` | the SPA from `web/dist/studio` when it exists |
 
 ## WebSocket `/ws/session` (ws3 owns)
 
@@ -165,17 +165,20 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
   any frame whose length is not `8 + 3n`.
 - **Client to server, text:**
   - `{"type":"bind","arrangement":{...}}`, which compiles, rebinds the running look to the rig's
-    mapping and fixture grouping, and keeps `t`. A look that cannot run on it (a strip for a
-    look that folds a plane) is refused, and the old mapping stays;
+    mapping and fixture grouping, and keeps `t`. When the running look cannot run on it (a
+    strip for a look that folds a plane), the session cuts to the first example look that can
+    (`tide` first, then by file name), and `status` says so (source `"bind"`) until another
+    look runs. When none can, the bind is refused and the old mapping stays;
   - any request of `pewpew.aura.control.REQUESTS`, as the preview takes it, with an optional
     `id` for its answer: `{"type":"set","name":<knob address>,"value"}` (the value in its kind's
     JSON form), `{"type":"look","look":{...},"fade"?}` (one look in the looks file's form, such
     as a `GET /api/looks` entry), `add_layer`, `remove_layer`, `move_layer`, `front`,
     `master`, `blackout`, `surprise`, `vary`, `arm` and `fire`. A request that needs a looks file
     (`recall`, `save`, `keep`, `delete`, `cycle`, `fade`), boards (`scan`, `rebind`) or a room
-    (`blink`) is refused;
+    (`blink`) is refused. A session makes one look at a time: a `surprise` or `vary` sent while
+    one is being made is refused at once;
   - `{"type":"pause"}` and `{"type":"resume"}`, which the page sends when its tab is hidden or
-    shown. A request that waits for the loop while it is paused is answered late.
+    shown. Any other request sent while the session is paused is refused at once.
 - A session renders at 30 fps on its own thread. Frames cross to asyncio through
   `loop.call_soon_threadsafe` into a one-slot mailbox that keeps only the newest frame. A
   session pauses after 10 minutes with no inbound message.
@@ -192,8 +195,8 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
 - The app factory is `pewpew.studio.app:create_app`, run with `uvicorn --factory`.
 - `pewpew[studio]` = fastapi, uvicorn[standard], psycopg[binary], manifold3d. pydantic joins the
   core dependencies.
-- `studio-web/` uses pnpm. `pnpm build` writes `studio-web/dist`. In development, Vite on 5173 proxies `/api`
-  and `/ws` to 8000.
+- `web/` uses pnpm. `pnpm build` writes `web/dist/studio`. In development (`pnpm dev:studio`), Vite on 5173
+  proxies `/api` and `/ws` to 8000.
 - The container listens on port 8000.
 
 ## Sources

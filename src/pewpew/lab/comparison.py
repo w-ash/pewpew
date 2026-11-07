@@ -4,9 +4,8 @@ how far their frames differ.
 Each side is a render, its handle, or a look. A look renders as the other
 side did when that side is a render: on its map spec, for its seconds and
 fps, with its seed. Two looks both render with the arguments given. So a
-render's spec always gives its handle again; `auto` is the map of each
-look's own bottom pattern, and two looks whose maps differ there do not
-compare. The look diff names each knob by its address (ADR-006), a
+render's spec always gives its handle again, and two renders whose maps
+differ do not compare. The look diff names each knob by its address (ADR-006), a
 layer's or signal's node by its own (its op and what it reads), plus the
 look's own fields, its layer order, its front knobs, and each route by
 `routes[<source> -> <path>]`, its value the route's depth.
@@ -32,11 +31,10 @@ from pewpew.color import oklab
 from pewpew.compose import MIX, layer_address
 from pewpew.compose.controls import signal_address
 from pewpew.lab.check import LookDoc
-from pewpew.lab.geometry import AUTO
 from pewpew.lab.handles import Cache, is_handle
 from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, Rendered, Take, render, take
 from pewpew.lab.views import Picture, picture
-from pewpew.load import Catalog
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.metrics import measure, rms
 from pewpew.result import Result
 from pewpew.sheet import compare_sheet as draw_pair
@@ -74,20 +72,17 @@ def compare(
     a: Side,
     b: Side,
     *,
-    map_spec: str = AUTO,
+    map_spec: str = DEFAULT_MAP,
     seconds: float = DEFAULT_SECONDS,
     fps: float = DEFAULT_FPS,
     seed: int = 0,
     name: str | None = None,
-    pattern_dir: Path | None = None,
-    catalog: Catalog | None = None,
     cache: Cache | None = None,
 ) -> Comparison:
-    """B against A (module docstring). The render arguments, `name`, the
-    look of a looks file, and `pattern_dir` or `catalog` (as `render` takes
-    them) apply to a side that is a look. Raises Refused, Expired, and
+    """B against A (module docstring). The render arguments and `name`,
+    the look of a looks file, apply to a side that is a look. Raises Refused, Expired, and
     ValueError for two renders that are not alike."""
-    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name, pattern_dir, catalog), cache)
+    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name), cache)
     ma, mb = measure(first.frames, first.spec.fps), measure(second.frames, second.spec.fps)
     fa, fb = sanitize(first.frames), sanitize(second.frames)
     divergent = np.flatnonzero((fa != fb).any(axis=(1, 2)))
@@ -112,20 +107,18 @@ def compare_sheet(
     tiles: int = 4,
     width: int = 1024,
     out: Path | None = None,
-    map_spec: str = AUTO,
+    map_spec: str = DEFAULT_MAP,
     seconds: float = DEFAULT_SECONDS,
     fps: float = DEFAULT_FPS,
     seed: int = 0,
     name: str | None = None,
-    pattern_dir: Path | None = None,
-    catalog: Catalog | None = None,
     cache: Cache | None = None,
 ) -> Picture:
     """A and B in one sheet, rows labeled A and B (pewpew.sheet.compare_sheet),
     written to `out` or into A's cache folder. Raises as `compare` does,
     and OSError when the file cannot be written."""
     cache = cache if cache is not None else Cache()
-    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name, pattern_dir, catalog), cache)
+    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name), cache)
     drawn = draw_pair(
         first.frames, second.frames, first.geometry.mapping, first.spec.fps, layout=layout, tiles=tiles, width=width,
     )
@@ -175,8 +168,6 @@ class _Looks:
     fps: float
     seed: int
     name: str | None
-    pattern_dir: Path | None
-    catalog: Catalog | None
 
 
 def _pair(a: Side, b: Side, how: _Looks, cache: Cache | None) -> tuple[Take, Take]:
@@ -189,11 +180,9 @@ def _pair(a: Side, b: Side, how: _Looks, cache: Cache | None) -> tuple[Take, Tak
         first = _side(a, how, cache)
         second = _side(b, _like(first, how), cache)
     if first.frames.shape != second.frames.shape or first.geometry.digest != second.geometry.digest:
-        auto = AUTO in (first.spec.map, second.spec.map)
         raise ValueError(
             f"A and B must be rendered alike to compare: A is {_shape(first)}, B is {_shape(second)}; "
             "render both on the same map with the same seconds and fps"
-            + ("; auto gives each look the map of its own bottom pattern, so name a map" if auto else "")
         )
     return first, second
 
@@ -212,8 +201,7 @@ def _side(side: Side, how: _Looks, cache: Cache | None) -> Take:
     if _is_render(side):
         return take(side, cache)
     rendered = render(
-        cast("LookDoc", side), how.map_spec, how.seconds, how.fps, how.seed, name=how.name, pattern_dir=how.pattern_dir,
-        catalog=how.catalog, cache=cache,
+        cast("LookDoc", side), how.map_spec, how.seconds, how.fps, how.seed, name=how.name, cache=cache,
     )
     return take(rendered, cache)
 

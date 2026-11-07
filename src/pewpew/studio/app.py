@@ -2,7 +2,9 @@
 
 `create_app` takes its collaborators as arguments so tests can inject fakes.
 The defaults are the real rig: `pewpew.rig.load_catalog` and `compile_rig`
-for arrangements, and `pewpew.rig.geometry` for the GLBs. The geometry module
+for arrangements, `pewpew.rig.geometry` for the GLBs, and the example looks
+of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another folder), which
+`GET /api/looks` lists and every session starts in one of (`START`). The geometry module
 is imported on first use. While it or manifold3d is missing, catalog entries
 carry no assembly URL and the GLB route answers 503.
 
@@ -37,10 +39,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import HTTPConnection
 
 from pewpew.jsonfile import TooDeep, loads
-from pewpew.load import gallery
-from pewpew.params import ParamSet
 from pewpew.rig import Catalog, CompiledRig, compile_rig, load_arrangement, load_catalog
-from pewpew.sinks.preview import refusal
+from pewpew.sinks.preview import answer_request, refusal
 from pewpew.studio.limits import (
     Admission,
     BodyLimit,
@@ -50,7 +50,7 @@ from pewpew.studio.limits import (
     client_ip,
     declared_fixtures,
 )
-from pewpew.studio.session import Session, SessionRegistry
+from pewpew.studio.session import START, Session, SessionRegistry, as_look, example_looks
 from pewpew.studio.store import ID_PATTERN, Store, arrangement_id, canonical_json, store_from_env
 from pewpew.studio.transport import Outbox
 
@@ -60,22 +60,15 @@ IMMUTABLE = "public, max-age=31536000, immutable"
 IDLE_TIMEOUT_S = 600.0  # no inbound message for this long pauses a session
 PAUSED_TIMEOUT_S = 1800.0  # paused for this long closes it
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
-_WEB_DIST = Path(__file__).resolve().parents[3] / "studio-web" / "dist"
+PAUSED = "the session is paused; send resume first"
+_WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist" / "studio"
+_EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
 
 Builders = tuple[Callable[[str, Any], bytes], Callable[[str, Any], str]]
 
 
 class SavedArrangement(BaseModel):
     id: str
-
-
-class PatternInfo(BaseModel):
-    """A gallery pattern: each param's `spec()`, in display order, and the
-    default values in their JSON form (`ParamSet.snapshot_json()`)."""
-
-    name: str
-    params: list[dict[str, Any]]
-    values: dict[str, Any]
 
 
 class IssueModel(BaseModel):
@@ -232,6 +225,7 @@ def create_app(
     build_glb: Callable[[str, Any], bytes] | None = None,
     assembly_digest: Callable[[str, Any], str] | None = None,
     web_dist: Path | None = None,
+    examples: Path | None = None,
     limits: Limits | None = None,
     fps: float = 30.0,
     idle_timeout_s: float = IDLE_TIMEOUT_S,
@@ -246,6 +240,14 @@ def create_app(
     compile_fn = compile or _default_compile
     view: _CatalogView | None = None
     view_lock = threading.Lock()
+    if examples is None:
+        examples = Path(os.environ.get("PEWPEW_STUDIO_EXAMPLES", _EXAMPLES))
+    looks = example_looks(examples)
+    if START not in looks:
+        raise RuntimeError(f"no example look {START!r}: every session starts in it")
+    looks_body = json.dumps(looks).encode()
+    # The looks a session starts in, and falls back on in a bind, in that order.
+    starts = {name: as_look(looks[name]) for name in [START, *(name for name in looks if name != START)]}
 
     def catalog_of() -> Any:
         nonlocal catalog
@@ -297,7 +299,6 @@ def create_app(
         limiter = getattr(rig, "limiter", None)
         return {
             "mapping": rig.mapping,
-            # One unit per fixture, so a per-fixture pattern lights each bar as one.
             "grouping": rig.grouping,
             "catalog_digest": rig.catalog_digest,
             "issues": [_issue(i) for i in rig.issues],
@@ -409,10 +410,9 @@ def create_app(
             raise HTTPException(404, "no such arrangement")
         return Response(text, media_type="application/json", headers={"Cache-Control": IMMUTABLE})
 
-    @app.get("/api/patterns")
-    def list_patterns() -> list[PatternInfo]:
-        sets = {name: ParamSet(cls) for name, cls in sorted(gallery().items())}
-        return [PatternInfo(name=name, params=ps.describe(), values=ps.snapshot_json()) for name, ps in sets.items()]
+    @app.get("/api/looks", response_model=dict[str, dict[str, Any]])
+    def list_looks() -> Response:
+        return Response(looks_body, media_type="application/json")
 
     # -- websocket -------------------------------------------------------------
 
@@ -429,10 +429,9 @@ def create_app(
         pump: asyncio.Future | None = None
         try:
             outbox = Outbox(asyncio.get_running_loop())
-            session = Session(outbox, fps=fps)
+            session = Session(outbox, starts, fps=fps)
             registry.add(session, ticket, lambda: outbox.close_with(refusal("session", EVICTED)))
-            hello, seen = session.hello()
-            outbox.control(hello, seen)
+            outbox.hello(session.hello())
             session.start()
             pump = asyncio.ensure_future(outbox.pump(ws))
             visitor = _Visitor(
@@ -532,38 +531,43 @@ class _Visitor:
         await asyncio.wait({self.pump}, timeout=5.0)
 
     async def _dispatch(self, kind: object, msg: dict) -> None:
+        """`pause`, `resume` and `bind` are the session's own; any other
+        message goes whole to the aura's control, which may block until
+        the loop thread answers, so it runs on a worker thread; while the
+        session is paused, it is refused at once."""
         session, outbox = self.session, self.outbox
         if kind == "pause":
             session.pause()
         elif kind == "resume":
             session.resume()
-        elif kind == "set":
-            name = msg.get("name")
-            reason = session.set(name, msg.get("value"))
-            if reason is not None:
-                outbox.control(refusal("set", reason, name=name if isinstance(name, str) else None))
-        elif kind == "pattern":
-            reason = session.pattern(msg.get("name"))
-            if reason is not None:
-                outbox.control(refusal("pattern", reason))
         elif kind == "bind":
-            arrangement = msg.get("arrangement")
-            if not isinstance(arrangement, dict):
-                outbox.control(refusal("bind", "bind needs an arrangement object"))
-                return
-            try:
-                args = await asyncio.to_thread(self.bind_args, arrangement)
-            except CompileFailure as exc:
-                outbox.control(refusal("bind", str(exc)[:300], issues=exc.issues))
-                return
-            except Busy as exc:
-                outbox.control(refusal("bind", str(exc)))
-                return
-            except Exception:
-                logger.warning("a bind failed to compile", exc_info=True)
-                outbox.control(refusal("bind", "the arrangement could not be compiled"))
-                return
-            session.bind(**args)
+            await self._bind(msg.get("arrangement"))
+        elif session.paused:
+            name = msg.get("name") if kind == "set" else None
+            outbox.control(refusal(kind if isinstance(kind, str) else None, PAUSED,
+                                   name=name if isinstance(name, str) else None, id=msg.get("id")))
+        else:
+            await asyncio.to_thread(answer_request, session.control, msg, outbox.control)
+
+    async def _bind(self, arrangement: object) -> None:
+        """Compile `arrangement` off the event loop, then rebind the session to it."""
+        outbox = self.outbox
+        if not isinstance(arrangement, dict):
+            outbox.control(refusal("bind", "bind needs an arrangement object"))
+            return
+        try:
+            args = await asyncio.to_thread(self.bind_args, arrangement)
+        except CompileFailure as exc:
+            outbox.control(refusal("bind", str(exc)[:300], issues=exc.issues))
+            return
+        except Busy as exc:
+            outbox.control(refusal("bind", str(exc)))
+            return
+        except Exception:
+            logger.warning("a bind failed to compile", exc_info=True)
+            outbox.control(refusal("bind", "the arrangement could not be compiled"))
+            return
+        self.session.bind(**args)
 
 
 def _mount_spa(app: FastAPI, dist: Path) -> None:

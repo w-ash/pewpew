@@ -17,17 +17,18 @@ also shows the cursor again.
 The stall marker (`marker_path()`: `$PEWPEW_STALL_MARKER`, else
 `~/.local/state/pewpew/stalled`, beside the audit log) tells the next start
 that the last run stalled. The runner takes it at start (`take_marker`):
-a marker younger than `MARKER_FRESH_S` makes it start the command-line
-pattern instead of restoring the current look, which breaks a restart
-loop on a look whose pattern hangs. The marker's age is wall-clock time,
-because it has to survive the process.
+a marker younger than `MARKER_FRESH_S` makes it start in the next look
+of the idle cycle's order instead of the file's current one, and say so
+on the status line, which breaks a restart loop on a look that hangs
+(pewpew.run.after_stall). The marker's age is wall-clock time, because it
+has to survive the process.
 
 Until the first beat the limit is `startup` (default
-`max(3 * timeout, STARTUP_S)`), which covers the look restore, the sinks
-starting and the first render; a restored look whose pattern hangs there
-also ends the process. Then the limit is `timeout`, well over a normal
-hitch (a hot reload, a look recall or a room map reload runs one load and
-one `setup` between two frames). `time.monotonic` is the clock, so a
+`max(3 * timeout, STARTUP_S)`), which covers building the look, the sinks
+starting and the first render; a look that hangs there also ends the
+process. Then the
+limit is `timeout`, well over a normal hitch (a look recall or a room map
+reload runs one `setup` between two frames). `time.monotonic` is the clock, so a
 wall-clock step cannot fire it.
 """
 

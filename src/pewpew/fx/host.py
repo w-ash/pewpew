@@ -1,7 +1,7 @@
 """`ProgramPattern`: an effect program hosted in a normal `Renderer`.
 
-A program is a `Pattern`, so loading, hot reload, `run file.py`, the
-goldens and the renderer's containment work for it unchanged:
+A program is a `Pattern`, so the goldens and the renderer's containment
+work for it unchanged:
 
     from pewpew.fx.expr import noise, osc
     from pewpew.fx.host import ProgramPattern
@@ -98,7 +98,7 @@ class ProgramPattern(Pattern):
     """A pattern that runs an effect program (module docstring). A subclass
     sets `program` (a `Program` or a builder expression) and, for its
     pattern nodes, `patterns` (classes by spec); a spec not in `patterns`
-    resolves as `run` resolves a pattern (pewpew.load.resolve). `strict`
+    resolves in the gallery (pewpew.load.resolve). `strict`
     checks that every node gives a float32 field (tests)."""
 
     program: ClassVar[Program | Buildable | None] = None
@@ -126,12 +126,12 @@ class ProgramPattern(Pattern):
     @classmethod
     def resolve(cls, spec: str) -> type | None:
         """The class pattern spec `spec` runs: from `patterns`, else
-        resolved once as `run` resolves it and kept in `patterns`."""
+        resolved once in the gallery and kept in `patterns`."""
         found = cls.patterns.get(spec)
         if found is None:
-            from pewpew.load import resolve  # loads the gallery or a file only when a node needs one
+            from pewpew.load import resolve  # loads the gallery only when a node needs one
 
-            found = resolve(spec).cls
+            found = resolve(spec)
             cls.patterns = {**cls.patterns, spec: found}
         return found
 

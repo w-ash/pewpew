@@ -14,7 +14,7 @@ moved, is checked against the stack's knobs
 A layer's program is an effect program (pewpew.fx): nodes of ops, the
 node it shows (`out`) and the node that masks it (`alpha`). A pattern
 node is a program node with op `pattern`: its `pattern` arg names the
-pattern (a pick name, or a launch spec that may be a path) and every
+pattern by its name in the catalog (pewpew.load) and every
 other arg is one of that pattern's params, in its JSON form. A layer of
 one pattern node runs the pattern directly; its node id defaults to the
 pattern's name, so `plasma.speed` is `layers.base.plasma.speed` on a

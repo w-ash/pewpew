@@ -740,6 +740,42 @@ series (batch mode).
 
 ### Changed
 
+- `run LOOKS` plays a looks file (ADR-025): a version-4 book, a
+  `.look.json` included, which it starts in at its `current` look (else
+  its first) and saves to. It replaces `run PATTERN --looks FILE`. Without
+  `--map` or `--room` the map is `grid:16x16`, and `fx render`, `compare`,
+  `vary`, `verify looks` and the MCP tools default to it too. `--seed`
+  seeds the stand-in features and the made looks; each look's own seed
+  seeds its layers. After a pick no look is current, and the file keeps
+  naming the last one, so a restart comes back in it. After a watchdog
+  stall a restart starts in the next look of the idle cycle's order that
+  can start, not the one that stalled, playing it as a pick so the file
+  keeps naming the operator's look, and says so on the status line; the
+  watchdog is armed before the look is built. The LaunchAgent template
+  runs `run __LOOKS__ --room __ROOM__`.
+- One front-end package, `web/`, builds both pages: the control page into
+  `src/pewpew/sinks/web/index.html` and the studio (`web/src/studio/`)
+  into `web/dist/studio` (`vite build --mode studio`; `--mode mock` serves
+  it against mocks). One toolchain: TypeScript at the page's strictness,
+  Vitest browser mode in Chromium and WebKit for both pages' unit tests,
+  and the React Compiler on the studio too. `studio-web/`, Biome, jsdom and
+  Testing Library are gone, and `just studio` is folded into `just web`.
+- The studio runs the aura (ADR-025): each session builds the pipeline
+  `run` builds (`pewpew.aura.pipeline.build_aura_pipeline`), starts in
+  `examples/tide.look.json`'s look, takes every aura request
+  (`set` by knob address, `look`, `surprise`, ...) with the preview's
+  `ack` and `refused` answers, and streams the preview's per-frame
+  messages (`declare`, `params`, `mod`, `aura`, `catalog`). `bind`, `pause`
+  and `resume` stay; the `pattern` message and `GET /api/patterns` are
+  gone, and `GET /api/looks` lists the example looks.
+- The studio's Effect tab is the control page's look editor: the example
+  looks, surprise me and vary this, the main knobs, the layers with their
+  knobs, "+ layer" cards and the modulators, on the control page's socket
+  and wire store (`@pewpew/page/wire`, `/params`, `/stack`, `/deck`). Its
+  own pattern picker, params decoder and session protocol are gone; only
+  `bind`, `pause`, `resume`, `bound` and `power` are the studio's. Its forms
+  use the page's parts too (`Block`, `Field`, `Segments`, `NumberField`):
+  a number is typed with the knobs' entry, and the watt cap is a switch.
 - The studio uses the control page's styles and controls (`@pewpew/page`), with
   Tailwind gone, so the two pages share one design system; the studio is dark
   only, as the control page is. `web/` and `studio-web/` are one pnpm workspace
@@ -1194,12 +1230,24 @@ series (batch mode).
 
 ### Removed
 
+- Remove hand-written Python patterns (ADR-025): `run file.py`,
+  `file.py:Class`, `--pattern-dir` (on `run`, the `fx` verbs, `verify
+  looks` and `push`), pattern-file hot reload (`Reloader`), op
+  registration from a loaded file, and the control page's rescan of a
+  patterns folder. A pattern goes by its gallery name alone
+  (`pewpew.load`).
+- Remove `run`'s launch pattern and its flags: the `PATTERN` positional,
+  `--param`, `--units`, `--no-reload`, `--looks` and `--map auto` (the
+  pattern's study fixture), with `auto` from the `fx` verbs and the MCP
+  tools.
 - Remove the page's operator and editor views; Layout mode replaces them.
 - Remove the pre-engine harness pattern contract and the fleet-simulation
   stub from `src/harness/`.
 
 ### Fixed
 
+- A number entry's − and + answer a finger over the full 44 px, as a
+  bordered button does; they were 2 px short.
 - A bordered button or tile answers a finger over the full 44 px, not 42.
 - Refuse JSON that nests arrays and objects more than 64 deep on every
   platform (`pewpew.jsonfile.MAX_DEPTH`), before the parser runs. Python's

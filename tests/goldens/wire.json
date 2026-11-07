@@ -1222,14 +1222,14 @@
       "control": "look",
       "name": "layers.base.x.pattern",
       "id": 7,
-      "reason": "layers.base.x: pattern '…' does not load: a look sent to an engine names its pattern by name, never by file"
+      "reason": "layers.base.x: pattern '…' does not load: unknown pattern '…'; patterns: colorplasma, wave, zoo"
     },
     {
       "type": "refused",
       "control": "add_layer",
       "name": "layers.x.x.pattern",
       "id": 8,
-      "reason": "layers.x.x: pattern '…' does not load: a look sent to an engine names its pattern by name, never by file"
+      "reason": "layers.x.x: pattern '…' does not load: unknown pattern '…'; patterns: colorplasma, wave, zoo"
     },
     {
       "type": "ack",

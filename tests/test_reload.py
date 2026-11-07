@@ -1,21 +1,20 @@
-"""Hot reload: `Renderer.swap` keeps the run's state, and `Reloader` keeps
-the run alive when the edit is broken."""
+"""Hot reload: `Renderer.swap` keeps the run's state, and `FileReloader`
+keeps the run alive when an edit is broken."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
-import textwrap
 import threading
 
 import numpy as np
 import pytest
 
 from pewpew import Float, Pattern, Renderer, line, render_sequence
-from pewpew.load import LoadedPattern, load_file, resolve
 from pewpew.pace import Calls
 from pewpew.patterns import STUDY_CASES
-from pewpew.reload import Reloader
+from pewpew.reload import FileReloader
 from pewpew.render import SlotClock
 
 
@@ -30,23 +29,19 @@ def run(renderer, clock, frames):
     "cls,mapping", [case[:2] for case in STUDY_CASES], ids=[c.__name__ for c, *_ in STUDY_CASES]
 )
 def test_swap_to_the_same_source_is_invisible_in_the_frames(cls, mapping):
-    """The star test. A swap mid-sequence — to a fresh instance of the same
-    class, and to a class re-executed from the same file the way a reload
-    does — renders bit-identically to no swap at all. That is what proves
+    """The star test. A swap mid-sequence to a fresh instance of the same
+    class renders bit-identically to no swap at all. That is what proves
     the inherited set (pixels, buffers, rng, scalars, t) is complete."""
     reference = render_sequence(cls, mapping, seed=42, frames=90)
-    fresh = load_file(resolve(cls.__name__.lower()).source, attr=None).cls
-    assert fresh is not cls
-    for candidate in (cls, fresh):
-        renderer = Renderer(cls(), mapping, seed=42)
-        clock = SlotClock(60.0)
-        frames = run(renderer, clock, 30)
-        renderer.swap(candidate())
-        frames += run(renderer, clock, 30)
-        renderer.swap(candidate())
-        frames += run(renderer, clock, 30)
-        assert np.array_equal(np.stack(frames), reference), candidate.__module__
-        assert renderer.t == clock.t
+    renderer = Renderer(cls(), mapping, seed=42)
+    clock = SlotClock(60.0)
+    frames = run(renderer, clock, 30)
+    renderer.swap(cls())
+    frames += run(renderer, clock, 30)
+    renderer.swap(cls())
+    frames += run(renderer, clock, 30)
+    assert np.array_equal(np.stack(frames), reference)
+    assert renderer.t == clock.t
 
 
 class Counter(Pattern):
@@ -282,156 +277,90 @@ def test_error_clears_on_the_first_healthy_frame_after_a_swap():
     assert renderer.error is None
 
 
-# ---- Reloader --------------------------------------------------------------
-
-SOURCE = '''
-import numpy as np
-from pewpew import Float, Pattern
-
-class Mine(Pattern):
-    level = Float({default}, 0.0, 1.0, label="Level")
-
-    def __init__(self):
-        self.ticks = 0
-
-    def before_render(self, dt, features):
-        self.ticks += 1
-
-    def render(self, x, y, z, index):
-        return np.full((self.n, 3), self.level, dtype=np.float32)
-'''
+# ---- FileReloader ---------------------------------------------------------
 
 
-def make(tmp_path, body=SOURCE, default=0.5):
-    path = tmp_path / "mine.py"
-    path.write_text(textwrap.dedent(body).format(default=default))
-    loaded = resolve(str(path))
-    renderer = Renderer(loaded.cls(), line(4))
+class Applied:
+    """What a `FileReloader` applied, in order; it raises for bytes that
+    start with "broken"."""
+
+    def __init__(self) -> None:
+        self.versions: list[bytes] = []
+
+    def __call__(self, data: bytes) -> str:
+        if data.startswith(b"broken"):
+            raise ValueError("the map has no fixtures")
+        self.versions.append(data)
+        return f"applied {data!r}"
+
+
+def make(tmp_path, data=b"one", **kw):
+    path = tmp_path / "room.json"
+    path.write_bytes(data)
+    applied = Applied()
     queue = Calls()
-    return path, renderer, Reloader(renderer, loaded, queue.call_soon), queue
+    return path, applied, FileReloader(path, hashlib.sha256(data).hexdigest(), queue.call_soon, applied,
+                                       noun="map", **kw)
 
 
-def test_reload_swaps_in_the_edited_file_and_keeps_state(tmp_path):
-    path, renderer, reloader, _ = make(tmp_path)
-    renderer.params.set("level", 0.2)
-    renderer.step(1 / 60)
-    renderer.step(1 / 60)
-    path.write_text(textwrap.dedent(SOURCE).format(default=0.9).replace("np.full", "np.full  # edited"))
-    assert reloader.reload() is True
-    assert reloader.error is None
-    assert renderer.pattern.ticks == 2
-    assert renderer.params["level"] == 0.2  # the live value still fits, so it stays
-    assert renderer.pattern.__class__.__module__ == "pewpew_user.mine"
+def test_a_changed_file_is_applied_and_unchanged_bytes_are_a_no_op(tmp_path):
+    path, applied, reloader = make(tmp_path)
+    path.write_bytes(b"one")  # an editor "save" with nothing changed
+    assert reloader.reload() is False and applied.versions == []
+    path.write_bytes(b"two")
+    assert reloader.reload() is True and applied.versions == [b"two"] and reloader.error is None
 
 
-def test_unchanged_bytes_are_a_no_op(tmp_path):
-    path, renderer, reloader, _ = make(tmp_path)
-    old = renderer.pattern
-    path.write_text(path.read_text())  # an editor "save" with nothing changed
-    assert reloader.reload() is False
-    assert renderer.pattern is old
-
-
-def test_a_broken_edit_keeps_the_last_good_pattern_and_says_why(tmp_path, caplog):
-    path, renderer, reloader, _ = make(tmp_path)
-    old = renderer.pattern
-    path.write_text("def (:\n")
+def test_a_broken_edit_keeps_the_last_good_version_and_says_why(tmp_path, caplog):
+    path, applied, reloader = make(tmp_path)
+    path.write_bytes(b"broken")
     with caplog.at_level(logging.ERROR, logger="pewpew"):
         assert reloader.reload() is False
-    assert renderer.pattern is old
-    assert reloader.error is not None
-    assert reloader.error == (
-        "reload failed, last-good pattern still running: SyntaxError: invalid syntax (line 1)"
-    )
-    assert "/" not in reloader.error and ".py" not in reloader.error
-    assert renderer.step(1 / 60).shape == (4, 3)  # the run goes on
-    assert "reload failed" in caplog.text
+    assert applied.versions == []
+    assert reloader.error == "reload failed, last-good map still running: ValueError: the map has no fixtures"
     # A second event for the same broken bytes is not a second traceback.
     assert reloader.reload() is False and caplog.text.count("reload failed") == 1
-    # The fix clears it.
-    path.write_text(textwrap.dedent(SOURCE).format(default=0.5) + "\n# fixed\n")
-    assert reloader.reload() is True
-    assert reloader.error is None
-
-
-def test_a_setup_that_raises_on_reload_is_a_failure_not_a_crash(tmp_path):
-    path, renderer, reloader, _ = make(tmp_path)
-    old = renderer.pattern
-    path.write_text(
-        textwrap.dedent(SOURCE).format(default=0.5)
-        + "    def setup(self, n, x, y, z, index):\n        raise RuntimeError('no')\n"
-    )
-    assert reloader.reload() is False
-    assert renderer.pattern is old
-    assert reloader.error is not None and "RuntimeError: no" in reloader.error
-
-
-def test_a_second_class_appearing_needs_a_name(tmp_path):
-    path, _renderer, reloader, _ = make(tmp_path)
-    path.write_text(textwrap.dedent(SOURCE).format(default=0.5) + "\nclass Other(Mine):\n    pass\n")
-    assert reloader.reload() is False
-    assert "pick one with :ClassName" in (reloader.error or "")
-
-
-def test_an_explicit_class_name_is_honoured_on_reload(tmp_path):
-    body = textwrap.dedent(SOURCE).format(default=0.5) + "\nclass Other(Mine):\n    pass\n"
-    path = tmp_path / "two.py"
-    path.write_text(body)
-    loaded = resolve(f"{path}:Other")
-    renderer = Renderer(loaded.cls(), line(4))
-    reloader = Reloader(renderer, loaded, Calls().call_soon)
-    path.write_text(body + "# edit\n")
-    assert reloader.reload() is True
-    assert type(renderer.pattern).__name__ == "Other"
+    path.write_bytes(b"fixed")
+    assert reloader.reload() is True and reloader.error is None
 
 
 def test_a_gone_file_is_reported_and_its_return_clears_the_error(tmp_path):
-    path, renderer, reloader, _ = make(tmp_path)
-    body = path.read_text()
+    path, _, reloader = make(tmp_path)
+    path.write_bytes(b"two")
+    assert reloader.reload() is True
     path.unlink()
     assert reloader.reload() is False
-    assert reloader.error is not None and "gone" in reloader.error
-    assert "/" not in reloader.error
-    assert renderer.step(1 / 60).shape == (4, 3)
-    path.write_text(body)  # `git stash pop`: byte-identical
-    assert reloader.reload() is True
-    assert reloader.error is None
+    assert reloader.error is not None and "gone" in reloader.error and "/" not in reloader.error
+    path.write_bytes(b"two")  # `git stash pop`: byte-identical
+    assert reloader.reload() is True and reloader.error is None
 
 
 def test_two_same_length_saves_in_one_second_both_take_effect(tmp_path):
-    """The bytes in hand are the truth, never the bytecode cache, whose
-    mtime-and-size check cannot tell these two saves apart."""
-    path, renderer, reloader, _ = make(tmp_path, default=0.3)
+    """The bytes in hand are the truth, never a file's mtime and size."""
+    path, applied, reloader = make(tmp_path, b"aaa")
     stat = path.stat()
-    path.write_text(textwrap.dedent(SOURCE).format(default=0.7))
+    path.write_bytes(b"bbb")
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))  # same second, same size
-    assert reloader.reload() is True
-    # The live value 0.3 still fits and is kept (ADR-006); the *declaration*
-    # is what proves the new bytes ran.
-    assert renderer.params.declarations["level"].default == 0.7
-    assert not (tmp_path / "__pycache__").exists()
+    assert reloader.reload() is True and applied.versions == [b"bbb"]
 
 
 def test_watcher_events_queue_reloads_on_the_loop_thread_and_stop_joins(tmp_path):
     fired = threading.Event()
 
     def watch(source, stop):
-        assert source == tmp_path / "mine.py"
+        assert source == tmp_path / "room.json"
         yield {"one batch"}
         fired.set()
         stop.wait()  # block like the real watcher until asked to stop
 
-    path = tmp_path / "mine.py"
-    path.write_text(textwrap.dedent(SOURCE).format(default=0.5))
-    loaded = resolve(str(path))
-    renderer = Renderer(loaded.cls(), line(4))
+    path = tmp_path / "room.json"
+    path.write_bytes(b"one")
     queued: list = []
-    reloader = Reloader(renderer, loaded, queued.append, watch=watch)
+    reloader = FileReloader(path, None, queued.append, Applied(), noun="map", watch=watch)
     reloader.start()
     assert fired.wait(2.0)
     assert reloader.active
     assert queued and queued[0] == reloader.reload
-    queued[0]()  # nothing changed on disk: a no-op, and nothing raised
     reloader.stop()
     assert not reloader.active
 
@@ -441,19 +370,8 @@ def test_a_dying_watcher_disables_reload_but_not_the_run(tmp_path, caplog):
         raise OSError("inotify limit")
         yield  # pragma: no cover
 
-    path, renderer, _, queue = make(tmp_path)
-    reloader = Reloader(renderer, resolve(str(path)), queue.call_soon, watch=watch)
+    _, _, reloader = make(tmp_path, watch=watch)
     with caplog.at_level(logging.ERROR, logger="pewpew"):
         reloader.start()
         reloader.stop()
     assert "watcher died" in caplog.text
-    assert renderer.step(1 / 60).shape == (4, 3)
-
-
-def test_a_pattern_without_a_source_has_nothing_to_watch():
-    loaded = LoadedPattern(cls=Counter, source=None, attr=None, digest="")
-    renderer = Renderer(Counter(), line(4))
-    reloader = Reloader(renderer, loaded, Calls().call_soon)
-    reloader.start()
-    assert not reloader.active
-    assert reloader.reload() is False

@@ -410,3 +410,11 @@ test("▲ that moves a layer to the top hands focus to its ▼; a press on + lay
   await expect.element(screen.getByText("a look has at most 16 layers; remove one first")).toBeVisible();
   await expect.element(screen.getByRole("region", { name: "add layer" })).not.toBeInTheDocument();
 });
+
+test("where the aura offers no patterns, a layer has no pattern pick and no replace with pattern…", async () => {
+  const { screen, receive } = await app("base", "top");
+  receive(aura({ patterns: [], stack: { ...AURA.stack, layers: [{ id: "base", nodes: [{ id: "osc", op: "osc", label: "Osc", in: [] }] }, { id: "top", nodes: [{ id: "osc", op: "osc", label: "Osc", in: [] }] }], routes: [], front: [] } }));
+  await screen.getByRole("button", { name: /^top/ }).first().click();
+  await expect.element(screen.getByRole("button", { name: "remove" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "replace with pattern…" })).not.toBeInTheDocument();
+});

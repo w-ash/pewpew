@@ -17,8 +17,8 @@ layer edit during a hold ends it, and the aura does not return: the
 operator wins.
 
 After a pick no look is current: the room runs what the operator picked,
-not a look, so the page marks no look and a restart comes back in the
-command line's pattern. A made look plays the same way, unsaved (`play`),
+not a look, so the page marks no look. The file still names the look last
+recalled or saved, so a restart comes back in it. A made look plays the same way, unsaved (`play`),
 until a save with no name saves it, under the name it offers (`surprise
 7`), or that name with a number past the first one taken; a save under
 another name and a delete rename it.
@@ -154,6 +154,9 @@ class Looks:
     ) -> None:
         self._path = Path(path)
         self._book = book
+        # The look the file names, which a restart comes back in: the
+        # current look, or while none is, the last one.
+        self._restart = book.current
         self._deck = deck
         self._fader = deck.fader
         self._master = master
@@ -245,13 +248,12 @@ class Looks:
 
     # ---- loop thread -------------------------------------------------------
 
-    def restore(self) -> str | None:
-        """Recall the file's current look with no fade: the start of a run.
-        Returns why it could not, or None (also when there is none)."""
-        name = self._book.current
-        if name is None:
-            return None
-        return self._start(name, 0.0)
+    def begin(self) -> None:
+        """The deck runs the current look as saved, as the run started it:
+        compare the live state with it from now on."""
+        current = self._book.current
+        assert current is not None, "a run starts in the current look"
+        self._recalled = self._saved(self._book.looks[current].master)
 
     def recall(self, name: str, fade: float | None = None) -> str | None:
         """Recall look `name` over `fade` seconds (None: its own fade).
@@ -439,17 +441,10 @@ class Looks:
     def leave(self) -> None:
         """The operator picked a pattern or sent a whole look: end a hold
         without returning, drop a recall that waits for the fade, clear the
-        last recall's error, and make no look current or fading. A file
-        that cannot be written says so on the status line, since a restart
-        would come back in that look."""
+        last recall's error, and make no look current or fading. The file
+        keeps naming the last look (`_commit`)."""
         self._hold = self._pending = self._recalled = self._fading = self._made = self.error = None
-        current = self._book.current
-        if current is None:
-            return
-        book = self._book.with_current(None)
-        if self._commit(book) is not None:
-            self._book = book
-            self._fail(f"cannot write the looks file, so a restart comes back in look {current!r}")
+        self._book = self._book.with_current(None)
 
     def _journal(self) -> _Recall:
         """Where a hold returns to: a return still queued from the last
@@ -596,13 +591,18 @@ class Looks:
         return None
 
     def _commit(self, book: LookBook) -> str | None:
-        """Write `book` to the file, then make it the live one."""
+        """Write `book` to the file, then make it the live one. With no look
+        current, the file names the look it named before while that look
+        is in it, so a restart comes back in it."""
+        kept = book.current is None and self._restart in book.looks
+        on_file = book.with_current(self._restart) if kept else book
         try:
-            write_atomic(self._path, book.to_bytes())
+            write_atomic(self._path, on_file.to_bytes())
         except OSError:
             logger.warning("cannot write the looks file %s", self._path, exc_info=True)
             return "cannot write the looks file; nothing was saved"
         self._book = book
+        self._restart = on_file.current
         return None
 
     def _fail(self, reason: str) -> None:

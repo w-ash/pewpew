@@ -22,7 +22,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from fakes import Pooled, build, run_python
+from fakes import Pooled, build, offered, run_python
 from pewpew import lab
 from pewpew.aura.book import LookError, parse_looks
 from pewpew.jsonfile import write_atomic
@@ -45,7 +45,6 @@ from pewpew.lab.check import ready
 from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.lab.handles import ENGINE, Cache, fingerprint
 from pewpew.lab.rendering import take
-from pewpew.load import Catalog
 from pewpew.metrics import LIVENESS_RMS
 from pewpew.params import ParamSet
 from pewpew.patterns import Comet
@@ -143,7 +142,7 @@ def test_check_takes_a_look_value_json_data_and_text_alike(tmp_path):
 
 
 def test_a_file_is_a_looks_file_as_run_reads_it(tmp_path):
-    """A `.look.json` file is a looks book, the one file form `run --looks`
+    """A `.look.json` file is a looks book, the one file form `run LOOKS`
     plays (ADR-006 amendment "layered paths"): a single look in a file
     is refused with the file that holds it."""
     path = tmp_path / "a.look.json"
@@ -155,7 +154,7 @@ def test_a_file_is_a_looks_file_as_run_reads_it(tmp_path):
     path.write_text(json.dumps(problem.example))
     assert check_look(path).ok and (tmp_path / "a.look.json").read_text()
     with pytest.raises(LookError, match="this is a single look"):
-        parse_looks(json.dumps(COMET))  # as `run --looks` refuses it
+        parse_looks(json.dumps(COMET))  # as `run LOOKS` refuses it
 
 
 @pytest.mark.parametrize("doc, path, code, guess", [
@@ -372,13 +371,12 @@ def test_check_never_raises_on_a_program_patched_at_any_depth(node, args, other,
 
 
 def test_a_render_is_what_run_looks_renders(tmp_path):
-    """The lab renders through the aura's own path: `run --seed 5 --looks`
+    """The lab renders through the aura's own path: `run LOOKS --seed 5`
     starting in the look shows these frames, byte for byte, master and all."""
     path = tmp_path / "duo.look.json"
     path.write_text(json.dumps({**book(duo=DUO), "current": "duo"}))
     rendered = draw(path, seed=5)
-    run = build(["run", "comet", "--map", MAP, "--looks", str(path), "--seed", "5"])
-    assert run._restore() == "duo"
+    run = build(["run", str(path), "--map", MAP, "--seed", "5"])
     clock = SlotClock(FPS)
     shown = np.stack([run.master.apply(t, run.fader.advance_to(t)) for t in (clock.advance() for _ in range(60))])
     assert np.array_equal(take(rendered).frames, shown)
@@ -394,10 +392,10 @@ def test_a_render_comes_back_without_its_frames():
     assert take(rendered).frames.shape == (60, 64, 3)
 
 
-def test_auto_renders_on_the_geometry_run_gives_the_bottom_pattern():
-    rendered = render({"layers": [layer("base", "geq")]}, seconds=0.2)
+def test_a_render_without_a_map_is_on_the_map_run_uses_without_one():
+    rendered = render({"layers": [layer("base", "comet")]}, seconds=0.2)
     spec = spec_of(rendered)
-    assert (spec.map, spec.points, spec.dims) == ("auto", 256, 2)
+    assert (spec.map, spec.points, spec.dims) == ("grid:16x16", 256, 2)
 
 
 # `draw()` in a new process: its handle and the SHA-256 of its frames.
@@ -445,29 +443,14 @@ def test_the_engine_fingerprint_follows_every_byte_of_the_package(tmp_path):
     assert fingerprint(copied) != ENGINE
 
 
-def test_a_changed_pattern_file_changes_the_handle(tmp_path):
-    source = (Path(lab.__file__).parent.parent / "patterns" / "comet.py").read_text()
-    (tmp_path / "mine.py").write_text(source)
-    look = {"layers": [layer("base", "mine")]}
-    first = draw(look, pattern_dir=tmp_path)
-    (tmp_path / "mine.py").write_text(source + "\n# edited\n")
-    assert draw(look, pattern_dir=tmp_path).handle != first.handle
-
-
-def test_the_cache_answers_a_render_it_holds(monkeypatch):
-    first = draw(DUO)
-    monkeypatch.setattr("pewpew.lab.rendering.play", lambda *a: pytest.fail("rendered again"))
-    assert draw(DUO) == first
-
-
-def test_a_layer_that_raises_is_contained_and_warned_about(tmp_path):
-    (tmp_path / "boom.py").write_text(
+def test_a_layer_that_raises_is_contained_and_warned_about(tmp_path, monkeypatch):
+    offered(monkeypatch, boom=(
         "from pewpew import Pattern\n"
         "class Boom(Pattern):\n"
         "    def render(self, x, y, z, index):\n"
         "        raise ValueError('boom')\n"
-    )
-    rendered = draw({"layers": [layer("base", "boom")]}, pattern_dir=tmp_path, seconds=0.5)
+    ))
+    rendered = draw({"layers": [layer("base", "boom")]}, seconds=0.5)
     assert any("layers.base.boom.render raised: ValueError: boom" in w for w in rendered.warnings)
 
 
@@ -490,20 +473,17 @@ def test_a_brief_render_drops_its_spec_and_cannot_render_again():
         take(brief)
 
 
-def test_through_a_catalog_every_verb_resolves_patterns_by_name_alone(tmp_path):
-    """A catalog never runs a file a look names, so an agent's look cannot
-    make the lab run code (pewpew.mcp_server)."""
+def test_every_verb_refuses_a_pattern_named_by_a_path_and_never_runs_it(tmp_path):
+    """A pattern goes by its gallery name, so a look cannot make the lab
+    run code (pewpew.mcp_server)."""
     mine = tmp_path / "mine.py"
     mine.write_text("raise SystemExit('ran')\n")
     path_look = {"layers": [{"id": "base", "nodes": {"mine": {"op": "pattern", "args": {"pattern": str(mine)}}}}]}
-    gallery = Catalog()
-    for verb in (lambda: render(path_look, MAP, SECONDS, FPS, catalog=gallery),
-                 lambda: compare(COMET, path_look, map_spec=MAP, catalog=gallery),
-                 lambda: explain(path_look, catalog=gallery)):
+    for verb in (lambda: render(path_look, MAP, SECONDS, FPS), lambda: compare(COMET, path_look, map_spec=MAP),
+                 lambda: explain(path_look)):
         with pytest.raises(Refused) as refused:
             verb()
-        assert refused.value.problems[0].reason.endswith("names its pattern by name, never by file")
-    assert draw(catalog=gallery).handle == draw().handle
+        assert refused.value.problems[0].code == Code.BAD_REF
 
 
 def _entry_size(folder: Path) -> int:
@@ -651,12 +631,12 @@ LATE = (
 )
 
 
-def test_liveness_warms_up_so_a_knob_that_acts_late_is_live_and_one_that_never_acts_is_dead(tmp_path):
-    (tmp_path / "late.py").write_text(LATE)
+def test_liveness_warms_up_so_a_knob_that_acts_late_is_live_and_one_that_never_acts_is_dead(tmp_path, monkeypatch):
+    offered(monkeypatch, late=LATE)
     cold = compare({"layers": [layer("base", "late", level=0.0)]}, {"layers": [layer("base", "late", level=1.0)]},
-                   map_spec=MAP, seconds=0.5, fps=FPS, pattern_dir=tmp_path)
+                   map_spec=MAP, seconds=0.5, fps=FPS)
     assert cold.rms == 0.0  # from a cold start, its first half second shows nothing of it
-    probed = {p.path: p for p in metrics(draw({"layers": [layer("base", "late")]}, seconds=1.0, pattern_dir=tmp_path),
+    probed = {p.path: p for p in metrics(draw({"layers": [layer("base", "late")]}, seconds=1.0),
                                          liveness=True).liveness or ()}
     late, idle = probed["layers.base.late.level"], probed["layers.base.late.idle"]
     assert late.live and late.rms is not None and late.rms > 100 * LIVENESS_RMS
@@ -694,14 +674,14 @@ DIVIDES = (
 )
 
 
-def test_a_knob_that_cannot_be_probed_fails_its_own_look_only(tmp_path):
-    (tmp_path / "glow.py").write_text(PALETTE_ONLY)
-    (tmp_path / "bands.py").write_text(DIVIDES)
+def test_a_knob_that_cannot_be_probed_fails_its_own_look_only(tmp_path, monkeypatch):
+    offered(monkeypatch, glow=PALETTE_ONLY)
+    offered(monkeypatch, bands=DIVIDES)
     looks = tmp_path / "looks"
     looks.mkdir()
     for name in ("glow", "bands", "comet"):
         _write(looks, f"{name}.look.json", book(look={"layers": [layer("base", name)]}))
-    result = verify_looks([looks], map_spec=MAP, seconds=1.0, fps=FPS, pattern_dir=tmp_path)
+    result = verify_looks([looks], map_spec=MAP, seconds=1.0, fps=FPS)
     verdicts = {Path(f.file).name: f.looks[0] for f in result.files}
     assert verdicts["comet.look.json"].ok and not result.ok
     assert verdicts["glow.look.json"].failures == (
@@ -709,7 +689,7 @@ def test_a_knob_that_cannot_be_probed_fails_its_own_look_only(tmp_path):
     )
     (failure,) = verdicts["bands.look.json"].failures
     assert failure.startswith("layers.base.bands.width: the look does not run with it at 0: ")
-    measured = metrics(draw({"layers": [layer("base", "bands")]}, seconds=0.5, pattern_dir=tmp_path), liveness=True)
+    measured = metrics(draw({"layers": [layer("base", "bands")]}, seconds=0.5), liveness=True)
     assert measured.unprobed == (failure,) and measured.dead == ()
 
 
@@ -721,38 +701,38 @@ TIDE_FILE = (
 )
 
 
-def test_a_pattern_file_whose_class_is_a_program_is_probed_and_explained_by_its_nodes(tmp_path):
+def test_a_pattern_file_whose_class_is_a_program_is_probed_and_explained_by_its_nodes(tmp_path, monkeypatch):
     """Its knobs are its program's (pewpew.compose.controls.runs): the gate
     probes each, and `explain` lists each, as the running stack names them."""
-    (tmp_path / "tide.py").write_text(TIDE_FILE)
+    offered(monkeypatch, tide=TIDE_FILE)
     look = {"layers": [layer("base", "tide")]}
-    probed = liveness.probe_knobs(ready(look, pattern_dir=tmp_path), parse_geometry(MAP), 0)
+    probed = liveness.probe_knobs(ready(look), parse_geometry(MAP), 0)
     assert {p.path for p in probed} >= {"layers.base.waves.freq", "layers.base.waves.sync", "layers.base.tint.shift"}
     assert liveness.dead(probed) == ()
-    (note,) = explain(look, pattern_dir=tmp_path).layers
+    (note,) = explain(look).layers
     assert note.knobs[0].startswith("waves.freq = 8") and any(k.startswith("tint.palette = ember") for k in note.knobs)
     path = _write(tmp_path, "tide.look.json", book(tide=look))
-    (verdict,) = verify_looks([path], map_spec=MAP, seconds=1.0, fps=FPS, pattern_dir=tmp_path).files[0].looks
+    (verdict,) = verify_looks([path], map_spec=MAP, seconds=1.0, fps=FPS).files[0].looks
     assert verdict.ok, verdict.failures
 
 
-def test_a_moved_knob_of_a_pattern_files_program_is_saved_and_recalled(tmp_path):
+def test_a_moved_knob_of_a_pattern_files_program_is_saved_and_recalled(tmp_path, monkeypatch):
     """The layer keeps its pattern node, so the file stays its content; a
     knob moved from its literal is the node's arg `<nid>.<arg>`
     (pewpew.fx.host), which a recall starts the node at."""
     from pewpew.compose import Compositor
     from pewpew.mapping import parse_map
 
-    (tmp_path / "tide.py").write_text(TIDE_FILE)
-    running = Compositor(ready({"layers": [layer("base", "tide")]}, pattern_dir=tmp_path).layers,
+    offered(monkeypatch, tide=TIDE_FILE)
+    running = Compositor(ready({"layers": [layer("base", "tide")]}).layers,
                          parse_map("line:16"))
     running.controls.set("layers.base.waves.sync", 0.5)
     saved = running.snapshot()
     assert dict(saved.layers[0].program.output.args) == {"pattern": "tide", "waves.sync": 0.5}
-    checked = check_look(saved, pattern_dir=tmp_path)
+    checked = check_look(saved)
     assert checked.ok and checked.look_normalized is not None
     assert checked.look_normalized["layers"][0]["nodes"]["tide"]["args"] == {"pattern": "tide", "waves.sync": 0.5}
-    again = Compositor(ready(saved, pattern_dir=tmp_path).layers, parse_map("line:16"))
+    again = Compositor(ready(saved).layers, parse_map("line:16"))
     assert again.controls.snapshot_json()["layers.base.waves.sync"] == 0.5
     assert dict(again.snapshot().layers[0].program.output.args) == {"pattern": "tide", "waves.sync": 0.5}
 
@@ -762,10 +742,10 @@ def test_a_moved_knob_of_a_pattern_files_program_is_saved_and_recalled(tmp_path)
     ("wave.freq", "layers.base.tide", Code.BAD_REF, "waves"),
     ("waves.freq", "layers.base.waves.freq", Code.OUT_OF_RANGE, None),
 ])
-def test_a_pattern_files_program_knob_is_checked_as_the_stack_names_it(tmp_path, arg, path, code, guess):
-    (tmp_path / "tide.py").write_text(TIDE_FILE)
+def test_a_pattern_files_program_knob_is_checked_as_the_stack_names_it(tmp_path, arg, path, code, guess, monkeypatch):
+    offered(monkeypatch, tide=TIDE_FILE)
     node = {"op": "pattern", "args": {"pattern": "tide", arg: 999}}
-    found = check_look({"layers": [{"id": "base", "nodes": {"tide": node}}]}, pattern_dir=tmp_path).problems
+    found = check_look({"layers": [{"id": "base", "nodes": {"tide": node}}]}).problems
     assert [(p.path, p.code, p.did_you_mean) for p in found] == [(path, code, guess)], found
 
 
@@ -809,12 +789,13 @@ def test_the_look_diff_names_each_signal_route_and_front_change():
 
 
 def test_compare_renders_a_look_on_the_map_spec_of_a_so_its_spec_gives_its_handle():
-    a = render(COMET, seconds=0.5)  # auto: comet's line:300
-    diff = compare(a, {"seed": 3, "layers": [layer("base", "colorplasma")]})  # auto is line:300 too
+    a = render(COMET, "line:16", seconds=0.5)
+    diff = compare(a, {"seed": 3, "layers": [layer("base", "colorplasma")]})  # on A's line:16, not the default
     spec = take(diff.b).spec
+    assert spec.map == "line:16"
     assert render(spec.look, spec.map, spec.seconds, spec.fps, spec.seed).handle == diff.b
-    with pytest.raises(ValueError, match="auto gives each look the map of its own bottom pattern"):
-        compare(a, {"layers": [layer("base", "geq")]})  # auto is grid:16x16, which A's spec cannot name
+    with pytest.raises(ValueError, match="A and B must be rendered alike to compare"):
+        compare(a, render(COMET, seconds=0.5))  # on the default grid
 
 
 def test_a_look_on_side_a_renders_as_the_render_on_side_b():
@@ -837,12 +818,12 @@ NANNY = (
 )
 
 
-def test_frames_holding_nan_compare_and_probe_as_a_sink_draws_them(tmp_path):
-    (tmp_path / "nanny.py").write_text(NANNY)
+def test_frames_holding_nan_compare_and_probe_as_a_sink_draws_them(tmp_path, monkeypatch):
+    offered(monkeypatch, nanny=NANNY)
     look = {"layers": [layer("base", "nanny")]}
-    same = compare(look, look, map_spec=MAP, seconds=0.5, fps=FPS, pattern_dir=tmp_path)
+    same = compare(look, look, map_spec=MAP, seconds=0.5, fps=FPS)
     assert (same.rms, same.max_abs, same.first_divergent_frame) == (0.0, 0.0, None)
-    measured = metrics(draw(look, seconds=0.5, pattern_dir=tmp_path), liveness=True)
+    measured = metrics(draw(look, seconds=0.5), liveness=True)
     assert measured.metrics.nonfinite > 0 and measured.dead == ()  # level moves every pixel but the NaN one
     for result in (same, measured):
         json.dumps(result.to_json(), allow_nan=False)  # NaN is not JSON
@@ -886,15 +867,15 @@ def _write(folder: Path, name: str, doc: dict) -> Path:
     return path
 
 
-def test_verify_passes_a_calm_look_and_fails_a_strobe_and_a_black_look(tmp_path):
-    (tmp_path / "strobe.py").write_text(STROBE)
+def test_verify_passes_a_calm_look_and_fails_a_strobe_and_a_black_look(tmp_path, monkeypatch):
+    offered(monkeypatch, strobe=STROBE)
     looks = tmp_path / "looks"
     looks.mkdir()
     _write(looks, "calm.look.json", book(calm=COMET))
     _write(looks, "strobe.look.json", book(strobe={"layers": [layer("base", "strobe")]}))
     _write(looks, "dark.look.json", book(dark={"layers": [layer("base", "comet", {"opacity": 0.0})]}))
     _write(looks, "notes.json", {"not": "a look"})  # not a *.look.json file
-    result = verify_looks([looks], map_spec=MAP, seconds=SECONDS, fps=FPS, pattern_dir=tmp_path)
+    result = verify_looks([looks], map_spec=MAP, seconds=SECONDS, fps=FPS)
     verdicts = {v.name: v for f in result.files for v in f.looks}
     assert not result.ok and set(verdicts) == {"calm", "strobe", "dark"}
     assert verdicts["calm"].ok and verdicts["calm"].failures == ()

@@ -209,11 +209,12 @@ Things a restart or a trigger changes:
 - An operator disarm does not survive a restart: the LaunchAgent passes
   `--armed`, so after a crash or a watchdog exit the triggers are armed
   again (`deploy/launchd/pewpew-aura.plist`).
-- After a watchdog stall exit, the restart skips the last look once (a stall
-  marker tells it to) and starts the looks file's current look instead, so a
-  look that stalls the loop does not stall it again. The marker is
+- After a watchdog stall exit, the restart does not start the looks file's current
+  look (a stall marker tells it to): it starts the next look in the idle
+  cycle's order and says so on the status line, so a look
+  that stalls the loop does not stall it again. The marker is
   `~/.local/state/pewpew/stalled` and counts as fresh for 10 minutes
-  (`src/pewpew/watchdog.py`); the page shows a warning when it was used.
+  (`src/pewpew/watchdog.py`, `pewpew.run.after_stall`); the page shows a warning when it was used.
 - The trigger log stops at 50 MB per file (`--trigger-log-max`) with one
   warning; each run starts with a header record.
 - Param edits made while a trigger holds a look are dropped when the aura

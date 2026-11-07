@@ -13,8 +13,8 @@ are the examples in the committed `fly.toml`.
 ## Local development
 
 Not covered here. Run the server with `python -m pewpew studio` (SQLite at
-`./studio.sqlite3`) and the frontend with `pnpm dev` in `studio-web/`. Vite on 5173
-proxies `/api` and `/ws` to port 8000.
+`./studio.sqlite3`) and the frontend with `pnpm dev:studio` in `web/`. Vite on 5173
+proxies `/api` and `/ws` to port 8000; `pnpm dev:mock` serves it against mocks instead.
 
 ## First-time Fly setup
 

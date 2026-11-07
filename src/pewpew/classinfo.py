@@ -10,8 +10,7 @@ from pathlib import Path
 
 def pattern_name(pattern_cls: type) -> str:
     """The name of a pattern class: its class name, lowercased. The gallery
-    and a pattern launched by path go by it; a `--pattern-dir` file goes by
-    its file name instead (pewpew.aura.deck.pattern_label)."""
+    goes by it (pewpew.load)."""
     return pattern_cls.__name__.lower()
 
 

@@ -52,7 +52,6 @@ def canopy() -> RoomMap:
 
 
 _CANOPY = canopy()
-_GRID = _frozen(grid(16, 16))
 _CANOPY_BARS = _CANOPY.grouping
 
 # Each pattern with the mapping it was written against and its fixture
@@ -60,8 +59,7 @@ _CANOPY_BARS = _CANOPY.grouping
 # bench/bench_authoring.py::STUDY; Pulse, Wave, Wash, Sparkle and Rainbow run
 # on the canopy (Rainbow's own golden rings come from the rig compiler, which
 # `import pewpew.patterns` does not load). The tests
-# and the runner's default geometry share this table, so every mapping in it
-# is read-only.
+# share this table, so every mapping in it is read-only.
 STUDY_CASES: tuple[tuple[type, np.ndarray, Grouping | None], ...] = (
     (Plasma, _frozen(line(300)), None),
     (Comet, _frozen(line(300)), None),
@@ -77,20 +75,8 @@ STUDY_CASES: tuple[tuple[type, np.ndarray, Grouping | None], ...] = (
 )
 
 
-def default_geometry(pattern_cls: type) -> tuple[np.ndarray, Grouping | None]:
-    """The mapping `pattern_cls` was authored against and its fixture
-    grouping; a 16x16 grid with no grouping for a pattern outside the
-    table. The runner uses this so a bare `run <pattern>` shows a pattern
-    on the geometry it was designed for, per fixture when the pattern
-    renders per fixture."""
-    for cls, mapping, grouping in STUDY_CASES:
-        if cls is pattern_cls:
-            return mapping, grouping
-    return _GRID, None
-
-
 __all__ = [  # noqa: RUF022  study ports, then the canopy set
     "Plasma", "Comet", "Geq", "Fire", "Sdf3d",
     "Pulse", "Wave", "Wash", "Sparkle", "ColorPlasma", "Rainbow",
-    "STUDY_CASES", "canopy", "default_geometry",
+    "STUDY_CASES", "canopy",
 ]

@@ -1,6 +1,6 @@
 """Layered looks through the aura: the looks file, recall and crossfade,
-saving, the deck's reloader per layer, a pick on one layer, and an unattended
-run that leaves a failing layer out."""
+saving, a pick on one layer, and an unattended run that leaves a failing
+layer out."""
 
 from __future__ import annotations
 
@@ -8,13 +8,11 @@ import json
 
 import numpy as np
 
-from fakes import LOOK_CLASSES, LoopThread, Solid, aura_rig, build, look, rgb
+from fakes import LOOK_CLASSES, LoopThread, Solid, aura_rig, build, look, offered, pattern_looks, rgb
 from pewpew.aura.book import LookBook, load_looks, parse_looks, pattern_problems
 from pewpew.compose import Layer, Look, pattern_layer, pattern_node, pattern_of
 from pewpew.fx.graph import Graph, Node, Program
 from pewpew.jsonfile import write_atomic
-from pewpew.load import Catalog
-from pewpew.patterns import Comet
 from pewpew.run import map_hint
 
 RED = {"red": 1.0, "green": 0.0, "blue": 0.0}
@@ -44,15 +42,12 @@ def test_a_layered_look_round_trips_through_the_file(tmp_path):
     assert parse_looks(json.dumps(terse)).looks["a"] == Look((pattern_layer("base", "wave", node="w"),))
 
 
-def test_recall_builds_every_layer_and_gives_each_its_reloader(tmp_path):
+def test_recall_builds_every_layer(tmp_path):
     rig = make_rig(tmp_path, {"duo": LAYERED, "one": look("solid", BLUE, fade=0.0)})
-    assert list(rig.deck.reloaders) == ["base"]
     assert rig.looks.recall("duo", 0.0) is None
     np.testing.assert_array_equal(rig.frame(1 / 60), rgb(0.5, 0.0, 0.5, 4))
-    assert list(rig.deck.reloaders) == ["base", "top"] and rig.fader.current.seed == 3
-    top = rig.deck.reloaders["top"]
+    assert [live.id for live in rig.fader.current.layers] == ["base", "top"] and rig.fader.current.seed == 3
     assert rig.looks.recall("one", 0.0) is None
-    assert list(rig.deck.reloaders) == ["base"] and top._stopped  # the gone layer's watch is told to stop
     assert rig.control.state()["stack"]["layers"] == [
         {"id": "base", "nodes": [{"id": "solid", "op": "pattern", "label": "solid", "in": []}]},
     ]
@@ -152,59 +147,11 @@ def test_a_pick_runs_on_one_layer_and_the_rest_run_on(tmp_path):
     assert type(rig.renderer("top").pattern).__name__ == "PixelRamp"
     assert rig.fader.current.layer("top").mix.opacity == 0.5  # the layer keeps its mix
     assert type(rig.renderer("base").pattern).__name__ == "Pulse" and rig.renderer("base") is not base
-    assert rig.deck.reloaders["top"].loaded.cls is LOOK_CLASSES["pixelramp"]
     assert [n["label"] for layer in rig.control.state()["stack"]["layers"] for n in layer["nodes"]] == [
         "pulse", "pixelramp",
     ]
     # A pick on a layer of several edits the look: it stays current, changed until a save keeps it.
     assert rig.looks.book.current == "duo" and rig.looks.changed()
-
-
-MINE = '''
-import numpy as np
-from pewpew import Float, Pattern
-
-class Mine(Pattern):
-    level = Float({level}, 0.0, 1.0)
-
-    def render(self, x, y, z, index):
-        return np.full((self.n, 3), self.level, dtype=np.float32)
-'''
-
-
-def test_a_saved_file_reloads_into_every_layer_that_runs_it(tmp_path):
-    folder = tmp_path / "patterns"
-    folder.mkdir()
-    source = folder / "mine.py"
-    source.write_text(MINE.format(level=0.25))
-    watched = []
-
-    def watch(path, stop):
-        watched.append(path)
-        stop.wait(5.0)
-        return iter(())
-
-    two = Look((pattern_layer("a", "mine"), pattern_layer("b", "mine", blend="add")))
-    rig = aura_rig(Solid, catalog=Catalog(folder), looks={"two": two}, path=tmp_path / "looks.json", watch=watch)
-    rig.deck.watch()
-    try:
-        assert rig.looks.recall("two", 0.0) is None
-        assert {r.loaded.source for r in rig.deck.reloaders.values()} == {source}
-        source.write_text(MINE.format(level=0.5))  # a save: each layer's watch queues its reload
-        assert all(reloader.reload() for reloader in rig.deck.reloaders.values())
-        assert [rig.renderer(lid).params["level"] for lid in ("a", "b")] == [0.25, 0.25]  # values kept
-        assert rig.renderer("a").pattern is not rig.renderer("b").pattern
-        assert all(type(rig.renderer(lid).pattern).level.default == 0.5 for lid in ("a", "b"))
-    finally:
-        rig.deck.unwatch()
-    assert watched.count(source) == 2
-
-
-def test_a_failed_reload_names_its_layer(tmp_path):
-    rig = make_rig(tmp_path, {"duo": LAYERED})
-    assert rig.looks.recall("duo", 0.0) is None
-    rig.deck.reloaders["top"].error = "reload failed, last-good pattern still running: SyntaxError"
-    assert rig.deck.error == "layers.top: reload failed, last-good pattern still running: SyntaxError"
 
 
 BOOM = '''
@@ -216,42 +163,25 @@ class Boom(Pattern):
 '''
 
 
-def test_run_plays_layered_looks_and_an_unattended_run_leaves_a_failing_layer_out(tmp_path):
-    folder = tmp_path / "patterns"
-    folder.mkdir()
-    (folder / "boom.py").write_text(BOOM)
+def test_run_plays_layered_looks_and_an_unattended_run_leaves_a_failing_layer_out(tmp_path, monkeypatch):
+    offered(monkeypatch, boom=BOOM)
     path = tmp_path / "looks.look.json"
     duo = Look((pattern_layer("base", "comet"), pattern_layer("top", "boom", blend="add")))
     write_atomic(path, LookBook({"duo": duo}, "duo").to_bytes())
-    argv = ["run", "comet", "--map", "line:300", "--looks", str(path), "--pattern-dir", str(folder), "--frames", "1"]
+    argv = ["run", str(path), "--map", "line:300", "--frames", "1"]
     runs = []
     for extra in ([], ["--unattended"]):
         run = build([*argv, *extra])
-        assert run.looks is not None and run.looks.restore() is None
         assert [layer.id for layer in run.fader.current.layers] == ["base", "top"]
         runs.append(np.stack([run.fader.advance_to(i / 60).copy() for i in range(1, 30)]))
         assert run.fader.error is not None and run.fader.error.pattern == "layers.top.boom"
+        if run.watchdog is not None:
+            run.watchdog.stop()  # armed as the run was built; it is never served
     dev, unattended = runs
-    comet = build(["run", "comet", "--map", "line:300", "--frames", "1"])
+    comet = build(["run", pattern_looks(), "--map", "line:300", "--frames", "1"])
     alone = np.stack([comet.fader.advance_to(i / 60).copy() for i in range(1, 30)])
     assert unattended.tobytes() == alone.tobytes()  # the failing layer is out of the mix
     assert (dev[:, :, 0] >= 0.25).all()  # in dev it pulses red over the room
-
-
-def test_the_launch_is_a_one_layer_look_of_its_params(tmp_path):
-    run = build(["run", "comet", "--map", "line:8", "--param", "speed=1.5", "--seed", "9"])
-    assert run.launch.look == Look((pattern_layer("base", "comet", {"speed": 1.5, "tail": 0.25}),), seed=9)
-    assert run.control.values()["layers.base.comet.speed"] == 1.5
-    assert type(run.fader.current.layer("base").renderer.pattern) is Comet
-
-
-TIDE = '''
-from pewpew.fx.expr import noise, osc
-from pewpew.fx.host import ProgramPattern
-
-class Tide(ProgramPattern):
-    program = osc({freq}).id("waves").modulate(noise(3, 0.1), 0.2).palette("ember").id("tint")
-'''
 
 
 def test_run_plays_a_look_of_effect_programs_from_its_json(tmp_path):
@@ -263,29 +193,9 @@ def test_run_plays_a_look_of_effect_programs_from_its_json(tmp_path):
             "tint": {"op": "palette", "in": ["fold"], "args": {"palette": "ember"}}}},
         {"id": "glint", "blend": "screen", "opacity": 0.5, "nodes": {
             "w": {"op": "pattern", "args": {"pattern": "wave"}}, "dim": {"op": "contrast", "in": ["w"]}}}]}}}))
-    run = build(["run", "plasma", "--map", "grid:8x8", "--looks", str(path), "--frames", "1"])
-    assert run.looks is not None and run.looks.restore() is None
+    run = build(["run", str(path), "--map", "grid:8x8", "--frames", "1"])
     frame = run.fader.advance_to(1 / 60)
     assert frame.shape == (64, 3) and run.fader.error is None and frame.max() > 0.0
     values = run.control.values()
     assert values["layers.base.fold.sides"] == 5 and "layers.glint.w.speed" in values
     assert run.deck.current == "program"
-
-
-def test_run_a_program_file_and_hot_reload_it_keeping_its_knobs(tmp_path):
-    path = tmp_path / "tide.py"
-    path.write_text(TIDE.format(freq=8))
-    run = build(["run", str(path), "--map", "grid:8x8", "--frames", "1"])
-    run.fader.advance_to(1 / 60)
-    assert run.control.set("layers.base.waves.sync", 0.5) is None
-    run.calls.drain()
-    found = run.deck.controls.find("layers.base.waves.freq")
-    assert found is not None
-    knobs = found.params
-    path.write_text(TIDE.format(freq=12))
-    assert run.deck.reloaders["base"].reload()
-    again = run.deck.controls.find("layers.base.waves.freq")
-    assert again is not None and again.params is knobs
-    assert run.control.values()["layers.base.waves.freq"] == 12.0, "the edited literal"
-    assert run.control.values()["layers.base.waves.sync"] == 0.5, "the operator's value"
-    assert run.fader.advance_to(2 / 60).dtype == np.float32

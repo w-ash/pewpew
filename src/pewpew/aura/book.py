@@ -3,7 +3,7 @@
 A look is ADR-006's preset shape, a partial state: its layers
 (pewpew.compose.stack), bottom first, and optionally the master. It also
 carries its own `fade` time and a `cycle` flag for the idle cycle. Looks
-live in one JSON file on the laptop (`run --looks PATH`), never on the
+live in one JSON file on the laptop (`run LOOKS`), never on the
 boards: writing a WLED preset freezes the board's lights for seconds
 [S554]. A `.look.json` file is a looks file too. The file, version 4
 (ADR-006 amendments 2026-10-30 and "one shape per wire fact"; layered looks
@@ -42,9 +42,7 @@ body (its layers and their programs, its signals, routes and front knobs,
 seed, master, fade and cycle) is the effect-program codec's
 (pewpew.fx.codec), which reads and writes it; this module holds the file
 around it. A node's `pattern` arg names its pattern
-by pick name (pewpew.load.Catalog), or for a pattern launched off the pick
-list, by the command line's spec, which may be a path; the file is never
-served. A pattern's params are judged at recall, and `pattern_problems`
+by its name in the catalog (pewpew.load). A pattern's params are judged at recall, and `pattern_problems`
 lists at launch what no longer fits. `current` is the look last recalled
 or saved, so a restart comes back in it.
 
@@ -81,7 +79,7 @@ params that still fit, or refuses it.
 
 `check_name` is the aura's request check for a look's name too, on any
 thread. Names only: a look name and a pattern name may cross the preview
-socket; a path, the file's or a look's pattern spec, never does.
+socket; the file's path never does.
 """
 
 from __future__ import annotations
@@ -196,6 +194,16 @@ class LookBook:
     def in_cycle(self) -> list[str]:
         """The looks the idle cycle plays, in file order."""
         return [name for name, look in self.looks.items() if look.cycle]
+
+    def after(self, name: str | None) -> list[str]:
+        """Every look but `name`, in the idle cycle's order from `name` on:
+        the looks of the cycle (`in_cycle`) after it, round to the start,
+        then the others in file order."""
+        cycle = self.in_cycle
+        if name in cycle:
+            i = cycle.index(name)
+            cycle = cycle[i + 1:] + cycle[:i]
+        return [*cycle, *(other for other in self.looks if other not in cycle and other != name)]
 
     def with_look(self, name: str, look: Look) -> LookBook:
         return replace(self, looks={**self.looks, name: look})
@@ -377,11 +385,6 @@ def _triggers(raw: Any, looks: Mapping[str, Any], problems: list[str]) -> dict[s
 
 
 def load_looks(path: Path, **kw: Any) -> LookBook:
-    """Read and validate a looks file; a missing file is an empty book.
-    Raises OSError as the filesystem does, LookError for the content."""
-    path = Path(path)
-    if not path.exists():
-        if not path.parent.is_dir():
-            raise FileNotFoundError(f"no such directory for the looks file: {path.parent}")
-        return LookBook()
-    return parse_looks(path.read_bytes(), **kw)
+    """Read and validate a looks file. Raises OSError as the filesystem
+    does, LookError for the content."""
+    return parse_looks(Path(path).read_bytes(), **kw)

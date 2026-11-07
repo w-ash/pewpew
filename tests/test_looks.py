@@ -26,11 +26,11 @@ from fakes import (
     layered,
     look,
     next_of,
+    restore,
     room,
     run_main,
     serving,
     solid,
-    spec,
     wait_until,
 )
 from pewpew import HSV, Renderer, line
@@ -44,14 +44,15 @@ from pewpew.aura.book import (
     pattern_problems,
 )
 from pewpew.aura.looks import Looks
-from pewpew.compose import DEFAULT_FADE, Look, pattern_layer
+from pewpew.compose import DEFAULT_FADE, Layer, Look, pattern_layer
 from pewpew.crossfade import Crossfader
+from pewpew.fx import expr
+from pewpew.fx.graph import Program
 from pewpew.jsonfile import write_atomic
 from pewpew.load import Catalog
 from pewpew.pace import PacedLoop
-from pewpew.patterns import Comet, Pulse, Sparkle, Wave, canopy
+from pewpew.patterns import Comet, Pulse, Wave, canopy
 from pewpew.room.map import compile_room
-from pewpew.run import geometry
 
 CALM = {"h": 30.0, "s": 1.0, "v": 1.0}
 
@@ -105,10 +106,9 @@ def test_a_look_holds_its_signals_routes_and_front_and_the_file_keeps_them():
     assert parse_looks(book.to_bytes()) == book
 
 
-def test_a_missing_file_is_an_empty_book_but_a_missing_directory_is_an_error(tmp_path):
-    assert load_looks(tmp_path / "new.json") == LookBook()
+def test_a_missing_file_is_an_error(tmp_path):
     with pytest.raises(FileNotFoundError):
-        load_looks(tmp_path / "nowhere" / "looks.json")
+        load_looks(tmp_path / "new.json")
 
 
 def test_a_crash_between_write_and_rename_leaves_the_old_file_valid(tmp_path, monkeypatch):
@@ -252,26 +252,26 @@ def test_a_bad_file_fails_the_launch_with_one_line_naming_it(tmp_path):
     path = tmp_path / "looks.json"
     path.write_text(looks_file(looks={"a": layered("solid", fade=-1)}))
     with pytest.raises(SystemExit) as err:
-        run_main(["run", "comet", "--map", "line:8", "--frames", "1", "--looks", str(path)])
+        run_main(["run", str(path), "--map", "line:8", "--frames", "1"])
     assert str(err.value) == f"{path}: look 'a': fade must be within 0.0..600.0, got -1.0"
 
 
-def test_pattern_drift_warns_at_launch_and_the_aura_starts(tmp_path, caplog, capsys):
+def test_pattern_drift_warns_at_launch_and_the_aura_starts(tmp_path, caplog):
     """A restart must not refuse a file whose looks have drifted from their
-    patterns: the drifted current look falls back to the command line's
-    pattern, and the others are left to their recall."""
+    patterns: the current look starts at the values that still fit, and
+    the others are left to their recall."""
     path = tmp_path / "looks.json"
     path.write_text(looks_file(
-        current="gone",
+        current="wide",
         looks={"gone": layered("nosuch"), "wide": layered("pulse", {"color": {"h": 1e9, "s": 1, "v": 1}})},
     ))
-    argv = ["run", "comet", "--map", "line:8", "--frames", "1", "--looks", str(path)]
     with caplog.at_level("WARNING", logger="pewpew"):
-        assert run_main(argv)[0] == 0
+        run = build(["run", str(path), "--map", "line:8", "--frames", "1"])
+        assert run.serve() == 0
     warned = [r.getMessage() for r in caplog.records if r.name == "pewpew.run"]
     assert f"{path}: look 'gone': layers.base.nosuch: unknown pattern 'nosuch'" in warned
     assert any(m.startswith(f"{path}: look 'wide': layers.base.pulse.color.h must be within") for m in warned)
-    assert "starting with comet" in capsys.readouterr().err
+    assert type(layer_renderer(run).pattern) is Pulse and layer_renderer(run).params["color"] == Pulse.color.default
 
 
 def test_the_notes_key_survives_a_rewrite(tmp_path):
@@ -374,14 +374,12 @@ def test_a_map_reload_mid_fade_rebinds_both_sides_and_keeps_the_fade():
     np.testing.assert_array_equal(fader.advance_to(0.5), [[0.5, 0.0, 0.5]] * 6)
 
 
-def test_hot_reload_and_live_sets_reach_the_look_fading_in(tmp_path):
+def test_live_sets_reach_the_look_fading_in(tmp_path):
     rig = make_rig(tmp_path, {"blue": solid(0.0, 0.0, 1.0, fade=1.0)})
     out = rig.renderer()
-    before = out.pattern
     assert rig.looks.recall("blue") is None and rig.fader.fading
     incoming = rig.renderer()
-    rig.reloader()._target.swap(Solid())  # what the layer's reloader does on a save
-    assert type(incoming.pattern) is Solid and incoming.pattern is not before and out.pattern is before
+    assert incoming is not out
     assert rig.control.set("layers.base.solid.green", 1.0) is None
     rig.calls.drain()
     assert incoming.params["green"] == 1.0 and out.params["green"] == 0.0
@@ -471,17 +469,19 @@ def test_a_look_whose_setup_raises_is_refused_and_the_aura_keeps_running(tmp_pat
 
 def test_restore_comes_back_in_the_current_look_with_no_fade(tmp_path):
     rig = make_rig(tmp_path, {"blue": solid(0.0, 0.0, 1.0, fade=5.0)}, current="blue")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     np.testing.assert_array_equal(rig.frame(1 / 60), [[0.0, 0.0, 1.0]] * 4)
 
 
-def test_a_start_restores_the_look_the_file_names(tmp_path):
-    """The restart path: the command line says comet, the file says pulse."""
+def test_a_run_starts_in_the_look_the_file_names_and_writes_nothing(tmp_path):
     path = tmp_path / "looks.json"
-    write_atomic(path, LookBook({"calm": look("pulse", {"color": CALM})}, "calm").to_bytes())
-    run = build(["run", "comet", "--frames", "2", "--looks", str(path)])
+    data = LookBook({"comet": look("comet"), "calm": look("pulse", {"color": CALM})}, "calm").to_bytes()
+    path.write_bytes(data.replace(b"\n", b"\n\n"))  # spaced as no save writes it
+    run = build(["run", str(path), "--frames", "2"])
     assert run.serve() == 0
     assert type(layer_renderer(run).pattern) is Pulse and layer_renderer(run).params["color"] == HSV(30.0, 1.0, 1.0)
+    assert run.looks.book.current == "calm" and not run.looks.changed()
+    assert path.read_bytes() == data.replace(b"\n", b"\n\n")
 
 
 def test_the_status_says_which_part_failed_and_which_pattern_raised(tmp_path):
@@ -489,8 +489,9 @@ def test_the_status_says_which_part_failed_and_which_pattern_raised(tmp_path):
     with their source. During a fade away from a pattern that raises, the
     status names that pattern, not the one fading in."""
     path = tmp_path / "looks.json"
-    write_atomic(path, LookBook({"calm": look("pulse", {"color": CALM}, fade=1.0)}).to_bytes())
-    run = build(["run", "comet", "--preview", "--port", "0", "--looks", str(path)])
+    book = LookBook({"comet": look("comet"), "calm": look("pulse", {"color": CALM}, fade=1.0)}, "comet")
+    write_atomic(path, book.to_bytes())
+    run = build(["run", str(path), "--preview", "--port", "0"])
     status = run.preview._status
     assert status() is None
     run.looks.error = "cannot recall 'x': it was deleted"
@@ -506,29 +507,57 @@ def test_the_status_says_which_part_failed_and_which_pattern_raised(tmp_path):
     assert status()[0::2] == ("render", "layers.base.comet")
 
 
-def test_a_start_after_a_stall_skips_the_restore_once(tmp_path, monkeypatch, capsys):
-    """A fresh stall marker: the command line's pattern, not the look whose
-    pattern may have hung. The marker is used up, so the next start restores."""
+def stalled_runs(tmp_path, monkeypatch, book: LookBook, *flags: str) -> tuple:
+    """Two runs of `book` on a line, the first after a fresh stall marker:
+    each run, and the looks file's bytes after the first."""
     path = tmp_path / "looks.json"
-    write_atomic(path, LookBook({"calm": look("pulse", {"color": CALM})}, "calm").to_bytes())
+    write_atomic(path, book.to_bytes())
     marker = tmp_path / "state" / "stalled"
     monkeypatch.setenv("PEWPEW_STALL_MARKER", str(marker))
-    argv = ["run", "comet", "--frames", "1", "--looks", str(path)]
+    argv = ["run", str(path), "--frames", "1", "--map", "line:8", *flags]
     marker.parent.mkdir()
     marker.write_text("5.2\n")
     first = build(argv)
     first.serve()
-    assert "the last run stalled" in capsys.readouterr().err and not marker.exists()
+    after = path.read_bytes()
+    assert not marker.exists()  # used up
     second = build(argv)
     second.serve()
-    assert (type(layer_renderer(first).pattern), type(layer_renderer(second).pattern)) == (Comet, Pulse)
+    return first, second, after
 
 
-def test_the_watchdog_is_armed_before_the_restore(tmp_path, monkeypatch):
-    """A restored look whose pattern hangs in `setup`: the first frame never
-    comes, and the watchdog fires after its startup allowance. The setup
-    waits for the stall, so a watchdog armed too late leaves it hanging and
-    the test fails."""
+def test_a_start_after_a_stall_runs_the_next_look_of_the_cycle_and_says_so(tmp_path, monkeypatch, capsys):
+    """A fresh stall marker: the run does not start in the look that
+    stalled, but in the next of the idle cycle's order that can start
+    (`fold` folds a plane, which a line has not), says so, and leaves the
+    file naming the operator's look. The next start is the operator's look."""
+    fold = Look((Layer("base", Program.of(expr.osc(2).kaleid(5).palette("ember"))),), cycle=True)
+    book = LookBook({"calm": look("pulse", {"color": CALM}, cycle=True), "out": look("comet"), "fold": fold,
+                     "wave": look("wave", cycle=True)}, "calm")
+    first, second, after = stalled_runs(tmp_path, monkeypatch, book)
+    said = "the last run stalled in 'calm', so 'wave' runs"
+    assert capsys.readouterr().err.strip() == said and first.looks.error == said
+    assert first.looks.book.current is None and type(layer_renderer(first).pattern) is Wave  # run as a pick
+    assert after == book.to_bytes()  # the file still names calm
+    assert second.looks.error is None and type(layer_renderer(second).pattern) is Pulse
+    assert book.after("calm") == ["fold", "wave", "out"] and book.after("wave") == ["calm", "fold", "out"]
+    assert first.looks.set_cycle("out", True) is None  # an unrelated write after the fallback
+    assert load_looks(tmp_path / "looks.json").current == "calm"
+
+
+def test_a_start_after_a_stall_of_the_only_look_runs_it_again_and_says_so(tmp_path, monkeypatch, capsys):
+    book = LookBook({"calm": look("pulse", {"color": CALM})}, "calm")
+    first, second, _ = stalled_runs(tmp_path, monkeypatch, book)
+    said = "the last run stalled in 'calm', the only look that starts, so it runs again"
+    assert capsys.readouterr().err.strip() == said and first.looks.error == said
+    assert type(layer_renderer(first).pattern) is type(layer_renderer(second).pattern) is Pulse
+
+
+def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):
+    """A look whose pattern hangs in `setup` as the run builds it: the
+    first frame never comes, and the watchdog fires after its startup
+    allowance. The setup waits for the stall, so a watchdog armed too late
+    leaves it hanging and the test fails."""
     from pewpew.watchdog import Watchdog
 
     path = tmp_path / "looks.json"
@@ -545,7 +574,7 @@ def test_the_watchdog_is_armed_before_the_restore(tmp_path, monkeypatch):
         timeout, **kw, startup=0.02, interval=0.005, on_stall=fired))
     hangs = Pulse.setup
     monkeypatch.setattr(Pulse, "setup", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
-    run_main(["run", "comet", "--frames", "1", "--looks", str(path), "--watchdog", "1"])
+    run_main(["run", str(path), "--frames", "1", "--watchdog", "1"])
     assert len(stalls) == 1 and stalls[0] >= 0.02
 
 
@@ -580,7 +609,7 @@ def test_save_then_change_then_save_drives_the_changed_marker(tmp_path):
 
 def test_the_front_is_an_edit_a_save_keeps_and_names_whole_knobs_once(tmp_path):
     rig = make_rig(tmp_path, {"warm": solid(1.0)}, current="warm")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     red, green = "layers.base.solid.red", "layers.base.solid.green"
     with LoopThread(rig.calls):
         assert rig.control.front([green, red]) is None
@@ -663,23 +692,13 @@ def test_delete_and_the_cycle_flag_persist(tmp_path):
 
 def test_a_look_s_own_fade_is_stored_alone_and_edits_stay_unsaved(tmp_path):
     rig = make_rig(tmp_path, {"a": solid(1.0, fade=2.0)}, current="a")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     rig.renderer().params.set("green", 0.5)
     assert rig.looks.set_fade("a", 5.0) is None
     saved = load_looks(rig.path).looks["a"]
     assert saved == solid(1.0, fade=5.0) and rig.looks.changed()
     assert rig.looks.set_fade("a", -1) == "fade must be within 0.0..600.0, got -1.0"
     assert rig.looks.set_fade("b", 1.0).startswith("unknown look 'b'")
-
-
-def test_a_pattern_dir_file_launched_by_path_saves_by_its_pick_name(tmp_path):
-    folder = tmp_path / "patterns"
-    folder.mkdir()
-    (folder / "mine.py").write_text(MY_WAVE)
-    path = tmp_path / "looks.json"
-    run = build(["run", str(folder / "mine.py"), "--pattern-dir", str(folder), "--looks", str(path), "--map", "line:4"])
-    assert run.deck.current == "mine" and spec(run.deck.snapshot().layers[0]) == "mine"
-    assert run.looks.save("x") is None and spec(load_looks(path).looks["x"].layers[0]) == "mine"
 
 
 def test_a_save_clears_the_last_recall_error(tmp_path):
@@ -691,43 +710,16 @@ def test_a_save_clears_the_last_recall_error(tmp_path):
     assert rig.looks.error is None
 
 
-def test_a_pick_that_cannot_write_the_file_says_a_restart_comes_back_in_the_look(tmp_path, monkeypatch):
-    rig = make_rig(tmp_path, {"a": solid(1.0, fade=0.0)}, current="a")
-    assert rig.looks.restore() is None
-    monkeypatch.setattr(os, "replace", lambda src, dst: (_ for _ in ()).throw(OSError("disk full")))
+def test_after_a_pick_no_look_is_current_and_the_file_keeps_naming_the_last(tmp_path):
+    """A restart comes back in the look the file names: a pick, and every
+    write while no look is current, leave it there."""
+    rig = make_rig(tmp_path, {"a": solid(1.0, fade=0.0), "b": solid()}, current="a")
+    assert restore(rig) is None
     rig.looks.leave()
-    assert rig.looks.book.current is None
-    assert rig.looks.error == "cannot write the looks file, so a restart comes back in look 'a'"
-
-
-MY_WAVE = '''
-import numpy as np
-from pewpew import Float, Pattern
-
-class Wave(Pattern):
-    level = Float(0.3, 0.0, 1.0)
-
-    def render(self, x, y, z, index):
-        return np.full((self.n, 3), self.level, dtype=np.float32)
-'''
-
-
-def test_a_pattern_launched_by_path_saves_and_recalls_by_its_path(tmp_path):
-    """The author's own `class Wave`, given as a file: the page names it by
-    its class, but a look keeps its path, so a recall, a trigger hold's
-    return and a restart run that file, never the gallery's Wave."""
-    mine = tmp_path / "mywave.py"
-    mine.write_text(MY_WAVE)
-    path = tmp_path / "looks.json"
-    run = build(["run", str(mine), "--looks", str(path), "--map", "line:4"])
-    assert run.deck.current == "wave" and spec(run.deck.snapshot().layers[0]) == str(mine)
-    assert run.looks.save("mine") is None
-    assert spec(load_looks(path).looks["mine"].layers[0]) == str(mine)
-    assert run.deck.put("base", "wave") is None  # the gallery's
-    assert run.looks.recall("mine", 0.0) is None
-    assert type(layer_renderer(run).pattern).__module__ == "pewpew_user.mywave"
-    assert layer_renderer(run).params.snapshot_json() == {"level": 0.3}
-    assert not run.looks.changed()
+    assert rig.looks.book.current is None and rig.looks.state()["current"] is None
+    assert rig.looks.set_cycle("b", True) is None and rig.looks.delete("b") is None
+    assert load_looks(rig.path).current == "a"
+    assert rig.looks.delete("a") is None and load_looks(rig.path).current is None  # gone with its look
 
 
 # ---- the idle cycle ------------------------------------------------------------
@@ -792,41 +784,27 @@ def test_recall_and_save_over_the_socket_echo_the_new_state(served):
 
 def test_requests_without_a_looks_file_are_refused():
     control = aura_rig().control
-    assert control.recall("a") == "no looks file: start the run with --looks PATH"
+    assert control.recall("a") == "no looks file: this aura saves no looks"
     assert control.state()["looks"] is None
 
 
-# ---- the bare run's default geometry ---------------------------------------------
-
-
-def test_a_bare_run_of_a_canopy_set_pattern_gets_the_canopy_fixtures():
-    mapping, grouping = geometry(None, Sparkle, None)
-    assert len(mapping) == 3840 and grouping is not None and len(grouping.centres) == 60
-    assert geometry(None, Wave, None)[1] is not None
-    assert geometry(None, Solid, None)[1] is None  # no study entry
-    assert geometry(line(8), Sparkle, None)[1] is None
-    run = build(["run", "sparkle", "--frames", "1"])
-    assert layer_renderer(run).units == "fixture" and layer_renderer(run).pattern.n == 60
-
-
-def test_a_recall_moves_the_reload_watch_and_a_pick_mid_fade_cuts_to_the_pick(tmp_path):
-    """Through the aura control: the reloader follows the recalled
-    pattern's file, and a pick during the fade cuts to the picked pattern,
-    drops the recall waiting behind the fade, and leaves no look current."""
+def test_a_pick_mid_fade_cuts_to_the_pick(tmp_path):
+    """Through the aura control: a pick during the fade cuts to the picked
+    pattern, drops the recall waiting behind the fade, and leaves no look
+    current, while the file keeps naming the last one."""
     rig = aura_rig(mapping=line(8), catalog=Catalog(),
                    looks={"calm": look("pulse", fade=1.0), "deep": look("wash", fade=0.0)},
                    path=tmp_path / "looks.json")
     with LoopThread(rig.calls):
         assert rig.control.recall("calm") is None
-        assert rig.reloader().loaded.cls is Pulse and rig.control.state()["pattern"] == "pulse"
+        assert rig.control.state()["pattern"] == "pulse"
         assert rig.fader.fading
         assert rig.control.recall("deep") is None  # waits for calm's fade
         assert rig.control.state()["looks"]["pending"] == "deep"
         assert rig.control.pick("comet") is None
     assert type(rig.renderer().pattern) is Comet and not rig.fader.fading
-    assert rig.reloader().loaded.cls is Comet
     looks = rig.control.state()["looks"]
     assert (looks["current"], looks["changed"], looks["pending"]) == (None, False, None)
-    assert json.loads(rig.path.read_text())["current"] is None  # a restart runs the command line's pattern
+    assert json.loads(rig.path.read_text())["current"] == "calm"  # a restart comes back in it
     rig.looks.before_frame(rig.fader.t)  # no queued recall replaces the pick
     assert type(rig.renderer().pattern) is Comet

@@ -1,11 +1,12 @@
 import { Accordion } from "@ark-ui/react/accordion";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { settable } from "./kinds";
 import { caption, type Param } from "./schema";
 import { liveLook } from "../aura/looks";
 import { contextOf, isMix, isSignal, mixAddress, ownerOf, pageCase, panelOf, type NodeItem, type PanelView, type Section } from "../stack/stack";
 import { setParam } from "../wire/protocol";
 import { useAtDefaults, useOffSaved, useParamValue, useSender, useWire } from "../wire/store";
+import { Block } from "../design/Block";
 import { Button } from "../design/Button";
 import { ChangedMark } from "../design/ChangedMark";
 import { DisclosureButton, DisclosureNote, useDisclosure } from "../design/Disclosure";
@@ -159,21 +160,14 @@ export function LookSignals() {
   const { view } = usePanel(null);
   const signals = useWire((s) => s.aura?.stack.signals);
   const look = useWire((s) => (s.aura ? (liveLook(s.aura.looks, s.aura.triggers) ?? s.aura.looks?.made ?? s.aura.pattern) : ""));
-  const headId = useId();
   const about = useDisclosure();
   const shown = view.signals.filter((s) => !s.params.some((p) => ownKnob(p, signals) && view.front.includes(p)));
   if (!shown.length) return null;
   return (
-    <section className="block look-signals" aria-labelledby={headId}>
-      <header className="block-head">
-        <h3 id={headId} className="t-heading">
-          modulators
-        </h3>
-        <DisclosureButton disclosure={about} label="about modulators" />
-      </header>
+    <Block className="look-signals" title="modulators" actions={<DisclosureButton disclosure={about} label="about modulators" />}>
       <DisclosureNote disclosure={about}>{MODULATORS_ABOUT}</DisclosureNote>
       <Sections key={look} sections={shown} shut forget level={4} />
-    </section>
+    </Block>
   );
 }
 

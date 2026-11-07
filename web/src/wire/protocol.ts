@@ -35,8 +35,9 @@ interface LayoutMessage extends MapShape {
 }
 
 /** The part of the engine an error comes from. On "render" a layer of the running look raises: it
- * pulses red in its place, or an unattended run leaves it out of a mix that has other layers. */
-export type ErrorSource = "render" | "reload" | "looks";
+ * pulses red in its place, or an unattended run leaves it out of a mix that has other layers. On "bind"
+ * (the studio's) the running look could not run on the rig bound, so an example look that fits plays. */
+export type ErrorSource = "render" | "reload" | "looks" | "bind";
 
 /** The engine's error, when it changes; every field is null when there is none. */
 interface StatusMessage {
@@ -222,14 +223,29 @@ const TYPES: Readonly<Record<ServerMessage["type"], true>> = {
   catalog: true, refused: true, ack: true,
 };
 
-/** The message in `text`, or null for anything this page does not read. */
-export function parseMessage(text: string): ServerMessage | null {
+/** A JSON object with a text `type`: any message, before it is known to be the wire's. */
+export interface TypedMessage {
+  readonly type: string;
+  readonly [field: string]: unknown;
+}
+
+/** The object in `text`, when it has a text `type`, else null. */
+export function parseTyped(text: string): TypedMessage | null {
   let msg: unknown;
   try {
     msg = JSON.parse(text);
   } catch {
     return null;
   }
-  const type = isRecord(msg) ? msg.type : undefined;
-  return typeof type === "string" && Object.hasOwn(TYPES, type) ? (msg as ServerMessage) : null;
+  return isRecord(msg) && typeof msg.type === "string" ? (msg as TypedMessage) : null;
+}
+
+/** `msg` as a server message, or null for a type this page does not read. */
+export function asServerMessage(msg: TypedMessage | null): ServerMessage | null {
+  return msg && Object.hasOwn(TYPES, msg.type) ? (msg as unknown as ServerMessage) : null;
+}
+
+/** The message in `text`, or null for anything this page does not read. */
+export function parseMessage(text: string): ServerMessage | null {
+  return asServerMessage(parseTyped(text));
 }

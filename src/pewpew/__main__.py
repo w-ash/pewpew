@@ -1,6 +1,6 @@
 """The command line: `python -m pewpew run|studio|wifi|boards|observe|push|fx|verify|audio|mcp`.
 
-`run` renders a pattern live to one or more sinks (`pewpew.run`), `studio`
+`run` plays a looks file live to one or more sinks (`pewpew.run`), `studio`
 serves the 3D studio (`pewpew.studio`, the `studio` extra), `wifi` sets up
 a new WLED board over USB serial (`pewpew.provision`),
 `boards scan|backup|restore` finds the boards and saves and restores their
@@ -37,7 +37,7 @@ from pewpew.audio.inputs import NET, REPLAY
 from pewpew.command import add_allow_host, number, parsed_by, port, positive, whole
 from pewpew.fx import cli as fx_cli
 from pewpew.lab import cli as lab_cli
-from pewpew.mapping import parse_map
+from pewpew.mapping import DEFAULT_MAP, parse_map
 from pewpew.reload import Watch
 from pewpew.remote import control as remote_control
 from pewpew.remote import observe
@@ -140,27 +140,20 @@ def _audio_conflict(args: argparse.Namespace) -> str | None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m pewpew")
     sub = parser.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
-    run = sub.add_parser("run", help="render a pattern live to one or more sinks")
+    run = sub.add_parser("run", help="play a looks file live to one or more sinks")
 
-    pattern = run.add_argument_group("the pattern")
-    pattern.add_argument("pattern", help="gallery name (comet, fire, ...), path/to/file.py, or file.py:ClassName")
-    pattern.add_argument("--pattern-dir", type=Path, default=None, metavar="DIR",
-                         help="also resolve a bare name as DIR/<name>.py (before the gallery)")
-    pattern.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
-                         help="set a param at launch, by its name (speed) or its address on the page "
-                         "(layers.base.plasma.speed); VALUE is JSON or a choice key; repeat per param")
-    pattern.add_argument("--seed", type=whole(0, "a seed"), default=0,
-                         help="the look's seed: each layer draws its own stream from it and the layer's id, "
-                         "and it seeds the fake features (default 0)")
-    pattern.add_argument("--units", choices=("pixel", "fixture"), default=None,
-                         help="render one colour per pixel or per fixture (default: the pattern's own `units`)")
-    pattern.add_argument("--no-reload", action="store_true",
-                         help="do not watch the pattern's source file for edits (default: hot reload on)")
+    looks = run.add_argument_group("the looks")
+    looks.add_argument("looks", type=Path, metavar="LOOKS",
+                       help="a looks file, version 4 (a .look.json file is one): the run starts in its current "
+                       "look, and the page's saves go to it (docs/authoring.md)")
+    looks.add_argument("--seed", type=whole(0, "a seed"), default=0,
+                       help="seeds the stand-in features and the looks made in the run (default 0); each look's "
+                       "own seed seeds its layers")
 
     where = run.add_argument_group("the geometry")
     where.add_argument("--map", type=parsed_by(_map_spec), default=None, metavar="SPEC",
                        help="line:64, grid:16x16, lattice:8 or an arrangement .json, one unit per fixture "
-                       "(default: the pattern's own study fixture)")
+                       f"(default {DEFAULT_MAP})")
     where.add_argument("--room", type=Path, default=None, metavar="PATH",
                        help="room map file: the mapping and the DDP boards, reloaded on save")
 
@@ -199,9 +192,6 @@ def _parser() -> argparse.ArgumentParser:
                       f"0 is off (default {WATCHDOG_S:g} with --unattended, else off)")
     aura.add_argument("--master-cap", type=positive("a number", most=1.0), default=1.0, metavar="CAP",
                       help="cap on the master dimmer, above 0 and at most 1 (default 1); the page cannot exceed it")
-    aura.add_argument("--looks", type=Path, default=None, metavar="PATH",
-                      help="saved looks file: save and recall looks from the page; a start restores the current one. "
-                      "Version 4 holds layered looks (docs/authoring.md §4)")
     aura.add_argument("--armed", action="store_true",
                       help="start with the room-event triggers armed (default: disarmed until the page arms them)")
     aura.add_argument("--trigger-log", type=Path, default=None, metavar="PATH",

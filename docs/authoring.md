@@ -390,8 +390,8 @@ python -m pewpew verify looks looks/                # the gate before an unatten
 - **`fx render`** renders through the aura's own layer stack and master,
   so the frames are what `run LOOKS --seed SEED --map SPEC` shows when it
   starts in that look, `SPEC` the map `fx render` names. `--seed` is `run
-  --seed`: it seeds the stand-in audio and room features, and the look's
-  own `seed` seeds its layers. `--map` takes `line:64`, `grid:16x16`,
+  --seed`: it seeds the stand-in features and the looks made in the run, and the
+  look's own `seed` seeds its layers. `--map` takes `line:64`, `grid:16x16`,
   `lattice:8` or a room map file (default `grid:16x16`, the map `run` uses
   without `--map` or `--room`). A program the map does not support is
   refused before it renders (`wrong-dims`: `kaleid` on a strip).
@@ -405,7 +405,8 @@ python -m pewpew verify looks looks/                # the gate before an unatten
 - **`fx compare A B`** renders a look B as A was rendered: the same map
   spec, seconds, fps and seed; a look A renders as B was when B alone is
   a handle.
-- **`verify looks`** passes a look that checks, has no layer that raises,
+- **`verify looks`** (its `--map` defaults to `grid:16x16`, as do `fx
+  render`, `compare`, `vary` and the MCP tools) passes a look that checks, has no layer that raises,
   flashes at most 3 times a second (WCAG 2.3.1), is not black in every
   frame, and whose every knob, each node's of a program, changes the
   picture (the method of `tests/test_param_liveness.py`), each probe

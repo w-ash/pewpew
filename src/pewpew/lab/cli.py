@@ -12,7 +12,7 @@ cache, writes only the cache and the `--out` file, and sends nothing.
     fx vary [FILE]           looks made from a seed, or like FILE, each rendered
     verify looks FILE|DIR    the content gate (pewpew.lab.verify)
 
-FILE is a looks file (a `.look.json` file is one), as `run --looks`
+FILE is a looks file (a `.look.json` file is one), as `run LOOKS`
 reads it; `-` reads a looks file or a single look, as JSON, from stdin.
 With `--json` a verb prints exactly one JSON document on stdout, its
 result's `to_json()`, and diagnostics go to stderr. Exit codes: 0 ok; 1
@@ -35,12 +35,13 @@ from pewpew.fx.surprise import STRENGTH, NoLook, check_strength
 from pewpew.lab.check import Check, LookDoc, check_look
 from pewpew.lab.comparison import Comparison, compare, compare_sheet
 from pewpew.lab.explanation import Explanation, explain
-from pewpew.lab.geometry import AUTO, parse_geometry
+from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.handles import Expired, is_handle
 from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, MAX_FPS, MAX_SECONDS, Rendered, render
 from pewpew.lab.variations import MAX_VARIANTS, Variations, vary
 from pewpew.lab.verify import Verification, verify_looks
 from pewpew.lab.views import Measured, Picture, metrics, rows, sheet
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.problems import Problem, Refused
 from pewpew.result import Result
 from pewpew.sheet import LAYOUTS
@@ -54,16 +55,13 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
     out = _options()
     out.add_argument("--json", action="store_true",
                      help="print the result as one JSON document on stdout; diagnostics go to stderr")
-    patterns = _options()
-    patterns.add_argument("--pattern-dir", type=Path, default=None, metavar="DIR",
-                          help="also resolve a bare pattern name as DIR/<name>.py, as `run --pattern-dir` does")
     look = _options()
     look.add_argument("--look", dest="name", default=None, metavar="NAME",
                       help="the look of a looks file to use (default: its only look, else its 'current' one)")
     span = _options()
-    span.add_argument("--map", type=_map, default=AUTO, metavar="SPEC",
-                      help="auto, line:64, grid:16x16, lattice:8 or a room map file (default auto: the "
-                      "geometry `run` gives the bottom layer's pattern)")
+    span.add_argument("--map", type=_map, default=DEFAULT_MAP, metavar="SPEC",
+                      help=f"line:64, grid:16x16, lattice:8 or a room map file (default {DEFAULT_MAP}, the map "
+                      "`run` uses without --map or --room)")
     span.add_argument("--seconds", type=positive("seconds", MAX_SECONDS), default=DEFAULT_SECONDS, metavar="S",
                       help=f"how long to render (default {DEFAULT_SECONDS:g})")
     span.add_argument("--fps", type=positive("frames per second", MAX_FPS), default=DEFAULT_FPS,
@@ -82,29 +80,29 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
     file_help = "a looks file (.look.json); - reads a looks file or a single look, as JSON, from stdin"
     source_help = "a render handle (r1-...), or a looks file or look to render; - reads stdin"
 
-    p = verbs.add_parser("check", parents=[out, patterns], help="list a look's problems, or print it normalized")
+    p = verbs.add_parser("check", parents=[out], help="list a look's problems, or print it normalized")
     p.add_argument("source", type=_source, metavar="FILE", help=file_help)
     _handle(p, _check)
 
-    p = verbs.add_parser("render", parents=[out, patterns, look, timing],
+    p = verbs.add_parser("render", parents=[out, look, timing],
                          help="render a look; print its handle, spec and metrics")
     p.add_argument("source", type=_source, metavar="FILE", help=file_help)
     p.add_argument("--out", type=png_path, default=None, metavar="PNG", help="also write a contact sheet to PNG")
     _handle(p, _render)
 
-    p = verbs.add_parser("sheet", parents=[out, patterns, look, timing, picture, draw],
+    p = verbs.add_parser("sheet", parents=[out, look, timing, picture, draw],
                          help="draw a render as a contact sheet")
     p.add_argument("source", type=_source, metavar="HANDLE|FILE", help=source_help)
     p.add_argument("--tiles", type=int, default=8, help="frames a tiled sheet shows (default 8)")
     _handle(p, _sheet)
 
-    p = verbs.add_parser("metrics", parents=[out, patterns, look, timing], help="measure a render's frames")
+    p = verbs.add_parser("metrics", parents=[out, look, timing], help="measure a render's frames")
     p.add_argument("source", type=_source, metavar="HANDLE|FILE", help=source_help)
     p.add_argument("--liveness", action="store_true",
                    help="also check that each knob changes the picture (renders the look again per probe)")
     _handle(p, _metrics)
 
-    p = verbs.add_parser("compare", parents=[out, patterns, look, timing, picture, draw],
+    p = verbs.add_parser("compare", parents=[out, look, timing, picture, draw],
                          help="how render B differs from render A")
     p.add_argument("a", type=_source, metavar="A", help=f"{source_help}; a look renders as B did when only B is a "
                    "render")
@@ -112,11 +110,11 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
     p.add_argument("--tiles", type=int, default=4, help="frames per row of the sheet (default 4)")
     _handle(p, _compare)
 
-    p = verbs.add_parser("explain", parents=[out, patterns, look], help="describe a look in words")
+    p = verbs.add_parser("explain", parents=[out, look], help="describe a look in words")
     p.add_argument("source", type=_source, metavar="FILE", help=file_help)
     _handle(p, _explain)
 
-    p = verbs.add_parser("vary", parents=[out, patterns, look, span, draw],
+    p = verbs.add_parser("vary", parents=[out, look, span, draw],
                          help="make looks from a seed, or like a look; render each",
                          description="Without FILE, make looks from nothing (pewpew.fx.surprise); with it, make looks "
                          "like it. Each candidate comes from its own seed, is judged on the map (it checks, flashes "
@@ -139,7 +137,7 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
 
     verify = sub.add_parser("verify", help="gate content before a run (tier 0)")
     what = verify.add_subparsers(dest="verb", required=True, metavar="WHAT")
-    p = what.add_parser("looks", parents=[out, patterns, timing], help="check, render and gate looks files",
+    p = what.add_parser("looks", parents=[out, timing], help="check, render and gate looks files",
                         description="A look passes when it checks, no layer raises, it flashes at most 3 times a "
                         "second, it is not all black, and every knob changes the picture.")
     p.add_argument("paths", type=Path, nargs="+", metavar="FILE|DIR",
@@ -151,7 +149,7 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
 
 
 def _check(args: argparse.Namespace) -> int:
-    result = check_look(_doc(args.source), pattern_dir=args.pattern_dir)
+    result = check_look(_doc(args.source))
     _show(args, result, _check_text)
     return OK if result.ok else PROBLEMS
 
@@ -179,7 +177,7 @@ def _compare(args: argparse.Namespace) -> int:
         raise _Usage("only one of A and B can be -, stdin")
     a, b = (side if is_handle(side) else _doc(side) for side in (args.a, args.b))
     kw: dict[str, Any] = {"map_spec": args.map, "seconds": args.seconds, "fps": args.fps, "seed": args.seed,
-                          "name": args.name, "pattern_dir": args.pattern_dir}
+                          "name": args.name}
     result = compare(a, b, **kw)
     drawn = None
     if args.out is not None:
@@ -189,7 +187,7 @@ def _compare(args: argparse.Namespace) -> int:
 
 
 def _explain(args: argparse.Namespace) -> int:
-    _show(args, explain(_doc(args.source), name=args.name, pattern_dir=args.pattern_dir), Explanation.text)
+    _show(args, explain(_doc(args.source), name=args.name), Explanation.text)
     return OK
 
 
@@ -200,7 +198,6 @@ def _vary(args: argparse.Namespace) -> int:
         result = vary(
             None if args.source is None else _doc(args.source), args.seed, args.n, args.strength, args.keep,
             args.map, seconds=args.seconds, fps=args.fps, audio=args.audio, name=args.name,
-            pattern_dir=args.pattern_dir,
         )
     except NoLook as exc:
         print(f"{args.cmd} {args.verb}: {exc}", file=sys.stderr)
@@ -213,10 +210,7 @@ def _vary(args: argparse.Namespace) -> int:
 
 
 def _verify(args: argparse.Namespace) -> int:
-    result = verify_looks(
-        args.paths, map_spec=args.map, seconds=args.seconds, fps=args.fps, seed=args.seed,
-        pattern_dir=args.pattern_dir,
-    )
+    result = verify_looks(args.paths, map_spec=args.map, seconds=args.seconds, fps=args.fps, seed=args.seed)
     _show(args, result, _verification_text)
     return OK if result.ok else PROBLEMS
 
@@ -267,9 +261,7 @@ def _doc(source: str | Path) -> LookDoc:
 
 def _rendering(args: argparse.Namespace, source: str | Path) -> Rendered:
     """`source` rendered as the options say, its warnings on stderr."""
-    rendered = render(
-        _doc(source), args.map, args.seconds, args.fps, args.seed, name=args.name, pattern_dir=args.pattern_dir,
-    )
+    rendered = render(_doc(source), args.map, args.seconds, args.fps, args.seed, name=args.name)
     for warning in rendered.warnings:
         print(f"{args.cmd} {args.verb}: {warning}", file=sys.stderr)
     return rendered
@@ -311,12 +303,11 @@ def _strength(text: str) -> float:
 
 
 def _map(text: str) -> str:
-    """argparse type for `--map`: `auto`, or a spec that gives a geometry."""
-    if text != AUTO:
-        try:
-            parse_geometry(text)
-        except ValueError as exc:
-            raise argparse.ArgumentTypeError(str(exc)) from None
+    """argparse type for `--map`: a spec that gives a geometry."""
+    try:
+        parse_geometry(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
     return text
 
 

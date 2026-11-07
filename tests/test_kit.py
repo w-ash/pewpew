@@ -21,7 +21,7 @@ from functools import partial
 import numpy as np
 import pytest
 
-from fakes import run_python
+from fakes import offered, run_python
 from pewpew import kit
 from pewpew.kit import TWO_PI, bins, fade, hash01, hsv, sample2d, square, time, triangle, wave
 from pewpew.mapping import grid, line
@@ -262,19 +262,17 @@ def test_importing_pewpew_loads_only_the_authoring_core(pooled):
         assert f"'{module}" not in loaded, module
 
 
-def test_the_package_example_renders(tmp_path):
-    """The example in `pewpew.__doc__` is the front door: it must load and
+def test_the_package_example_renders(monkeypatch):
+    """The example in `pewpew.__doc__` is the front door: it must run and
     render a moving picture with no contained error."""
     import pewpew
-    from pewpew.load import load_file
     from pewpew.render import Renderer
 
     lines = pewpew.__doc__.splitlines()
     start = lines.index("    from pewpew import Color, Float, Pattern, wave")
     end = next(i for i in range(start, len(lines)) if lines[i] and not lines[i].startswith("    "))
-    path = tmp_path / "example.py"
-    path.write_text(textwrap.dedent("\n".join(lines[start:end])))
-    renderer = Renderer(load_file(path, attr=None).cls(), line(8))
+    (example,) = offered(monkeypatch, example=textwrap.dedent("\n".join(lines[start:end]))).values()
+    renderer = Renderer(example(), line(8))
     first, second = renderer.advance_to(0.25).copy(), renderer.advance_to(0.5)
     assert renderer.error is None
     assert not np.array_equal(first, second)

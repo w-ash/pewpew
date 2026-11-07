@@ -2,8 +2,8 @@
 
 A pure-NumPy loop allocates arrays, not gc-tracked containers, so the
 pacing soak (`bench/bench_pacing.py`) sees no collections. ADR-010 names
-three things that change that: sinks, the param tree and hot reload. This
-bench runs the whole aura rig as `python -m pewpew run` wires it
+three things that change that: sinks, the param tree and hot reload (gone
+with hand-written patterns, ADR-025). This bench runs the whole aura rig as `python -m pewpew run` wires it
 (`pewpew.__main__.main`, called in-process), and drives it the way an operator
 does:
 
@@ -18,9 +18,6 @@ does:
   looks     a looks file generated in a temp dir; periodic recalls with fades
   triggers  launched `--armed`; periodic `fire`s of a trigger that holds a
             look and of one that only reaches the pattern as data
-  reload    the `wave` pattern copied to a temp dir as `soakwave` and edited
-            several times (each edit retunes one param's range); each reload
-            leaves an old module, class and pattern instance for the collector
 
 Every schedule comes from `--seed` and is printed by `--dry-run` and saved
 in the JSON.
@@ -42,7 +39,7 @@ the nearest rig log event); skipped schedule slots; per-board delivered
 fps (loopback: counted at the listener; real boards: the health poller's
 `leds.fps` and `uptime`, as the page receives them); process RSS, thread
 count by thread name, and module count over time, to catch leaks across
-reloads and client churn. Distributions (min/p50/p90/p99/max), never a
+recalls and client churn. Distributions (min/p50/p90/p99/max), never a
 pass/fail gate (T-5).
 
 Output: `results/soak-<date>-<label>.{json,md}`, refused if either exists.
@@ -119,17 +116,11 @@ FIRE_EVERY_S = (80.0, 120.0)
 CHURN_EVERY_S = (30.0, 50.0)  # connect to connect
 CHURN_STAY_S = (12.0, 20.0)  # connected this long
 DRAG_S, DRAG_HZ = 5.0, 20.0  # one slider drag per connection
-RELOAD_EVERY_S = 240.0  # reloads evenly spaced, at least MIN_RELOADS
-MIN_RELOADS = 3
-RELOAD_WAIT_S = 15.0  # longest wait for the soak pattern before an edit: a cue hold (8 s) plus a fade (3 s)
 END_MARGIN_S = 10.0  # no scripted action this close to the end
 WATCHDOG_S = 5.0  # pewpew.watchdog.TIMEOUT_S; fixed here because the JSON key `watchdog_5s_would_fire` names it
 
 OUTLIER_TOP = 20
 LOG_KEEP = 5000
-
-PATTERN = "soakwave"
-
 
 def _look(pattern: str, args: dict, fade: float) -> dict:
     """A looks-file look of one layer, `base`, running `pattern` at `args`."""
@@ -138,9 +129,9 @@ def _look(pattern: str, args: dict, fade: float) -> dict:
 
 
 LOOKS = {
-    "soak-a": _look(PATTERN, {"color": {"h": 200.0, "s": 1.0, "v": 1.0}, "speed": 0.25}, 2.0),
+    "soak-a": _look("wave", {"color": {"h": 200.0, "s": 1.0, "v": 1.0}, "speed": 0.25}, 2.0),
     "soak-b": _look("plasma", {"speed": 0.5, "scale": 4.0}, 3.0),
-    "soak-c": _look(PATTERN, {"color": {"h": 30.0, "s": 1.0, "v": 1.0}, "direction": 90.0}, 1.5),
+    "soak-c": _look("wave", {"color": {"h": 30.0, "s": 1.0, "v": 1.0}, "direction": 90.0}, 1.5),
     "soak-d": _look("pulse", {"color": {"h": 120.0, "s": 1.0, "v": 1.0}}, 2.0),
     "soak-cue": _look("sparkle", {}, 0.5),
 }
@@ -164,23 +155,6 @@ def looks_doc() -> dict:
             "cycle": {"idle": None}, "triggers": TRIGGERS}
 
 
-def pattern_source() -> str:
-    """The gallery `wave` pattern, its class renamed so the copy is a pattern
-    of its own name."""
-    from pewpew.patterns import wave
-
-    text = Path(wave.__file__).read_text()
-    if "class Wave(Pattern):" not in text or "Float(0.5, 0.1, 2.0," not in text:
-        raise SystemExit("bench_soak: the wave pattern changed; update edit_pattern")
-    return text.replace("class Wave(Pattern):", f"class {PATTERN.capitalize()}(Pattern):")
-
-
-def edit_pattern(base: str, k: int) -> str:
-    """Edit k of the soak pattern: `width`'s upper bound moves, so the
-    declarations change and every client gets a `declare` message."""
-    return base.replace("Float(0.5, 0.1, 2.0,", f"Float(0.5, 0.1, {2.0 + 0.01 * k:.2f},") + f"\n# soak edit {k}\n"
-
-
 def build_schedule(duration: float, seed: int) -> list[dict]:
     """Every scripted action, sorted by time in seconds from the first frame."""
     rng = random.Random(seed)
@@ -196,9 +170,6 @@ def build_schedule(duration: float, seed: int) -> list[dict]:
 
     series("recall", RECALL_EVERY_S, lambda i: {"look": RECALL_ORDER[i % len(RECALL_ORDER)]})
     series("fire", FIRE_EVERY_S, lambda i: {"trigger": FIRE_ORDER[i % len(FIRE_ORDER)]})
-    n = max(MIN_RELOADS, int(duration // RELOAD_EVERY_S))
-    for k in range(n):
-        events.append({"t": round((k + 0.5) * duration / n, 3), "kind": "reload", "edit": k + 1})
     t = rng.uniform(*CHURN_EVERY_S)
     while t + CHURN_STAY_S[1] < end:
         stay = rng.uniform(*CHURN_STAY_S)
@@ -496,19 +467,15 @@ def sample_row(rec: Recorder, since: tuple[int, int], gc_before: list[int],
     return row, (hi, n_gc), gc_now
 
 
-def prepare(args: argparse.Namespace, tmp: Path, ports: list[int] | None) -> tuple[Path, Path, Path]:
-    """Write the pattern copy, the looks file and (loopback) the room with
-    every board moved to its local listener. Returns (patterns dir, looks
-    file, room file)."""
-    patterns = tmp / "patterns"
-    patterns.mkdir()
-    (patterns / f"{PATTERN}.py").write_text(pattern_source())
+def prepare(args: argparse.Namespace, tmp: Path, ports: list[int] | None) -> tuple[Path, Path]:
+    """Write the looks file and (loopback) the room with every board moved
+    to its local listener. Returns (looks file, room file)."""
     looks_dir = tmp / "looks"
     looks_dir.mkdir()
     looks = looks_dir / "looks.json"
     looks.write_text(json.dumps(looks_doc(), indent=2) + "\n")
     if ports is None:
-        return patterns, looks, args.room
+        return looks, args.room
     doc = json.loads(args.room.read_text())
     doc["boards"] = {name: f"127.0.0.1:{port}" for name, port in zip(doc["boards"], ports)}
     plan = doc.get("plan")
@@ -518,7 +485,7 @@ def prepare(args: argparse.Namespace, tmp: Path, ports: list[int] | None) -> tup
     room_dir.mkdir()
     room = room_dir / "room.json"
     room.write_text(json.dumps(doc, indent=2) + "\n")
-    return patterns, looks, room
+    return looks, room
 
 
 def free_port() -> int:
@@ -577,11 +544,11 @@ def run(args: argparse.Namespace) -> None:
         "sample_s": SAMPLE_S, "seed": args.seed, "preview_port": port,
         "master_cap": args.master_cap, "looks": looks_doc(),
         "churn": {"every_s": CHURN_EVERY_S, "stay_s": CHURN_STAY_S, "drag_s": DRAG_S, "drag_hz": DRAG_HZ},
-        "recall_every_s": RECALL_EVERY_S, "fire_every_s": FIRE_EVERY_S, "reload_every_s": RELOAD_EVERY_S,
+        "recall_every_s": RECALL_EVERY_S, "fire_every_s": FIRE_EVERY_S,
     }
     driver_cfg = {
         "packets_per_frame": [b.packets_per_frame for b in room.boards],
-        "schedule": schedule, "pattern_file": str(tmp / "patterns" / f"{PATTERN}.py"),
+        "schedule": schedule,
         "out_json": str(out_json), "meta": meta, "config": config, "parent_pid": os.getpid(),
     }
     (tmp / "driver.json").write_text(json.dumps(driver_cfg))
@@ -594,11 +561,11 @@ def run(args: argparse.Namespace) -> None:
         ready = _last_json(child.stdout.readline(), "ready")
         if not ready or (args.loopback and not ready.get("ports")):
             raise SystemExit("bench_soak: the driver process did not start")
-        patterns, looks, room_file = prepare(args, tmp, ready.get("ports"))
+        looks, room_file = prepare(args, tmp, ready.get("ports"))
         rig_argv = [
-            "run", PATTERN, "--pattern-dir", str(patterns), "--room", str(room_file),
+            "run", str(looks), "--room", str(room_file),
             "--fps", f"{args.fps:g}", "--ddp-fps", f"{args.ddp_fps:g}",
-            "--preview", "--port", str(port), "--looks", str(looks), "--trigger-log", str(tmp / "triggers.jsonl"),
+            "--preview", "--port", str(port), "--trigger-log", str(tmp / "triggers.jsonl"),
             "--armed", "--keep-awake", "--master-cap", f"{args.master_cap:g}",
         ]
         config["rig_argv"] = rig_argv
@@ -904,7 +871,6 @@ def driver_main(cfg_path: Path) -> None:
         events: list[dict] = []
         actions: collections.Counter = collections.Counter()
         control = Client(url, t0, health, tries=150)
-        base = Path(cfg["pattern_file"]).read_text()
         churn_stats: collections.Counter = collections.Counter()
 
         def log(kind: str, **kw: Any) -> None:
@@ -924,18 +890,6 @@ def driver_main(cfg_path: Path) -> None:
                         control.send({"type": "recall", "name": e["look"]})
                     elif e["kind"] == "fire":
                         control.send({"type": "fire", "name": e["trigger"]})
-                    elif e["kind"] == "reload":
-                        # Put the soak pattern in place first, so the reloader follows its file.
-                        # A recall during a fade or a trigger hold waits for it to end, so wait
-                        # until the aura reports the pattern (the reloader follows it first).
-                        control.send({"type": "recall", "name": "soak-a", "fade": 0})
-                        deadline = time.monotonic() + RELOAD_WAIT_S
-                        while control.pattern != PATTERN and time.monotonic() < deadline:
-                            if stop.wait(0.1):
-                                return
-                        if stop.wait(1.5):
-                            return
-                        Path(cfg["pattern_file"]).write_text(edit_pattern(base, e["edit"]))
                     actions[e["kind"]] += 1
                     log(e["kind"], **{k: v for k, v in e.items() if k not in ("t", "kind")})
                 except Exception as exc:  # noqa: BLE001  a failed action is logged; the soak goes on
@@ -1058,7 +1012,7 @@ UDP listener on 127.0.0.1 in the driver process, which counts packets and
 PUSH frames. What this answers for ADR-010: how often the collector runs
 and how long it pauses with the real rig's allocations in play (DDP sink,
 preview fan-out with client churn, slider sets through `call_soon`, look
-recalls with crossfades, triggers, hot reloads), whether those pauses
+recalls with crossfades, triggers), whether those pauses
 reach the frame cadence, and whether memory, threads or modules grow over
 the run. What it does not answer: Wi-Fi loss and latency, what each board
 actually shows (`leds.fps`), board-side drift over hours (wled/WLED#4320),
@@ -1093,12 +1047,10 @@ def render_md(doc: dict, json_name: str) -> str:
         lines += [LOOPBACK_NOTE, ""]
     acts = s.get("actions") or {}
     churn = (s.get("client") or {}).get("churn") or {}
-    reloads = sum(n for k, n in s["log_counts"].items() if k.startswith("reloaded"))
     lines += [
         "## Scripted actions",
         "",
-        (f"- look recalls sent: {acts.get('recall', 0)}; trigger fires sent: {acts.get('fire', 0)}; "
-         f"pattern edits: {acts.get('reload', 0)}, rig logged {reloads} successful reloads"),
+        f"- look recalls sent: {acts.get('recall', 0)}; trigger fires sent: {acts.get('fire', 0)}",
         (f"- churn client: {churn.get('connects', 0)} connects, {churn.get('disconnects', 0)} disconnects, "
          f"{churn.get('sets', 0)} slider sets, {churn.get('refused', 0)} refused, {churn.get('errors', 0)} errors"),
         "",

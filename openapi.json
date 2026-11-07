@@ -176,21 +176,22 @@
         }
       }
     },
-    "/api/patterns": {
+    "/api/looks": {
       "get": {
-        "summary": "List Patterns",
-        "operationId": "list_patterns",
+        "summary": "List Looks",
+        "operationId": "list_looks",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PatternInfo"
+                  "additionalProperties": {
+                    "additionalProperties": true,
+                    "type": "object"
                   },
-                  "type": "array",
-                  "title": "Response List Patterns"
+                  "type": "object",
+                  "title": "Response List Looks"
                 }
               }
             }
@@ -255,35 +256,6 @@
           "message"
         ],
         "title": "IssueModel"
-      },
-      "PatternInfo": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "params": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Params"
-          },
-          "values": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Values"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "params",
-          "values"
-        ],
-        "title": "PatternInfo",
-        "description": "A gallery pattern: each param's `spec()`, in display order, and the\ndefault values in their JSON form (`ParamSet.snapshot_json()`)."
       },
       "SavedArrangement": {
         "properties": {

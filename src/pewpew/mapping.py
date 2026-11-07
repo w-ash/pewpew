@@ -21,6 +21,9 @@ import numpy as np
 # extent, so float noise in a flat room's z leaves the room flat.
 _FLAT = 1e-3
 
+# The map `run` and the offline renders use when none is named.
+DEFAULT_MAP = "grid:16x16"
+
 
 def line(n: int) -> np.ndarray:
     """n pixels along x, y=z=0."""

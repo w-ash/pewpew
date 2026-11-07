@@ -13,13 +13,14 @@ import pytest
 import pewpew.run as run_module
 from fakes import (
     LOOK_CLASSES,
-    FakeCatalog,
     FakeTime,
     LoopThread,
     aura_rig,
     layered,
     look,
     next_of,
+    pattern_looks,
+    restore,
     run_main,
     serving,
     solid,
@@ -31,6 +32,7 @@ from pewpew.aura.triggers import MAX_QUEUE, Arbiter, Triggers
 from pewpew.aura.variety import Made
 from pewpew.features import EventFeatures, FakeFeatures
 from pewpew.jsonfile import read_run
+from pewpew.load import Catalog
 from pewpew.pace import PacedLoop
 from pewpew.render import SlotClock
 
@@ -215,11 +217,11 @@ def make(tmp_path, triggers, looks=None, current="blue", start="solid", log=None
     looks = looks if looks is not None else {
         "blue": solid(*BLUE, fade=0.0), "red": solid(*RED, fade=0.0, master=1.0), "green": solid(*GREEN, fade=0.0),
     }
-    r = aura_rig(CLASSES[start], mapping=mapping, catalog=catalog or FakeCatalog(CLASSES), looks=looks,
+    r = aura_rig(CLASSES[start], mapping=mapping, catalog=catalog or Catalog(CLASSES), looks=looks,
                  current=current, cycle=CycleConfig(idle=None), triggers=triggers,
                  path=tmp_path / "looks.json", log=log, timeout=2.0)
     r.trig = r.triggers
-    assert r.looks.restore() is None
+    assert restore(r) is None
     if armed:
         r.trig.arm(True)
 
@@ -292,7 +294,7 @@ def test_keep_during_a_hold_is_refused_and_keeps_the_made_look_once_the_aura_ret
 
 
 def test_a_pick_during_a_hold_cancels_the_return(tmp_path):
-    r = make(tmp_path, HOLD_RED, catalog=FakeCatalog(CLASSES))
+    r = make(tmp_path, HOLD_RED, catalog=Catalog(CLASSES))
     r.step()
     r.trig.submit("page", "cue")
     r.step()
@@ -593,18 +595,19 @@ def test_a_saved_look_rewrites_the_file_with_its_triggers(tmp_path):
 
 def test_the_runner_writes_the_trigger_log_and_starts_disarmed(tmp_path):
     looks = tmp_path / "looks.json"
-    doc = {"version": VERSION, "looks": {"a": layered("gone")}, "triggers": {"cue": {"look": "a"}}}
+    doc = {"version": VERSION, "looks": {"a": layered("comet"), "b": layered("gone")},
+           "triggers": {"cue": {"look": "b"}}}
     looks.write_text(json.dumps(doc))
     log = tmp_path / "events.jsonl"
-    run_main(["run", "comet", "--map", "line:8", "--looks", str(looks), "--trigger-log", str(log), "--frames", "2"])
-    assert read_run(log) == [{"run": {"seed": 0, "fps": 60.0, "pattern": "comet", "look": None, "armed": False}}]
+    run_main(["run", str(looks), "--map", "line:8", "--trigger-log", str(log), "--frames", "2"])
+    assert read_run(log) == [{"run": {"seed": 0, "fps": 60.0, "pattern": "comet", "look": "a", "armed": False}}]
     with pytest.raises(SystemExit, match="cannot open the trigger log for appending"):
-        run_main(["run", "comet", "--map", "line:8", "--trigger-log", str(tmp_path / "no" / "x.jsonl"),
+        run_main(["run", pattern_looks(), "--map", "line:8", "--trigger-log", str(tmp_path / "no" / "x.jsonl"),
                   "--frames", "1"])
 
 
 def test_a_dry_run_refuses_a_trigger_log_the_launch_cannot_open(tmp_path, audit_log):
-    base = ["run", "comet", "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run", "--trigger-log"]
+    base = ["run", pattern_looks(), "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run", "--trigger-log"]
     (tmp_path / "file").write_text("")
     cases = ((tmp_path / "no" / "x.jsonl", "No such file or directory"), (tmp_path, "Is a directory"),
              (tmp_path / "file" / "x.jsonl", "Not a directory"))
@@ -617,10 +620,10 @@ def test_a_dry_run_refuses_a_trigger_log_the_launch_cannot_open(tmp_path, audit_
 
 def test_a_refused_launch_creates_no_trigger_log(tmp_path, capsys):
     log = tmp_path / "events.jsonl"
-    with pytest.raises(SystemExit, match="bad --param"):
-        run_main(["run", "comet", "--map", "line:8", "--trigger-log", str(log), "--param", "speed", "--frames", "1"])
+    with pytest.raises(SystemExit, match="cannot start look 'nope'"):
+        run_main(["run", pattern_looks("nope"), "--map", "line:8", "--trigger-log", str(log), "--frames", "1"])
     with pytest.raises(SystemExit) as exc:
-        run_main(["run", "comet", "--map", "line:8", "--trigger-log", str(log), "--trigger-log-max", "0"])
+        run_main(["run", pattern_looks(), "--map", "line:8", "--trigger-log", str(log), "--trigger-log-max", "0"])
     assert exc.value.code == 2 and "argument --trigger-log-max: expected megabytes above 0" in capsys.readouterr().err
     assert not log.exists()
 
@@ -635,7 +638,8 @@ def test_a_trigger_log_that_fails_to_close_still_tears_the_aura_down(tmp_path, m
     teardown = run_module.teardown
     monkeypatch.setattr(run_module, "open_log", lambda path, noun: FailingClose())
     monkeypatch.setattr(run_module, "teardown", lambda *a: (torn.append(True), teardown(*a)))
-    assert run_main(["run", "comet", "--map", "line:8", "--trigger-log", str(tmp_path / "x"), "--frames", "1"])[0] == 0
+    argv = ["run", pattern_looks(), "--map", "line:8", "--trigger-log", str(tmp_path / "x"), "--frames", "1"]
+    assert run_main(argv)[0] == 0
     assert torn == [True]
 
 

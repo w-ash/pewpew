@@ -44,20 +44,19 @@ WORKDIR /app
 # (build allowlist, peer rules) from pnpm-workspace.yaml at the workspace root.
 RUN npm install -g pnpm@11.20.0
 
-# The workspace: the studio imports the control page's library from web/.
+# The workspace: web/ holds the control page and the studio.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY web/package.json web/
-COPY studio-web/package.json studio-web/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter pewpew-studio...
+    pnpm install --frozen-lockfile
 
 # No build args: every API call is a relative path, so the bundle is the same
 # in every environment. The default arrangement is imported from the rig
-# package's examples, at the same path relative to studio-web/ as in the repo.
+# package's examples, at the same path relative to web/ as in the repo. The
+# gate type-checks; this stage only builds the studio's page.
 COPY web/ web/
-COPY studio-web/ studio-web/
 COPY src/pewpew/rig/examples/ /app/src/pewpew/rig/examples/
-RUN pnpm -C studio-web build
+RUN pnpm -C web exec vite build --mode studio
 
 # ---------------------------------------------------------------------------
 # Stage 3: Runtime
@@ -74,14 +73,17 @@ RUN groupadd --gid 1000 pewpew && \
 # Root-owned, so the server process cannot rewrite its own code or the SPA it
 # serves.
 COPY --from=python-builder /app/.venv /app/.venv
-COPY --from=node-builder /app/studio-web/dist /app/studio-web/dist/
+COPY --from=node-builder /app/web/dist/studio /app/web/dist/studio/
+# The example looks: GET /api/looks lists them, and every session starts in one.
+COPY examples/*.look.json /app/examples/
 
-# The package is installed into .venv, so app.py's default studio-web/dist path (three
-# levels above the package file) points inside the venv. This override names
-# the copy above instead.
+# The package is installed into .venv, so app.py's default web/dist/studio and
+# examples paths (three levels above the package file) point inside the venv.
+# These overrides name the copies above instead.
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PEWPEW_STUDIO_WEB_DIST=/app/studio-web/dist
+    PEWPEW_STUDIO_WEB_DIST=/app/web/dist/studio \
+    PEWPEW_STUDIO_EXAMPLES=/app/examples
 
 USER pewpew
 # The one directory the runtime user can write. Without DATABASE_URL the CLI's

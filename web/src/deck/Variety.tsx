@@ -44,7 +44,8 @@ const ASKS: readonly Ask[] = [
 
 interface Props {
   readonly aura: AuraState;
-  readonly looks: LooksState;
+  /** Null without a looks book: no edit is then kept, so no press takes two. */
+  readonly looks: LooksState | null;
   /** The note under their row: why one is off, or what a second press does. */
   readonly note: Disclosure;
 }
@@ -87,13 +88,13 @@ export function Variety({ aura, looks, note }: Props) {
           key={ask.hotkey}
           icon={ask.icon}
           confirm={ask.confirm}
-          twoPress={busy === null && unsaved(looks)}
-          cost={ask.cost(ask.text, looks)}
+          twoPress={busy === null && !!looks && unsaved(looks)}
+          cost={looks ? ask.cost(ask.text, looks) : ""}
           disarmOn={busy}
           shortcut={{ hotkey: ask.hotkey, label: ask.label }}
           busy={busy === ask}
           aria-disabled={(busy !== null && busy !== ask) || undefined}
-          reason={busy === null ? ask.reason(looks) : null}
+          reason={busy === null && looks ? ask.reason(looks) : null}
           note={note}
           onPress={() => make(ask)}
         >

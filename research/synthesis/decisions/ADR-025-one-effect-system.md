@@ -62,9 +62,10 @@ server-side.
   (`accept_looks`) and has no looks file and no boards, so the requests
   that need either are refused by the existing code. `/api/patterns` and
   the `pattern` message go; `/api/looks` serves the example looks.
-- **One page library.** The wire store, the params decoder, the knob panel,
-  the layer list and the add-layer cards move from `web/` into one package
-  that `web/` and `studio-web/` both import.
+- **One front-end codebase.** `web/` holds both pages, the control page
+  and the studio (`web/src/studio/`), with one toolchain; the studio
+  imports the wire store, the params decoder, the knob panel, the layer
+  list and the add-layer cards from the control page's source.
 - **`Pattern`, `Renderer`, `Crossfader` and `ParamSet` stay, as
   internals.** `ProgramPattern` is a `Pattern` and every layer is a
   `Renderer` (ADR-021, ADR-022); the crossfader fades two stacks and op

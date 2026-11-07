@@ -114,7 +114,7 @@ class RoomLive:
 
     def rebind(self, board: str, address: str) -> str | None:
         """Point room board `board` at `address` by rewriting its entry in
-        the file, then reload it on the loop thread (also with `--no-reload`).
+        the file, then reload it on the loop thread.
         Any thread; returns a refusal that names no path, or None."""
         with self._lock:
             try:

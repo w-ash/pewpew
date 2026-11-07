@@ -14,7 +14,7 @@
   neighbour graphs) the ops call; `field`: the grid over the map that a
   stateful op keeps its state on.
 
-A program in a pattern file:
+A program as a pattern class:
 
     from pewpew.fx.expr import noise, osc
     from pewpew.fx.host import ProgramPattern

@@ -37,7 +37,7 @@ agent interface drive the same engine, so no hardware is needed to start
 
 ```sh
 uv sync                                                    # the pinned Python and dev tools
-pnpm install --frozen-lockfile                             # both pages' tools (web/, studio-web/)
+pnpm install --frozen-lockfile                             # web/'s tools: the control page and the studio
 pnpm -C web exec playwright install chromium webkit        # the browsers its tests run in
 uv run just check                                          # every gate CI runs
 ```

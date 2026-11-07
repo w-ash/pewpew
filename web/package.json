@@ -1,5 +1,5 @@
 {
-  "name": "@pewpew/page",
+  "name": "pewpew-web",
   "private": true,
   "type": "module",
   "engines": {
@@ -7,33 +7,42 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:studio": "vite --mode studio",
+    "dev:mock": "vite --mode mock",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
-    "build": "vite build"
+    "build": "vite build && vite build --mode studio",
+    "e2e": "playwright test",
+    "generate": "cd .. && uv run python scripts/export_openapi.py && pnpm -C web exec orval"
   },
   "dependencies": {
     "@ark-ui/react": "5.40.0",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@tanstack/react-query": "5.106.1",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "three": "0.187.0",
+    "zustand": "5.1.0"
   },
   "devDependencies": {
     "@babel/core": "8.1.0",
+    "@playwright/test": "1.64.1",
     "@rolldown/plugin-babel": "0.3.0",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/three": "0.187.0",
     "@vitejs/plugin-react": "6.2.1",
     "@vitest/browser-playwright": "5.1.0",
     "babel-plugin-react-compiler": "1.0.0",
+    "msw": "2.15.0",
+    "orval": "8.46.0",
     "playwright": "1.64.1",
     "typescript": "7.0.2",
     "vite": "8.3.6",
     "vite-plugin-singlefile": "2.3.4",
     "vitest": "5.1.0",
     "vitest-browser-react": "2.3.0"
-  },
-  "exports": {
-    "./design": "./src/design.ts",
-    "./styles.css": "./src/styles.css"
   }
 }

@@ -455,7 +455,7 @@ class Compositor:
         if self._units == "fixture" and issubclass(cls, ProgramPattern) and any(
             node.op == "below" for node in cls.runs().graph
         ):
-            raise ValueError("a program that reads below() runs per pixel; leave out --units fixture")
+            raise ValueError("a program that reads below() runs per pixel, never per fixture")
 
     def _install(self, layers: tuple[LiveLayer, ...], *, strict: bool = False) -> None:
         """Run `layers`, their knobs and the signals' as the stack's

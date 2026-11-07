@@ -236,14 +236,14 @@ def signal_range(signal: Expr) -> Range:
 
 
 def pattern(spec: str | type, *args: Any, **params: Any) -> Expr:
-    """A pattern node: `spec` a gallery name or a pattern file's spec, as
-    `run` takes one (or the pattern's class), at `params`."""
+    """A pattern node: `spec` a gallery name (or the pattern's class), at
+    `params`."""
     if isinstance(spec, type):
         cls, spec = spec, pattern_name(spec)
     else:
-        from pewpew.load import resolve  # loads the gallery or a file only when a node needs one
+        from pewpew.load import resolve  # loads the gallery only when a node needs one
 
-        cls = resolve(spec).cls
+        cls = resolve(spec)
     return _with_args(PATTERN, (), cls, list(args), params, {PATTERN: spec}, cls)
 
 
@@ -336,7 +336,7 @@ def look(
     result = Look(tuple(built), Graph(nodes) if nodes else None, made, seed, master,
                   DEFAULT_FADE if fade is None else fade, cycle, tuple(front))
     problems = signal_problems(result.signals, result.routes) or route_problems(
-        result.routes, result.front, look_controls(result, lambda spec: patterns.get(spec) or resolve(spec).cls))
+        result.routes, result.front, look_controls(result, lambda spec: patterns.get(spec) or resolve(spec)))
     if problems:
         raise ValueError("; ".join(problems))
     return result

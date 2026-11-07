@@ -10,33 +10,23 @@
 !src
 !src/**
 
-# --- Frontend build inputs (node-builder: the pnpm workspace root, the studio, and
-# the control page's source, which the studio imports as a library) ---
+# --- The example looks (runtime: `COPY examples/*.look.json`) ---
+!examples
+!examples/*.look.json
+
+# --- Frontend build inputs (node-builder: the pnpm workspace root, and what the
+# studio's page is built from in web/: its shell, the Vite config and the source) ---
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
-!studio-web
-!studio-web/**
 !web
 !web/package.json
+!web/studio.html
+!web/vite.config.ts
+!web/dev-origin.ts
+!web/tsconfig.json
 !web/src
 !web/src/**
-
-# Dev-only trees inside studio-web/. studio-web/tsconfig.json includes "e2e" as well as "src",
-# so studio-web/e2e stays in the build context and is type-checked by `pnpm build`.
-studio-web/node_modules
-studio-web/node_modules/**
-web/node_modules
-web/node_modules/**
-studio-web/dist
-studio-web/dist/**
-studio-web/test-results
-studio-web/test-results/**
-studio-web/playwright-report
-studio-web/playwright-report/**
-studio-web/playwright.config.ts
-studio-web/vitest.config.ts
-studio-web/**/*.log
 
 # --- Junk that would otherwise ride along inside the allowlisted trees ---
 **/__pycache__
@@ -54,7 +44,3 @@ studio-web/**/*.log
 **/*.db
 **/.pytest_cache
 **/.pytest_cache/**
-studio-web/.vite
-studio-web/.vite/**
-studio-web/*.tsbuildinfo
-studio-web/.eslintcache

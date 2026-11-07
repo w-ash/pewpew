@@ -14,6 +14,7 @@ from fakes import FixtureRamp, PixelRamp, Raises, Solid, bar, build, frames, pro
 from harness.goldens import assert_matches_golden
 from params_zoo import Zoo
 from pewpew import Float, Int, Pattern, Renderer, grid, line
+from pewpew.aura.book import LookBook
 from pewpew.compose import (
     Compositor,
     Controls,
@@ -30,6 +31,7 @@ from pewpew.compose import (
 )
 from pewpew.crossfade import Crossfader
 from pewpew.features import FakeFeatures, FeatureFrame, MemoFeatures
+from pewpew.fx import expr
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
 from pewpew.fx.expr import noise, osc, particles, ripple
 from pewpew.fx.graph import RESERVED, Graph, Node, Program, as_id, check_id
@@ -641,13 +643,12 @@ def test_a_layered_render_is_byte_identical_twice():
     assert three_layer_frames().tobytes() == three_layer_frames().tobytes()
 
 
-def test_run_runs_its_pattern_as_layer_base_with_a_derived_seed(tmp_path):
-    """The visible change: a pattern's sparks under `run` draw the base layer's
+def test_run_runs_a_layer_with_a_seed_derived_from_its_id(tmp_path):
+    """The visible change: a look's sparks under `run` draw the base layer's
     stream, not seed 0's."""
-    source = tmp_path / "sparks.py"
-    source.write_text("from pewpew.fx.expr import particles\nfrom pewpew.fx.host import ProgramPattern\n\n\n"
-                      "class Sparks(ProgramPattern):\n    program = particles()\n")
-    run = build(["run", str(source), "--map", "line:300", "--seed", "0"])
+    path = tmp_path / "sparks.look.json"
+    path.write_bytes(LookBook({"sparks": expr.look(expr.layer("base", particles()))}, "sparks").to_bytes())
+    run = build(["run", str(path), "--map", "line:300", "--seed", "0"])
     live = run.fader.current
     assert [layer.id for layer in live.layers] == ["base"] and live.layer("base").renderer.seed == layer_seed(0, "base")
     got = frames(run.fader, 60)
