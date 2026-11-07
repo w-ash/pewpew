@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import logging
 import math
+import pickle
 from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from fakes import build, frames, one_node, program_layer, rgb, stack
+from fakes import build, frames, hosted, one_node, program_layer, rgb, stack
 from harness.goldens import assert_matches_golden
 from pewpew.aura.book import LookBook
 from pewpew.compose import Compositor, Controls, Layer, LayerControls, LayerError, Look, Route, layer_seed
@@ -19,9 +20,9 @@ from pewpew.crossfade import Crossfader
 from pewpew.features import FakeFeatures, FeatureFrame, MemoFeatures
 from pewpew.fx import expr
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.expr import noise, osc, particles, ripple
 from pewpew.fx.graph import RESERVED, Graph, Node, Program, as_id, check_id
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.op import BindCtx, Op
 from pewpew.fx.types import Fn, Sig, Ty
 from pewpew.mapping import grid, line
@@ -279,8 +280,8 @@ def test_a_knob_is_parsed_and_set_through_its_set_and_refused_in_its_words():
     assert controls.set("layers.top.opacity", 0.25) is True
     assert comp.layer("top").mix.opacity == 0.25
     assert controls.set("layers.base.noise.speed", 1.5)
-    assert comp.layer("base").renderer.pattern.node_params["noise"]["speed"] == 1.5  # type: ignore[attr-defined]
-    assert controls.find("layers.top.solid.red") == (comp.layer("top").host.node_params["solid"], "red", "")
+    assert comp.layer("base").bound.node_params["noise"]["speed"] == 1.5
+    assert controls.find("layers.top.solid.red") == (comp.layer("top").bound.node_params["solid"], "red", "")
     assert controls.find("layers.top.solid") is None
     with pytest.raises(ValueError, match="layers.top.blend takes one of"):
         controls.set("layers.top.blend", "glow")
@@ -290,7 +291,7 @@ def test_a_part_address_names_the_part_a_route_drives():
     """`layers.<lid>.<nid>.<arg>.<part>` (ADR-006) finds the color and its
     part, as `Bound.drive` takes it; a set takes the whole color."""
     comp = stack(Layer("base", one_node("zoo_test", node="zoo")))
-    controls, params = comp.controls, comp.layer("base").host.node_params["zoo"]
+    controls, params = comp.controls, comp.layer("base").bound.node_params["zoo"]
     assert controls.find("layers.base.zoo.color.h") == (params, "color", "h")
     assert controls.find("layers.base.zoo.color.x") is None and controls.find("layers.base.zoo.level.h") is None
     assert controls.parse("layers.base.zoo.color.h", 10.0)[1] == (
@@ -334,8 +335,8 @@ def test_a_one_layer_stack_is_its_renderer_byte_for_byte(source, mapping, where,
     lid = "base"
     program = Program.of(source)
     comp = Compositor([Layer(lid, program)], mapping, seed=5, features=FakeFeatures(5))
-    alone = Renderer(ProgramPattern.of(program)(), mapping, seed=layer_seed(5, lid), features=FakeFeatures(5),
-                     name=f"layers.{lid}")
+    alone = Renderer(BoundProgram(program, f"layers.{lid}"), mapping, seed=layer_seed(5, lid),
+                     features=FakeFeatures(5))
     assert frames(comp).tobytes() == frames(alone).tobytes()
 
 
@@ -529,6 +530,10 @@ def test_a_layer_that_cannot_be_built_is_named():
     with pytest.raises(LayerError, match=r"^layers.top: RuntimeError: binds 4 pixels only") as err:
         stack(solid("base"), Layer("top", one_node("needs_test", {"need": 4})))
     assert err.value.layer == "top"
+    # It crosses a process pool, which pickles it.
+    again = pickle.loads(pickle.dumps(err.value))
+    assert (type(again), str(again), again.layer, again.reason) == (
+        LayerError, str(err.value), "top", err.value.reason)
 
 
 def test_the_stack_is_a_look_again_at_its_live_values():
@@ -590,10 +595,9 @@ def test_run_runs_a_layer_with_a_seed_derived_from_its_id(tmp_path):
     live = run.fader.current
     assert [layer.id for layer in live.layers] == ["base"] and live.layer("base").renderer.seed == layer_seed(0, "base")
     got = frames(run.fader, 60)
-    cls = ProgramPattern.of(Program.of(particles()))
-    want = frames(Renderer(cls(), line(300), seed=layer_seed(0, "base"), name="layers.base"), 60)
+    want = frames(hosted(particles(), line(300), seed=layer_seed(0, "base")), 60)
     assert got.tobytes() == want.tobytes()
-    assert want.tobytes() != frames(Renderer(cls(), line(300), seed=0, name="layers.base"), 60).tobytes()
+    assert want.tobytes() != frames(hosted(particles(), line(300), seed=0), 60).tobytes()
 
 
 def test_controls_are_one_value_replaced_whole():

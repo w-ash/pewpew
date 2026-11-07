@@ -1,8 +1,8 @@
 """Checking an effect program, and building its closures.
 
 `check` is the one judge of a program, shared by the builder
-(pewpew.fx.expr), the codec (pewpew.fx.codec) and the host
-(pewpew.fx.host). It never raises: it returns every problem, each
+(pewpew.fx.expr), the codec (pewpew.fx.codec) and the bind
+(pewpew.fx.bound_program). It never raises: it returns every problem, each
 prefixed by the address of the node it is about, worded to say how to
 fix it:
 
@@ -22,7 +22,7 @@ fix it:
 
 `closures` builds a checked program's closures bottom up, once per bind.
 A node read by more than one other shares one result per frame (a memo the
-host resets each frame); every node's exception names the node.
+bound program resets each frame); every node's exception names the node.
 """
 
 from __future__ import annotations

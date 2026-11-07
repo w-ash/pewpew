@@ -247,7 +247,7 @@ def test_applying_to_the_same_target_keeps_the_binding_and_its_drives() -> None:
 def zoo(mapping: np.ndarray) -> tuple[Renderer, ParamSet]:
     """A renderer of one `zoo_test` node, `zoo`, and the node's knobs."""
     renderer = hosted(one_node(ZOO, node="zoo"), mapping)
-    return renderer, renderer.pattern.node_params["zoo"]  # type: ignore[attr-defined]  # a ProgramPattern
+    return renderer, renderer.bound.node_params["zoo"]
 
 
 @pytest.mark.usefixtures("fake_ops")

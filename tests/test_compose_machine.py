@@ -58,7 +58,7 @@ class Rendered:
         frames = np.stack([self.stack.advance_to(i / 30).copy() for i in range(1, 5)])
         assert frames.dtype == np.float32 and frames.shape == (4, 8, 3) and np.isfinite(frames).all()
         self.frames = frames.tobytes()
-        self.own = {live.id: live.renderer.pattern.pixels.tobytes() for live in self.stack.layers}
+        self.own = {live.id: live.bound.buffers.pixels.tobytes() for live in self.stack.layers}
 
 
 class LayerEdits(RuleBasedStateMachine):

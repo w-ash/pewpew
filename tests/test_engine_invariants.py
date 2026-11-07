@@ -7,33 +7,34 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from fakes import hosted, one_node, source_op
 from pewpew.mapping import line
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
+
+GREY = one_node("solid_test", {"red": 0.5, "green": 0.5, "blue": 0.5})
 
 
-class Flat(Pattern):
-    def render(self, x, y, z, index):
-        return np.full((index.size, 3), 0.5, dtype=np.float32)
+def grey(n: int) -> np.ndarray:
+    return np.full((n, 3), 0.5, dtype=np.float32)
 
 
-# ---- render purity beyond the buffer registry --------------------------------
+# ---- render purity beyond the buffers ----------------------------------------
 
 
 def test_render_cannot_write_the_coordinate_arrays() -> None:
     """Coords are views onto the caller's mapping and never enter the
-    buffer registry: an in-place `x += 0.5` in `render` would corrupt the
+    buffers: an in-place `x += 0.5` in a render would corrupt the
     caller's mapping, and every later frame would render against it with no
     error raised."""
 
-    class Coord(Pattern):
-        def render(self, x, y, z, index):
-            x += 0.5
-            return np.full((index.size, 3), 0.5, dtype=np.float32)
+    def shift(op, c):
+        c.x[:] += 0.5
+        return grey(len(c.index))
 
     mapping = line(5)
     original = mapping[:, 0].copy()
-    renderer = Renderer(Coord(), mapping)
+    renderer = hosted(source_op("coord_test", shift), mapping)
     renderer.step(1.0 / 60.0)
 
     assert renderer.error is not None and renderer.error.phase == "render"
@@ -41,12 +42,11 @@ def test_render_cannot_write_the_coordinate_arrays() -> None:
 
 
 def test_index_is_read_only_too() -> None:
-    class Idx(Pattern):
-        def render(self, x, y, z, index):
-            index[:] = 0
-            return np.full((index.size, 3), 0.5, dtype=np.float32)
+    def zero(op, c):
+        c.index[:] = 0
+        return grey(len(c.index))
 
-    renderer = Renderer(Idx(), line(5))
+    renderer = hosted(source_op("index_test", zero), line(5))
     renderer.step(1.0 / 60.0)
     assert renderer.error is not None
 
@@ -55,31 +55,27 @@ def test_index_is_read_only_too() -> None:
 
 
 def test_wrong_dtype_frame_is_contained() -> None:
-    """`pattern.pixels` is a registered buffer; a float64 frame would make the
-    array disagree with its own BufferSpec."""
-
-    class F64(Pattern):
-        def render(self, x, y, z, index):
-            return np.full((index.size, 3), np.nan, dtype=np.float64)
-
-    renderer = Renderer(F64(), line(4))
+    """`pixels` is the program's state; a float64 frame would make it
+    float64."""
+    renderer = hosted(GREY, line(4))
+    renderer.bound.render = lambda: np.full((4, 3), np.nan, dtype=np.float64)
     renderer.step(1.0 / 60.0)
 
     assert renderer.error is not None and renderer.error.phase == "render"
-    assert renderer.pattern.pixels.dtype == np.float32
-    assert np.all(np.isfinite(renderer.pattern.pixels))
+    assert renderer.bound.buffers.pixels.dtype == np.float32
+    assert np.all(np.isfinite(renderer.bound.buffers.pixels))
 
 
-def test_returned_frame_does_not_alias_pattern_state() -> None:
+def test_returned_frame_does_not_alias_program_state() -> None:
     """A caller that writes to the returned frame, as a sink applying gamma
-    in place would, must not change `pattern.pixels` (the pattern's trail),
-    and its array stays writable while the engine locks the buffer during
-    the next render."""
-    renderer = Renderer(Flat(), line(4))
+    in place would, must not change `pixels` (what `prev()` reads), and its
+    array stays writable while the engine locks the buffers during the
+    next render."""
+    renderer = hosted(GREY, line(4))
     frame = renderer.step(1.0 / 60.0)
     frame[:] = 0.0
 
-    assert float(renderer.pattern.pixels.max()) == 0.5
+    assert float(renderer.bound.buffers.pixels.max()) == 0.5
     # ...and the caller's array stays writable across the next frame.
     renderer.step(1.0 / 60.0)
     frame[:] = 1.0
@@ -92,7 +88,7 @@ def test_time_never_goes_backwards() -> None:
     """Same invariant FakeClock.tick enforces, and for the same reason: a
     negative dt makes `fade` return a factor > 1, so trails amplify to white
     instead of decaying — wrong output rather than an obvious failure."""
-    renderer = Renderer(Flat(), line(4))
+    renderer = hosted(GREY, line(4))
     renderer.step(1.0 / 60.0)
     with pytest.raises(ValueError, match="never goes backwards"):
         renderer.step(-1.0)
@@ -102,7 +98,7 @@ def test_time_never_goes_backwards() -> None:
 
 def test_zero_dt_is_allowed() -> None:
     """Two sinks resolving the same frame is legitimate; only going *back* is not."""
-    renderer = Renderer(Flat(), line(4))
+    renderer = hosted(GREY, line(4))
     t = renderer.t
     renderer.advance_to(t)
     assert renderer.t == t
@@ -111,23 +107,17 @@ def test_zero_dt_is_allowed() -> None:
 # ---- binding -----------------------------------------------------------------
 
 
-class Half(Pattern):
-    """Declares one buffer, then raises in `setup` on a 9-pixel map."""
+def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds() -> None:
+    """Binding is deliberately not contained, but a half-bound program must
+    not keep rendering as if nothing happened — some buffers reallocated,
+    the ones declared after the raise missing."""
 
-    def setup(self, n, x, y, z, index):
-        self.buffer("a", n)
-        if n == 9:
+    def half(op, ctx):
+        ctx.buffer("a", ctx.n)
+        if ctx.n == 9:
             raise RuntimeError("boom")
 
-    def render(self, x, y, z, index):
-        return np.full((index.size, 3), 0.5, dtype=np.float32)
-
-
-def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds() -> None:
-    """Binding is deliberately not contained, but a half-bound pattern must not
-    keep rendering as if nothing happened — some buffers reallocated, the ones
-    declared after the raise missing."""
-    renderer = Renderer(Half(), line(4))
+    renderer = hosted(source_op("half_test", lambda op, c: grey(len(c.index)), setup=half), line(4))
     renderer.step(1.0 / 60.0)
 
     with pytest.raises(RuntimeError, match="boom"):
@@ -137,30 +127,3 @@ def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds() -> None:
 
     renderer.rebind(line(6))
     assert renderer.step(1.0 / 60.0).shape == (6, 3)
-
-
-@pytest.mark.parametrize("name", ["render", "setup", "before_render", "_buffers", "speed"])
-def test_buffer_cannot_shadow_anything_on_the_class(name: str) -> None:
-    """Every class attribute is reserved, not a list of engine names:
-    `buffer("render")` would shadow the hook (every later frame dies with
-    "'ndarray' is not callable"), and `buffer("_buffers")` would replace the
-    registry mid-setup and raise out of binding, past all containment."""
-
-    class Shadow(Pattern):
-        speed = 1.0
-
-        def setup(self, n, x, y, z, index):
-            self.buffer(name, n)
-
-        def render(self, x, y, z, index):
-            return np.full((index.size, 3), 0.5, dtype=np.float32)
-
-    with pytest.raises(ValueError, match="reserved"):
-        Renderer(Shadow(), line(4))
-
-
-def test_a_renderer_takes_an_instance_not_a_class() -> None:
-    """The renderer says which one it takes, rather than failing deep inside
-    with an AttributeError or 'object is not callable'."""
-    with pytest.raises(TypeError, match="Renderer takes a Pattern instance, not a class"):
-        Renderer(Flat, line(4))  # type: ignore[arg-type]

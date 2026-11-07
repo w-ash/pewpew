@@ -63,7 +63,7 @@ from pewpew.params import Choice, Float, declared_params
 
 REGISTRY: dict[str, type[Op]] = {}
 
-# The class attributes the catalog, the host and `verify looks` read off an
+# The class attributes the catalog, the bound program and `verify looks` read off an
 # op; an arg of one of these names would hide it.
 CLASS_ATTRS = frozenset({
     "op", "sig", "inputs", "out", "dims", "stateful", "warpable", "planar", "along", "examples", "cost", "label",
@@ -91,8 +91,8 @@ class Cost:
 
 class Rate(Float):
     """A speed whose phase the op keeps: `Rate(default, lo, hi, unit,
-    period=1.0)`. A float param to every surface; the host adds
-    `rate * dt` to the op's phase each frame, wrapped into -period/2 up to
+    period=1.0)`. A float param to every surface; the op adds
+    `rate * dt` to its phase each frame, wrapped into -period/2 up to
     period/2: a phase that starts at 0 and runs either way wraps only after
     half a period, and stays as small as it can for float32."""
 

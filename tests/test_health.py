@@ -11,12 +11,11 @@ import urllib.error
 
 import pytest
 
-from fakes import FLOW, FakeTime, ddp_sink, wait_until
+from fakes import FLOW, FakeTime, ddp_sink, hosted, wait_until
 from pewpew import wled
 from pewpew.health import REBOOT_WARN_S, SETTLE_S, BoardHealth, HealthMonitor, extract
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop, PaceStats
-from pewpew.render import Renderer
 from pewpew.sinks.ddp import Board, is_ipv4
 from pewpew.wled import fetch_info as REAL_FETCH_INFO  # before conftest swaps it out
 from pewpew.wled import scan_lines
@@ -369,7 +368,7 @@ def test_a_slow_board_never_blocks_the_loop_or_the_state():
         reads.append(time.perf_counter() - began)
 
     ft = FakeTime()
-    loop = PacedLoop(Renderer(FLOW(), line(64)), fps=60, on_frame=[read_health], now=ft.now, sleep=ft.sleep)
+    loop = PacedLoop(hosted(FLOW, line(64)), fps=60, on_frame=[read_health], now=ft.now, sleep=ft.sleep)
     monitor.start()
     try:
         assert entered.wait(5.0)

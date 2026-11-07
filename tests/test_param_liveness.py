@@ -72,7 +72,7 @@ def test_param_set_while_running_changes_the_picture(name: str, a: object, b: ob
     before = (frames(held, half, FPS), frames(turned, half, FPS))
     assert np.array_equal(*before), "the two runs must be identical until the param moves"
 
-    turned.pattern.node_params[NODE].set(name, b)  # type: ignore[attr-defined]  # a ProgramPattern
+    turned.bound.node_params[NODE].set(name, b)
     observed = rms(frames(held, half, FPS), frames(turned, half, FPS))
     assert observed > LIVENESS_RMS, (
         f"{ZOO}.{name} does not respond to a live set. Moving it from "

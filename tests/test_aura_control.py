@@ -32,7 +32,6 @@ from pewpew.aura.control import NO_LOOKS, OVERTAKEN, REQUESTS
 from pewpew.awake import KeepAwake
 from pewpew.compose import DEFAULT_FADE, Look
 from pewpew.errors import Refusal, describe_exception
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.op import REGISTRY, BindCtx, Op
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.health import HealthMonitor
@@ -53,9 +52,7 @@ def osc_rig(start: Look = STRIPES, **kw):
 
 def knobs(rig, nid: str = "osc") -> ParamSet:
     """The knobs of node `nid` of the program layer `base` runs now."""
-    pattern = rig.renderer().pattern
-    assert isinstance(pattern, ProgramPattern)
-    return pattern.node_params[nid]
+    return rig.renderer().bound.node_params[nid]
 
 
 # ---- params ------------------------------------------------------------------

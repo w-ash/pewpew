@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-from pewpew.classinfo import pattern_name, source_file_of
+from pewpew.classinfo import lowercase_name
 from pewpew.errors import unknown
 from pewpew.params.bound import Bound
 from pewpew.params.kinds import Param, Parsed
@@ -30,7 +30,7 @@ def declared_params(cls: type) -> dict[str, Param[Any]]:
 
 
 class ParamSet:
-    """The declared params of one class (a pattern, an op), plus their
+    """The declared params of one class (an op, a layer's mix), plus their
     current values.
 
     Values are native (`float`, `int`, `bool`, `str`, `HSV`, `Gradient`).
@@ -39,7 +39,7 @@ class ParamSet:
 
     One write path. `apply(target)` binds the set to the object that reads
     its values (`Bound`); from then on every `set` reaches the target too,
-    so the set and the running pattern never disagree. The set holds the
+    so the set and the object that reads it never disagree. The set holds the
     base values: a driven param's target reads its base moved by an offset
     (`Bound.drive`). A set that was never applied only holds values.
 
@@ -54,8 +54,8 @@ class ParamSet:
         self, owner_cls: type, overrides: Mapping[str, Any] | None = None, *, name: str | None = None
     ) -> None:
         """`name` is the owner a refusal names, a dotted path where the owner
-        is nested (`layers.base.fold`): by default the class's name."""
-        self._state = _ParamState.of(owner_cls, None, name or pattern_name(owner_cls))
+        is nested (`layers.base.fold`): by default the class's name, lowercased."""
+        self._state = _ParamState.of(owner_cls, None, name or lowercase_name(owner_cls))
         if overrides:
             self.set_many(overrides)
 
@@ -115,10 +115,6 @@ class ParamSet:
         Never raises, and is the single source of every refusal wording, so
         a socket's synchronous reply and `set`'s exception can never
         describe the same rejection differently.
-
-        Carries no file path: that is `hint`, kept separate so a refusal can
-        be sent to whoever can reach the preview port without serving them
-        the layout of the disk.
         """
         state = self._state
         param = state.declarations.get(name)
@@ -129,14 +125,6 @@ class ParamSet:
     def check(self, name: str, value: object) -> str | None:
         """Why `value` would be refused for `name`, or None. Never raises."""
         return self.parse(name, value)[1]
-
-    def hint(self, name: str) -> str:
-        """Where to edit the declaration, or "" when there is nothing to point at."""
-        param = self.declarations.get(name)
-        if param is None or param.owner is None:
-            return ""
-        where = source_file_of(param.owner) or param.owner.__name__
-        return f"edit the {name!r} param in {where}, or pick a value it accepts"
 
     # ---- writes (loop thread) -------------------------------------------
 
@@ -153,11 +141,11 @@ class ParamSet:
         """Set several params atomically, on the target too; returns the
         names that changed.
 
-        Validate all, then apply, so a partial write can never leave a
-        pattern running a mix of old and new values.
+        Validate all, then apply, so a partial write can never leave an
+        op running a mix of old and new values.
         """
         parsed = {name: self.parse(name, value) for name, value in values.items()}
-        refusals = [self.refusal(name, reason) for name, (_, reason) in parsed.items() if reason is not None]
+        refusals = [reason for _, reason in parsed.values() if reason is not None]
         if refusals:
             raise ValueError("; ".join(refusals))
         state = self._state
@@ -173,11 +161,11 @@ class ParamSet:
         attribute, and make it the target every later `set` writes. Returns
         the binding.
 
-        Runs once per bind, before `setup`, so pattern code reads
-        `self.speed` as a plain value. The declaration wins over anything
-        `__init__` assigned to the same name. Applying again to the same
-        target (a rebind) keeps the binding and its drives; another target
-        gets a new binding, and the old one stops working.
+        An op then reads `self.speed` as a plain value. The declaration
+        wins over anything `__init__` assigned to the same name. Applying
+        again to the same target (a rebind) keeps the binding and its
+        drives; another target gets a new binding, and the old one stops
+        working.
         """
         bound = self._state.bound
         if bound is None or bound.target is not target:
@@ -186,11 +174,6 @@ class ParamSet:
         for name in self._state.values:
             bound.write(name)
         return bound
-
-    def refusal(self, name: str, reason: str) -> str:
-        """`reason` with the `hint` for `name` added: the CLI's wording."""
-        hint = self.hint(name)
-        return f"{reason}; {hint}" if hint else reason
 
 
 class _ParamState(NamedTuple):

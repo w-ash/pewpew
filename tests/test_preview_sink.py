@@ -29,7 +29,6 @@ from pewpew.aura.master import Master
 from pewpew.errors import Refusal
 from pewpew.mapping import grid, line
 from pewpew.params import HSV, Bool, Color, Float, Int, ParamSet
-from pewpew.pattern import Pattern
 from pewpew.room.map import compile_room
 from pewpew.sinks import preview
 from pewpew.sinks.base import DISPLAY_GAMMA, to_display_u8
@@ -265,7 +264,7 @@ def test_accepted_set_reaches_the_controls_and_echoes_to_every_client():
 
 
 def test_a_change_of_declarations_rebuilds_the_controls_then_fills_them():
-    """A hot reload that adds or retunes a param. The client gets a `declare`
+    """A layer edit that adds or retunes a param. The client gets a `declare`
     (value-free) and then the `params` echo *even though* its text is the
     same as the last one sent — the rebuilt sliders are empty until it lands.
     An unchanged frame sends neither."""
@@ -288,7 +287,7 @@ def test_a_change_of_declarations_rebuilds_the_controls_then_fills_them():
             # Same declarations, same values: nothing but frames so far
             # (a text after the last frame would come before the next one).
 
-            controls.params = ParamSet(Retuned)  # what Renderer.swap does, in place
+            controls.params = ParamSet(Retuned)
             sink.send(2 / 60, frame)
             assert not isinstance(ws.recv(timeout=5.0), str)
             declare = next_text(ws)
@@ -305,14 +304,14 @@ def test_a_change_of_declarations_rebuilds_the_controls_then_fills_them():
 
 
 def test_a_value_that_changes_kind_is_sent_in_its_new_kind():
-    """A hot reload turns `Int(1, 0, 1)` into `Bool(True)`: 1 == True in
+    """An edit turns `Int(1, 0, 1)` into `Bool(True)`: 1 == True in
     Python, but the page's bool reads only `true`, so the text must change."""
 
-    class Before(Pattern):
+    class Before:
         invert = Int(1, 0, 1)
         level = Float(1.0, 0.0, 2.0)
 
-    class After(Pattern):
+    class After:
         invert = Bool(True)
         level = Int(1, 0, 2)
 
@@ -353,7 +352,6 @@ def test_a_refused_color_names_its_part_and_never_a_path():
             reply = next_text(ws)
             assert reply == {"type": "refused", "control": "set", "name": "color", "id": None,
                              "reason": "tint.color.s must be within 0.0..1.0, got 2.0"}
-            assert controls.params.hint("color") not in reply["reason"]
 
 
 def test_refused_set_names_the_range_but_never_a_source_path():
@@ -368,10 +366,7 @@ def test_refused_set_names_the_range_but_never_a_source_path():
             assert reply["reason"] == controls.params.check("scale", 99.0)
             assert "1.0..10.0" in reply["reason"]  # the range, so a UI can explain
             # This port is unauthenticated by design (architecture §5), so a
-            # refusal must not serve the layout of the disk. `hint` is the
-            # half that names a file, and it stays on the CLI.
-            hint = controls.params.hint("scale")
-            assert hint and hint not in reply["reason"]
+            # refusal must not serve the layout of the disk.
             assert ".py" not in reply["reason"] and "/" not in reply["reason"]
             assert controls.params["scale"] == 4.0  # unmoved
 

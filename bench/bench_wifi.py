@@ -51,9 +51,9 @@ import numpy as np
 
 from bench.common import gather_meta
 from pewpew import audit
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.expr import lissajous
 from pewpew.fx.graph import Program
-from pewpew.fx.host import ProgramPattern
 from pewpew.health import extract
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
@@ -71,7 +71,7 @@ WARMUP_S = 2.0  # no polls this long into a cell; leds.fps is a running average
 HOLD = 0.9  # a trial holds a rate when the board's median leds.fps >= HOLD x sent fps
 RESULTS = Path(__file__).parent / "results"
 # What the bench streams: glowing heads that move every frame over a mostly dark strip.
-SENDER = ProgramPattern.of(Program.of(lissajous().palette("ember")))
+SENDER = Program.of(lissajous().palette("ember"))
 
 
 def parse_targets(specs: list[str], px: int) -> list[Board]:
@@ -152,7 +152,7 @@ def stream_cell(boards: list[Board], rate: float, duration: float) -> dict:
     n = max(b.stop for b in boards)
     sink = DdpSink(boards, n, max_fps=rate)
     driver = SinkDriver(sink.send, name="ddp")
-    loop = PacedLoop(Renderer(SENDER(), line(n)), fps=rate, on_frame=[driver])
+    loop = PacedLoop(Renderer(BoundProgram(SENDER, "sender"), line(n)), fps=rate, on_frame=[driver])
     sink.start()
     driver.start()
     try:

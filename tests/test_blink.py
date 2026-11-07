@@ -7,12 +7,10 @@ import json
 import numpy as np
 import pytest
 
-from fakes import FakeTime, aura_rig, bar, next_text, room, serving
+from fakes import FakeTime, aura_rig, bar, hosted, next_text, one_node, room, serving
 from pewpew.aura.control import REQUESTS
 from pewpew.aura.master import Master
 from pewpew.pace import PacedLoop
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
 from pewpew.room.blink import DURATION, RATE, Blink
 from pewpew.room.map import compile_room
 
@@ -99,13 +97,8 @@ def test_an_unknown_fixture_is_refused_by_name_and_never_starts():
     assert lit(blink) == ["b"]
 
 
-class Grey(Pattern):
-    def render(self, x, y, z, index):
-        return np.full((len(x), 3), 0.25, np.float32)
-
-
 def test_the_loop_applies_it_before_the_master_and_leaves_the_render_alone():
-    renderer = Renderer(Grey(), ROOM.mapping)
+    renderer = hosted(one_node("solid_test", {"red": 0.25, "green": 0.25, "blue": 0.25}), ROOM.mapping)
     master = Master()
     master.set(0.5)
     blink = Blink(ROOM)
@@ -119,7 +112,7 @@ def test_the_loop_applies_it_before_the_master_and_leaves_the_render_alone():
     loop.run(frames=2)
     assert np.allclose(seen[0][:8], 0.5)  # white, then the master's half
     assert np.allclose(seen[0][8:], 0.125)
-    assert np.allclose(renderer.advance_to(renderer.t + 1 / FPS), 0.25)  # the pattern's own frames are grey
+    assert np.allclose(renderer.advance_to(renderer.t + 1 / FPS), 0.25)  # the program's own frames are grey
 
 
 def test_a_blink_names_its_fixture_so_an_id_is_only_ever_a_request_id():

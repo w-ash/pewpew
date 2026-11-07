@@ -2,27 +2,22 @@
 wording, declaration-time validation, `ParamSet` as the control-surface
 contract, and declaration discovery.
 
-What is contractual: declared params materialize to native values before
-`setup` runs; the declarations outlive bind, so something can ask a pattern
-what params it has; a value naming an undeclared param, of the wrong kind,
-or outside a declared range is refused rather than silently becoming a
-param that appears to work and provably does nothing.
+What is contractual: `apply` writes native values on the target; the
+declarations outlive bind, so something can ask a set what params it
+has; a value naming an undeclared param, of the wrong kind, or outside a
+declared range is refused rather than silently becoming a param that
+appears to work and provably does nothing.
 """
 
 from __future__ import annotations
 
 import json
 import re
-import sys
-import types
-from functools import partial
 
 import numpy as np
 import pytest
 
-from fakes import Pooled, run_python
 from pewpew.color import EMBER, OCEAN, PRESETS
-from pewpew.mapping import line
 from pewpew.params import (
     HSV,
     Bool,
@@ -37,20 +32,17 @@ from pewpew.params import (
     Stop,
     declared_params,
 )
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
 
 
-class Probe(Pattern):
+class Probe:
+    """A class with one param of most kinds."""
+
     speed = Float(0.4, 0.0, 2.0, "/s")
     tail = Float(0.25, 0.01, 2.0, "s")
     count = Int(3, 1, 8)
     mirror = Bool(False)
     mode = Choice("bands", {"bands": "Bands", "dots": "Dots", "solid": "Solid"})
     color = Color((200.0, 1.0, 1.0))
-
-    def render(self, x, y, z, index):
-        return np.zeros((index.size, 3), dtype=np.float32)
 
 
 def check(name: str, value: object) -> str | None:
@@ -321,16 +313,9 @@ def test_a_refusal_names_a_nested_owner_by_its_path() -> None:
     assert params.check("sides", 5) == (
         "layers.base.fold: unknown param 'sides'; params: speed, tail, count, mirror, mode, color"
     )
-    reason = params.check("count", 40)
-    assert reason is not None
-    assert params.refusal("count", reason).startswith(f"{reason}; edit the 'count' param in ")
-
-
-def test_a_nested_owner_names_the_set_and_stays_off_the_records() -> None:
-    renderer = Renderer(Probe(), line(4), name="layers.base.fold")
-    assert renderer.params.owner == "layers.base.fold"
-    assert renderer.params.check("count", 40) == "layers.base.fold.count must be within 1..8, got 40"
-    assert renderer.params.describe() == ParamSet(Probe).describe()
+    with pytest.raises(ValueError, match=r"^layers.base.fold.count must be within 1..8, got 40$"):
+        params.set("count", 40)
+    assert params.describe() == ParamSet(Probe).describe()  # the path stays off the records
 
 
 # ---- declaration-time validation ----------------------------------------------
@@ -340,39 +325,6 @@ def test_range_must_be_orderable() -> None:
     """A param that cannot move is dead by construction, so refuse it at import."""
     with pytest.raises(ValueError, match="lo < hi"):
         Float(0.5, 1.0, 1.0)
-
-
-@pytest.mark.parametrize("reserved", ["n", "seed", "rng", "pixels"])
-def test_a_param_cannot_take_a_name_the_engine_reads(reserved) -> None:
-    """`pixels = Float(...)` would shadow the frame the engine keeps, and
-    the class definition says why instead, also for a param a mixin
-    declares."""
-    with pytest.raises(ValueError, match=f"Broken.{reserved}: '{reserved}' is reserved for the engine"):
-        type("Broken", (Pattern,), {reserved: Float(1.0, 0.0, 2.0)})
-    mixin = type("Mixin", (), {reserved: Float(1.0, 0.0, 2.0)})
-    with pytest.raises(ValueError, match=f"Broken.{reserved}: '{reserved}' is reserved for the engine"):
-        type("Broken", (mixin, Pattern), {})
-
-
-# The refusal of a class with three reserved names, from a new process at
-# each of two hash seeds, run on the suite's process pool (conftest.py).
-RESERVED_CODE = (
-    "from pewpew.params import Float\n"
-    "from pewpew.pattern import Pattern\n"
-    "try:\n"
-    "    type('P', (Pattern,), {k: Float(1.0, 0.0, 2.0) for k in ('seed', 'rng', 'pixels')})\n"
-    "except ValueError as e:\n"
-    "    print(str(e).split(':')[0])\n"
-)
-JOBS = {seed: partial(run_python, RESERVED_CODE, PYTHONHASHSEED=seed) for seed in ("1", "3")}
-
-
-def test_several_reserved_names_give_one_message_whatever_the_hash_seed(pooled: Pooled) -> None:
-    """A set of names iterates in string-hash order, which PYTHONHASHSEED
-    changes per process (seeds 1 and 3 differed); the first name sorted is
-    the one refused."""
-    for seed, out in pooled.items():
-        assert out.stdout.strip() == "P.pixels", seed
 
 
 def test_the_base_is_abstract_and_a_color_takes_an_hsv_default() -> None:
@@ -469,13 +421,11 @@ def test_text_goes_on_the_wire_as_value_label_pairs() -> None:
     assert record["text"] == [{"value": 0.0, "label": "hold"}]
 
 
-def test_a_pattern_with_no_params_describes_as_empty() -> None:
-    class Bare(Pattern):
-        def render(self, x, y, z, index):
-            return np.zeros((index.size, 3), dtype=np.float32)
+def test_a_class_with_no_params_describes_as_empty() -> None:
+    class Bare:
+        pass
 
-    assert ParamSet(Bare).describe() == []
-    assert Renderer(Bare(), line(4)).params.snapshot() == {}
+    assert ParamSet(Bare).describe() == [] and ParamSet(Bare).snapshot() == {}
 
 
 # ---- the set as a control-surface contract ---------------------------------
@@ -498,16 +448,7 @@ def test_undeclared_name_is_refused_with_the_declared_names() -> None:
         "probe: unknown param 'sped'; params: speed, tail, count, mirror, mode, color"
     )
     with pytest.raises(ValueError, match="unknown param 'sped'"):
-        Renderer(Probe(), line(4), params={"sped": 1.5})
-
-
-def test_refusal_points_at_the_declaration_only_through_hint() -> None:
-    """`parse` is what a network peer sees; `hint` is what the CLI adds, so
-    a refusal never serves the layout of the disk."""
-    params = ParamSet(Probe)
-    assert "test_params.py" in params.hint("speed")
-    assert "test_params.py" not in (params.check("speed", 99.0) or "")
-    assert params.hint("nope") == ""
+        ParamSet(Probe, {"sped": 1.5})
 
 
 def test_set_reports_whether_the_value_changed() -> None:
@@ -541,43 +482,29 @@ def test_both_snapshots_round_trip_through_overrides() -> None:
 # ---- binding and discovery --------------------------------------------------
 
 
-def test_params_materialize_to_native_values_before_setup() -> None:
-    seen: dict[str, object] = {}
-
-    class Seen(Probe):
-        def setup(self, n, x, y, z, index):
-            seen.update(speed=self.speed, color=self.color, mode=self.mode)
-
-    Renderer(Seen(), line(4))
-    assert seen == {"speed": 0.4, "color": HSV(200.0, 1.0, 1.0), "mode": "bands"}
+def test_apply_writes_native_values_on_the_target() -> None:
+    target = Probe()
+    ParamSet(Probe, {"speed": 1.5, "color": {"h": 0, "s": 0, "v": 1}}).apply(target)
+    assert target.speed == 1.5 and target.color == HSV(0.0, 0.0, 1.0)
+    assert target.tail == 0.25  # untouched declarations keep defaults
 
 
-def test_an_unbound_instance_reads_the_defaults() -> None:
+def test_an_unapplied_instance_reads_the_defaults() -> None:
     assert Probe().speed == 0.4 and Probe().color == HSV(200.0, 1.0, 1.0)
     assert isinstance(Probe.speed, Param)
 
 
-def test_override_drives_a_declared_param() -> None:
-    renderer = Renderer(Probe(), line(4), params={"speed": 1.5, "color": {"h": 0, "s": 0, "v": 1}})
-    assert renderer.pattern.speed == 1.5 and renderer.pattern.color == HSV(0.0, 0.0, 1.0)
-    assert renderer.pattern.tail == 0.25  # untouched declarations keep defaults
+def test_applying_again_to_the_target_keeps_the_binding_and_the_values() -> None:
+    """A rebind applies the set again: a control holding the set, and a
+    route driving it, keep working."""
+    params, target = ParamSet(Probe, {"speed": 1.5}), Probe()
+    bound = params.apply(target)
+    assert params.apply(target) is bound and target.speed == 1.5
 
 
-def test_params_and_the_set_itself_survive_rebind() -> None:
-    """A control surface holds the set across rebinds, so replacing it
-    would leave that surface driving a set nothing reads."""
-    renderer = Renderer(Probe(), line(4), params={"speed": 1.5})
-    before = renderer.params
-    renderer.rebind(line(9))
-    assert renderer.pattern.speed == 1.5 and renderer.params is before
-    assert renderer.n == 9
-
-
-def test_declarations_survive_bind() -> None:
-    renderer = Renderer(Probe(), line(4))
-    speed = renderer.params.declarations["speed"]
+def test_declarations_are_read_once() -> None:
+    speed = ParamSet(Probe).declarations["speed"]
     assert isinstance(speed, Float) and (speed.lo, speed.hi, speed.unit) == (0.0, 2.0, "/s")
-    assert renderer.pattern.speed == 0.4
 
 
 def test_most_derived_declaration_wins() -> None:
@@ -585,7 +512,9 @@ def test_most_derived_declaration_wins() -> None:
         speed = Float(1.9, 0.0, 3.0)
 
     assert declared_params(Faster)["speed"].default == 1.9
-    assert Renderer(Faster(), line(4)).pattern.speed == 1.9
+    target = Faster()
+    ParamSet(Faster).apply(target)
+    assert target.speed == 1.9
 
 
 def test_declaration_order_is_base_first() -> None:
@@ -599,37 +528,25 @@ def test_declaration_order_is_base_first() -> None:
 
 
 def test_declaration_beats_an_init_assignment() -> None:
-    """The set owns the value, so a UI cannot be shown a value the pattern
+    """The set owns the value, so a UI cannot be shown a value the target
     ignores."""
 
     class Stubborn(Probe):
         def __init__(self):
             self.speed = 1.75  # type: ignore[assignment]
 
-    assert Renderer(Stubborn(), line(4)).pattern.speed == 0.4
+    target = Stubborn()
+    ParamSet(Stubborn).apply(target)
+    assert target.speed == 0.4
 
 
-def test_a_set_on_the_renderers_params_reaches_the_running_pattern() -> None:
-    """One write path: the set and the pattern never disagree, and a set
-    that no pattern was bound to only holds values."""
-    renderer = Renderer(Probe(), line(4))
-    assert renderer.params.set("mode", "solid") is True
-    assert renderer.pattern.mode == "solid"
-    assert renderer.params["mode"] == "solid"
+def test_a_set_reaches_the_target_it_was_applied_to() -> None:
+    """One write path: the set and its target never disagree, and a set
+    that was never applied only holds values."""
+    params, target = ParamSet(Probe), Probe()
+    params.apply(target)
+    assert params.set("mode", "solid") is True
+    assert target.mode == "solid" and params["mode"] == "solid"
     unbound = ParamSet(Probe)
     unbound.set("speed", 1.5)
     assert unbound["speed"] == 1.5
-
-
-def test_a_refusal_for_a_class_with_no_source_file_is_still_a_refusal(monkeypatch) -> None:
-    """A class built in a REPL or `python -c` has no source file, and
-    `inspect` raises OSError for it; the refusal is still a ValueError."""
-    monkeypatch.setitem(sys.modules, "__main__", types.ModuleType("__main__"))  # no __file__
-
-    class Spark(Pattern):
-        speed = Float(0.5, 0.0, 1.0)
-
-    Spark.__module__ = "__main__"
-    with pytest.raises(ValueError, match="speed must be within 0.0..1.0, got 3.0. edit the 'speed' param in Spark"):
-        ParamSet(Spark, {"speed": 3})
-

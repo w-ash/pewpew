@@ -13,15 +13,13 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from audio_signals import RATE, clicks, noise, sine
-from fakes import FakeTime
+from fakes import FakeTime, costed, hosted
 from pewpew.audio import Analyser, Block
 from pewpew.audio.analysis import HOP_S, MAX_HOPS, Hop, band_edges, window_size
 from pewpew.audio.clock import READY_S, WINDOW_S, SampleClock
 from pewpew.features import N_BANDS
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
 
 
 def fed(analyser: Analyser, samples: np.ndarray, *, start: int = 0, block: int | None = None) -> list[Hop]:
@@ -162,18 +160,6 @@ def test_an_overlap_keeps_the_new_samples_and_a_jump_back_restarts() -> None:
 # ---- the live sample clock ----------------------------------------------------------
 
 
-class Stalling(Pattern):
-    """Black frames, frame k taking `stalls[k]` seconds of `ft`'s wall time."""
-
-    def __init__(self, ft: FakeTime, stalls: dict[int, float]) -> None:
-        self.ft, self.stalls, self.k = ft, stalls, 0
-
-    def render(self, x, y, z, index):
-        self.ft.t += self.stalls.get(self.k, 0.0)
-        self.k += 1
-        return np.zeros((len(x), 3), np.float32)
-
-
 def arrivals(ppm: float, delay: float, jitter: float, fps: float, seed: int, seconds: float = WINDOW_S + 1,
              block: int = 480, stall: float = 0.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Blocks of a source `ppm` fast, arriving `delay` plus seeded jitter
@@ -223,6 +209,7 @@ def test_each_second_keeps_its_earliest_stamp_against_its_index_not_its_first() 
     assert clock.time(RATE + 24000) == pytest.approx(1.5 + 0.02 + clock.slot)
 
 
+@pytest.mark.usefixtures("fake_ops")
 def test_a_stamp_is_at_or_after_its_blocks_arrival_through_a_stall() -> None:
     # The loop's schedule puts the tick of engine time t at wall time t - 1/fps.
     ft, fps = FakeTime(), 60.0
@@ -234,7 +221,7 @@ def test_a_stamp_is_at_or_after_its_blocks_arrival_through_a_stall() -> None:
             stamps.append((t + 1.0 / fps, arrive.pop(0) + 1.0 / fps))
 
     stalls = {k: 0.098 for k in (30, 95, 160)}  # ADR-010's longest interval, three times
-    loop = PacedLoop(Renderer(Stalling(ft, stalls), line(1)), fps, before=[drain], now=ft.now, sleep=ft.sleep)
+    loop = PacedLoop(hosted(costed(ft, stalls), line(1)), fps, before=[drain], now=ft.now, sleep=ft.sleep)
     assert loop.run(frames=230).skips == 3
     assert len(stamps) > 300 and all(stamp >= at for stamp, at in stamps)
 

@@ -15,36 +15,21 @@ import threading
 import numpy as np
 import pytest
 
-from fakes import FLOW, FakeTime, Oversleeper, wait_until
+from fakes import FLOW, FakeTime, Oversleeper, costed, hosted, source_op, wait_until
 from fakes import frames as render_frames
 from pewpew.mapping import line
 from pewpew.pace import STOPPING, Calls, PacedLoop, PaceStats
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
 
 PERIOD = 1.0 / 60.0
 SEED = 42
 N_PX = 32
 
 
-class Costed(Pattern):
-    """Render cost injected as fake wall time: `costs[frame_index]` seconds,
-    else `default`. Deterministic stand-in for a slow or stalling frame."""
-
-    def __init__(self, ft: FakeTime, costs: dict[int, float] | None = None, default: float = 0.0):
-        self.ft = ft
-        self.costs = costs or {}
-        self.default = default
-        self.i = 0
-
-    def render(self, x, y, z, index):
-        self.ft.t += self.costs.get(self.i, self.default)
-        self.i += 1
-        return np.zeros((x.shape[0], 3), dtype=np.float32)
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 
-def make_loop(ft, pattern=None, on_frame=(), fps=60.0, **kw):
-    renderer = Renderer(pattern or Costed(ft), line(N_PX), seed=SEED)
+def make_loop(ft, program=None, on_frame=(), fps=60.0, **kw):
+    renderer = hosted(program or costed(ft), line(N_PX), seed=SEED)
     return PacedLoop(
         renderer, fps=fps, on_frame=on_frame, now=ft.now, sleep=ft.sleep, **kw
     )
@@ -65,7 +50,7 @@ def test_ticks_land_on_the_absolute_schedule():
     cost = 0.004
     loop = make_loop(
         ft,
-        pattern=Costed(ft, default=cost),
+        program=costed(ft, default=cost),
         on_frame=[lambda t, frame: starts.append(ft.t)],
     )
     stats = loop.run(frames=10)
@@ -100,7 +85,7 @@ def test_blown_deadline_skips_ahead():
     # schedule to come around).
     loop = make_loop(
         ft,
-        pattern=Costed(ft, costs={2: 2.5 * PERIOD}),
+        program=costed(ft, costs={2: 2.5 * PERIOD}),
         on_frame=[lambda t, frame: delivered.append(t)],
     )
     stats = loop.run(frames=6)
@@ -119,7 +104,7 @@ def test_a_stall_short_of_two_periods_loses_no_slot():
     # in its own slot and cadence recovers.
     loop = make_loop(
         ft,
-        pattern=Costed(ft, costs={3: 1.99 * PERIOD}),
+        program=costed(ft, costs={3: 1.99 * PERIOD}),
         on_frame=[lambda t, frame: delivered.append(t)],
     )
     stats = loop.run(frames=8)
@@ -130,12 +115,12 @@ def test_a_stall_short_of_two_periods_loses_no_slot():
 
 def test_engine_time_matches_slot_clock_frames_bitwise():
     count = 60
-    expected = render_frames(Renderer(FLOW(), line(N_PX), seed=SEED), count)
+    expected = render_frames(hosted(FLOW, line(N_PX), seed=SEED), count)
 
     ft = FakeTime()
     got_t: list[float] = []
     got_frames: list[np.ndarray] = []
-    renderer = Renderer(FLOW(), line(N_PX), seed=SEED)
+    renderer = hosted(FLOW, line(N_PX), seed=SEED)
     loop = PacedLoop(
         renderer,
         fps=60.0,
@@ -157,7 +142,7 @@ def test_engine_time_jumps_by_missed_slots():
     # if the skip advances t by repeated addition, not `missed * period`.
     loop = make_loop(
         ft,
-        pattern=Costed(ft, costs={1: 3.5 * PERIOD}),
+        program=costed(ft, costs={1: 3.5 * PERIOD}),
         on_frame=[lambda t, frame: delivered.append(t)],
     )
     stats = loop.run(frames=4)
@@ -201,35 +186,26 @@ def test_call_soon_runs_on_loop_thread_before_the_tick():
     ft = FakeTime()
     events: list[str] = []
 
-    class Recording(Costed):
-        def render(self, x, y, z, index):
-            events.append(f"render{self.i}")
-            return super().render(x, y, z, index)
-
     def on_frame(t, frame):
         if len(events) == 1:
             loop.calls.call_soon(lambda: events.append("call"))
 
-    loop = make_loop(ft, pattern=Recording(ft), on_frame=[on_frame])
+    loop = make_loop(ft, program=costed(ft, rendered=events), on_frame=[on_frame])
     loop.run(frames=3)
     assert events == ["render0", "call", "render1", "render2"]
 
 
 def test_poisoned_bind_propagates():
-    class BadRebind(Pattern):
-        def __init__(self):
-            self.binds = 0
+    binds = [0]
 
-        def setup(self, n, x, y, z, index):
-            self.binds += 1
-            if self.binds > 1:
-                raise RuntimeError("boom at rebind")
-
-        def render(self, x, y, z, index):
-            return np.zeros((x.shape[0], 3), dtype=np.float32)
+    def setup(op, ctx):
+        binds[0] += 1
+        if binds[0] > 1:
+            raise RuntimeError("boom at rebind")
 
     ft = FakeTime()
-    renderer = Renderer(BadRebind(), line(N_PX), seed=SEED)
+    renderer = hosted(source_op("bad_rebind_test", lambda op, c: np.zeros((len(c.index), 3), np.float32),
+                                setup=setup), line(N_PX), seed=SEED)
 
     def failing_supervisor():
         # A supervisor that swallows the bind failure instead of restoring
@@ -251,7 +227,7 @@ def test_poisoned_bind_propagates():
 def test_callback_advancing_renderer_time_is_adopted():
     ft = FakeTime()
     delivered: list[float] = []
-    renderer = Renderer(FLOW(), line(N_PX), seed=SEED)
+    renderer = hosted(FLOW, line(N_PX), seed=SEED)
 
     def probe_frame():
         renderer.step(0.5)  # a supervisor rendering a transition frame
@@ -288,7 +264,7 @@ def test_real_time_smoke():
     """The one real-clock run: structure only, no timing assertions — bench
     numbers are distributions, never test gates (T-5)."""
     delivered: list[float] = []
-    renderer = Renderer(FLOW(), line(N_PX), seed=SEED)
+    renderer = hosted(FLOW, line(N_PX), seed=SEED)
     loop = PacedLoop(renderer, fps=60.0, on_frame=[lambda t, frame: delivered.append(t)])
     stats = loop.run(frames=3)
     assert stats.ticks == 3
@@ -304,11 +280,6 @@ def test_a_tick_drains_then_runs_the_before_hooks_renders_and_runs_the_after_sta
     ft = FakeTime()
     events: list[str] = []
 
-    class Logged(Costed):
-        def render(self, x, y, z, index):
-            events.append("render")
-            return super().render(x, y, z, index)
-
     def stage(name):
         def run(t, frame):
             events.append(name)
@@ -316,21 +287,22 @@ def test_a_tick_drains_then_runs_the_before_hooks_renders_and_runs_the_after_sta
         return run
 
     loop = make_loop(
-        ft, pattern=Logged(ft), before=[lambda t: events.append(f"before {t:.4f}")],
+        ft, program=costed(ft, rendered=events), before=[lambda t: events.append(f"before {t:.4f}")],
         after=[stage("blink"), stage("dim")], on_frame=[lambda t, f: events.append(f"sink {f[0, 0]}")],
     )
     loop.calls.call_soon(lambda: events.append("call"))
     loop.run(frames=1)
-    assert events == ["call", f"before {1 / 60:.4f}", "render", "blink", "dim", "sink 1.0"]
+    assert events == ["call", f"before {1 / 60:.4f}", "render0", "blink", "dim", "sink 1.0"]
 
 
 def test_a_frame_no_stage_replaced_is_still_a_read_only_copy():
     ft = FakeTime()
     seen: list[np.ndarray] = []
-    pattern = Costed(ft)
-    loop = make_loop(ft, pattern=pattern, after=[lambda t, f: f], on_frame=[lambda t, f: seen.append(f)])
+    renderer = hosted(costed(ft), line(N_PX), seed=SEED)
+    loop = PacedLoop(renderer, fps=60.0, after=[lambda t, f: f], on_frame=[lambda t, f: seen.append(f)],
+                     now=ft.now, sleep=ft.sleep)
     loop.run(frames=1)
-    assert not seen[0].flags.writeable and not np.shares_memory(seen[0], pattern.pixels)
+    assert not seen[0].flags.writeable and not np.shares_memory(seen[0], renderer.bound.buffers.pixels)
 
 
 def answer_on_a_thread(calls: Calls, fn, timeout: float = 5.0) -> list:

@@ -4,11 +4,11 @@ one frame per slot.
 A `Compositor` is a `pewpew.render.Live` source, so the loop, the
 crossfader and a room map reload drive it as they would one `Renderer`.
 Its layers run bottom to top (`layers[0]` is the bottom). Each is a full
-`Renderer` that runs the layer's program in a
-`pewpew.fx.host.ProgramPattern`, seeded by `layer_seed` from the look's
-seed and its own id. The renderer is named by the layer's address, each
-node's knobs by `layers.<layer>.<node>`, so the layer's errors and
-refusals name it. Each frame:
+`Renderer` that runs the layer's program bound to the map
+(`pewpew.fx.bound_program.BoundProgram`), seeded by `layer_seed` from the
+look's seed and its own id. The bound program is named by the layer's
+address, each node's knobs by `layers.<layer>.<node>`, so the layer's
+errors and refusals name it. Each frame:
 
 1. The look's signals run, and its routes move their knobs
    (pewpew.compose.modulation): the modulation seat, before any layer.
@@ -59,7 +59,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 
@@ -74,9 +74,9 @@ from pewpew.compose.stack import Layer, Look, Route, layer_seed, stack_problems
 from pewpew.errors import describe_exception, unknown
 from pewpew.features import FakeFeatures, FeatureSource, memo
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.compile import label_of
 from pewpew.fx.graph import Graph
-from pewpew.fx.host import ProgramPattern
 from pewpew.mapping import dimensions
 from pewpew.render import PatternError, Renderer, error_frame
 
@@ -85,11 +85,15 @@ logger = logging.getLogger(__name__)
 
 class LayerError(Exception):
     """A layer that cannot be built: binding its program raises. The message starts with the layer's address and
-    names no path; `layer` is its id."""
+    names no path; `layer` is its id and `reason` why. It pickles, so it crosses a process pool."""
 
     def __init__(self, lid: str, reason: str) -> None:
         super().__init__(f"{layer_address(lid)}: {reason}")
         self.layer = lid
+        self.reason = reason
+
+    def __reduce__(self) -> tuple[type[LayerError], tuple[str, str]]:
+        return type(self), (self.layer, self.reason)
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -106,9 +110,9 @@ class LiveLayer:
         return self.layer.id
 
     @property
-    def host(self) -> ProgramPattern:
-        """The program the layer's renderer runs."""
-        return cast("ProgramPattern", self.renderer.pattern)
+    def bound(self) -> BoundProgram:
+        """The program the layer's renderer runs, bound to the map."""
+        return self.renderer.bound
 
     @property
     def masked(self) -> bool:
@@ -117,7 +121,7 @@ class LiveLayer:
 
     def sections(self) -> list[Section]:
         """The layer's knob sets: each node's, then its mix."""
-        knobs = [Section(params, self.id, nid) for nid, params in self.host.node_params.items()]
+        knobs = [Section(params, self.id, nid) for nid, params in self.bound.node_params.items()]
         return [*knobs, Section(self.mix.params, self.id, "")]
 
     def nodes(self) -> list[dict[str, Any]]:
@@ -128,12 +132,12 @@ class LiveLayer:
     def snapshot(self) -> Layer:
         """The layer as a value now: its program at the live knob values,
         and its live mix."""
-        return replace(self.layer, program=self.host.snapshot(), **self.mix.params.snapshot())
+        return replace(self.layer, program=self.bound.snapshot(), **self.mix.params.snapshot())
 
     def weight(self) -> float | np.ndarray:
         """What the layer's last frame blends in by: its opacity, times its
         mask per pixel when it has one ((N, 1) float32)."""
-        alpha, opacity = self.host.alpha, self.mix.opacity
+        alpha, opacity = self.bound.alpha, self.mix.opacity
         if alpha is None:
             return opacity
         return (alpha * np.float32(opacity))[:, None]
@@ -323,8 +327,8 @@ class Compositor:
         """`layer` running, with `mix`, or a new mix from its values."""
         try:
             renderer = Renderer(
-                ProgramPattern.of(layer.program)(), self._mapping, seed=layer_seed(self._seed, layer.id),
-                features=self._features, name=layer_address(layer.id), t=self._t,
+                BoundProgram(layer.program, layer_address(layer.id)), self._mapping,
+                seed=layer_seed(self._seed, layer.id), features=self._features, t=self._t,
             )
         except Exception as exc:
             raise LayerError(layer.id, describe_exception(exc)) from exc
@@ -387,7 +391,7 @@ class Compositor:
     def _render(self, live: LiveLayer, t: float, timings: dict[str, float]) -> tuple[np.ndarray, bool]:
         """Layer `live`'s frame at `t`, and whether it rendered without failing."""
         start = self._now() if self._now is not None else 0.0
-        live.host.below = self._below
+        live.bound.below = self._below
         try:
             frame = live.renderer.advance_to(t)
         except RuntimeError:

@@ -8,13 +8,9 @@ import json
 import numpy as np
 import pytest
 
-from fakes import EXAMPLE_ROOM, FLOW, bar, ddp_sink, looks_file, room, run_main
+from fakes import EXAMPLE_ROOM, FLOW, bar, ddp_sink, hosted, looks_file, room, run_main, source_op
 from pewpew.crossfade import Crossfader
-from pewpew.kit import hsv
 from pewpew.pace import Calls
-from pewpew.params import Float
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
 from pewpew.room.blink import Blink
 from pewpew.room.live import RoomLive
 from pewpew.room.map import MAX_PER_OUTPUT, RoomError, compile_room, load_room, parse_room, rebind_text
@@ -214,14 +210,17 @@ def test_describe_carries_pitch_in_meters_and_the_meters_to_normalized_scale(exa
 # ---- live map reload ---------------------------------------------------------
 
 
-class Hue(Pattern):
-    """A hue ramp along the pixels; its subclasses' `setup` refuses some maps."""
+def ramp(setup=None):
+    """A program of a still grey ramp along the pixels, so a frame shows the
+    map, with `setup(op, ctx)` as its op's (needs `fake_ops`)."""
 
-    def render(self, x, y, z, index):
-        return hsv(index / self.n, 1.0, 1.0).astype(np.float32)
+    def render(op, c):
+        return np.repeat((c.index / np.float32(len(c.index)))[:, None], 3, axis=1).astype(np.float32)
+
+    return source_op("ramp_room_test", render, setup=setup)
 
 
-def live(tmp_path, pattern=None, blink=None):
+def live(tmp_path, program=None, blink=None):
     """A running-aura stand-in: room file, renderer, started DDP sink, and
     the room's live reload the runner builds, whose new maps land in
     `shown`, as the preview's would; `rec` records what the sink sends."""
@@ -229,7 +228,7 @@ def live(tmp_path, pattern=None, blink=None):
     doc = copy.deepcopy(TWO_BARS)
     path.write_text(json.dumps(doc))
     r, data = load_room(path)
-    renderer = Renderer(pattern or FLOW(), r.mapping)
+    renderer = hosted(program or FLOW, r.mapping)
     sink, rec, _ = ddp_sink(r.boards, r.n)
     calls = Calls()
     room_live = RoomLive(path, r, data, renderer, calls.call_soon, ddp=sink, argv=["run"], blink=blink)
@@ -249,7 +248,7 @@ def test_a_valid_save_rebinds_relays_out_and_resends_positions(tmp_path, audit_l
     doc["fixtures"].append(bar("c", board="B", start=[2.0, 0.0], end=[2.0, 1.0]))
     path.write_text(json.dumps(doc))
     assert room_live.reloader.reload() is True and room_live.error is None
-    assert renderer.n == 192 and renderer.pattern.n == 192 and renderer.t == t  # time continues
+    assert renderer.n == 192 and len(renderer.bound.buffers.pixels) == 192 and renderer.t == t  # time continues
     assert [b.spec for b in sink.boards] == ["10.0.0.11:4048=0+128", "10.0.0.12:4048=128+64"]
     assert [r.n for r in room_live.shown] == [192] and room_live.room is room_live.shown[0]
     [entry] = [json.loads(s) for s in audit_log.read_text().splitlines()]
@@ -278,8 +277,9 @@ def test_use_for_a_refuses_without_a_path_in_the_reason(tmp_path):
     assert room_live.rebind("A", "192.0.2.20") == "could not read the room file"
 
 
+@pytest.mark.usefixtures("fake_ops")
 def test_an_invalid_save_keeps_the_last_good_map_and_says_why_without_a_path(tmp_path, audit_log):
-    path, doc, renderer, sink, room_live = live(tmp_path, Hue())  # still, so a frame shows the map
+    path, doc, renderer, sink, room_live = live(tmp_path, ramp())
     old_boards, old_frame = sink.boards, renderer.step(1 / 60)
     broken = copy.deepcopy(doc)
     del broken["fixtures"][1]["input"]
@@ -295,13 +295,13 @@ def test_an_invalid_save_keeps_the_last_good_map_and_says_why_without_a_path(tmp
     assert room_live.reloader.reload() is True and room_live.error is None
 
 
+@pytest.mark.usefixtures("fake_ops")
 def test_a_setup_that_raises_on_the_new_map_keeps_the_old_geometry(tmp_path):
-    class Picky(Hue):
-        def setup(self, n, x, y, z, index):
-            if n != 128:
-                raise RuntimeError("two bars only")
+    def picky(op, ctx):
+        if ctx.n != 128:
+            raise RuntimeError("two bars only")
 
-    path, doc, renderer, sink, room_live = live(tmp_path, Picky())
+    path, doc, renderer, sink, room_live = live(tmp_path, ramp(picky))
     doc = copy.deepcopy(doc)
     doc["fixtures"].append(bar("c", chain=3, start=[0.0, 2.0], end=[1.0, 2.0]))
     path.write_text(json.dumps(doc))
@@ -311,33 +311,32 @@ def test_a_setup_that_raises_on_the_new_map_keeps_the_old_geometry(tmp_path):
     assert renderer.step(1 / 60).shape == (128, 3)
 
 
+@pytest.mark.usefixtures("fake_ops")
 def test_a_rollback_that_also_fails_draws_the_error_frame_until_a_good_reload(tmp_path):
     """The new map's setup raises and so does the old map's, so the running
     renderer is left unbound. The run goes on with the error frame and a
     red status, and the next good reload binds it again."""
+    bars = [1]
 
-    class Needs(Hue):
-        bars = Float(1.0, 1.0, 10.0)
+    def needs(op, ctx):
+        if bars[0] * 64 > ctx.n:
+            raise RuntimeError(f"needs {bars[0]} bars")
 
-        def setup(self, n, x, y, z, index):
-            if self.bars * 64 > n:
-                raise RuntimeError(f"needs {self.bars:g} bars")
-
-    path, doc, renderer, sink, _ = live(tmp_path, Needs())
+    path, doc, renderer, sink, _ = live(tmp_path, ramp(needs))
     fader = Crossfader(renderer)
     r, data = load_room(path)
     room_live = RoomLive(path, r, data, fader, Calls().call_soon, ddp=sink, argv=["run"])
-    renderer.params.set("bars", 5.0)  # live: no setup runs until the next bind
+    bars[0] = 5  # no setup runs until the next bind
     path.write_text(json.dumps(room(bar("a"))))
     assert room_live.reloader.reload() is False and "needs 5 bars" in (room_live.error or "")
     frames = [fader.advance_to(t) for t in (1 / 60, 2 / 60)]  # does not raise
     for frame in frames:
         assert frame.shape == (128, 3) and (frame[:, 0] >= 0.25).all() and not frame[:, 1:].any()
-    renderer.params.set("bars", 1.0)
+    bars[0] = 1
     path.write_text(json.dumps(doc))
     assert room_live.reloader.reload() is True and room_live.error is None
     frame = fader.advance_to(3 / 60)
-    assert frame.shape == (128, 3) and frame[:, 1:].any()  # the pattern again, not the error frame
+    assert frame.shape == (128, 3) and frame[:, 1:].any()  # the program again, not the error frame
 
 
 def test_a_reload_with_a_plan_gives_the_listeners_the_plan_and_its_image_file(tmp_path):
