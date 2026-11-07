@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { Badge } from "../../src/ui/common/Badge";
-import { Button, IconButton, ToggleButton } from "../../src/ui/common/Button";
-import { DisclosureButton, DisclosureNote, useDisclosure } from "../../src/ui/common/Disclosure";
-import { Icon, ICON_NAMES } from "../../src/ui/common/Icon";
-import { ArmStatus } from "../../src/ui/common/press";
-import { Tile } from "../../src/ui/common/Tile";
+import { Badge } from "../../src/design/Badge";
+import { Button, IconButton, ToggleButton } from "../../src/design/Button";
+import { DisclosureButton, DisclosureNote, useDisclosure } from "../../src/design/Disclosure";
+import { Icon, ICON_NAMES } from "../../src/design/Icon";
+import { ArmStatus } from "../../src/design/press";
+import { Tile } from "../../src/design/Tile";
 import { pastDoubleTap, renderWired } from "./harness";
 
 // The colours the components draw in, as the browser reports them (theme.css).

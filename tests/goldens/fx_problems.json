@@ -49,7 +49,7 @@
     "layers.base.twist: twist needs a map of 3 dimensions, and this map has 2; twist turns the slices of a volume; on a panel use rotate, on a strip scale"
   ],
   "a fixture pattern in a program": [
-    "layers.base.p: pattern 'sparkle' renders once per fixture, not at the program's points; run it on a layer of its own"
+    "layers.base.p: pattern 'fixtureramp' renders once per fixture, not at the program's points; run it on a layer of its own"
   ],
   "a coord op over a pattern that is not warpable": [
     "layers.base.fold: mirror warps what 'p' reads, and pattern 'solid' is not warpable; apply mirror to another source, or run 'p' on a layer of its own"

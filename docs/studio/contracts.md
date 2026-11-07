@@ -135,7 +135,7 @@ Each session runs the aura that `python -m pewpew run` runs (ADR-025,
 `pewpew.aura.pipeline.build_aura_pipeline`), with no looks file and no boards, taking whole
 looks. It starts in `examples/tide.look.json`'s look on a 16 x 16 grid until the first bind.
 Every message but `bind`, `pause` and `resume` is the preview's (`src/pewpew/sinks/preview.py`,
-typed in `web/src/infra/wire/protocol.ts`), with the same wire text: the session sends what
+typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends what
 `pewpew.sinks.preview.StateTexts` and `answer_request` give.
 
 - **Server to client, text:**

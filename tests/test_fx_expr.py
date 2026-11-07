@@ -6,9 +6,8 @@ from __future__ import annotations
 import pytest
 
 from pewpew.fx import expr
-from pewpew.fx.expr import noise, osc, pattern, shape
+from pewpew.fx.expr import noise, osc, shape
 from pewpew.fx.graph import Program
-from pewpew.patterns import Plasma
 
 
 def test_positional_args_follow_the_declared_order_and_names_go_anywhere() -> None:
@@ -22,7 +21,7 @@ def test_positional_args_follow_the_declared_order_and_names_go_anywhere() -> No
 def test_ids_are_the_op_with_an_ordinal_or_the_one_pinned() -> None:
     program = osc(8).add(osc(3).id("slow")).add(osc(1)).program()
     assert [node.id for node in program.graph] == ["osc", "slow", "add", "osc3", "add2"]
-    assert pattern("plasma").program().out == "plasma", "a pattern node is named after its pattern"
+    assert shape().program().out == "shape", "a lone node is named after its op"
     blend = osc(2).blend(osc(3)).program()
     assert blend.out == "blend_", "an op named after a reserved word gets a '_'"
     with pytest.raises(ValueError, match="ids 'osc' are used by more than one node"):
@@ -40,8 +39,8 @@ def test_a_builder_used_twice_is_one_node() -> None:
 def test_a_literal_is_parsed_when_written_in_the_params_words() -> None:
     with pytest.raises(ValueError, match=r"^kaleid.sides must be within 1..24, got 40$"):
         osc(8).kaleid(40)
-    with pytest.raises(ValueError, match="plasma.speed must be within"):
-        pattern(Plasma, speed=9.0)
+    with pytest.raises(ValueError, match=r"palette.shift must be within 0.0..360.0"):
+        osc(8).palette("ocean", shift=999)
     with pytest.raises(TypeError, match="takes 4 args"):
         osc(1, 2, 3, 4, 5)  # type: ignore[call-arg]  # on purpose
     with pytest.raises(TypeError, match="got 'freq' twice"):

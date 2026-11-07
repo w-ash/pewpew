@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Socket } from "../infra/wire/socket";
-import { WireContext, WireStore } from "../infra/wire/store";
-import { ErrorBoundary } from "../ui/common/ErrorBoundary";
-import "../ui/styles.css";
+import { Socket } from "../wire/socket";
+import { WireContext, WireStore } from "../wire/store";
+import { ErrorBoundary } from "../design/ErrorBoundary";
+import "../styles.css";
 import { App } from "./App";
 
 const store = new WireStore();

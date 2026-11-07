@@ -112,10 +112,10 @@ describe("ReportPanel", () => {
     const details = Array.from(document.querySelectorAll("details"));
     expect(details.map((d) => d.querySelector("summary")?.textContent)).toEqual(
       expect.arrayContaining([
-        "▸Warnings1",
-        "▸Outputs1",
-        "▸PSUs2",
-        "▸Bill of materials0",
+        "Warnings (1)",
+        "Outputs (1)",
+        "PSUs (2)",
+        "Bill of materials (0)",
       ]),
     );
     expect(details.every((d) => !d.open)).toBe(true);

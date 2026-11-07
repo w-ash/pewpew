@@ -22,10 +22,20 @@ from pewpew import line
 from pewpew.aura.book import LookBook, parse_looks
 from pewpew.compose import MIX, Compositor, Layer, Look, Resolved, layer_address, pattern_layer
 from pewpew.fx.blend import Blend
+from pewpew.fx.expr import noise, particles
+from pewpew.fx.host import ProgramPattern
 from pewpew.params import ParamSet
-from pewpew.patterns import Comet, Sparkle
 
-POOL: dict[str, type] = {"solid": Solid, "pixelramp": PixelRamp, "sparkle": Sparkle, "comet": Comet, "raises": Raises}
+
+class Sparks(ProgramPattern):
+    program = particles()
+
+
+class Drift(ProgramPattern):
+    program = noise(3)
+
+
+POOL: dict[str, type] = {"solid": Solid, "pixelramp": PixelRamp, "sparks": Sparks, "drift": Drift, "raises": Raises}
 MAP = line(8)
 MAX_LAYERS = 4
 
@@ -49,7 +59,7 @@ class Rendered:
 class LayerEdits(RuleBasedStateMachine):
     def __init__(self) -> None:
         super().__init__()
-        self.look = Look((self._layer("l0", "sparkle"),), seed=7)
+        self.look = Look((self._layer("l0", "sparks"),), seed=7)
         self.made = 1
         self.rendered = Rendered(self.look)
         self.history: list[tuple[Look, bytes]] = []

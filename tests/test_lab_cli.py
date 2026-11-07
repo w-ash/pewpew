@@ -165,7 +165,9 @@ def test_vary_that_makes_nothing_exits_1_saying_why(monkeypatch, capsys):
 def test_vary_resolves_a_look_s_patterns_from_the_pattern_dir_as_check_does(tmp_path, capsys):
     folder = tmp_path / "effects"
     folder.mkdir()
-    (folder / "mypulse.py").write_text("from pewpew.patterns import Pulse\n\n\nclass MyPulse(Pulse):\n    pass\n")
+    (folder / "mypulse.py").write_text(
+        "from pewpew.fx.expr import osc\nfrom pewpew.fx.host import ProgramPattern\n\n\n"
+        "class MyPulse(ProgramPattern):\n    program = osc(2)\n")
     mine = tmp_path / "my.look.json"
     mine.write_text(filed(layered("mypulse", node="p")))
     code, out, _ = run(["fx", "check", str(mine), "--pattern-dir", str(folder)], capsys)

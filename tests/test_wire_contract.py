@@ -162,4 +162,4 @@ def test_the_page_never_reads_the_capabilities():
     files = sorted(PAGE_SOURCE.rglob("*.ts")) + sorted(PAGE_SOURCE.rglob("*.tsx"))
     assert len(files) > 10
     readers = [f.relative_to(PAGE_SOURCE).as_posix() for f in files if "capabilities" in f.read_text()]
-    assert readers == ["infra/wire/protocol.ts"]
+    assert readers == ["wire/protocol.ts"]

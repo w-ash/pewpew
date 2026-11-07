@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { decodeParam, defOf, equalValue, formatValue, readValue } from "../../src/domain/params/kinds";
-import type { Gradient, PaletteParam, Param, Stop } from "../../src/domain/params/schema";
+import { decodeParam, defOf, equalValue, formatValue, readValue } from "../../src/params/kinds";
+import type { Gradient, PaletteParam, Param, Stop } from "../../src/params/schema";
 import { param, record } from "../fixtures/describe";
 
 const stop = (at: number, h = 0, s = 1, v = 1): Stop => ({ at, h, s, v });

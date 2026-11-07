@@ -3,7 +3,7 @@
 `Client` connects, reads every message on a thread of its own, and keeps
 what it read: the last text message of each type (`latest`), a count of
 each type (`counts`), and the newest binary frames in a bounded buffer
-(`frames`). web/src/infra/wire/protocol.ts types every message, and
+(`frames`). web/src/wire/protocol.ts types every message, and
 tests/goldens/wire.json holds real ones. A binary frame is the preview's
 `FRAME_HEADER` (engine time, sequence number), then display-ready RGB,
 one byte a channel. A `hello` or `layout` message starts a new map, so it

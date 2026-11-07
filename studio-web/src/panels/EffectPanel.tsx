@@ -1,3 +1,4 @@
+import { Button, Switch } from "@pewpew/page/design";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   BoolParam,
@@ -18,7 +19,7 @@ import {
   valueFor,
 } from "@/session/params";
 import { useSession } from "@/store/session";
-import { Button, SectionHeading, Select } from "./ui";
+import { SectionHeading, SelectField } from "./ui";
 
 type Send = (name: string, value: ParamValue) => void;
 
@@ -71,12 +72,12 @@ function Label({
   readout?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 text-sm">
-      <label htmlFor={htmlFor} className="text-muted" title={spec.help}>
+    <div className="studio-param-head">
+      <label htmlFor={htmlFor} className="field-label" title={spec.help}>
         {spec.label}
       </label>
       {readout !== undefined && (
-        <output htmlFor={htmlFor} className="font-data tabular-nums">
+        <output htmlFor={htmlFor} className="t-value">
           {readout}
         </output>
       )}
@@ -96,7 +97,7 @@ function NumberLever({
   const { shown, setShown, hold } = useShown(spec);
   const decimals = spec.kind === "int" ? 0 : spec.decimals;
   return (
-    <div className="flex flex-col gap-1">
+    <div className="studio-field">
       <Label
         htmlFor={id}
         spec={spec}
@@ -116,38 +117,33 @@ function NumberLever({
           setShown(v);
           send(spec.name, v);
         }}
-        className="h-11 w-full accent-accent"
+        className="studio-range"
       />
     </div>
   );
 }
 
 function Toggle({ spec, send }: { spec: BoolParam; send: Send }) {
-  const id = useId();
   const { shown, setShown } = useShown(spec);
   return (
-    <div className="flex min-h-11 items-center justify-between gap-2">
-      <Label htmlFor={id} spec={spec} />
-      <input
-        id={id}
-        type="checkbox"
-        role="switch"
-        aria-checked={shown}
-        checked={shown}
-        onChange={(e) => {
-          setShown(e.target.checked);
-          send(spec.name, e.target.checked);
-        }}
-        className="size-6 accent-accent"
-      />
-    </div>
+    <Switch
+      checked={shown}
+      onChange={(on) => {
+        setShown(on);
+        send(spec.name, on);
+      }}
+    >
+      <span className="field-label" title={spec.help}>
+        {spec.label}
+      </span>
+    </Switch>
   );
 }
 
 function Choice({ spec, send }: { spec: ChoiceParam; send: Send }) {
   const { shown, setShown } = useShown(spec);
   return (
-    <Select
+    <SelectField
       label={spec.label}
       value={shown}
       options={spec.options}
@@ -165,7 +161,7 @@ function ColorPick({ spec, send }: { spec: ColorParam; send: Send }) {
   const { shown, setShown, hold } = useShown(spec);
   const hex = hsvToHex(shown);
   return (
-    <div className="flex min-h-11 items-center justify-between gap-2">
+    <div className="studio-color-row">
       <Label htmlFor={id} spec={spec} readout={hex} />
       <input
         id={id}
@@ -178,7 +174,6 @@ function ColorPick({ spec, send }: { spec: ColorParam; send: Send }) {
           setShown(hsv);
           send(spec.name, hsv);
         }}
-        className="h-11 w-16 cursor-pointer rounded-md border border-line bg-bg text-base"
       />
     </div>
   );
@@ -198,9 +193,9 @@ function PalettePick({ spec, send }: { spec: PaletteParam; send: Send }) {
     ...spec.presets.map((p) => ({ value: p.label, label: p.label })),
   ];
   return (
-    <div className="flex flex-col gap-1">
+    <div className="studio-field">
       {spec.presets.length > 0 ? (
-        <Select
+        <SelectField
           label={spec.label}
           value={preset ?? OWN}
           options={options}
@@ -212,7 +207,7 @@ function PalettePick({ spec, send }: { spec: PaletteParam; send: Send }) {
           }}
         />
       ) : (
-        <span className="text-xs text-muted" title={spec.help}>
+        <span className="field-label" title={spec.help}>
           {spec.label}
         </span>
       )}
@@ -220,7 +215,7 @@ function PalettePick({ spec, send }: { spec: PaletteParam; send: Send }) {
         role="img"
         aria-label={`${spec.label}: ${shown.label || "custom"} gradient`}
         data-testid={`palette-${spec.name}`}
-        className="h-3 w-full rounded-sm border border-line"
+        className="studio-swatch"
         style={{ backgroundImage: gradientCss(shown) }}
       />
     </div>
@@ -242,11 +237,7 @@ function Control({ spec, send }: { spec: ParamSpec; send: Send }) {
     case "palette":
       return <PalettePick spec={spec} send={send} />;
     default:
-      return (
-        <p className="text-sm text-muted">
-          {spec.label}: this page cannot set it.
-        </p>
-      );
+      return <p className="t-label">{spec.label}: this page cannot set it.</p>;
   }
 }
 
@@ -260,29 +251,29 @@ export function EffectPanel({ client }: { client: SessionClient | null }) {
   const send: Send = (name, value) => client?.setParam(name, value);
 
   return (
-    <div className="flex flex-col gap-5">
-      <section>
+    <div className="studio-panel">
+      <section className="studio-section">
         <SectionHeading>Pattern</SectionHeading>
         {patterns.length ? (
-          <Select
+          <SelectField
             label="Running on the server"
             value={pattern}
             options={patterns.map((p) => ({ value: p, label: p }))}
             onChange={(name) => client?.setPattern(name)}
           />
         ) : (
-          <p className="text-sm text-muted">
+          <p className="t-label">
             {connection === "open"
               ? "No patterns."
               : "Connecting to the engine…"}
           </p>
         )}
-        <p className="mt-2 text-xs text-muted">
+        <p className="note">
           Rendered by pewpew at {fps} fps
           {watts !== null && (
             <>
               {" · "}
-              <span className="font-data text-ink" data-testid="effect-watts">
+              <span className="t-value readout" data-testid="effect-watts">
                 {watts.toFixed(1)} W
               </span>{" "}
               now
@@ -291,10 +282,10 @@ export function EffectPanel({ client }: { client: SessionClient | null }) {
         </p>
       </section>
 
-      <section className="flex flex-col gap-3" aria-label="Pattern controls">
+      <section className="studio-section" aria-label="Pattern controls">
         <SectionHeading>Controls</SectionHeading>
         {params.length === 0 && (
-          <p className="text-sm text-muted">This pattern has no controls.</p>
+          <p className="t-label">This pattern has no controls.</p>
         )}
         {params.map((p) => (
           <Control key={`${pattern}:${p.name}`} spec={p} send={send} />
@@ -302,7 +293,7 @@ export function EffectPanel({ client }: { client: SessionClient | null }) {
         {params.length > 0 && (
           <div>
             <Button
-              onClick={() => {
+              onPress={() => {
                 for (const p of params)
                   if (p.kind !== "unknown") send(p.name, p.default);
               }}

@@ -2,7 +2,7 @@
 
 Run it only when the fonts change (`just fonts`). It needs fontTools and
 brotli, which `just fonts` adds for the run alone; pewpew does not depend on
-them. It writes three files into web/src/ui/fonts/, which are committed:
+them. It writes three files into web/src/design/fonts/, which are committed:
 
 - martian-grotesk.woff2: Martian Grotesk, wght 400-600 at wdth 100, for UI text;
 - martian-mono.woff2: Martian Mono, wght 400 at wdth 87.5, for keycaps, board
@@ -23,7 +23,7 @@ import zipfile
 from pathlib import Path
 from typing import Callable
 
-OUT = Path(__file__).resolve().parent.parent / "web" / "src" / "ui" / "fonts"
+OUT = Path(__file__).resolve().parent.parent / "web" / "src" / "design" / "fonts"
 
 GROTESK = "https://raw.githubusercontent.com/evilmartians/grotesk/0b66b31f4ffaac140587b6b6ea5e2194c6a7444f"
 MONO = "https://raw.githubusercontent.com/evilmartians/mono/8ffa86c2998677256252336f3662d60997e74b05"

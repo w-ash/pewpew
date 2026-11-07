@@ -293,7 +293,7 @@ schemas/arrangement.v1.json, catalog.v1.json (generated, committed)
 - Core dependencies today are only numpy, watchfiles and websockets (pyproject.toml:6-10), with Python ≥3.11 (pyproject.toml:5). Quaternions are written in NumPy, so no new dependency.
 - `manifold3d` 3.5.4 (Apache-2.0, cp311 wheels; [PyPI](https://pypi.org/project/manifold3d/)), with `Manifold.extrude` and `to_mesh` ([extrude.py L1-L19](https://github.com/elalish/manifold/blob/v3.5.4/bindings/python/examples/extrude.py#L1-L19), [manifold3d.cpp L339](https://github.com/elalish/manifold/blob/v3.5.4/bindings/python/manifold3d.cpp#L339)). A hand-written GLB writer keeps the bytes deterministic.
 - FastAPI plus orval for TypeScript types, the same path the maintainer's other fly.io apps use.
-- React 19, zustand 5, Vite 8 and Tailwind 4 match three of the maintainer's other web apps.
+- React 19, zustand 5 and Vite 8 match three of the maintainer's other web apps. Styles and controls come from the control page (`@pewpew/page`), so the two pages share one design system (ADR-025).
 - None of the maintainer's other projects uses three.js or R3F, so that part of the stack is new. three r186 is the current release ([GitHub release](https://github.com/mrdoob/three.js/releases/tag/r186), published 2026-09-24 per [the API](https://api.github.com/repos/mrdoob/three.js/releases/tags/r186)).
 - Hosting: three of the maintainer's other apps already deploy to fly.io with a `fly.toml` (FLY-*). Share links are content-addressed arrangements kept on a volume.
 

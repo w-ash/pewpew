@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { decodeParam, readValue } from "../../src/domain/params/kinds";
+import { decodeParam, readValue } from "../../src/params/kinds";
 import { PATTERNS } from "../fixtures/describe";
 
 const records = Object.entries(PATTERNS).flatMap(([pattern, rs]) => rs.map((r) => [`${pattern}.${r.name}`, r] as const));

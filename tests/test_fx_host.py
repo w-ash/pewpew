@@ -9,12 +9,11 @@ from collections.abc import Iterator, Sequence
 import numpy as np
 import pytest
 
-from fakes import Solid, frames, hosted, stack
+from fakes import Solid, frames, hosted, program_layer, stack
 from pewpew import Float, Pattern, Renderer, grid, line, render_sequence
 from pewpew.classinfo import pattern_name
 from pewpew.compose import (
     Compositor,
-    Layer,
     LayerError,
     Resolved,
     layer_seed,
@@ -332,11 +331,6 @@ def test_a_program_class_of_one_pattern_node_renders_it_at_the_programs_points()
 
 
 # ---- in the layer stack -------------------------------------------------------------------
-
-
-def program_layer(lid: str, source: object, **mix: object) -> tuple[Layer, type[Pattern]]:
-    program = Program.of(source)  # type: ignore[arg-type]
-    return Layer(lid, program, **mix), ProgramPattern.of(program, {"solid": Solid})  # type: ignore[arg-type]
 
 
 def test_a_program_reads_the_layers_below_it() -> None:

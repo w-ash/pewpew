@@ -1014,9 +1014,9 @@ back to an earlier working value:
 2. **The fade word** that replaces "saved"? §3.7, A#2. **Decided:
    `fade: as saved`**, the glossary's word (RA-27 §8, adopted in RA-27b,
    Decisions item 3), not the working value `fade: look's own`. Built:
-   `web/src/domain/aura/looks.ts:206`.
+   `web/src/aura/looks.ts:206`.
 3. **Warmer neutrals** (blue bias 3) or the cool set (5–12)? §3.4. **Built
-   with the working value, warmer** (`web/src/ui/theme.css:67-70`). This
+   with the working value, warmer** (`web/src/design/theme.css:67-70`). This
    choice is not in the maintainer's recorded decisions.
 4. **Sans in place of mono?** §3.1. **Decided: Martian Grotesk and Martian
    Mono** (RA-27b, Decisions item 4), built per §3.1 and ADR-020's

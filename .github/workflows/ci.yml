@@ -33,27 +33,23 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      # The page source in web/: pnpm at the version web/package.json pins,
-      # and the two browsers its tests run in.
-      # studio-web/ pins pnpm 11.20.0. pnpm 10 reads that packageManager field
-      # and runs the pinned version itself, so one setup step serves both apps.
+      # The pnpm workspace (web/, studio-web/): pnpm at the version the root
+      # package.json pins, and the two browsers web/'s tests run in.
       - uses: pnpm/action-setup@v6.1.0
         with:
-          package_json_file: web/package.json
+          package_json_file: package.json
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: |
-            web/pnpm-lock.yaml
-            studio-web/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       # Uncached: Playwright advises against caching browsers, and a cached
       # WebKit built for one Ubuntu release breaks on the next.
       - name: Install Playwright browsers
         run: |
-          pnpm -C web install --frozen-lockfile
+          pnpm install --frozen-lockfile
           pnpm -C web exec playwright install --with-deps chromium webkit
 
       # The same recipe a laptop runs. Host-only: the suite drives fakes

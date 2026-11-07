@@ -25,15 +25,27 @@ from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
 from fakes import FakeTime, bar, client_for, greet, next_of, next_text, peers, preview_sink, room, wait_until
-from pewpew import HSV, Bool, Float, Int, Pattern, grid, line
+from pewpew import HSV, Bool, Color, Float, Int, Pattern, grid, line
 from pewpew.aura.master import Master
 from pewpew.errors import Refusal
 from pewpew.params import ParamSet
-from pewpew.patterns import Plasma, Wave
 from pewpew.room.map import compile_room
 from pewpew.sinks import preview
 from pewpew.sinks.base import DISPLAY_GAMMA, to_display_u8
 from pewpew.sinks.preview import PreviewSink
+
+
+class Knobs:
+    """A param set of two sliders."""
+
+    speed = Float(0.5, 0.0, 2.0, "/s", help="Cycles of the field per second")
+    scale = Float(4.0, 1.0, 10.0, help="How many ripples fit across the map; higher is finer")
+
+
+class Tint:
+    """A param set of one color."""
+
+    color = Color((200.0, 1.0, 1.0), help="The color of the crests")
 
 
 class FakeControl:
@@ -45,7 +57,7 @@ class FakeControl:
 
     capabilities = ()
 
-    def __init__(self, pattern_cls=Plasma, cap: float = 1.0, health=None, replies=None) -> None:
+    def __init__(self, pattern_cls=Knobs, cap: float = 1.0, health=None, replies=None) -> None:
         self.params = ParamSet(pattern_cls)
         self.master_ = Master(cap)
         self.pattern = "plasma"
@@ -219,7 +231,7 @@ def test_a_new_client_gets_the_display_gamma_then_the_declarations_then_the_valu
         with ws:
             assert greeting["hello"]["display_gamma"] == DISPLAY_GAMMA
             assert "params" not in greeting["hello"]
-            assert greeting["declare"]["params"] == ParamSet(Plasma).describe()
+            assert greeting["declare"]["params"] == ParamSet(Knobs).describe()
             assert greeting["params"]["values"] == {"speed": 0.5, "scale": 4.0}
             speed = greeting["declare"]["params"][0]
             # The slider is built from these: endpoints and quantization must
@@ -261,7 +273,7 @@ def test_a_change_of_declarations_rebuilds_the_controls_then_fills_them():
     same as the last one sent — the rebuilt sliders are empty until it lands.
     An unchanged frame sends neither."""
 
-    class Retuned(Plasma):
+    class Retuned(Knobs):
         gain = Float(0.5, 0.0, 1.0, label="Gain")
 
     n = 4
@@ -322,7 +334,7 @@ def test_a_value_that_changes_kind_is_sent_in_its_new_kind():
 def test_a_color_set_echoes_its_json_value():
     n = 4
     frame = np.zeros((n, 3), dtype=np.float32)
-    controls = FakeControl(Wave)
+    controls = FakeControl(Tint)
     with preview_sink(line(n), control=controls) as sink:
         ws, _ = client_for(sink)
         with ws:
@@ -335,7 +347,7 @@ def test_a_color_set_echoes_its_json_value():
 
 
 def test_a_refused_color_names_its_part_and_never_a_path():
-    controls = FakeControl(Wave)
+    controls = FakeControl(Tint)
     with preview_sink(line(4), control=controls) as sink:
         ws, _ = client_for(sink)
         with ws:
@@ -343,7 +355,7 @@ def test_a_refused_color_names_its_part_and_never_a_path():
             ws.send(json.dumps({"type": "set", "name": "color", "value": value}))
             reply = next_text(ws)
             assert reply == {"type": "refused", "control": "set", "name": "color", "id": None,
-                             "reason": "wave.color.s must be within 0.0..1.0, got 2.0"}
+                             "reason": "tint.color.s must be within 0.0..1.0, got 2.0"}
             assert controls.params.hint("color") not in reply["reason"]
 
 

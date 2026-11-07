@@ -18,12 +18,11 @@ from pewpew.compose.controls import look_controls
 from pewpew.compose.modulation import route_problems
 from pewpew.fx.codec import decode_look, decode_program, encode_look, encode_program, to_python
 from pewpew.fx.compile import check, field_ops, upstream
-from pewpew.fx.expr import Expr, noise, osc, pattern
+from pewpew.fx.expr import Expr, noise, osc
 from pewpew.fx.graph import PATTERN, Graph, Node, Program
 from pewpew.fx.host import ProgramPattern
 from pewpew.fx.ops import OPS
 from pewpew.fx.types import ACCEPTS, Ty
-from pewpew.load import gallery
 from pewpew.params import Bool, Choice, Float, Int, Palette, Param, declared_params
 
 GOLDEN = Path(__file__).parent / "goldens" / "fx_problems.json"
@@ -105,7 +104,7 @@ def layer_docs() -> list[dict[str, Any]]:
             "waves": {"op": "osc", "args": {"freq": 8.0}},
             "fold": {"op": "kaleid", "in": ["waves"], "args": {"sides": 5}},
             "tint": {"op": "palette", "in": ["fold"], "args": {}}}},
-        {"id": "base", "nodes": {"p": {"op": "pattern", "args": {"pattern": "plasma"}}}},
+        {"id": "base", "nodes": {"p": {"op": "pattern", "args": {"pattern": "solid"}}}},
     ]
 
 
@@ -131,7 +130,7 @@ def test_decode_never_raises(junk: Any, which: int, path: list[str], graft: Any)
 
 def test_a_look_encodes_in_a_fixed_order_and_omits_what_is_default() -> None:
     program = osc(8, 0.1).id("waves").kaleid(5).id("fold").palette("ember").id("tint").program()
-    look = Look((Layer("base", program, opacity=0.5), pattern_layer("top", "comet")), seed=7, master=0.6)
+    look = Look((Layer("base", program, opacity=0.5), pattern_layer("top", "solid")), seed=7, master=0.6)
     doc = encode_look(look)
     assert list(doc) == ["seed", "master", "fade", "cycle", "layers"]
     assert list(doc["layers"][0]) == ["id", "opacity", "blend", "enabled", "out", "nodes"]
@@ -162,8 +161,8 @@ def test_the_builder_chain_of_a_program_is_short_and_runs_again() -> None:
     shared = w.add(w.kaleid(5), amount=0.5).program()
     assert to_python(shared) == '(waves_ := osc(8.0).id("waves")).add(waves_.kaleid(5), 0.5)'
     assert from_python(shared) == shared
-    masked = pattern("plasma", speed=0.3).program(alpha=osc(2, offset=0.25))
-    assert to_python(masked) == 'pattern("plasma", speed=0.3).program(alpha=osc(2.0, offset=0.25))'
+    masked = osc(8).palette("ocean").program(alpha=osc(2, offset=0.25))
+    assert to_python(masked) == 'osc(8.0).palette("ocean").program(alpha=osc(2.0, offset=0.25))'
     assert from_python(masked) == masked
 
 
@@ -177,7 +176,7 @@ def _problems() -> dict[str, list[str]]:
     class Nested(ProgramPattern):
         program = osc(2)
 
-    classes = {**gallery(), **LOOK_CLASSES, "nested": Nested}
+    classes = {**LOOK_CLASSES, "nested": Nested}
 
     def nodes(**raw: Any) -> list[str]:
         return decode_program({"nodes": raw}, where="layers.base")[1]
@@ -223,7 +222,7 @@ def _problems() -> dict[str, list[str]]:
                                         where="layers.base")[1],
         "kaleid on a strip": checked(osc(8).kaleid(5), dims=1),
         "twist on a panel": checked(osc(8).twist(90), dims=2),
-        "a fixture pattern in a program": checked(unchecked(Node("p", PATTERN, {PATTERN: "sparkle"}),
+        "a fixture pattern in a program": checked(unchecked(Node("p", PATTERN, {PATTERN: "fixtureramp"}),
                                                             Node("dim", "contrast", {}, ("p",)))),
         "a coord op over a pattern that is not warpable": checked(unchecked(
             Node("p", PATTERN, {PATTERN: "solid"}), Node("fold", "mirror", {}, ("p",)))),
