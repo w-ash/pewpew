@@ -165,17 +165,20 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
   any frame whose length is not `8 + 3n`.
 - **Client to server, text:**
   - `{"type":"bind","arrangement":{...}}`, which compiles, rebinds the running look to the rig's
-    mapping and fixture grouping, and keeps `t`. A look that cannot run on it (a strip for a
-    look that folds a plane) is refused, and the old mapping stays;
+    mapping and fixture grouping, and keeps `t`. When the running look cannot run on it (a
+    strip for a look that folds a plane), the session cuts to the first example look that can
+    (`tide` first, then by file name), and `status` says so (source `"bind"`) until another
+    look runs. When none can, the bind is refused and the old mapping stays;
   - any request of `pewpew.aura.control.REQUESTS`, as the preview takes it, with an optional
     `id` for its answer: `{"type":"set","name":<knob address>,"value"}` (the value in its kind's
     JSON form), `{"type":"look","look":{...},"fade"?}` (one look in the looks file's form, such
     as a `GET /api/looks` entry), `pick`, `add_layer`, `remove_layer`, `move_layer`, `front`,
     `master`, `blackout`, `surprise`, `vary`, `arm` and `fire`. A request that needs a looks file
     (`recall`, `save`, `keep`, `delete`, `cycle`, `fade`), boards (`scan`, `rebind`) or a room
-    (`blink`) is refused;
+    (`blink`) is refused. A session makes one look at a time: a `surprise` or `vary` sent while
+    one is being made is refused at once;
   - `{"type":"pause"}` and `{"type":"resume"}`, which the page sends when its tab is hidden or
-    shown. A request that waits for the loop while it is paused is answered late.
+    shown. Any other request sent while the session is paused is refused at once.
 - A session renders at 30 fps on its own thread. Frames cross to asyncio through
   `loop.call_soon_threadsafe` into a one-slot mailbox that keeps only the newest frame. A
   session pauses after 10 minutes with no inbound message.
