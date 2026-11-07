@@ -64,14 +64,12 @@ from pewpew.params import ParamSet
 @dataclass(slots=True)
 class _BoundNode:
     """One bound node: its op, its key, whether its op defines `advance`,
-    the values its knobs bind at (the program's literal, native), and once
-    committed the set that holds its knobs."""
+    and the set that holds its knobs."""
 
     op: Op
     key: int
     advances: bool
-    values: dict[str, Any]
-    params: ParamSet | None = None
+    params: ParamSet
 
 
 class BoundProgram:
@@ -99,7 +97,7 @@ class BoundProgram:
     @property
     def node_params(self) -> Mapping[str, ParamSet]:
         """Each node's knobs, by node id, in graph order."""
-        return {nid: node.params for nid, node in self._nodes.items() if node.params is not None}
+        return {nid: node.params for nid, node in self._nodes.items()}
 
     def snapshot(self) -> Program:
         """The program at its knobs' live values, as JSON args."""
@@ -137,11 +135,11 @@ class BoundProgram:
             key = node_key(seed, lid, node.id)
             kept = self._nodes.get(node.id)  # a rebind keeps each node's op and knobs
             op = kept.op if kept is not None else OPS[node.op]()
-            params = kept.params if kept is not None else None
-            values = params.snapshot() if params is not None else ParamSet(OPS[node.op], node.args).snapshot()
+            path = f"{self.name}.{node.id}"
+            params = kept.params if kept is not None else ParamSet(OPS[node.op], node.args, name=path)
+            values = params.snapshot()
             for name, value in values.items():
                 setattr(op, name, value)  # `setup` sees the values the node runs at
-            path = f"{self.name}.{node.id}"
             ctx = BindCtx(
                 path=path, values=values, coords=coords, lo=lo, hi=hi, seed=node_seed(key), key=key,
                 buffer=partial(_node_buffer, buffers, node.id), below=self._below, prev=self._prev,
@@ -153,12 +151,10 @@ class BoundProgram:
                 blame_node(exc, path, node.op)
                 raise
             ops[node.id] = op
-            staged[node.id] = _BoundNode(op, key, type(op).advance is not Op.advance, values, params)
+            staged[node.id] = _BoundNode(op, key, type(op).advance is not Op.advance, params)
         self._built = closures(program, ops, self.name, strict=type(self).strict)
         self._coords = coords
-        for nid, node in staged.items():
-            if node.params is None:
-                node.params = ParamSet(type(node.op), node.values, name=f"{self.name}.{nid}")
+        for node in staged.values():
             node.params.apply(node.op)
         self._nodes = staged
 

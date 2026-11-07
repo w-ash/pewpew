@@ -9,15 +9,12 @@ property golden frames and determinism rest on (§8).
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import pytest
 
-from fakes import hosted, source_op
+from fakes import hosted, op_of, source_op
 from pewpew.fx.buffers import Buffers
 from pewpew.mapping import line
-from pewpew.render import Renderer
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
 
@@ -49,11 +46,6 @@ def buffered():
     return source_op(NID, render, setup=setup, advance=advance)
 
 
-def op_of(renderer: Renderer) -> Any:
-    """The op of the program's one node."""
-    return renderer.bound._nodes[NID].op
-
-
 def test_buffers_are_declared_at_their_fill_and_reachable() -> None:
     renderer = hosted(buffered(), line(6))
     buffers = renderer.bound.buffers
@@ -62,7 +54,7 @@ def test_buffers_are_declared_at_their_fill_and_reachable() -> None:
     trail, field = buffers[f"{NID}.trail"], buffers[f"{NID}.field"]
     assert trail.shape == (6,) and trail.dtype == np.float32 and not trail.any()
     assert field.shape == (4, 3) and not field.any()
-    assert op_of(renderer).trail is trail
+    assert op_of(renderer, NID).trail is trail
     assert buffers.pixels.shape == (6, 3) and not buffers.pixels.any()
 
 
@@ -75,12 +67,12 @@ def test_buffer_honours_dtype_and_fill() -> None:
 def test_rebind_reallocates_and_refills() -> None:
     renderer = hosted(buffered(), line(6))
     renderer.step(1.0 / 60.0)
-    op = op_of(renderer)
+    op = op_of(renderer, NID)
     assert op.trail.any() and op.field.any()  # state accumulated
 
     renderer.rebind(line(11))
 
-    assert op_of(renderer) is op  # a rebind keeps the op
+    assert op_of(renderer, NID) is op  # a rebind keeps the op
     assert op.trail.shape == (11,) and not op.trail.any()
     assert renderer.bound.buffers.pixels.shape == (11, 3) and not renderer.bound.buffers.pixels.any()
     # A mapping-independent buffer is refilled too: rebind is a fresh start,
@@ -92,7 +84,7 @@ def test_buffers_are_read_only_in_render_and_writable_again_next_frame() -> None
     renderer = hosted(buffered(), line(6))
     for _ in range(3):
         renderer.step(1.0 / 60.0)
-    op = op_of(renderer)
+    op = op_of(renderer, NID)
 
     assert op.in_render == [(False, False)] * 3
     assert op.in_advance == [(True, True)] * 3

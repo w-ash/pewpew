@@ -454,6 +454,11 @@ def hosted(source: object, mapping: np.ndarray | None = None, *, name: str = "la
     return Renderer(bound, line(16) if mapping is None else mapping, **kw)
 
 
+def op_of(renderer: Renderer, nid: str) -> Any:
+    """The op node `nid` of `renderer`'s program runs."""
+    return renderer.bound._nodes[nid].op
+
+
 def program_layer(lid: str, source: object, **mix: object) -> Layer:
     """A layer `lid` that runs `source`, a program or a builder chain: a
     `stack` entry. `mix` are the layer's own fields, such as its blend."""

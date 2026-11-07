@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 import fakes
-from fakes import program_of
+from fakes import op_of, program_of
 from pewpew.compose import Look
 from pewpew.fx.catalog import example
 from pewpew.fx.compile import check, field_ops
@@ -187,7 +187,7 @@ def test_a_rate_keeps_its_phase_so_a_change_never_jumps_and_an_hour_runs_as_a_se
     early, late = (run(program_of("osc(8, 0.25)"), line(16), 2, start=start) for start in (0.0, 3600.0))
     np.testing.assert_array_equal(early, late)
     renderer = hosted(program_of("osc(8, 0.25)"), line(16))
-    op = renderer.bound._nodes["osc"].op
+    op = op_of(renderer, "osc")
     renderer.advance_to(1.0)
     assert op.phase("sync") == pytest.approx(0.25)
     renderer.bound.node_params["osc"].set("sync", 1.0)
@@ -202,7 +202,7 @@ def steps(program: Program, frames: int, phase: tuple[str, float] | None = None)
     renderer.advance_to(0.0)
     if phase is not None:
         nid, at = phase
-        renderer.bound._nodes[nid].op.phases["speed"] = at
+        op_of(renderer, nid).phases["speed"] = at
     clock = SlotClock(FPS)
     shown = np.stack([renderer.advance_to(clock.advance()).copy() for _ in range(frames)])
     return np.abs(np.diff(shown, axis=0)).max(axis=(1, 2))

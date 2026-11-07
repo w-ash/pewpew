@@ -128,10 +128,9 @@ class _Read:
         try:
             book = parse_looks(json.dumps(file))
         except LookError as exc:
-            return cls(_localized([problem(text, file, _examples(file)) for text in exc.problems], single))
-        texts = route_reasons(book)
-        if texts:
-            return cls(_localized([problem(text, file, _examples(file)) for text in texts], single))
+            return cls(_problems(exc.problems, file, single))
+        if texts := route_reasons(book):
+            return cls(_problems(texts, file, single))
         return cls((), single, book, {name: _ready(look) for name, look in book.looks.items()})
 
 
@@ -165,6 +164,13 @@ def _program(data: dict[str, Any]) -> Problem:
     reason = ('this is a layer\'s program ("out" and "nodes"), not a look; a look holds it as a layer: '
               '{"layers": [{"id": "base", ...the program}]}')
     return Problem("", Code.NOT_A_LOOK, reason, example={"layers": [{"id": "base", **data}]})
+
+
+def _problems(texts: Iterable[str], file: Any, single: bool) -> tuple[Problem, ...]:
+    """`texts`, reasons found in the looks file data `file`, as problems
+    with a valid example for each knob they name (`_localized`)."""
+    examples = _examples(file)
+    return _localized([problem(text, file, examples) for text in texts], single)
 
 
 def _localized(problems: list[Problem], single: bool) -> tuple[Problem, ...]:

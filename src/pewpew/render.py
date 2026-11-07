@@ -140,7 +140,6 @@ class Renderer:
         renderer built mid-run takes one slot as its first dt. Raises what
         the bind raises."""
         self.bound = bound
-        self.name = bound.name
         self.seed = seed
         # The seeded fake by default, so a sequence follows from its arguments.
         self.features = FakeFeatures(seed) if features is None else features
@@ -152,7 +151,7 @@ class Renderer:
         # program that fails on alternate frames would otherwise log a
         # traceback 30 times a second.
         self._logged: set[tuple] = set()
-        self._bind_mapping(mapping)
+        self.rebind(mapping)
 
     # ---- state ---------------------------------------------------------
 
@@ -179,11 +178,9 @@ class Renderer:
         Buffers are reallocated at their fill (no resampling [S219]) and
         each op's `setup` runs again; the nodes' knobs are kept. Engine
         time and the frame counter continue: a new map mid-run is not a
-        restart.
+        restart. Raises ValueError for a mapping that is not (N, 3), and
+        what the bind raises.
         """
-        self._bind_mapping(mapping)
-
-    def _bind_mapping(self, mapping: np.ndarray) -> None:
         mapping = np.asarray(mapping)
         if mapping.ndim != 2 or mapping.shape[1] != 3:
             raise ValueError(f"mapping must be (N,3) world coords, got {mapping.shape}")
@@ -209,7 +206,7 @@ class Renderer:
         caller owns the timeline (`SlotClock`)."""
         if self._bind_failed:
             raise RuntimeError(
-                f"{self.name} is not bound: its bind raised, so its buffers are "
+                f"{self.bound.name} is not bound: its bind raised, so its buffers are "
                 "half-initialized. Rebind it to a map it can run on."
             )
         t = float(t)
@@ -273,7 +270,7 @@ class Renderer:
     # ---- containment ----------------------------------------------------
 
     def _contain(self, phase: str, exc: Exception, frame_index: int, t: float) -> np.ndarray:
-        self._error = contain(self.name, phase, exc, frame_index, t, self._logged)
+        self._error = contain(self.bound.name, phase, exc, frame_index, t, self._logged)
         # Not assigned to `pixels`: a failed frame keeps the trail state.
         return self.error_frame(t)
 

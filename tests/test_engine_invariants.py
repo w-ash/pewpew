@@ -7,16 +7,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from fakes import hosted, one_node, source_op
+from fakes import hosted, one_node, rgb, source_op
 from pewpew.mapping import line
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
 
 GREY = one_node("solid_test", {"red": 0.5, "green": 0.5, "blue": 0.5})
-
-
-def grey(n: int) -> np.ndarray:
-    return np.full((n, 3), 0.5, dtype=np.float32)
 
 
 # ---- render purity beyond the buffers ----------------------------------------
@@ -30,7 +26,7 @@ def test_render_cannot_write_the_coordinate_arrays() -> None:
 
     def shift(op, c):
         c.x[:] += 0.5
-        return grey(len(c.index))
+        return rgb(0.5, 0.5, 0.5, len(c.index))
 
     mapping = line(5)
     original = mapping[:, 0].copy()
@@ -44,7 +40,7 @@ def test_render_cannot_write_the_coordinate_arrays() -> None:
 def test_index_is_read_only_too() -> None:
     def zero(op, c):
         c.index[:] = 0
-        return grey(len(c.index))
+        return rgb(0.5, 0.5, 0.5, len(c.index))
 
     renderer = hosted(source_op("index_test", zero), line(5))
     renderer.step(1.0 / 60.0)
@@ -117,7 +113,7 @@ def test_failed_setup_poisons_the_renderer_until_a_bind_succeeds() -> None:
         if ctx.n == 9:
             raise RuntimeError("boom")
 
-    renderer = hosted(source_op("half_test", lambda op, c: grey(len(c.index)), setup=half), line(4))
+    renderer = hosted(source_op("half_test", lambda op, c: rgb(0.5, 0.5, 0.5, len(c.index)), setup=half), line(4))
     renderer.step(1.0 / 60.0)
 
     with pytest.raises(RuntimeError, match="boom"):

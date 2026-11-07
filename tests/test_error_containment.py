@@ -10,15 +10,13 @@ Pixelblaze's crash-proof editor [S504].
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import numpy as np
 import pytest
 
 from fakes import frames as render_frames
-from fakes import hosted, source_op
+from fakes import hosted, op_of, source_op
 from pewpew.mapping import line
-from pewpew.render import Renderer
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
 
@@ -45,11 +43,6 @@ def flaky(fail_on=frozenset(), *, advance_fails: bool = False):
         return np.full((len(c.index), 3), 0.25 * (op.frame + 1), dtype=np.float32)
 
     return source_op(NID, render, setup=setup, advance=advance)
-
-
-def op_of(renderer: Renderer) -> Any:
-    """The op of the program's one node."""
-    return renderer.bound._nodes[NID].op
 
 
 def always_fails():
@@ -103,7 +96,7 @@ def test_renderer_keeps_stepping_and_keeps_calling_the_program() -> None:
     assert renderer.t == 5 * DT
     # The program was still called every frame — that is what lets a
     # program whose failure passes recover with no restart.
-    assert op_of(renderer).frame == 4
+    assert op_of(renderer, NID).frame == 4
     assert renderer.error is not None
     assert renderer.error.phase == "render"
     assert renderer.error.frame == 4

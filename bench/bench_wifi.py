@@ -152,7 +152,7 @@ def stream_cell(boards: list[Board], rate: float, duration: float) -> dict:
     n = max(b.stop for b in boards)
     sink = DdpSink(boards, n, max_fps=rate)
     driver = SinkDriver(sink.send, name="ddp")
-    loop = PacedLoop(Renderer(BoundProgram(SENDER, "sender"), line(n)), fps=rate, on_frame=[driver])
+    loop = PacedLoop(Renderer(BoundProgram(SENDER, "program"), line(n)), fps=rate, on_frame=[driver])
     sink.start()
     driver.start()
     try:
