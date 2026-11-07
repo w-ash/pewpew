@@ -20,6 +20,7 @@ OSC/MIDI, and Home Assistant to hang off one mechanism, not five.
   constructor, such as `Float(default, lo, hi, unit)`; see that amendment.)*
 - Patterns serialize ISF-style: the parameter manifest travels with the
   pattern file as a portable document.
+  *(Superseded 2026-11-07: the portable document is a look; see ADR-025.)*
 - **HTTP JSON GET/POST with partial-merge mutation; WebSocket speaks the
   identical vocabulary** plus server-push of merged state to all clients.
   No second WS-only vocabulary.
@@ -772,7 +773,8 @@ Status stays **Proposed**.
   `p` before a first character that is not a letter, cut to 24
   characters, and `_` after a reserved word), because a pickable name is
   any Python identifier (`Glow`, a long stem, `blend`). So today's
-  `plasma.speed` becomes `layers.<lid>.plasma.speed`. A layer,
+  `plasma.speed` becomes `layers.<lid>.plasma.speed`. *(Superseded
+  2026-11-07: no layer is pattern-only; see ADR-025.)* A layer,
   node or signal id matches `[a-z][a-z0-9_]{0,23}` and never changes
   (2026-11-04); `opacity`, `blend`, `enabled`, `nodes`, `out` and `alpha`
   are refused as node ids, and `layers` and `signals`, the heads of an
@@ -832,7 +834,9 @@ Status stays **Proposed**.
   `pattern`. That node's `pattern` arg sits beside the pattern's params
   and has the address a param of that name would have
   (`layers.<lid>.<nid>.pattern`), so `pattern` joins the names a pattern's
-  param may not take (ADR-005 amendment 2026-11-05). The `triggers`
+  param may not take (ADR-005 amendment 2026-11-05). *(Superseded
+  2026-11-07: there is no `pattern` op or node, and a book plays with
+  `run LOOKS`; see ADR-025.)* The `triggers`
   section is unchanged from version 3; the `cycle` section takes the
   director's keys (amendment "the director", below). A version-3 file is
   refused with the existing wording (`looks file is version 3; this pewpew

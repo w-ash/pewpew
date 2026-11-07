@@ -9,6 +9,11 @@ series (batch mode).
 
 ### Added
 
+- Record one effect system (ADR-025, Proposed): a look over the op catalog is
+  the only effect. The gallery, the `pattern` op, hand-written Python
+  patterns and fixture units are to go, `run LOOKS` replaces `run PATTERN`,
+  and the studio is to run the aura. The bullets it supersedes in ADR-005,
+  -006, -007 and -020 to -024 say so.
 - License pewpew under Apache-2.0 (`LICENSE`, `NOTICE`, ADR-012 Accepted),
   the capture-node firmware included. The third-party excerpts in
   `research/excerpts/` keep their own licences, with the full texts in
@@ -735,6 +740,8 @@ series (batch mode).
 
 ### Changed
 
+- `examples/tide.look.json` and `examples/mcp-ember.look.json` draw their
+  sparks with `particles` and an `ember` palette, not the `sparkle` pattern.
 - The engine package is now `pewpew.aura`, and `run --unattended` replaces
   the old unattended-run flag. The page's wire message is `aura`, and
   `observe` and the MCP `engine_observe` tool report the aura state under

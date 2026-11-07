@@ -19,8 +19,11 @@ vectorized execution (comparison-matrix gap #4).
   **coordinate arrays** in normalized 0–1 world units, returning float32
   linear RGB (ADR-001). Scalar-looking NumPy-compatible expressions
   broadcast; the author never writes a pixel loop.
+  *(Since 2026-11-07 an author writes looks, not classes; the class contract is
+  the engine's internal layer host, `ProgramPattern`; see ADR-025.)*
 - 0–1 phase/time built-ins (`time()`, `wave()`, `triangle()`, `square()`)
   ship as the standard idiom kit.
+  *(Superseded 2026-11-07: there is no author kit; see ADR-025.)*
 - **Frame buffer persists** across frames (`self.pixels`) for trails/decay.
   (amended 2026-07-27, private per-pixel state buffers: `self.pixels` is no
   longer the *only* persistent per-pixel state — it becomes the engine's own
@@ -30,7 +33,9 @@ vectorized execution (comparison-matrix gap #4).
   error state, last-good pattern keeps running.
 - **No sandboxing** for the trusted local case; patterns are plain Python
   modules (a shared-gallery mode may revisit).
+  *(Superseded 2026-11-07: no pattern module is loaded; see ADR-025.)*
 - Typed parameters per ADR-006; live reload semantics per architecture §8.
+  *(Since 2026-11-07 no pattern file is reloaded; see ADR-025.)*
 
 ## Consequences
 

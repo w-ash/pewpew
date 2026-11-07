@@ -24,6 +24,7 @@ studio's data model is in ADR-007 (amended 2026-10-22); its full design is in
   the newest frame, so a slow client drops frames and never queues them.
   The page draws the display-ready bytes unchanged. There is no JavaScript
   copy of any pattern.
+  *(Since 2026-11-07 each session runs the aura's pipeline over a look; see ADR-025.)*
 - **Server: FastAPI + uvicorn** for the studio (`python -m pewpew studio`),
   matching the maintainer's other fly.io apps (`docs/studio/plan.md`,
   "Decisions"). This sits beside ADR-020: the sync `websockets` server stays
@@ -34,6 +35,8 @@ studio's data model is in ADR-007 (amended 2026-10-22); its full design is in
 - **Trust model: public, unauthenticated, gallery patterns only.**
   - Visitors can run only patterns on a server-side gallery allowlist; no
     user code executes and no hardware sink is reachable.
+    *(Superseded 2026-11-07: visitors run JSON looks over the built-in op
+    catalog; see ADR-025.)*
   - Limits apply per `Fly-Client-IP` [S763]: websockets per IP, inbound
     message size, saves per minute, and a total storage cap. The numbers are
     starting values set by the plan (inference, no sourced standard); they

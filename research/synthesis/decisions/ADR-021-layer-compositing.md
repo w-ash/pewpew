@@ -36,6 +36,8 @@ stack the programs run in.
   PATTERN` runs it today. Bind, per-frame containment, the buffer registry
   with read-only locking, hot reload and `swap` then work per layer with
   no new code.
+  *(Since 2026-11-07 a layer always runs a `ProgramPattern`, and no layer follows a
+  file; see ADR-025.)*
 - **Values.** `Layer(id, program, opacity, blend, enabled)`, `Route(source,
   path, depth)` and `Look(layers, signals, routes, seed, master, fade,
   cycle, front)` are frozen, slotted dataclasses; `Look` replaces the one
@@ -44,6 +46,7 @@ stack the programs run in.
   `Program` (ADR-022's `Node`, `Graph` and `Program`) from the first stack
   on: until effect programs land, each is one node whose op is `pattern`,
   so neither `Layer` nor the codec changes shape when they do.
+  *(Superseded 2026-11-07: there is no `pattern` op; see ADR-025.)*
 - **The `Compositor` is a `Live` source; no protocol module is added.** In
   `render.py`, `Live` (what the crossfader, the room map reload and the
   aura reach through a source) narrows to `t`, `advance_to`, `error`,
@@ -55,6 +58,7 @@ stack the programs run in.
   variable with its arithmetic unchanged, and a look recall crossfades two
   compositors. Every run drives a compositor: `run PATTERN` is a one-layer
   look whose layer id is `base`.
+  *(Since 2026-11-07 `run LOOKS` plays a looks file; see ADR-025.)*
 - **Controls reach layers, not the fader.** `AuraControl` reads the
   current compositor's `Controls` (`deck.controls`) where it reads
   `fader.params` today. A recall or a layer change replaces them, and
@@ -166,6 +170,7 @@ stack the programs run in.
   that layer's renderer and carries its buffers by name and shape
   (ADR-005). Adding or removing a layer leaves the other layers'
   renderers, buffers and seeds alone.
+  *(Superseded 2026-11-07: there is no `pick` and no `Reloader`; see ADR-025.)*
 - **The wire shows the stack.** `aura` carries `stack`: `{layers: [{id,
   nodes: [{id, op, label}]}], signals: [{id, op, label}], routes:
   [{source, path, depth}], front: [path], dims}`, layers in render order
@@ -200,6 +205,7 @@ stack the programs run in.
   `render_sequence(Comet)` moves to that seed, and `PacedLoop`'s equality
   with `render_sequence` (`src/pewpew/pace.py`) then holds for the
   layer's renderer.
+  *(Superseded 2026-11-07: there is no `run PATTERN` or `render_sequence`; see ADR-025.)*
 - N layers cost N renders and N blends per frame. During a recall fade two
   compositors run. Phase-0 kernels cost 0.03–0.08 ms per frame at 3,000 px
   (`bench/results/throughput-2026-07-15-mac-m5pro.json`); the per-layer

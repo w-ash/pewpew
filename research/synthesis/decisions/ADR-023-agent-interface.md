@@ -78,6 +78,7 @@ renamed its server class to `MCPServer`.
     book, a `.look.json` included, starting in its current look (PATTERN
     when it names none) on the map `--map` names, else PATTERN's; `run
     file.py` runs a file whose pattern is a `ProgramPattern`.
+  *(Superseded 2026-11-07: `run LOOKS` plays a looks file; see ADR-025.)*
   - With `--json` every verb prints one JSON document on stdout;
     diagnostics go to stderr. Exit codes: 0 ok, 1 problems or a failed
     threshold, 2 usage, 3 unreachable or an expired handle, 4 refused. 70
@@ -89,7 +90,8 @@ renamed its server class to `MCPServer`.
   `pewpew.lab` loads (the code the process runs), the Python and NumPy
   versions, and the bytes of any pattern file a look's `pattern` node
   runs, as loaded for that render (not the package version or a catalog
-  hash; rejected below). Frames are cached under `$PEWPEW_CACHE` (default
+  hash; rejected below). *(Since 2026-11-07 no look runs a file, so the
+  package source alone counts; see ADR-025.)* Frames are cached under `$PEWPEW_CACHE` (default
   `~/.cache/pewpew/renders`) in a size-capped LRU. The cache only saves time: a missing handle is an error that says
   to render the same spec again, which gives the same handle. `verify
   looks` renders fresh and never reads the cache, so the content gate

@@ -325,6 +325,7 @@ Status stays **Accepted**; the transport above is unchanged.
   refused with the message's `id`, `name` set to the field's address
   (`layers.<lid>.<nid>.pattern`), and a reason that names no file
   (`errors.scrub`).
+  *(Since 2026-11-07 no message names a pattern; see ADR-025.)*
 - **New outbound `{"type": "ack", "id", "control"}`** answers a message
   that carries an `id` and that the engine ran, and **`refused` always
   carries `name` and `id`**, each null when it does not apply, so a client

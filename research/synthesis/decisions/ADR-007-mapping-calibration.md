@@ -213,6 +213,7 @@ final only once the bars are up. Code: `src/pewpew/room.py`; example
   every pattern in the run. A mapping without fixtures renders per pixel
   either way, bit-identical to before. A hot reload that changes `units`
   rebinds the new pattern to the other geometry.
+  *(Superseded 2026-11-07: with the bullet above, every layer renders per pixel; see ADR-025.)*
 - **ADR-005 is unchanged.** `render(x, y, z, index)` keeps its signature
   and meaning (one element per thing rendered); `units` is an optional
   class attribute, so no ADR-005 amendment is needed.
@@ -239,6 +240,7 @@ final only once the bars are up. Code: `src/pewpew/room.py`; example
   file can change during setup without a restart.
 - Every gallery pattern runs per bar with `--units fixture`; a canopy-set
   pattern declares the unit it was written for in one line.
+  *(Superseded 2026-11-07: there are no fixture units; see ADR-025.)*
 - A per-fixture pattern's buffers are per fixture (`self.pixels` is
   (F,3)); a change of units starts them fresh.
 - The DDP sink and the preview gained a relayout path (`DdpSink.prepare`/

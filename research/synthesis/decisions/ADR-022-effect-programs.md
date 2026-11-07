@@ -99,7 +99,8 @@ that people, the page and agents (ADR-023) all work from one model.
   builder and the codec.
 - **`ProgramPattern` hosts a program in a normal `Renderer`.** It is a
   `Pattern`, so `load`, hot reload and `run file.py` work unchanged and the
-  ADR-005 contract gains no hook. At bind it builds one op per node and
+  ADR-005 contract gains no hook. *(Since 2026-11-07 no program is loaded
+  from a file; see ADR-025.)* At bind it builds one op per node and
   applies the node's `ParamSet` to it, calls each op's `setup` (a node
   buffer is the host's `self.buffer(f"{nid}__{name}", ...)`, so it is
   locked read-only in `render` and carried across hot reload), then builds
@@ -120,6 +121,7 @@ that people, the page and agents (ADR-023) all work from one model.
   warpable pattern (ADR-005 amendment 2026-11-05): a fixture-unit pattern
   (`sparkle`, `pulse`) renders at fixture centres, not at the program's
   points, so it is refused there with the fix (put it on its own layer).
+  *(Superseded 2026-11-07: there is no `pattern` op; see ADR-025.)*
 - **Dimensions.** Each op declares `dims` from {1, 2, 3}; a mapping's
   dimension is the number of axes it spans (`pewpew.mapping.dimensions`).
   An op that does not support it, or a coord op above a non-warpable
@@ -186,6 +188,7 @@ that people, the page and agents (ADR-023) all work from one model.
   definition changes (ADR-023).
 - The ADR-005 contract is unchanged in shape. A hand-written pattern is a
   one-node program (op `pattern`), so the gallery runs in a stack as is.
+  *(Superseded 2026-11-07: there is no gallery and no `pattern` op; see ADR-025.)*
 - Hydra is AGPL-3.0 [S1400]. Under ADR-012 it is an idea source: the
   vocabulary is reimplemented from the documented findings, and no Hydra
   code is copied.
@@ -333,6 +336,7 @@ Code: `src/pewpew/fx/` (`op.py`, `ops/`, `compile.py`, `host.py`,
   (ADR-006 "layered paths"). Expanding the node into the program's nodes
   was rejected: it would drop the file link, and a later edit of the file
   would no longer show.
+  *(Superseded 2026-11-07: no look runs a pattern file; see ADR-025.)*
 - **Names.** A hosted program's renderer is named by the layer's address
   and each node's set by `layers.<lid>.<nid>`; a node's lid in its key is
   the last part of that name. A pattern node's pattern is seeded with its
@@ -344,6 +348,8 @@ Code: `src/pewpew/fx/` (`op.py`, `ops/`, `compile.py`, `host.py`,
   program, or back, takes a restart, since its knobs change address. A
   program that reads `below()` runs per pixel, so `--units fixture` is
   refused for it.
+  *(Superseded 2026-11-07: no look runs a pattern file, and there are no
+  fixture units; see ADR-025.)*
 
 ## Amendment (2026-11-05) — stateful ops
 
