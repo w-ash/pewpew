@@ -60,6 +60,7 @@ function useSharedLink(setNotice: (notice: string | null) => void) {
             : "The shared arrangement could not be loaded. Showing the default instead.",
         );
       });
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- runs once, for the URL the page opened on
   }, []);
 
   const share = useDoc((s) => s.share);
@@ -134,10 +135,12 @@ function Studio({ session }: { session: SessionClient }) {
   // Bind follows each accepted compile, not each edit.
   useEffect(() => {
     if (current) session.bind(arrangement);
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- bind follows each accepted compile, not each edit
   }, [rig, current]);
 
   useEffect(() => {
     if (!refusal) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- a refusal shows its banner for 4 s, then hides it by timer
     setShowRefusal(true);
     const timer = setTimeout(() => setShowRefusal(false), 4000);
     return () => clearTimeout(timer);

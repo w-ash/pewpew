@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript"],
+  "options": { "typeAware": true },
+  "categories": { "correctness": "error" },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/hooks": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "no-param-reassign": "error",
+    "no-unused-vars": ["error", { "ignoreRestSiblings": true }],
+    "typescript/require-array-sort-compare": ["error", { "ignoreStringArrays": true }],
+    // Off: props are typed as method signatures (`onClose(): void`) and destructured, which the rule reads as unbound `this`; none uses `this`.
+    "typescript/unbound-method": "off"
+  },
+  "ignorePatterns": ["src/studio/api/generated/**", "dist/**", "test-results/**", "playwright-report/**"]
+}

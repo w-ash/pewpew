@@ -98,7 +98,7 @@ export function SharePanel() {
               className="t-code"
             />
             <div className="row wrap">
-              <Button variant="primary" onPress={() => copy(link)}>
+              <Button variant="primary" onPress={() => void copy(link)}>
                 {copied === "copied"
                   ? "Copied"
                   : copied === "selected"
@@ -110,7 +110,7 @@ export function SharePanel() {
         ) : (
           <Button
             variant="primary"
-            onPress={save}
+            onPress={() => void save()}
             disabled={saving || share.mode === "loading"}
           >
             {saving ? "Saving…" : "Save and get a link"}

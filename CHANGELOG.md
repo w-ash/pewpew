@@ -9,6 +9,11 @@ series (batch mode).
 
 ### Added
 
+- Lint the front end for bugs with oxlint and its type-aware rules (`pnpm -C web lint`,
+  in `just web`, so `just check` and CI): `correctness`, the React hooks and React
+  Compiler rules, the promise rules and `no-param-reassign`. No style rules. It
+  found a null fixture attachment in the model-reload key, and a few promises the
+  tests left unawaited.
 - Record one effect system (ADR-025, Proposed): a look over the op catalog is
   the only effect. The gallery, the `pattern` op, hand-written Python
   patterns and fixture units are to go, `run LOOKS` replaces `run PATTERN`,

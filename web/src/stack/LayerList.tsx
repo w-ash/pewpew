@@ -87,6 +87,7 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
   // Run when the order the move asked for arrives, not when the move is asked for.
   useLayoutEffect(() => {
     if (!moving) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- runs when the requested order arrives (`order`), not when the move is asked for; it consumes `moving` and resets it
     setMoving(null);
     const at = ids.indexOf(moving.id);
     if (at >= 0) setMoved(`${moving.id} moved to ${ids.length - at} of ${ids.length}, top first`);
@@ -100,12 +101,14 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
     if (row.contains(focused) && !(focused instanceof HTMLButtonElement && focused.disabled)) return;
     const own = moving.by === "row" ? TRIGGER : `[data-move="${moving.by}"]:not(:disabled)`;
     [own, "[data-move]:not(:disabled)", TRIGGER].map((part) => row.querySelector<HTMLElement>(part)).find(Boolean)?.focus({ preventScroll: true });
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- runs when the requested order arrives (`order`), not when the move is asked for
   }, [order]);
   // A row opened by hand that would run past the slot's bottom scrolls its head up to just under the
   // look's header. Its body mounts after its head: the row is watched while it takes its height.
   const watching = useRef<ResizeObserver | null>(null);
   useLayoutEffect(() => {
     if (!opened) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- consumes `opened` once the row has mounted
     setOpened(null);
     const row = rows.current.get(opened);
     const slot = row && slotOf(row);

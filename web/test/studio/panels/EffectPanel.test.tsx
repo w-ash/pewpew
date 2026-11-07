@@ -106,6 +106,6 @@ test("a bind that cuts to another look leaves no example marked", async () => {
   await looks.getByRole("button", { name: "copper-tide" }).click();
   await answer();
   await expect.element(looks.getByRole("button", { name: "copper-tide" })).toHaveAttribute("aria-pressed", "true");
-  await receive({ type: "status", error: "the look could not run on this arrangement (x), so tide runs", source: "bind", path: null });
+  receive({ type: "status", error: "the look could not run on this arrangement (x), so tide runs", source: "bind", path: null });
   await expect.element(looks.getByRole("button", { name: "copper-tide" })).toHaveAttribute("aria-pressed", "false");
 });

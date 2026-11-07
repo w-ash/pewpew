@@ -67,9 +67,11 @@ export function useFocusKeeper(fallbacks: readonly string[], aura: unknown, lost
       document.removeEventListener("focusin", keep);
       document.removeEventListener("focusout", left);
     };
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- restore reads refs and the constant `fallbacks`; the first render's copy stays right
   }, []);
   useEffect(() => {
     const id = requestAnimationFrame(restore);
     return () => cancelAnimationFrame(id);
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- it re-checks when `aura` or `lost` changes, so it needs no other trigger
   }, [aura, lost]);
 }

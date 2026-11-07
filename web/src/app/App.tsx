@@ -88,6 +88,7 @@ function Shell() {
   const [measureCover, cover] = useCover();
   useFocusKeeper(FALLBACKS, useWire((s) => s.aura), lost);
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- clears the hint on every change of `lost` before the timer sets it again
     setLostLong(false);
     if (!lost) return;
     disarmAll();
