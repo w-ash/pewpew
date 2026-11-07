@@ -1,10 +1,11 @@
+import { Button } from "@pewpew/page";
 import { useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { saveArrangement } from "@/api/endpoints";
 import type { Issue } from "@/api/types";
 import { useDoc } from "@/store/doc";
 import { IssueList } from "./ReportPanel";
-import { Button, SectionHeading } from "./ui";
+import { SectionHeading } from "./ui";
 
 export function shareUrl(id: string, origin = window.location.origin) {
   return `${origin}/a/${id}`;
@@ -65,23 +66,23 @@ export function SharePanel() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <section>
+    <div className="studio-panel">
+      <section className="studio-section">
         <SectionHeading>Share link</SectionHeading>
         {share.mode === "shared" && (
-          <p className="mb-3 text-sm text-muted">
+          <p className="t-label">
             This is a shared arrangement. Links never change: any edit makes
             your own copy, and saving it gives a new link.
           </p>
         )}
         {share.mode === "fork" && (
-          <p className="mb-3 text-sm text-muted">
-            Your copy of <span className="font-data">/a/{share.from}</span>.
-            Save it to get a link of its own.
+          <p className="t-label">
+            Your copy of <span className="t-code">/a/{share.from}</span>. Save
+            it to get a link of its own.
           </p>
         )}
         {link ? (
-          <div className="flex flex-col gap-2">
+          <div className="studio-section">
             <input
               ref={linkInput}
               readOnly
@@ -89,10 +90,10 @@ export function SharePanel() {
               aria-label="Share link"
               data-testid="share-link"
               onFocus={(e) => e.target.select()}
-              className="h-11 w-full rounded-md border border-line bg-bg px-2 font-data text-sm text-ink"
+              className="t-code"
             />
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={() => copy(link)}>
+            <div className="studio-actions">
+              <Button variant="primary" onPress={() => copy(link)}>
                 {copied === "copied"
                   ? "Copied"
                   : copied === "selected"
@@ -104,22 +105,22 @@ export function SharePanel() {
         ) : (
           <Button
             variant="primary"
-            onClick={save}
+            onPress={save}
             disabled={saving || share.mode === "loading"}
           >
             {saving ? "Saving…" : "Save and get a link"}
           </Button>
         )}
         {error && (
-          <div className="mt-3 flex flex-col gap-2" role="alert">
-            <p className="text-sm text-error">{error.message}</p>
+          <div className="studio-section" role="alert">
+            <p className="studio-error">{error.message}</p>
             {error.issues.length > 0 && <IssueList issues={error.issues} />}
           </div>
         )}
       </section>
-      <section>
+      <section className="studio-section">
         <SectionHeading>What a link holds</SectionHeading>
-        <p className="text-sm text-muted">
+        <p className="t-label">
           The arrangement only: fixtures, groups, wiring and the parts on their
           ends. The effect and its controls are not saved.
         </p>

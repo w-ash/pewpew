@@ -4,7 +4,8 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AppBoundary } from "./AppBoundary";
 import { createQueryClient } from "./api/queries";
-import "./app.css";
+import "@pewpew/page/styles.css";
+import "./studio.css";
 
 async function start() {
   if (import.meta.env.MODE === "mock") {

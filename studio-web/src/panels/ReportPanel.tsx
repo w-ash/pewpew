@@ -1,7 +1,7 @@
+import { Details } from "@pewpew/page";
 import type { ReactNode } from "react";
 import type { Issue, IssueLevel, RigReport } from "@/api/types";
 import { powerOf, setPower } from "@/editor/arrangement";
-import { cn } from "@/lib/cn";
 import { useDoc } from "@/store/doc";
 import { useSession } from "@/store/session";
 import { NumberField, SectionHeading } from "./ui";
@@ -33,28 +33,13 @@ export const formatPct = (fraction: number) => percent.format(fraction);
 export const formatInt = (n: number) => whole.format(n);
 const formatM = (m: number) => `${trimmed.format(m)} m`;
 
-const LEVELS: Record<
-  IssueLevel,
-  { title: string; mark: string; className: string }
-> = {
-  error: {
-    title: "Errors",
-    mark: "✕",
-    className: "border-error bg-error text-white",
-  },
-  violation: {
-    title: "Violations",
-    mark: "▲",
-    className: "border-violation bg-violation/10 text-ink",
-  },
-  warning: {
-    title: "Warnings",
-    mark: "!",
-    className: "border-warning border-dashed bg-transparent text-ink",
-  },
+const LEVELS: Record<IssueLevel, { title: string; mark: string }> = {
+  error: { title: "Errors", mark: "✕" },
+  violation: { title: "Violations", mark: "▲" },
+  warning: { title: "Warnings", mark: "!" },
 };
 
-/** A native disclosure whose summary is a 44 px touch target. */
+/** The page's fold, its count in its summary. */
 function Disclosure({
   title,
   count,
@@ -64,21 +49,7 @@ function Disclosure({
   count: number;
   children: ReactNode;
 }) {
-  return (
-    <details className="group rounded-md border border-line">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-        <span
-          aria-hidden
-          className="text-muted transition-transform group-open:rotate-90"
-        >
-          ▸
-        </span>
-        {title}
-        <span className="ml-auto font-data text-xs text-muted">{count}</span>
-      </summary>
-      <div className="border-t border-line px-3 py-2">{children}</div>
-    </details>
-  );
+  return <Details summary={`${title} (${count})`}>{children}</Details>;
 }
 
 function IssueItems({
@@ -90,23 +61,17 @@ function IssueItems({
 }) {
   const style = LEVELS[level];
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="studio-issues">
       {issues.map((issue, k) => (
         <li
           // biome-ignore lint/suspicious/noArrayIndexKey: issues have no id.
           key={k}
           data-level={level}
-          className={cn(
-            "flex gap-2 rounded-md border px-2.5 py-2 text-sm",
-            style.className,
-          )}
         >
-          <span aria-hidden className="font-data">
-            {style.mark}
-          </span>
-          <span className="min-w-0 break-words">
+          <span aria-hidden>{style.mark}</span>
+          <span>
             {issue.message}
-            <span className="mt-0.5 block break-all font-data text-xs opacity-75">
+            <span className="t-caption studio-issue-code">
               {issue.code}
               {issue.ref ? ` · ${issue.ref}` : ""}
             </span>
@@ -119,18 +84,17 @@ function IssueItems({
 
 /** Errors and violations in full; warnings behind a disclosure. */
 export function IssueList({ issues }: { issues: readonly Issue[] }) {
-  if (issues.length === 0)
-    return <p className="text-sm text-muted">No issues.</p>;
+  if (issues.length === 0) return <p className="t-label">No issues.</p>;
   const of = (level: IssueLevel) => issues.filter((i) => i.level === level);
   const warnings = of("warning");
   return (
-    <div className="flex flex-col gap-3">
+    <div className="studio-section">
       {(["error", "violation"] as const).map((level) => {
         const list = of(level);
         if (list.length === 0) return null;
         return (
-          <div key={level}>
-            <h3 className="mb-1 text-xs font-semibold text-muted">
+          <div key={level} className="studio-section">
+            <h3 className="t-label">
               {LEVELS[level].title} ({list.length})
             </h3>
             <IssueItems issues={list} level={level} />
@@ -226,9 +190,9 @@ function Stat({
   testId?: string;
 }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="font-data text-base tabular-nums" data-testid={testId}>
+    <div>
+      <dt className="t-label">{label}</dt>
+      <dd className="t-value" data-testid={testId}>
         {children}
       </dd>
     </div>
@@ -246,12 +210,12 @@ function Row({
   note?: string;
 }) {
   return (
-    <li className="border-t border-line py-1.5 text-sm first:border-t-0">
-      <div className="flex flex-wrap justify-between gap-x-3">
-        <span className="min-w-0 break-words">{name}</span>
-        <span className="font-data tabular-nums">{figures}</span>
+    <li>
+      <div className="studio-row-line">
+        <span>{name}</span>
+        <span className="t-value">{figures}</span>
       </div>
-      {note && <div className="break-words text-xs text-muted">{note}</div>}
+      {note && <div className="note">{note}</div>}
     </li>
   );
 }
@@ -272,9 +236,9 @@ function Sections({ report }: { report: RigReport }) {
   const basis = rows<BasisRow>(report.basis);
   const notes = rows<string>(report.notes);
   return (
-    <div className="flex flex-col gap-2">
+    <div className="studio-folds">
       <Disclosure title="Outputs" count={outputs.length}>
-        <ul>
+        <ul className="studio-rows">
           {outputs.map((o) => (
             <Row
               key={`${o.controller}.${o.output}`}
@@ -286,7 +250,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Disclosure>
       <Disclosure title="Feeds" count={feeds.length}>
-        <ul>
+        <ul className="studio-rows">
           {feeds.map((f) => (
             <Row
               key={f.id}
@@ -298,7 +262,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Disclosure>
       <Disclosure title="PSUs" count={psus.length}>
-        <ul>
+        <ul className="studio-rows">
           {psus.map((p) => (
             <Row
               key={p.id}
@@ -310,7 +274,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Disclosure>
       <Disclosure title="Hops" count={hops.length}>
-        <ul>
+        <ul className="studio-rows">
           {hops.map((h) => (
             <Row
               key={`${h.kind}:${h.source}>${h.target}`}
@@ -321,7 +285,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Disclosure>
       <Disclosure title="Bill of materials" count={bom.length}>
-        <ul>
+        <ul className="studio-rows">
           {bom.map((b) => (
             <Row
               key={`${b.kind}:${b.item}`}
@@ -337,7 +301,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Disclosure>
       <Disclosure title="Assumed values and sources" count={basis.length}>
-        <ul>
+        <ul className="studio-rows">
           {basis.map((b) => (
             <Row
               key={b.fact}
@@ -350,7 +314,7 @@ function Sections({ report }: { report: RigReport }) {
       </Disclosure>
       {notes.length > 0 && (
         <Disclosure title="Notes" count={notes.length}>
-          <ul className="flex flex-col gap-1 text-sm">
+          <ul className="studio-rows">
             {notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -373,12 +337,9 @@ export function PowerCapEditor() {
   const write = (next: Partial<typeof cap>) =>
     commit(setPower(arrangement, { ...cap, ...next }), "power");
   return (
-    <section aria-label="Power cap">
+    <section className="studio-section" aria-label="Power cap">
       <SectionHeading>Power cap</SectionHeading>
-      <fieldset
-        disabled={loading}
-        className="grid min-w-0 grid-cols-2 gap-3 disabled:opacity-50"
-      >
+      <fieldset disabled={loading} className="studio-grid-2">
         <NumberField
           label="Max watts"
           unit="W"
@@ -404,7 +365,7 @@ export function PowerCapEditor() {
           }
         />
       </fieldset>
-      <p className="mt-2 text-xs text-muted">
+      <p className="note">
         The engine caps every frame. Under a cap the report sizes PSUs and
         checks feeds at the capped current, and every feed needs a fuse at its
         head: it protects the connector if the cap fails.
@@ -436,30 +397,22 @@ export function ReportPanel({
   const n = (v: number | undefined, f: (x: number) => string) =>
     v === undefined ? "—" : f(v);
   return (
-    <div className="flex max-h-[70dvh] flex-col gap-4 overflow-y-auto lg:max-h-none">
-      <section aria-label="Summary">
+    <div className="studio-panel">
+      <section className="studio-section" aria-label="Summary">
         <SectionHeading>
           Summary{stale ? " (from the last good compile)" : ""}
         </SectionHeading>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <dl className="studio-stats">
           <Stat label="Pixels">{n(totals.pixels, formatInt)}</Stat>
           <Stat label="Every channel full">
-            <span className="whitespace-nowrap">
-              {n(totals.worst_w, formatW)}
-            </span>{" "}
-            <span className="whitespace-nowrap">
-              {n(totals.worst_a, formatA)}
-            </span>
+            <span>{n(totals.worst_w, formatW)}</span>{" "}
+            <span>{n(totals.worst_a, formatA)}</span>
           </Stat>
           <Stat label="PSUs sized for" testId="report-capped">
-            <span className="whitespace-nowrap">
-              {n(totals.capped_w, formatW)}
-            </span>{" "}
-            <span className="whitespace-nowrap">
-              {n(totals.capped_a, formatA)}
-            </span>
+            <span>{n(totals.capped_w, formatW)}</span>{" "}
+            <span>{n(totals.capped_a, formatA)}</span>
             {totals.rgb_worst_w !== undefined && (
-              <span className="block text-xs text-muted">
+              <span className="note studio-stat-note">
                 RGB draws at most {formatW(totals.rgb_worst_w)}
               </span>
             )}
@@ -467,7 +420,7 @@ export function ReportPanel({
           <Stat label="Effect, live" testId="report-watts">
             {watts === null ? "—" : formatW(watts)}
             {watts !== null && uncapped !== null && uncapped > watts && (
-              <span className="block text-xs text-muted">
+              <span className="note studio-stat-note">
                 {formatW(uncapped)} uncapped
               </span>
             )}
@@ -488,18 +441,16 @@ export function ReportPanel({
         </dl>
       </section>
       <PowerCapEditor />
-      <section>
+      <section className="studio-section">
         <SectionHeading>Issues</SectionHeading>
         <IssueList issues={issues} />
       </section>
-      <section>
+      <section className="studio-section">
         <SectionHeading>Details</SectionHeading>
         {report ? (
           <Sections report={report} />
         ) : (
-          <p className="text-sm text-muted">
-            The server sent no report for this rig.
-          </p>
+          <p className="t-label">The server sent no report for this rig.</p>
         )}
       </section>
     </div>

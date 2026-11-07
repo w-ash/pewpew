@@ -1,10 +1,10 @@
+import { Badge, IconButton } from "@pewpew/page";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api/client";
 import { getArrangement } from "./api/endpoints";
 import { useCatalog, useCompiled } from "./api/queries";
 import type { Issue } from "./api/types";
 import { asArrangement, remove } from "./editor/arrangement";
-import { cn } from "./lib/cn";
 import { ArrangementPanel } from "./panels/ArrangementPanel";
 import { EffectPanel } from "./panels/EffectPanel";
 import { ReportPanel } from "./panels/ReportPanel";
@@ -152,16 +152,14 @@ export function App({ client }: { client?: SessionClient }) {
   };
 
   return (
-    <div className="grid min-h-dvh grid-cols-1 gap-4 p-4 lg:h-dvh lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5">
-      <main className="h-[56vh] min-h-[320px] lg:h-auto lg:min-h-0">
+    <div className="studio">
+      <main className="studio-stage-area">
         <Stage rig={rig} catalog={catalog.data ?? null} />
       </main>
-      <aside className="flex min-h-0 flex-col gap-4 lg:overflow-hidden">
-        <header className="shrink-0">
-          <h1 className="font-display text-2xl leading-tight font-semibold">
-            pewpew studio
-          </h1>
-          <p className="mt-1 text-sm text-muted">
+      <aside className="studio-side">
+        <header className="studio-head">
+          <h1 className="t-display">pewpew studio</h1>
+          <p className="note">
             Arrange LED fixtures in 3D and run pewpew's effects on them.
           </p>
         </header>
@@ -172,8 +170,8 @@ export function App({ client }: { client?: SessionClient }) {
         {share.mode === "shared" && (
           <Banner>
             Shared arrangement{" "}
-            <span className="font-data">{share.id.slice(0, 8)}…</span>,
-            read-only. Your first edit makes your own copy.
+            <span className="t-code">{share.id.slice(0, 8)}…</span>, read-only.
+            Your first edit makes your own copy.
           </Banner>
         )}
         {notice && (
@@ -199,7 +197,7 @@ export function App({ client }: { client?: SessionClient }) {
         <div
           role="tablist"
           aria-label="Panels"
-          className="grid shrink-0 grid-cols-4 overflow-hidden rounded-md border border-line"
+          className="studio-segments studio-tabs"
         >
           {TABS.map((t) => (
             <button
@@ -210,18 +208,12 @@ export function App({ client }: { client?: SessionClient }) {
               aria-selected={tab === t.id}
               aria-controls={`panel-${t.id}`}
               onClick={() => setTab(t.id)}
-              className={cn(
-                "min-h-11 text-xs font-medium uppercase tracking-wider not-first:border-l not-first:border-line",
-                tab === t.id
-                  ? "bg-ink text-surface"
-                  : "text-muted hover:text-ink",
-              )}
+              className="button"
+              data-variant="tertiary"
             >
               {t.label}
               {t.id === "report" && counts.error + counts.violation > 0 && (
-                <span className="ml-1 rounded bg-error px-1 text-[10px] text-white">
-                  {counts.error + counts.violation}
-                </span>
+                <Badge tone="danger">{counts.error + counts.violation}</Badge>
               )}
             </button>
           ))}
@@ -231,13 +223,10 @@ export function App({ client }: { client?: SessionClient }) {
           role="tabpanel"
           id={`panel-${tab}`}
           aria-labelledby={`tab-${tab}`}
-          className="min-h-0 flex-1 pb-6 lg:overflow-y-auto lg:pr-1"
+          className="studio-tabpanel"
         >
           {tab === "arrange" && (
-            <fieldset
-              disabled={share.mode === "loading"}
-              className="min-w-0 disabled:opacity-50"
-            >
+            <fieldset disabled={share.mode === "loading"}>
               <ArrangementPanel
                 catalog={catalog.data ?? null}
                 rig={rig}
@@ -272,23 +261,12 @@ function Banner({
   return (
     <div
       role={tone === "info" ? "status" : "alert"}
-      className={cn(
-        "flex shrink-0 items-start justify-between gap-2 rounded-md border px-3 py-2 text-sm",
-        tone === "info" && "border-line bg-surface",
-        tone === "warning" && "border-warning bg-warning/10",
-        tone === "error" && "border-error bg-error/10",
-      )}
+      className="studio-banner"
+      data-tone={tone}
     >
       <span>{children}</span>
       {onDismiss && (
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          className="-my-2 min-h-11 min-w-11 text-muted"
-        >
-          ✕
-        </button>
+        <IconButton icon="close" label="Dismiss" onPress={onDismiss} />
       )}
     </div>
   );

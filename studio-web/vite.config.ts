@@ -29,8 +29,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // The default arrangement is imported from the rig package's examples.
-    fs: { allow: [".", "../src/pewpew/rig/examples"] },
+    // The default arrangement is imported from the rig package's examples;
+    // the control page's fonts come with its styles (@pewpew/page).
+    fs: { allow: [".", "../src/pewpew/rig/examples", "../web/src/ui/fonts"] },
     proxy: {
       "/api": { target: BACKEND, changeOrigin: true },
       "/ws": { target: BACKEND, ws: true, changeOrigin: true },

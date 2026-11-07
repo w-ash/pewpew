@@ -1,3 +1,4 @@
+import { Button, ToggleButton } from "@pewpew/page";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +11,6 @@ import {
   type GizmoSpace,
   gizmoActivity,
 } from "@/editor/Gizmo";
-import { cn } from "@/lib/cn";
 import { useDoc } from "@/store/doc";
 import { useSession } from "@/store/session";
 import { assembliesFor, missingAssemblies } from "./instances";
@@ -28,6 +28,12 @@ import {
 const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+const VIEW_LABELS: Record<ViewName, string> = {
+  angle: "Angle",
+  top: "Top",
+  side: "Side",
+};
 
 /** Seconds per orbit at 60 fps: three-stdlib's OrbitControls turns 2π/3600·speed per frame. */
 const SPIN_SPEED = 1;
@@ -143,8 +149,16 @@ export function Stage({ rig, catalog }: StageProps) {
   const [spin, setSpin] = useState(false);
   const [mode, setMode] = useState<GizmoMode>("translate");
   const [space, setSpace] = useState<GizmoSpace>("world");
-  // three converts the sRGB hex to its linear working space.
-  const accent = useMemo(() => new Color("#6aa6ea"), []);
+  // The page marks what is selected in its text colour (--text-1), as its
+  // plan does; three converts the sRGB colour to its linear working space.
+  const accent = useMemo(() => {
+    const c = new Color(1, 1, 1);
+    const token = getComputedStyle(document.documentElement)
+      .getPropertyValue("--text-1")
+      .trim();
+    if (token) c.setStyle(token);
+    return c;
+  }, []);
 
   const bounds = useMemo(() => rigBounds(rig?.fixtures ?? []), [rig]);
   const [modelError, setModelError] = useState<string | null>(null);
@@ -203,9 +217,9 @@ export function Stage({ rig, catalog }: StageProps) {
   };
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface">
+    <div className="studio-stage">
       <Canvas
-        className="!absolute inset-0"
+        style={{ position: "absolute", inset: 0 }}
         dpr={[1, 2]}
         flat
         gl={{ antialias: true, alpha: true }}
@@ -264,53 +278,54 @@ export function Stage({ rig, catalog }: StageProps) {
         )}
       </Canvas>
 
-      <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
-        <fieldset
-          className="pointer-events-auto flex overflow-hidden rounded-md border border-line bg-surface"
-          aria-label="Camera view"
-        >
+      <div className="studio-overlay">
+        <fieldset className="studio-segments" aria-label="Camera view">
           {(["angle", "top", "side"] as const).map((name) => (
             <ToggleButton
               key={name}
+              variant="tertiary"
               pressed={view === name}
-              onClick={() => pickView(name)}
+              onPressedChange={() => pickView(name)}
             >
-              {name}
+              {VIEW_LABELS[name]}
             </ToggleButton>
           ))}
         </fieldset>
-        <div className="pointer-events-auto flex flex-wrap gap-2">
+        <div className="studio-overlay-end">
           {selection && (
-            <fieldset
-              className="flex overflow-hidden rounded-md border border-line bg-surface"
-              aria-label="Gizmo"
-            >
+            <fieldset className="studio-segments" aria-label="Gizmo">
               <ToggleButton
+                variant="tertiary"
                 pressed={mode === "translate"}
-                onClick={() => setMode("translate")}
+                onPressedChange={() => setMode("translate")}
               >
                 Move
               </ToggleButton>
               <ToggleButton
+                variant="tertiary"
                 pressed={mode === "rotate"}
-                onClick={() => setMode("rotate")}
+                onPressedChange={() => setMode("rotate")}
               >
                 Rotate
               </ToggleButton>
               <ToggleButton
+                variant="tertiary"
                 pressed={space === "local"}
-                onClick={() => setSpace(space === "world" ? "local" : "world")}
-                label="Gizmo axes"
+                onPressedChange={() =>
+                  setSpace(space === "world" ? "local" : "world")
+                }
+                title="Gizmo axes"
               >
                 {space === "world" ? "World" : "Local"}
               </ToggleButton>
             </fieldset>
           )}
-          <div className="flex overflow-hidden rounded-md border border-line bg-surface">
+          <div className="studio-segments">
             <ToggleButton
+              variant="tertiary"
               pressed={spin}
-              onClick={() => setSpin(!spin)}
-              label="Spin slowly"
+              onPressedChange={setSpin}
+              title="Spin slowly"
             >
               Spin
             </ToggleButton>
@@ -324,34 +339,6 @@ export function Stage({ rig, catalog }: StageProps) {
         missing={missing}
       />
     </div>
-  );
-}
-
-function ToggleButton({
-  pressed,
-  onClick,
-  children,
-  label,
-}: {
-  pressed: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  label?: string;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      aria-label={label}
-      onClick={onClick}
-      className={cn(
-        "min-h-11 min-w-11 px-3 text-xs font-medium uppercase tracking-wider text-muted hover:text-ink",
-        "not-first:border-l not-first:border-line",
-        pressed && "bg-ink text-surface hover:text-surface",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -373,7 +360,7 @@ function StageStatus({
   const stalled = useSession((s) => s.stalled);
   const live = connection === "open" && boundN !== null;
   return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 text-xs text-muted">
+    <div className="studio-status t-caption">
       <span data-testid="stage-status">
         {connection === "open"
           ? live
@@ -387,40 +374,25 @@ function StageStatus({
         {rig ? ` · ${rig.fixtures.length} fixtures` : ""}
       </span>
       {engineError && (
-        <span
-          className="pointer-events-auto max-w-full truncate rounded bg-error px-2 py-1 text-white"
-          role="alert"
-        >
+        <span data-tone="error" role="alert">
           {engineError}
         </span>
       )}
       {modelError && (
-        <span
-          className="pointer-events-auto flex max-w-full items-center gap-1 rounded bg-error pl-2 text-white"
-          role="alert"
-        >
-          <span className="truncate">
-            Fixture models did not load: {modelError}
-          </span>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="min-h-11 shrink-0 px-3 font-medium underline"
-          >
+        <span data-tone="error" role="alert">
+          <span>Fixture models did not load: {modelError}</span>
+          <Button variant="tertiary" onPress={onRetry}>
             Retry
-          </button>
+          </Button>
         </span>
       )}
       {missing.length > 0 && (
-        <span
-          className="pointer-events-auto max-w-full truncate rounded bg-warning px-2 py-1 text-white"
-          role="alert"
-        >
+        <span role="alert">
           This server has no 3D model for {missing.join(", ")}, so{" "}
           {missing.length > 1 ? "they are" : "it is"} not drawn
         </span>
       )}
-      <span className="hidden sm:inline">
+      <span className="studio-hint">
         Drag to orbit · pinch or scroll to zoom · two-finger drag to pan
       </span>
     </div>
