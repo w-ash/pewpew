@@ -30,7 +30,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pewpew.command import GONE, OK, PROBLEMS, STDIN, USAGE, number, png_path, positive, whole
+from pewpew.cli_args import GONE, OK, PROBLEMS, STDIN, USAGE, number, png_path, positive, whole
 from pewpew.fx.surprise import STRENGTH, NoLook, check_strength
 from pewpew.lab.check import Check, LookDoc, check_look
 from pewpew.lab.comparison import Comparison, compare, compare_sheet

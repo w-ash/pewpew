@@ -28,7 +28,7 @@ every major decision has an ADR in `research/synthesis/decisions/`.
   emulation → bench. Hardware confirms; it is not the iteration loop.
 - Determinism is load-bearing: no wall clock, no unseeded RNG in pattern or
   coordination code — inject the seed and the clock (`Renderer(seed=)`,
-  `render_sequence(..., seed=)`; `FakeClock` in src/harness/clock.py).
+  `render_sequence(..., seed=)`; `FakeClock` in src/pewpew/testing/clock.py).
   Same inputs must give byte-identical output.
 - Bench/hardware results are distributions, not point values — report
   pass^k, never hard-gate a session on them (T-5).

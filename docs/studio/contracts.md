@@ -30,7 +30,7 @@ from pewpew.rig import (
     load_arrangement, load_catalog, compile_rig,
 )
 
-catalog: Catalog = load_catalog()           # bundled src/pewpew/rig/data, validated, cached
+catalog: Catalog = load_catalog()           # bundled src/pewpew/rig/catalog_entries, validated, cached
 arr: Arrangement = load_arrangement(obj)    # dict | str (always JSON text) | os.PathLike (a file);
                                             # migrated to the latest version; strict types
 rig: CompiledRig = compile_rig(arr, catalog)  # pure: no I/O, no clock, no RNG

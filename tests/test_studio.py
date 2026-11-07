@@ -32,8 +32,8 @@ from starlette.websockets import WebSocketDisconnect
 from fakes import FakeTime
 from pewpew.power import Limited, PowerCap, PowerLimiter
 from pewpew.rig import EXAMPLES, load_catalog
-from pewpew.sinks.base import to_display_u8
 from pewpew.sinks.preview import message, status_state
+from pewpew.sinks.sink import to_display_u8
 from pewpew.studio.app import create_app
 from pewpew.studio.limits import Limits, RateLimiter, address_key, client_ip
 from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, as_look, example_looks

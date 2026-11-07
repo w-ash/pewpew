@@ -37,7 +37,7 @@ from pewpew.errors import unknown
 from pewpew.mapping import dimensions, extents
 from pewpew.png import encode_png
 from pewpew.render import check_frames
-from pewpew.sinks.base import to_display_u8
+from pewpew.sinks.sink import to_display_u8
 
 LAYOUTS = ("auto", "strip", "grid", "splat")
 _AXES = "xyz"  # axis index -> its name in a legend

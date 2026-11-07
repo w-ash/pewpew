@@ -87,7 +87,7 @@ be saved as `docs/studio/domain-model.md`. These are its decisions.
 - **Three layers.** The split follows GDTF (catalog) and MVR (scene). The electrical layer is new
   design, because no surveyed format models PSUs, feeds or cables.
   - **Catalog.** Hand-written JSON, one file per entity, discriminated by `kind`, in
-    `src/pewpew/rig/data/<kind>/`. The kinds are `fixture_type`, `attachment_type`, `chipset`,
+    `src/pewpew/rig/catalog_entries/<kind>/`. The kinds are `fixture_type`, `attachment_type`, `chipset`,
     `connector`, `cable`, `psu`, `firmware` and `controller`.
   - **Arrangement.** Written by the user or the studio: `fixtures` with poses, preset `groups`
     (`ring`, `array`), `controllers`, `psus`, and `wiring`. Wiring is either explicit chains and

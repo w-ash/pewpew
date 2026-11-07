@@ -51,7 +51,7 @@ from typing import Self
 import numpy as np
 
 from bench.common import gather_meta, make_mapping, plasma_numpy
-from harness.clock import FakeClock
+from pewpew.testing.clock import FakeClock
 
 TARGET_FPS = 60.0
 PERIOD_S = 1.0 / TARGET_FPS  # 16.667 ms

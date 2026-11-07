@@ -16,7 +16,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pewpew.command import OK, USAGE, add_allow_host
+from pewpew.cli_args import OK, USAGE, add_allow_host
 
 INSTALL = "the MCP server needs the agent extra: install pewpew[agent] (in this repo, `uv sync --extra agent`)"
 # The packages the extra brings: a missing one is the extra missing, not a bug.

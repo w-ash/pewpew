@@ -17,7 +17,7 @@ import pytest
 
 import pewpew.rig.migrate as migrate_module
 from pewpew.rig import EXAMPLES, RigError, compile_rig, load_arrangement, load_catalog, read_catalog
-from pewpew.rig.catalog import DATA_ROOT
+from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
 from pewpew.rig.expr import MAX_DEPTH, ExprError, parse, resolve
 from pewpew.rig.migrate import migrate
 from pewpew.rig.models import MAX_FIXTURES, MAX_ISSUES, Issue, Pose, RingGroup, canonical_quat
@@ -234,7 +234,7 @@ def test_long_dims_chains_are_expr_errors():
 
 def test_a_bad_expression_in_the_catalog_is_a_rig_error(tmp_path):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / "fixture_type" / f"{BAR}.json"
     obj = json.loads(path.read_text())
     for bad in ("1" + "0" * 400, "-" * 5000 + "1"):
@@ -247,7 +247,7 @@ def test_a_bad_expression_in_the_catalog_is_a_rig_error(tmp_path):
 
 def test_an_unreadable_catalog_is_a_rig_error(tmp_path):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / "fixture_type" / f"{BAR}.json"
     for content, code in ((b"[" * 100_000, "too_deep"), (b"\xff\xfe", "bad_json")):
         path.write_bytes(content)
@@ -261,7 +261,7 @@ def test_an_unreadable_catalog_is_a_rig_error(tmp_path):
 
 def test_the_stack_plays_no_part_in_the_depth_limit(tmp_path):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     (root / "fixture_type" / f"{BAR}.json").write_bytes(b"[" * 100_000)
     raised: list[BaseException] = []
 
@@ -298,7 +298,7 @@ def test_the_stack_plays_no_part_in_the_depth_limit(tmp_path):
 )
 def test_catalog_refuses_zero_directions_and_values(tmp_path, edit):
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     path = root / "fixture_type" / f"{BAR}.json"
     obj = json.loads(path.read_text())
     edit(obj)

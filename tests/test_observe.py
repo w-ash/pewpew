@@ -30,8 +30,8 @@ from pewpew.mapping import grid, line
 from pewpew.metrics import measure
 from pewpew.remote.client import Client, Frame, Unreachable, engine_url, why_unreachable
 from pewpew.remote.observe import Capture, Observation, observe
-from pewpew.sinks.base import from_display_u8, to_display_u8
 from pewpew.sinks.preview import FRAME_HEADER, page_build
+from pewpew.sinks.sink import from_display_u8, to_display_u8
 from pngread import decode_png
 
 pytestmark = pytest.mark.usefixtures("fake_ops")

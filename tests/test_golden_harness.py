@@ -1,4 +1,4 @@
-"""The golden harness itself (src/harness/goldens.py): a comparison that
+"""The golden harness itself (src/pewpew/testing/goldens.py): a comparison that
 cannot fail is no tripwire."""
 
 from __future__ import annotations
@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from harness.goldens import assert_matches_golden, save_golden
+from pewpew.testing.goldens import assert_matches_golden, save_golden
 
 FRAMES = np.linspace(0.0, 1.0, 24, dtype=np.float32).reshape(2, 4, 3)
 

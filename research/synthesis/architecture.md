@@ -684,7 +684,7 @@ scalar-looking-over-arrays authoring surface, including the `if` vs
 `np.where` branching question ([ADR-005], [ADR-011]). Failure here changes
 ADR-011 (Numba/compiled tier promoted from optional to required), not the
 product shape. **Feedback before features**: the test-harness skeleton
-(golden-frame compare, fake clock) is landed in `src/harness/`, and the
+(golden-frame compare, fake clock) is landed in `src/pewpew/testing/`, and the
 fleet twin's interfaces come with its first code ([ADR-017], 2026-11-05
 note); Phase 0 also assembles the ~$200 bench core
 ([ADR-018](decisions/ADR-018-agent-driveable-bench.md)) so every later
@@ -779,7 +779,7 @@ requirements (T-1…T-10) in **[test-and-feedback.md](test-and-feedback.md)**.
 The one-paragraph version:
 
 Development feedback runs on a five-level pyramid — pure-Python golden
-frames and property tests (ms; already landed in `src/harness/`), the
+frames and property tests (ms; already landed in `src/pewpew/testing/`), the
 deterministic **fleet digital twin** (the mesh tier simulated with
 seed-derived fault injection; same seed → same trace), a thin emulation
 tier (QEMU-S3/Wokwi for firmware logic; **no emulator exercises ESP-NOW**

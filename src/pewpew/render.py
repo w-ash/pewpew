@@ -333,7 +333,7 @@ class SlotClock:
     slot is at t = 1/fps.
 
     The one home of the float sequence every deterministic artifact is
-    frozen against: it matches `harness.clock.FakeClock.frames()` and
+    frozen against: it matches `pewpew.testing.clock.FakeClock.frames()` and
     `bench/bench_authoring.py::run_sequence` bit for bit, where `t = i/fps`
     would not. The offline renders and `pewpew.pace.PacedLoop` both use it.
     """

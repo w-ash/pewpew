@@ -12,7 +12,7 @@ import pytest
 
 import pewpew.rig as rig_pkg
 from pewpew.rig import RigError, compile_rig, load_arrangement, load_catalog, read_catalog
-from pewpew.rig.catalog import DATA_ROOT
+from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
 from pewpew.rig.models import Sourced
 
 RIG_SRC = Path(rig_pkg.__file__).parent
@@ -25,7 +25,7 @@ def codes(exc: RigError) -> set[str]:
 @pytest.fixture
 def data_copy(tmp_path: Path) -> Path:
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     return root
 
 
@@ -69,7 +69,7 @@ def test_wire_resistance_matches_the_awg_table():
 
 
 def test_digest_is_stable_and_follows_content(data_copy):
-    assert read_catalog(DATA_ROOT).digest == load_catalog().digest
+    assert read_catalog(CATALOG_ENTRIES_DIR).digest == load_catalog().digest
     path = data_copy / "fixture_type" / "clen-rgbw-bar-1m.json"
     path.write_text(json.dumps(json.loads(path.read_text()), indent=4))
     assert read_catalog(data_copy).digest == load_catalog().digest
@@ -132,7 +132,7 @@ def strings(obj):
 
 def test_every_url_in_the_data_is_a_full_https_link():
     bare = re.compile(r"\bwww\.|\b[\w-]+\.(?:com|org|info|net|io|ge|sk)/")
-    for path in sorted(DATA_ROOT.rglob("*.json")):
+    for path in sorted(CATALOG_ENTRIES_DIR.rglob("*.json")):
         for s in strings(json.loads(path.read_text())):
             assert "http://" not in s, f"{path.name}: {s}"
             rest = re.sub(r"https://\S+", "", s)
