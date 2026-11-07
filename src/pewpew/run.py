@@ -241,6 +241,7 @@ class Run:
             self.watchdog.start()
         book = launch.book
         start, stalled = after_stall(launch, stall)
+        self._started = start  # before the build, so a look that hangs in it is named
         # An unattended run leaves a failing layer out of the mix (`bypass`); its
         # error still reaches the status line.
         try:
@@ -256,7 +257,6 @@ class Run:
             if self.watchdog is not None:
                 self.watchdog.stop()
             raise SystemExit(f"{args.looks}: cannot start look {start!r}: {exc}") from None
-        self._started = start
         if start != book.current:
             self.looks.leave()  # runs as a sent look does: no look is current, and the file keeps its own
         if stalled is not None:
