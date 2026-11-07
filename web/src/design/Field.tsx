@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { Select, type SelectItem } from "./Select";
 
 /** A control under its visible name, as a knob's is. */
-export function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: ReactNode }) {
+export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="field">
+    <label className="field">
       <span className="field-label">{label}</span>
       {children}
     </label>

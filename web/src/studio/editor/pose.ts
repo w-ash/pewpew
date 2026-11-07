@@ -33,7 +33,7 @@ export function resolvePose(pose: Pose | undefined): PoseQ | null {
   };
 }
 
-export const EULER_ORDER = "YXZ" as const;
+const EULER_ORDER = "YXZ" as const;
 
 export interface YawPitchRoll {
   yaw: number;

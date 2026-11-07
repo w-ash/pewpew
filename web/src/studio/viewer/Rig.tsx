@@ -66,7 +66,7 @@ function layoutKey(layout: LedLayout): string {
   return `${layout.width}x${layout.height}:${layout.rows.map((r) => `${r.start}+${r.count}`).join(",")}`;
 }
 
-export interface RigProps {
+interface RigProps {
   rig: CompiledRig;
   catalog: Catalog;
   selected: ReadonlySet<number>;

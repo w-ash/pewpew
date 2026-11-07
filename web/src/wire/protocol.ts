@@ -242,8 +242,3 @@ export function parseTyped(text: string): TypedMessage | null {
 export function asServerMessage(msg: TypedMessage | null): ServerMessage | null {
   return msg && Object.hasOwn(TYPES, msg.type) ? (msg as unknown as ServerMessage) : null;
 }
-
-/** The message in `text`, or null for anything this page does not read. */
-export function parseMessage(text: string): ServerMessage | null {
-  return asServerMessage(parseTyped(text));
-}

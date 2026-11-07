@@ -2,10 +2,11 @@ import { ArmStatus } from "../design/press";
 import { Badge } from "../design/Badge";
 import { IconButton } from "../design/Button";
 import { StepStatus } from "../design/StepStatus";
+import { useShortcuts } from "../design/shortcuts";
 import { useMedia } from "../design/useMedia";
 import { useRefusalExcept, WireContext } from "../wire/store";
 import { useEffect, useMemo, useState } from "react";
-import { ApiError } from "./api/client";
+import { ApiError } from "./api/fetch";
 import { getArrangement } from "./api/endpoints";
 import { useCatalog, useCompiled } from "./api/queries";
 import type { Issue } from "./api/types";
@@ -32,7 +33,7 @@ const WIDE = "(min-width: 1024px)";
 
 const SHARE_PATH = /^\/a\/([A-Za-z0-9_-]{22})\/?$/;
 
-export function shareIdFromPath(pathname: string): string | null {
+function shareIdFromPath(pathname: string): string | null {
   return SHARE_PATH.exec(pathname)?.[1] ?? null;
 }
 
@@ -68,39 +69,26 @@ function useSharedLink(setNotice: (notice: string | null) => void) {
   }, [share]);
 }
 
-function useShortcuts() {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (
-        el &&
-        (el.isContentEditable ||
-          ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName))
-      )
-        return;
-      const doc = useDoc.getState();
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) doc.redo();
-        else doc.undo();
-      } else if (mod && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        doc.redo();
-      } else if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        doc.selection
-      ) {
-        e.preventDefault();
-        doc.commit(remove(doc.history.present, doc.selection));
-        doc.select(null);
-      } else if (e.key === "Escape") {
-        doc.select(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+/** The editor's keys, on the page's shortcuts (design/shortcuts.ts): undo and redo, delete what is selected,
+ * Esc to select nothing. */
+function useEditorKeys() {
+  const undo = () => useDoc.getState().undo();
+  const redo = () => useDoc.getState().redo();
+  const removeSelected = () => {
+    const doc = useDoc.getState();
+    if (!doc.selection) return;
+    doc.commit(remove(doc.history.present, doc.selection));
+    doc.select(null);
+  };
+  const hasSelection = () => useDoc.getState().selection !== null;
+  useShortcuts([
+    { hotkey: "mod+z", label: "undo", action: undo },
+    { hotkey: "mod+shift+z", label: "redo", action: redo },
+    { hotkey: "mod+y", label: "", action: redo },
+    { hotkey: "Delete", label: "delete what is selected", action: removeSelected, enabled: hasSelection },
+    { hotkey: "Backspace", label: "", action: removeSelected, enabled: hasSelection },
+    { hotkey: "Escape", label: "select nothing", keys: "Esc", action: () => useDoc.getState().select(null) },
+  ]);
 }
 
 export function App({ client }: { client?: SessionClient }) {
@@ -133,7 +121,7 @@ function Studio({ session }: { session: SessionClient }) {
   const [showRefusal, setShowRefusal] = useState(false);
 
   useSharedLink(setNotice);
-  useShortcuts();
+  useEditorKeys();
 
   useEffect(() => {
     session.start();
@@ -219,7 +207,7 @@ function Studio({ session }: { session: SessionClient }) {
         <div
           role="tablist"
           aria-label="Panels"
-          className="studio-segments studio-tabs"
+          className="studio-tabs"
         >
           {TABS.map((t) => (
             <button

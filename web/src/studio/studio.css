@@ -111,32 +111,26 @@
     calc(-1 * var(--space-xs)) 0;
 }
 
-/* ---- segmented rows: the tabs, a camera view, an end's part --------------------------------- */
+/* ---- the tabs ----------------------------------------------------------------------------- */
 
-/* Options in one well, as the page's choice knob has them: the chosen one in the selected fill. */
-.studio-segments {
-  display: flex;
-  flex-wrap: wrap;
+/* The tabs in one well, as a choice knob's options are (Segments), the chosen one in the selected fill. */
+.studio-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2xs);
   padding: var(--space-2xs);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-inset);
 }
-.studio-segments > .button {
-  flex: 1 1 auto;
+.studio-tabs > .button {
   color: var(--text-2);
 }
-.studio-segments > .button:hover,
-.studio-segments > .button:is([aria-pressed="true"], [aria-selected="true"]) {
+.studio-tabs > .button:is(:hover, [aria-selected="true"]) {
   color: var(--text-1);
 }
-.studio-segments > .button[aria-selected="true"] {
+.studio-tabs > .button[aria-selected="true"] {
   background-color: var(--surface-selected);
   font-weight: var(--fw-strong);
-}
-.studio-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* ---- the stage ------------------------------------------------------------------------------ */
@@ -169,10 +163,10 @@
   justify-content: flex-end;
   gap: var(--space-xs);
 }
-.studio-stage .studio-segments {
-  flex-wrap: nowrap;
+/* A control over the canvas, on a veil of the page's ground; a pressed toggle keeps its selected fill. */
+.studio-veil:not([aria-pressed="true"]) {
   border-color: transparent;
-  background: var(--veil);
+  background-color: var(--veil);
 }
 @media (max-width: 639px) {
   .studio-hint {

@@ -4,7 +4,7 @@ import { nowOf, type AuraState } from "../aura/aura";
 import type { ClientMessage } from "../wire/protocol";
 import { useSender } from "../wire/store";
 import { Button } from "../design/Button";
-import type { Disclosure } from "../design/Disclosure";
+import { DisclosureNote, useDisclosure, type Disclosure } from "../design/Disclosure";
 import type { IconName } from "../design/Icon";
 import { useOnChange } from "../design/useOnChange";
 import { dropLine } from "./Looks";
@@ -104,6 +104,19 @@ export function Variety({ aura, looks, note }: Props) {
       <p className="sr-only" role="status">
         {told}
       </p>
+    </div>
+  );
+}
+
+/** The make actions' row, with its note under it, as the deck and the studio's effect panel show it. */
+export function MadeRow({ aura, looks }: { aura: AuraState; looks: LooksState | null }) {
+  const note = useDisclosure();
+  return (
+    <div className="deck-group">
+      <div className="row made-row">
+        <Variety aura={aura} looks={looks} note={note} />
+      </div>
+      <DisclosureNote disclosure={note} live />
     </div>
   );
 }

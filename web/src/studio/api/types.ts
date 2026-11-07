@@ -2,7 +2,7 @@
  * Types for the studio API.
  *
  * `Issue`, `IssueLevel` and `SavedArrangement` come from the OpenAPI spec
- * through orval (src/api/generated). The spec types the arrangement, catalog
+ * through orval (src/studio/api/generated). The spec types the arrangement, catalog
  * and compile bodies as free-form objects, so the rest is written by hand
  * after the pydantic models (src/pewpew/rig/models.py: `Pose`, `RingGroup`,
  * `ArrayGroup`, `FixtureInstance`; `Catalog.to_json` in
@@ -171,13 +171,6 @@ export interface OutputSlice {
   count: number;
   led_type: number | null;
   color_order: string;
-}
-
-/** A catalog or report fact with provenance (domain-model.md §1). */
-export interface Sourced {
-  v: unknown;
-  status: "measured" | "stated" | "inferred" | "derived" | "assumed";
-  src?: string;
 }
 
 /** Workstream 2 owns the report's fields; the panel renders any JSON. */

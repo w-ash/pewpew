@@ -4,26 +4,8 @@ import { setParam } from "../../src/wire/protocol";
 import { RECONNECT_MS, Socket } from "../../src/wire/socket";
 import { WireStore } from "../../src/wire/store";
 import { record } from "../fixtures/describe";
+import { FakeWebSocket } from "../fixtures/fakeWebSocket";
 import { hello } from "../fixtures/messages";
-
-class FakeWebSocket {
-  static readonly OPEN = 1;
-  static made: FakeWebSocket[] = [];
-  readyState = 1;
-  binaryType = "blob";
-  sent: unknown[] = [];
-  onmessage: ((ev: { data: unknown }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  constructor(readonly url: string) {
-    FakeWebSocket.made.push(this);
-  }
-  send(text: string) {
-    this.sent.push(JSON.parse(text));
-  }
-  close() {
-    this.onclose?.();
-  }
-}
 
 function setup(build: string | null = null, reload = () => {}) {
   FakeWebSocket.made = [];
@@ -39,6 +21,7 @@ function setup(build: string | null = null, reload = () => {}) {
   });
   socket.start();
   const ws = FakeWebSocket.made[0]!;
+  ws.open();
   const flush = () => frames.splice(0).forEach((f) => f());
   return { store, socket, ws, flush };
 }
@@ -182,8 +165,8 @@ test("a page's own messages: its types go to it, not the store; it sends its own
     onClose: () => told.push("close"),
   });
   socket.start();
-  const ws = FakeWebSocket.made[0]! as FakeWebSocket & { onopen: () => void };
-  ws.onopen();
+  const ws = FakeWebSocket.made[0]!;
+  ws.open();
   ws.onmessage!({ data: JSON.stringify({ type: "hello", n: 64, fps: 30, capabilities: [] }) });
   ws.onmessage!({ data: JSON.stringify({ type: "bound", n: 64 }) });
   ws.onmessage!({ data: JSON.stringify({ type: "status", error: "x", source: "bind", path: null }) });

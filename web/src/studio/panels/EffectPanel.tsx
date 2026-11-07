@@ -1,8 +1,8 @@
 import { AllLooks } from "../../deck/AllLooks";
 import { LooksGroup } from "../../deck/Looks";
 import { listedLooks } from "../../aura/looks";
-import { Variety } from "../../deck/Variety";
-import { DisclosureNote, useDisclosure } from "../../design/Disclosure";
+import { MadeRow } from "../../deck/Variety";
+import { useDisclosure } from "../../design/Disclosure";
 import { LookKnobs, LookSignals } from "../../params/ParamPanel";
 import { ADD, useLayerSelection } from "../../stack/selection";
 import { AddLayerPanel } from "../../stack/AddLayer";
@@ -12,6 +12,7 @@ import { useStandingAura, useWire, WireContext } from "../../wire/store";
 import { useContext, useState } from "react";
 import { useLooks } from "../api/queries";
 import { useSession } from "../store/session";
+import { formatW } from "./ReportPanel";
 
 /** The look each session starts in (docs/studio/contracts.md, "WebSocket"). */
 const FIRST = "tide";
@@ -43,7 +44,6 @@ export function EffectPanel() {
     name: FIRST as string | null,
   });
   const looksNote = useDisclosure();
-  const madeNote = useDisclosure();
   const current = marked.session === session ? marked.name : FIRST;
 
   /** Whether the engine took `msg`, once `asked` settles: no refusal of its kind came meanwhile. */
@@ -95,19 +95,14 @@ export function EffectPanel() {
           </p>
         )}
         {aura && (
-          <div className="deck-group">
-            <div className="row made-row">
-              <WireContext.Provider value={{ store, sender: making }}>
-                <Variety aura={aura} looks={aura.looks} note={madeNote} />
-              </WireContext.Provider>
-            </div>
-            <DisclosureNote disclosure={madeNote} live />
-          </div>
+          <WireContext.Provider value={{ store, sender: making }}>
+            <MadeRow aura={aura} looks={aura.looks} />
+          </WireContext.Provider>
         )}
         {watts !== null && (
           <p className="note">
             <span className="t-value readout" data-testid="effect-watts">
-              {watts.toFixed(1)} W
+              {formatW(watts)}
             </span>{" "}
             now
           </p>

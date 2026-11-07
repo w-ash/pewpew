@@ -5,7 +5,7 @@ import { Segments } from "../../design/Segments";
 import { Tile } from "../../design/Tile";
 import { NumberField, type NumberRange } from "../../params/NumberField";
 import { useRef } from "react";
-import { ApiError } from "../api/client";
+import { ApiError } from "../api/fetch";
 import { compileArrangement } from "../api/endpoints";
 import type {
   Arrangement,
@@ -458,7 +458,14 @@ function SelectionEditor({
   );
 }
 
-export function PoseInspector({
+/** The turns in the order they apply, each with its axis. */
+const TURNS: ReadonlyArray<readonly [keyof YawPitchRoll, string]> = [
+  ["yaw", "Yaw, about Y"],
+  ["pitch", "Pitch, about X"],
+  ["roll", "Roll, about Z"],
+];
+
+function PoseInspector({
   pose,
   onChange,
 }: {
@@ -484,24 +491,15 @@ export function PoseInspector({
           onChange={(v) => setPos(i, v)}
         />
       ))}
-      <NumberField
-        label="Yaw, about Y"
-        range={DEGREES}
-        value={ypr.yaw}
-        onChange={(v) => setRot("yaw", v)}
-      />
-      <NumberField
-        label="Pitch, about X"
-        range={DEGREES}
-        value={ypr.pitch}
-        onChange={(v) => setRot("pitch", v)}
-      />
-      <NumberField
-        label="Roll, about Z"
-        range={DEGREES}
-        value={ypr.roll}
-        onChange={(v) => setRot("roll", v)}
-      />
+      {TURNS.map(([field, label]) => (
+        <NumberField
+          key={field}
+          label={label}
+          range={DEGREES}
+          value={ypr[field]}
+          onChange={(v) => setRot(field, v)}
+        />
+      ))}
       <p className="note">
         Turns apply yaw, then pitch, then roll, each about the fixture's own
         axes.

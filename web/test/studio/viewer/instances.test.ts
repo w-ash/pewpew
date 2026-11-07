@@ -1,7 +1,7 @@
 import { BoxGeometry, Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { mockCatalog } from "../../../src/studio/mocks/catalog";
-import { threeBarRig } from "../../../src/studio/mocks/rig";
+import { threeBarRig } from "../fixtures/rig";
 import type { Assembly } from "../../../src/studio/viewer/assembly";
 import {
   anchorMatrix,
