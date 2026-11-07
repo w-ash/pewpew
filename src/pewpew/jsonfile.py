@@ -6,6 +6,12 @@ trigger log, `pewpew.aura.triggers`, and the feature log,
 Each loader collects every problem before it refuses, and no message names
 a path, so the same text can cross the preview socket as a reload status.
 Every rewrite goes through `write_atomic`.
+
+Every parse of untrusted JSON goes through `loads`, which refuses nesting
+past `MAX_DEPTH` before the parser runs. Python's C parser stops only when
+the machine stack runs out, and that depth differs by OS, thread and stack
+limit, so without one limit the same input passes on one host and fails on
+another.
 """
 
 from __future__ import annotations
@@ -13,12 +19,77 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, TypeGuard, TypeVar
 
 T = TypeVar("T")
+
+MAX_DEPTH = 64
+"""The deepest nesting of arrays and objects that pewpew reads. The example
+arrangements nest 5 deep, and every thread's stack holds 64."""
+
+# A string (its end quote can be missing), an opening bracket, or a closing one.
+_TOKENS = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"?|[\[{]|[\]}]', re.DOTALL)
+
+
+class TooDeep(ValueError):
+    """JSON nests arrays and objects deeper than `MAX_DEPTH`. `pos` is the
+    index of the bracket that goes past the limit, or None for a Python
+    value."""
+
+    def __init__(self, pos: int | None = None) -> None:
+        where = "" if pos is None else f" (at character {pos})"
+        super().__init__(f"arrays and objects nest deeper than {MAX_DEPTH} levels{where}")
+        self.pos = pos
+
+
+def check_depth(text: str) -> None:
+    """Raise TooDeep if `text` opens more than `MAX_DEPTH` arrays and objects
+    that are not yet closed. Brackets in strings do not count. The check does
+    not need valid JSON, so unclosed input is too deep before the parser
+    reaches its end."""
+    if text.count("[") + text.count("{") <= MAX_DEPTH:
+        return
+    depth = 0
+    for match in _TOKENS.finditer(text):
+        char = text[match.start()]
+        if char in "[{":
+            depth += 1
+            if depth > MAX_DEPTH:
+                raise TooDeep(match.start())
+        elif char != '"':
+            depth -= 1
+
+
+def loads(data: str | bytes | bytearray, **kwargs: Any) -> Any:
+    """`json.loads(data, **kwargs)` after `check_depth`. Bytes are decoded
+    as `json.loads` decodes them. Raises TooDeep, or what `json.loads`
+    raises."""
+    text = data.decode(json.detect_encoding(data), "surrogatepass") if isinstance(data, (bytes, bytearray)) else data
+    check_depth(text)
+    return json.loads(text, **kwargs)
+
+
+def nests_deeper(value: object, limit: int = MAX_DEPTH) -> bool:
+    """Whether `value` nests mappings, lists and tuples deeper than `limit`.
+    The walk keeps its own stack, so it does not recurse, and it stops at
+    the limit, so a value that holds itself ends it."""
+    stack: list[tuple[object, int]] = [(value, 0)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, Mapping):
+            children = item.values()
+        elif isinstance(item, (list, tuple)):
+            children = item
+        else:
+            continue
+        if depth == limit:
+            return True
+        stack.extend((child, depth + 1) for child in children)
+    return False
 
 
 class ProblemsError(ValueError):
@@ -52,9 +123,11 @@ def _once(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def parse_json(data: bytes | str, error: type[ProblemsError]) -> Any:
     """`data` parsed as JSON. Raises `error` with one problem if it is not,
-    or if an object names a key twice."""
+    if it nests deeper than `MAX_DEPTH`, or if an object names a key twice."""
     try:
-        return json.loads(data, object_pairs_hook=_once)
+        return loads(data, object_pairs_hook=_once)
+    except TooDeep as exc:
+        raise error([f"invalid JSON: {exc}"]) from None
     except _Repeated as exc:
         raise error([f"duplicate key {exc.key!r}: an object names each key once, so give each its own name"]) from None
     except json.JSONDecodeError as exc:

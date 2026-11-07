@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 from pydantic import ValidationError
 
+from pewpew.jsonfile import TooDeep, loads
 from pewpew.rig import expr
 from pewpew.rig.models import (
     CATALOG_ENTITY,
@@ -582,7 +583,10 @@ def read_catalog(root: Path | str) -> Catalog:
         for path in sorted(kind_dir.glob("*.json")):
             ref = f"{kind_dir.name}/{path.name}"
             try:
-                raw = json.loads(path.read_text(encoding="utf-8"))
+                raw = loads(path.read_text(encoding="utf-8"))
+            except TooDeep as exc:
+                issues.append(Issue.error("too_deep", str(exc), ref))
+                continue
             except json.JSONDecodeError as exc:
                 issues.append(Issue.error("bad_json", str(exc), ref))
                 continue
@@ -591,9 +595,6 @@ def read_catalog(root: Path | str) -> Catalog:
                 continue
             except OSError as exc:
                 issues.append(Issue.error("unreadable_file", f"cannot read the file: {exc.strerror}", ref))
-                continue
-            except RecursionError:
-                issues.append(Issue.error("too_deep", "the JSON nests too deeply", ref))
                 continue
             try:
                 entity = CATALOG_ENTITY.validate_python(raw)

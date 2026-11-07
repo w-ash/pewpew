@@ -11,6 +11,7 @@ import copy
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from pewpew.jsonfile import TooDeep, nests_deeper
 from pewpew.rig.models import ARRANGEMENT_FORMAT, ARRANGEMENT_VERSION, Issue, RigError
 
 LATEST = ARRANGEMENT_VERSION
@@ -26,6 +27,8 @@ def migrate(data: Mapping[str, Any], latest: int | None = None) -> dict[str, Any
     At the latest version the new dict is a shallow copy.
     """
     latest = LATEST if latest is None else latest
+    if nests_deeper(data):
+        raise RigError([Issue.error("too_deep", str(TooDeep()))])
     if not isinstance(data, Mapping):
         raise RigError([Issue.error("bad_format", f"an arrangement is a JSON object, not {type(data).__name__}")])
     if data.get("format") != ARRANGEMENT_FORMAT:
@@ -50,10 +53,7 @@ def migrate(data: Mapping[str, Any], latest: int | None = None) -> dict[str, Any
     out = dict(data)
     if version == latest:
         return out
-    try:
-        out = copy.deepcopy(out)  # a step may edit nested values in place
-        while out["version"] < latest:
-            out = STEPS[out["version"]](out)
-    except RecursionError:
-        raise RigError([Issue.error("too_deep", "the arrangement nests too deeply")]) from None
+    out = copy.deepcopy(out)  # a step may edit nested values in place
+    while out["version"] < latest:
+        out = STEPS[out["version"]](out)
     return out

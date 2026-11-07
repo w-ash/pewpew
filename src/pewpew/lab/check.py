@@ -44,7 +44,7 @@ from pewpew.fx.compile import check, is_pattern_program, knob_class
 from pewpew.fx.graph import PATTERN, Graph, Node, Program
 from pewpew.fx.host import ProgramPattern, split_starts
 from pewpew.fx.ops import OPS
-from pewpew.jsonfile import parse_json
+from pewpew.jsonfile import TooDeep, nests_deeper, parse_json
 from pewpew.load import Catalog, LoadedPattern, is_path, names, resolve
 from pewpew.params import ParamSet
 from pewpew.problems import Code, Problem, Refused, problem
@@ -177,16 +177,16 @@ def _data(doc: LookDoc) -> tuple[Any, list[Problem]]:
     elif isinstance(doc, str):
         text = doc
     else:
+        if nests_deeper(doc):
+            return None, [problem(f"invalid JSON: {TooDeep()}")]
         try:
             text = json.dumps(doc)
-        except (TypeError, ValueError, RecursionError) as exc:
+        except (TypeError, ValueError) as exc:
             return None, [Problem("", Code.NOT_A_LOOK, f"not JSON data: {describe_exception(exc)}")]
     try:
         return parse_json(text, LookError), []
     except LookError as exc:
         return None, [problem(reason) for reason in exc.problems]
-    except RecursionError:
-        return None, [Problem("", Code.NOT_A_LOOK, "invalid JSON: nested too deep")]
 
 
 def _program(data: dict[str, Any]) -> Problem:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import threading
 
 import numpy as np
 import pytest
@@ -83,8 +84,8 @@ def test_an_unreadable_file_is_a_rig_error(tmp_path):
 def test_deep_nesting_is_a_rig_error():
     head = json.dumps(arrangement())[:-1]
     for depth in (500, 100_000):
-        assert codes(head + ', "name": ' + "[" * depth + "]" * depth + "}")
-    assert codes(arrangement(name=nested(5000)))
+        assert codes(head + ', "name": ' + "[" * depth + "]" * depth + "}") == {"too_deep"}
+    assert codes(arrangement(name=nested(5000))) == {"too_deep"}
 
 
 def test_a_migration_step_on_deep_input_is_a_rig_error(monkeypatch):
@@ -248,16 +249,37 @@ def test_an_unreadable_catalog_is_a_rig_error(tmp_path):
     root = tmp_path / "data"
     shutil.copytree(DATA_ROOT, root)
     path = root / "fixture_type" / f"{BAR}.json"
-    # Unclosed nesting is too deep where the C stack runs out first (macOS), and
-    # bad JSON where the parser reaches the end of the file first (Linux).
-    for content, codes in ((b"[" * 100_000, ({"too_deep"}, {"bad_json"})), (b"\xff\xfe", ({"bad_json"},))):
+    for content, code in ((b"[" * 100_000, "too_deep"), (b"\xff\xfe", "bad_json")):
         path.write_bytes(content)
         with pytest.raises(RigError) as exc:
             read_catalog(root)
-        assert {i.code for i in exc.value.issues} in codes
+        assert {i.code for i in exc.value.issues} == {code}
     with pytest.raises(RigError) as exc:
         load_catalog(tmp_path / "missing")
     assert [i.code for i in exc.value.issues] == ["unreadable_file"]
+
+
+def test_the_stack_plays_no_part_in_the_depth_limit(tmp_path):
+    root = tmp_path / "data"
+    shutil.copytree(DATA_ROOT, root)
+    (root / "fixture_type" / f"{BAR}.json").write_bytes(b"[" * 100_000)
+    raised: list[BaseException] = []
+
+    def read() -> None:
+        try:
+            read_catalog(root)
+        except BaseException as exc:  # noqa: BLE001  the thread hands any exception to the test
+            raised.append(exc)
+
+    old = threading.stack_size(256 * 1024)
+    try:
+        thread = threading.Thread(target=read)
+        thread.start()
+    finally:
+        threading.stack_size(old)
+    thread.join()
+    assert len(raised) == 1 and isinstance(raised[0], RigError)
+    assert {i.code for i in raised[0].issues} == {"too_deep"}
 
 
 # ---- 8. catalog zero values ----------------------------------------------------

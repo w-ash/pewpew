@@ -33,6 +33,7 @@ from websockets.sync.client import ClientConnection, connect
 from websockets.uri import WebSocketURI, parse_uri
 
 from pewpew.errors import describe_exception
+from pewpew.jsonfile import loads
 from pewpew.sinks.preview import FRAME_HEADER
 
 CLOSE_TIMEOUT_S = 2.0  # how long `close` waits for the engine to answer the close
@@ -196,8 +197,8 @@ class Client:
                 self._cond.notify_all()
             return
         try:
-            message = json.loads(data)
-        except (ValueError, RecursionError):
+            message = loads(data)
+        except ValueError:
             return
         kind = message.get("type") if isinstance(message, dict) else None
         if not isinstance(kind, str):

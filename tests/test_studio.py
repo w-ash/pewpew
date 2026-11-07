@@ -970,16 +970,18 @@ def test_a_chunked_body_over_the_limit_is_413(client):
     assert r.status_code == 413 and "262144" in r.json()["detail"]
 
 
-@pytest.mark.parametrize(
-    "body",
-    [b"{not json", b"[1, 2]", b'"/etc/passwd"', b'{"a":' + b"[" * 100_000 + b"]" * 100_000 + b"}", b"\xff\xfe"],
-)
+DEEP_BODY = b'{"a":' + b"[" * 100_000 + b"]" * 100_000 + b"}"
+
+
+@pytest.mark.parametrize("body", [b"{not json", b"[1, 2]", b'"/etc/passwd"', DEEP_BODY, b"\xff\xfe"])
 def test_every_422_carries_issues(client, body):
     for path in ("/api/compile", "/api/arrangements"):
         r = client.post(path, content=body, headers={"content-type": "application/json"})
         assert r.status_code == 422, (path, r.text[:200])
         issues = r.json()["issues"]
         assert issues and all({"level", "code", "message"} <= set(i) for i in issues)
+        if body == DEEP_BODY:
+            assert [i["code"] for i in issues] == ["too_deep"]
 
 
 # -- the rig's own refusals, and what reaches it -------------------------------------
@@ -988,7 +990,6 @@ def test_every_422_carries_issues(client, body):
 @pytest.mark.parametrize(
     "arrangement",
     [
-        ring(3, start_radius_m=nested(900)),  # pydantic raises RecursionError
         ring(3, start_radius_m=10**400),
         ring(10**400),
         {"format": "pewpew.arrangement", "version": 1, "groups": "/etc/passwd"},
@@ -1003,6 +1004,19 @@ def test_real_rig_errors_are_422_issues_never_500(arrangement):
             ws.receive_text()
             ws.send_text(json.dumps({"type": "bind", "arrangement": arrangement}))
             assert read_until(ws, is_type("refused"))["control"] == "bind"
+            read_until(ws, is_frame)
+
+
+def test_nesting_past_the_limit_never_reaches_the_rig():
+    deep = ring(3, start_radius_m=nested(900))
+    with TestClient(real_app()) as c:
+        r = c.post("/api/compile", json=deep)
+        assert r.status_code == 422 and [i["code"] for i in r.json()["issues"]] == ["too_deep"]
+        with c.websocket_connect("/ws/session") as ws:
+            ws.receive_text()
+            ws.send_text(json.dumps({"type": "bind", "arrangement": deep}))  # left out, as text that is not JSON is
+            ws.send_text(json.dumps({"type": "bind", "arrangement": {"bad": 1}}))
+            assert read_until(ws, is_type("refused"))["issues"][0]["code"] == "bad_format"
             read_until(ws, is_frame)
 
 

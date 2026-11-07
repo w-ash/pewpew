@@ -65,7 +65,7 @@ from pewpew import audit, wled
 from pewpew.audio.net import NodeInfo, node_lines
 from pewpew.command import parsed_by
 from pewpew.health import BoardHealth, extract
-from pewpew.jsonfile import read_or_exit
+from pewpew.jsonfile import loads, read_or_exit
 from pewpew.result import Result
 from pewpew.room.map import load_room
 from pewpew.sinks.ddp import parse_board, parse_target
@@ -153,7 +153,7 @@ def hosts_of(args: argparse.Namespace) -> list[str]:
 
 def _json_object(data: bytes) -> dict | None:
     try:
-        value = json.loads(data)
+        value = loads(data)
     except (ValueError, UnicodeDecodeError):
         return None
     return value if isinstance(value, dict) else None

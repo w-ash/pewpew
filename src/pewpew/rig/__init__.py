@@ -23,6 +23,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from pewpew.jsonfile import TooDeep, loads
 from pewpew.rig.catalog import Catalog, FixtureSpec, load_catalog, read_catalog, validation_issues
 from pewpew.rig.compile import compile_rig, contain
 from pewpew.rig.migrate import migrate as _migrate
@@ -41,8 +42,6 @@ from pewpew.rig.models import (
 
 EXAMPLES = Path(__file__).with_name("examples")
 
-_TOO_DEEP = Issue.error("too_deep", "the arrangement nests too deeply")
-
 
 def load_arrangement(obj: str | os.PathLike[str] | Mapping[str, Any]) -> Arrangement:
     """An arrangement from a dict, JSON text or a file, migrated and validated.
@@ -56,17 +55,15 @@ def load_arrangement(obj: str | os.PathLike[str] | Mapping[str, Any]) -> Arrange
         data = _read(obj)
     if isinstance(data, str):
         try:
-            data = json.loads(data)
+            data = loads(data)
+        except TooDeep as exc:
+            raise RigError([Issue.error("too_deep", str(exc))]) from None
         except ValueError as exc:  # JSONDecodeError, or an integer of too many digits
             raise RigError([Issue.error("bad_json", str(exc))]) from None
-        except RecursionError:
-            raise RigError([_TOO_DEEP]) from None
-    data = _migrate(data)
+    data = _migrate(data)  # refuses nesting past MAX_DEPTH, so json.dumps does not recurse too far
     try:
         # JSON mode, so that strict mode takes a JSON array for a tuple.
         text = json.dumps(data)
-    except RecursionError:
-        raise RigError([_TOO_DEEP]) from None
     except (TypeError, ValueError) as exc:
         raise RigError([Issue.error("bad_json", f"the arrangement is not JSON data: {exc}")]) from None
     try:

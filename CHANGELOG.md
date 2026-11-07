@@ -1188,6 +1188,12 @@ series (batch mode).
 
 ### Fixed
 
+- Refuse JSON that nests arrays and objects more than 64 deep on every
+  platform (`pewpew.jsonfile.MAX_DEPTH`), before the parser runs. Python's
+  parser stops only when the machine stack runs out, so before, the same
+  catalog file, arrangement or studio body was refused on macOS and read on
+  Linux. The studio answers such a body with a 422 of code `too_deep`, and
+  a catalog file or arrangement gives the `too_deep` issue.
 - Name the knobs of a pattern file whose class is a program (`class
   Tide(ProgramPattern)`) `layers.<layer>.<node>.<arg>` in a look's checks,
   a push's checks and `fx explain`, as the running aura names them, so a

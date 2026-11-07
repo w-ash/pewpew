@@ -21,7 +21,7 @@ import logging
 import os
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -30,11 +30,13 @@ from fastapi import Body, FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import HTTPConnection
 
+from pewpew.jsonfile import TooDeep, loads
 from pewpew.load import gallery
 from pewpew.params import ParamSet
 from pewpew.rig import Catalog, CompiledRig, compile_rig, load_arrangement, load_catalog
@@ -125,11 +127,32 @@ def _error(code: str, message: str) -> dict:
 
 
 def _unreadable(exc: BaseException) -> str:
-    if isinstance(exc, RecursionError):
-        return "the JSON is nested too deeply"
     if isinstance(exc, OverflowError):
         return "a number in the JSON is too large"
     return str(exc)[:300] or "invalid JSON"
+
+
+class _BodyRequest(Request):
+    """A request that parses its JSON body with `pewpew.jsonfile.loads`, so
+    nesting past `MAX_DEPTH` is refused on every platform."""
+
+    async def json(self) -> Any:
+        if not hasattr(self, "_json"):
+            self._json = loads(await self.body())
+        return self._json
+
+
+class _BodyRoute(APIRoute):
+    """A route that gives its endpoint a `_BodyRequest`. FastAPI wraps an
+    error of the body parser in a 400, which `http_error` answers."""
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handler = super().get_route_handler()
+
+        async def route_handler(request: Request) -> Response:
+            return await handler(_BodyRequest(request.scope, request.receive))
+
+        return route_handler
 
 
 def _issues_response(issues: list[dict]) -> JSONResponse:
@@ -258,7 +281,7 @@ def create_app(
             raise Busy(503, "the server is busy compiling; try again shortly", 1.0)
         try:
             rig = compile_fn(arrangement, catalog_of())
-        except (ValueError, RecursionError, OverflowError) as exc:  # RigError and ValidationError are ValueErrors
+        except (ValueError, OverflowError) as exc:  # RigError and ValidationError are ValueErrors
             issues = [_issue(i) for i in getattr(exc, "issues", ())]
             raise CompileFailure(issues or [_error("invalid", _unreadable(exc))]) from None
         finally:
@@ -302,6 +325,7 @@ def create_app(
         openapi_url="/api/openapi.json",
         generate_unique_id_function=lambda route: route.name,
     )
+    app.router.route_class = _BodyRoute
     app.add_middleware(BodyLimit, limit=limits.max_body_bytes)
     app.state.sessions = registry
     app.state.admission = admission
@@ -318,8 +342,9 @@ def create_app(
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> Response:
         # FastAPI answers 400 to a body its JSON parser gave up on, such as one nested too deeply.
-        if exc.status_code == 400 and isinstance(exc.__cause__, (ValueError, RecursionError)):
-            return _issues_response([_error("json_invalid", _unreadable(exc.__cause__))])
+        if exc.status_code == 400 and isinstance(exc.__cause__, ValueError):
+            code = "too_deep" if isinstance(exc.__cause__, TooDeep) else "json_invalid"
+            return _issues_response([_error(code, _unreadable(exc.__cause__))])
         return await http_exception_handler(request, exc)
 
     # -- HTTP ------------------------------------------------------------------
@@ -487,8 +512,8 @@ class _Visitor:
                     await self.ws.close(code=1009)
                     return
                 try:
-                    msg = json.loads(text)
-                except (ValueError, RecursionError):
+                    msg = loads(text)
+                except ValueError:  # not JSON, or nested too deep
                     continue
                 if not isinstance(msg, dict):
                     continue

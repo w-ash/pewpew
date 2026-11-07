@@ -53,6 +53,7 @@ from typing import Any, Protocol
 
 from pewpew import audit, wled
 from pewpew.audio.wire import FIRMWARE
+from pewpew.jsonfile import loads
 
 HEADER = b"IMPROV"
 VERSION = 1
@@ -311,7 +312,7 @@ def _post(url: str, body: dict[str, Any]) -> Any:
         url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
     )
     with urllib.request.urlopen(req, timeout=5) as resp:
-        return json.loads(resp.read() or b"null")
+        return loads(resp.read() or b"null")
 
 
 def set_name(

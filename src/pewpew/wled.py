@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import errno
 import ipaddress
-import json
 import socket
 import threading
 import time
@@ -27,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from pewpew.errors import scrub
+from pewpew.jsonfile import loads
 from pewpew.sinks.ddp import DDP_PORT
 
 TIMEOUT_S = 2.0  # per request
@@ -50,7 +50,7 @@ def fetch_info(host: str, timeout: float = TIMEOUT_S) -> dict:
                 raise ValueError("the reply is too large for /json/info")
             if time.monotonic() > deadline:
                 raise TimeoutError("the reply took too long")
-        return json.loads(body)
+        return loads(body)
 
 
 def resolve_name(name: str) -> str:

@@ -79,6 +79,7 @@ from websockets.http11 import Request, Response
 from websockets.sync.server import Server, ServerConnection, serve
 
 from pewpew.errors import Refusal
+from pewpew.jsonfile import loads
 from pewpew.room.map import IMAGE_TYPES
 from pewpew.sinks.base import DISPLAY_GAMMA, Control, RateGate, SinkDriver, to_display_u8
 
@@ -557,8 +558,8 @@ class PreviewSink:
         if not isinstance(message, str):
             return
         try:
-            request = json.loads(message)
-        except (ValueError, RecursionError):  # RecursionError: nesting too deep
+            request = loads(message)
+        except ValueError:  # not JSON, or nested too deep
             return
         if not isinstance(request, dict):
             return
