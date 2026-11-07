@@ -1,8 +1,9 @@
-import { useRef, type CSSProperties, type ReactNode, type Ref } from "react";
+import { useId, useRef, type CSSProperties, type ReactNode, type Ref } from "react";
 import { edited, fadeSeconds, liveLook, lookStatus, unsaved, type LookItem, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useSender } from "../wire/store";
-import type { Disclosure } from "../design/Disclosure";
+import { Button } from "../design/Button";
+import { DisclosureNote, type Disclosure } from "../design/Disclosure";
 import { Icon, type IconName } from "../design/Icon";
 import { Tile } from "../design/Tile";
 import { TileRow } from "../design/TileRow";
@@ -46,6 +47,9 @@ export function MarkSign({ mark }: { mark: Pick<Mark, "icon" | "slashed"> }) {
   );
 }
 
+/** The id of the list of every look (`AllLooks`), which "all N ›" controls. */
+export const ALL_LOOKS = "all-looks";
+
 /** The keys that press the first nine looks, in file order: the deck shows those nine. */
 export const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
@@ -58,8 +62,19 @@ export function dropLine(pressed: string, looks: LooksState): string {
   return `press ${pressed} again to drop ${looks.current ? `the edits to ${look}` : `${look} and its edits`}`;
 }
 
+/** What a press on a look does, by its name. */
+export type PlayLook = (name: string) => void;
+
+/** A press on a saved look: recall it from the looks file over the fade chosen in the deck. */
+export function useRecall(): PlayLook {
+  const sender = useSender();
+  const [fade] = useFade();
+  return (name) => sender.send({ type: "recall", name, fade: fadeSeconds(fade) });
+}
+
 interface LookTileProps {
   readonly looks: LooksState;
+  readonly play: PlayLook;
   readonly triggers: TriggersState | null;
   readonly item: LookItem;
   /** Where a first press over unsaved edits says what the second drops. */
@@ -74,14 +89,12 @@ interface LookTileProps {
   readonly children?: ReactNode;
 }
 
-/** One saved look: a press recalls it over the chosen fade. The one playing is amber with a ●. Over unsaved
+/** One look: a press plays it (`play`: a saved look's recalls it over the chosen fade). The one playing is amber with a ●. Over unsaved
  * edits a recall takes two presses, as it would lose them, and the first opens `note` on what the second
  * does, until it disarms. A look fading in fills a bar along its foot. While a cue holds a look, that one is
  * held, and ↩ marks the current one, which the aura returns to, in its corner: neither moves it. When some
  * are left out of shuffle, ↻ marks the fewer: those it plays, or, slashed, those it leaves out. */
-export function LookTile({ looks, triggers, item, note, flat, tabIndex, hotkey, ref, children }: LookTileProps) {
-  const sender = useSender();
-  const [fade] = useFade();
+export function LookTile({ looks, play, triggers, item, note, flat, tabIndex, hotkey, ref, children }: LookTileProps) {
   const st = lookStatus(looks, triggers, item.name);
   const marks = cycleMarks(looks);
   const marked = (marks === "in" && item.cycle) || (marks === "out" && !item.cycle);
@@ -106,7 +119,7 @@ export function LookTile({ looks, triggers, item, note, flat, tabIndex, hotkey, 
       data-returns={st.returnsTo || undefined}
       style={{ "--progress": `${Math.round((st.fading ?? 0) * 100)}%` } as CSSProperties}
       aria-label={[item.name, marked && (item.cycle ? "in shuffle" : "not in shuffle"), st.returnsTo && "returns here after the cue"].filter(Boolean).join(", ")}
-      onPress={() => sender.send({ type: "recall", name: item.name, fade: fadeSeconds(fade) })}
+      onPress={() => play(item.name)}
       name={item.name}
     >
       {marked && <MarkSign mark={{ icon: "cycle", slashed: !item.cycle }} />}
@@ -123,7 +136,7 @@ export function LookTile({ looks, triggers, item, note, flat, tabIndex, hotkey, 
 /** The first nine saved looks, in file order, as tiles (`LookTile`), under the deck's "looks" caption
  * (`labelledBy`); the list of every look holds the rest. The row is a toolbar, one tab stop: the arrow keys,
  * Home and End move between its looks. 1–9 press a look as a tap does. */
-export function Looks({ looks, triggers, note, labelledBy }: { looks: LooksState; triggers: TriggersState | null; note: Disclosure; labelledBy: string }) {
+export function Looks({ looks, play, triggers, note, labelledBy }: { looks: LooksState; play: PlayLook; triggers: TriggersState | null; note: Disclosure; labelledBy: string }) {
   const row = useRef<HTMLDivElement>(null);
   const liveName = liveLook(looks, triggers);
   const live = useInView<HTMLButtonElement>(liveName);
@@ -147,6 +160,7 @@ export function Looks({ looks, triggers, note, labelledBy }: { looks: LooksState
           key={item.name}
           ref={item.name === liveName ? live : undefined}
           looks={looks}
+          play={play}
           triggers={triggers}
           item={item}
           note={note}
@@ -155,5 +169,53 @@ export function Looks({ looks, triggers, note, labelledBy }: { looks: LooksState
         />
       ))}
     </TileRow>
+  );
+}
+
+interface LooksGroupProps {
+  readonly looks: LooksState;
+  readonly play: PlayLook;
+  readonly triggers: TriggersState | null;
+  /** The note a first press over unsaved edits opens. */
+  readonly note: Disclosure;
+  /** Whether the list of every look is open. */
+  readonly allOpen?: boolean;
+  /** Open or close the list of every look; without it there is no "all N ›". */
+  onAll?(): void;
+  /** What ends the row (the deck's "⋯"). */
+  readonly ending?: ReactNode;
+  /** What opens under the row (the deck's "⋯" well). */
+  readonly more?: ReactNode;
+}
+
+/** The looks as the deck shows them: a "looks" caption, the first nine as tiles (`Looks`), then "all N ›" to
+ * the list of every look past nine, then `ending`, `more` under the row, and `note`. */
+export function LooksGroup({ looks, play, triggers, note, allOpen, onAll, ending, more }: LooksGroupProps) {
+  const captionId = useId();
+  const hidden = looks.items.length - KEYS.length;
+  return (
+    <div className="deck-group looks-group">
+      <span id={captionId} className="t-heading looks-caption">
+        looks
+      </span>
+      <div className="row looks-row">
+        <Looks looks={looks} play={play} triggers={triggers} note={note} labelledBy={captionId} />
+        {hidden > 0 && onAll && (
+          <Button
+            variant="tertiary"
+            className="all-looks-button"
+            aria-label={`all ${looks.items.length} looks`}
+            aria-expanded={!!allOpen}
+            aria-controls={allOpen ? ALL_LOOKS : undefined}
+            onPress={onAll}
+          >
+            all {looks.items.length} ›
+          </Button>
+        )}
+        {ending}
+      </div>
+      {more}
+      <DisclosureNote disclosure={note} live />
+    </div>
   );
 }

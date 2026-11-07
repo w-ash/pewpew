@@ -1,11 +1,5 @@
-import { Variety } from "@pewpew/page/deck";
-import {
-  Block,
-  DisclosureNote,
-  Tile,
-  TileRow,
-  useDisclosure,
-} from "@pewpew/page/design";
+import { AllLooks, LooksGroup, listedLooks, Variety } from "@pewpew/page/deck";
+import { DisclosureNote, useDisclosure } from "@pewpew/page/design";
 import { LookKnobs, LookSignals } from "@pewpew/page/params";
 import {
   ADD,
@@ -13,77 +7,108 @@ import {
   LayerList,
   useLayerSelection,
 } from "@pewpew/page/stack";
-import { useSender, useStandingAura, useWire } from "@pewpew/page/wire";
-import { useState } from "react";
+import {
+  type ClientMessage,
+  type Sender,
+  useStandingAura,
+  useWire,
+  WireContext,
+} from "@pewpew/page/wire";
+import { useContext, useState } from "react";
 import { useLooks } from "@/api/queries";
-import type { LookDocument } from "@/api/types";
 import { useSession } from "@/store/session";
 
-/** The example looks (`GET /api/looks`), a tile each, in a row that is one tab stop: a press fades the
- * session to it over its own fade, and waits for the engine's answer. */
-function ExampleLooks({ looks }: { looks: Record<string, LookDocument> }) {
-  const sender = useSender();
-  const connected = useWire((s) => s.connected);
-  const [busy, setBusy] = useState<string | null>(null);
-  const play = (name: string) => {
-    const look = looks[name];
-    if (!look || busy) return;
-    setBusy(name);
-    void sender
-      .ask({ type: "look", look, fade: null })
-      .finally(() => setBusy(null));
-  };
-  return (
-    <TileRow className="looks" label="example looks">
-      {Object.keys(looks).map((name, i) => (
-        <Tile
-          key={name}
-          name={name}
-          tabIndex={i === 0 ? 0 : -1}
-          busy={busy === name}
-          aria-disabled={
-            !connected || (busy !== null && busy !== name) || undefined
-          }
-          onPress={() => play(name)}
-        />
-      ))}
-    </TileRow>
-  );
-}
+/** The look each session starts in (docs/studio/contracts.md, "WebSocket"). */
+const FIRST = "tide";
 
 /**
  * The session's look, edited as the control page edits one: the example
- * looks, surprise me and vary this, then the look's main knobs, its layers,
- * each open with its own knobs, and its modulators. "+ layer" opens the cards
- * a layer is added from in the editor's place. Nothing is saved: the session
- * has no looks file.
+ * looks as the deck shows saved looks, the first nine as tiles and "all N ›"
+ * to the rest; surprise me and vary this; then the look's main knobs, its
+ * layers, each open with its own knobs, and its modulators. The list of
+ * every look and the cards a layer is added from open in the editor's place.
+ * A press on an example sends it whole, over its own fade. The example last
+ * started is marked as playing, `tide` on each new session, until a surprise
+ * or a variation plays. Nothing is saved: the session has no looks file.
  */
 export function EffectPanel() {
+  const wire = useContext(WireContext);
+  if (!wire) throw new Error("no WireContext");
+  const { store, sender } = wire;
   const aura = useStandingAura();
-  const looks = useLooks();
+  const examples = useLooks();
   const watts = useSession((s) => s.watts);
+  const session = useWire((s) => s.session);
   const selection = useLayerSelection();
   const [adding, setAdding] = useState(false);
-  const made = useDisclosure();
+  const [allOpen, setAllOpen] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const [marked, setMarked] = useState({
+    session,
+    name: FIRST as string | null,
+  });
+  const looksNote = useDisclosure();
+  const madeNote = useDisclosure();
+  const current = marked.session === session ? marked.name : FIRST;
+
+  /** Whether the engine took `msg`, once `asked` settles: no refusal of its kind came meanwhile. */
+  const took = async (msg: ClientMessage, asked: Promise<void>) => {
+    const before = store.getState().refusals[msg.type]?.seq;
+    await asked;
+    return store.getState().refusals[msg.type]?.seq === before;
+  };
+  const mark = (name: string | null) =>
+    setMarked({ session: store.getState().session, name });
+  const play = (name: string) => {
+    const look = examples.data?.[name];
+    if (!look || pending) return;
+    setPending(name);
+    const msg: ClientMessage = { type: "look", look, fade: null };
+    void took(msg, sender.ask(msg))
+      .then((ok) => ok && mark(name))
+      .finally(() => setPending(null));
+  };
+  // Surprise me and vary this, which drop the mark once what they made plays.
+  const making: Sender = {
+    send: (msg) => sender.send(msg),
+    sendLatest: (msg) => sender.sendLatest(msg),
+    ask: (msg) => {
+      const asked = sender.ask(msg);
+      void took(msg, asked).then((ok) => ok && mark(null));
+      return asked;
+    },
+  };
+  const looks = listedLooks(Object.keys(examples.data ?? {}), current, pending);
 
   return (
     <div className="studio-panel">
-      <Block className="fields" title="looks">
-        {looks.data ? (
-          <ExampleLooks looks={looks.data} />
+      <div className="fields">
+        {examples.data ? (
+          <LooksGroup
+            looks={looks}
+            play={play}
+            triggers={null}
+            note={looksNote}
+            allOpen={allOpen}
+            onAll={() => setAllOpen(!allOpen)}
+          />
         ) : (
           <p className="note">
-            {looks.isError
+            {examples.isError
               ? "The example looks could not be loaded."
               : "Loading the example looks…"}
           </p>
         )}
         {aura && (
-          <div className="row made-row">
-            <Variety aura={aura} looks={aura.looks} note={made} />
+          <div className="deck-group">
+            <div className="row made-row">
+              <WireContext.Provider value={{ store, sender: making }}>
+                <Variety aura={aura} looks={aura.looks} note={madeNote} />
+              </WireContext.Provider>
+            </div>
+            <DisclosureNote disclosure={madeNote} live />
           </div>
         )}
-        <DisclosureNote disclosure={made} live />
         {watts !== null && (
           <p className="note">
             <span className="t-value readout" data-testid="effect-watts">
@@ -92,9 +117,17 @@ export function EffectPanel() {
             now
           </p>
         )}
-      </Block>
+      </div>
 
-      {adding && (
+      {allOpen && (
+        <AllLooks
+          looks={looks}
+          play={play}
+          triggers={null}
+          onClose={() => setAllOpen(false)}
+        />
+      )}
+      {adding && !allOpen && (
         <AddLayerPanel
           above={selection.id}
           onClose={() => {
@@ -108,8 +141,8 @@ export function EffectPanel() {
           }}
         />
       )}
-      {/* The editor stays mounted under the cards, so what is open in it stays open. */}
-      <div hidden={adding}>
+      {/* The editor stays mounted under a panel, so what is open in it stays open. */}
+      <div hidden={adding || allOpen}>
         {aura ? (
           <section className="look-region" aria-label="Look editor">
             <LookKnobs />

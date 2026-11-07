@@ -21,4 +21,3 @@ export { StepStatus } from "./design/StepStatus";
 export { Switch } from "./design/Switch";
 export { Tile } from "./design/Tile";
 export { useMedia } from "./design/useMedia";
-export { TileRow } from "./design/TileRow";

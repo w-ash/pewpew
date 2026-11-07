@@ -1,6 +1,6 @@
 import { Splitter } from "@ark-ui/react/splitter";
 import { useEffect, useId, useState } from "react";
-import { useWire } from "../wire/store";
+import { useStandingAura, useWire } from "../wire/store";
 import { onEngineHost } from "../design/engineHost";
 import { Panel } from "../design/Panel";
 import { StepStatus } from "../design/StepStatus";
@@ -12,6 +12,7 @@ import { FINE_POINTER, useMedia, WIDE } from "../design/useMedia";
 import { AllLooks } from "../deck/AllLooks";
 import { Deck } from "../deck/Deck";
 import { LookPanel } from "../deck/LookPanel";
+import { useRecall } from "../deck/Looks";
 import { LayoutProvider, useLayoutMode } from "../layout/LayoutMode";
 import { LayoutTools } from "../layout/LayoutTools";
 import { LookSignals } from "../params/ParamPanel";
@@ -32,6 +33,13 @@ export function App() {
       <Shell />
     </LayoutProvider>
   );
+}
+
+/** Every look of the looks file, which a press recalls. */
+function BookLooks({ onClose }: { onClose(): void }) {
+  const aura = useStandingAura();
+  const recall = useRecall();
+  return <AllLooks looks={aura?.looks ?? null} play={recall} triggers={aura?.triggers ?? null} onClose={onClose} />;
 }
 
 /** Where focus goes when the look changes under it and its control is gone or waits: the note on a
@@ -117,7 +125,7 @@ function Shell() {
   const panel = slotPanel === "health" ? (
     <HealthPanel onClose={() => setSlotPanel(null)} />
   ) : slotPanel === "looks" ? (
-    <AllLooks onClose={() => setSlotPanel(null)} />
+    <BookLooks onClose={() => setSlotPanel(null)} />
   ) : mode.on && !wide ? (
     <Panel title="layout" onClose={() => mode.setOn(false)}>
       <LayoutTools />

@@ -51,10 +51,8 @@ test("loads the golden rings against the mock and streams frames onto them", asy
 
   // The Effect tab is the control page's look editor, on the session's tide.
   await page.getByRole("tab", { name: "Effect" }).click();
-  const looks = page.getByRole("toolbar", { name: "example looks" });
-  await expect(
-    looks.getByRole("button", { name: "tide", exact: true }),
-  ).toBeVisible();
+  const looks = page.getByRole("toolbar", { name: "looks" });
+  await expect(looks.getByRole("button")).toHaveCount(9);
   await expect(page.getByRole("heading", { name: /^layers/ })).toBeVisible();
   const freq = page.getByRole("spinbutton", { name: /freq/i }).first();
   const before = await freq.inputValue();
@@ -63,8 +61,18 @@ test("loads the golden rings against the mock and streams frames onto them", asy
     .first()
     .click();
   await expect(freq).not.toHaveValue(before);
-  // A look is sent whole, and the editor follows it.
-  await looks.getByRole("button", { name: "warp-lane" }).click();
+  // The rest of the examples are in the list of every look, tide marked; a look is sent whole.
+  await page.getByRole("button", { name: "all 13 looks" }).click();
+  const all = page.getByRole("region", { name: "looks" });
+  await expect(
+    all.getByRole("button", { name: "tide", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await all.getByRole("button", { name: "warp-lane" }).click();
+  await expect(all.getByRole("button", { name: "warp-lane" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await all.getByRole("button", { name: "close looks" }).click();
   await expect(page.getByRole("heading", { name: /^lane ·/ })).toBeVisible();
   await page.getByRole("button", { name: "surprise me" }).click();
   await expect(page.getByRole("heading", { name: /^lane ·/ })).toBeHidden();

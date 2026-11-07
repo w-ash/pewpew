@@ -1,7 +1,7 @@
 import type { ClientMessage, Sender, ServerMessage } from "@pewpew/page/wire";
 import { WireContext, WireStore } from "@pewpew/page/wire";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createQueryClient } from "@/api/queries";
@@ -35,15 +35,55 @@ function renderPanel() {
 }
 
 describe("EffectPanel", () => {
-  it("plays an example look whole, over its own fade", async () => {
+  it("shows the example looks as the deck shows saved looks, and plays one whole, over its own fade", async () => {
     const { sent } = renderPanel();
-    const looks = await screen.findByRole("toolbar", { name: "example looks" });
+    const looks = await screen.findByRole("toolbar", { name: "looks" });
+    // The first nine, then the rest in the list of every look.
+    expect(within(looks).getAllByRole("button")).toHaveLength(9);
     await userEvent.click(
-      within(looks).getByRole("button", { name: "warp-lane" }),
+      within(looks).getByRole("button", { name: "copper-tide" }),
     );
     expect(sent).toEqual([
-      { type: "look", look: MOCK_LOOKS["warp-lane"], fade: null },
+      { type: "look", look: MOCK_LOOKS["copper-tide"], fade: null },
     ]);
+    await waitFor(() =>
+      expect(
+        within(looks).getByRole("button", { name: "copper-tide" }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+  });
+
+  it("marks tide at the start, in the list of every look, until a surprise plays", async () => {
+    const { sent } = renderPanel();
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^all \d+ looks$/ }),
+    );
+    const all = screen.getByRole("region", { name: "looks" });
+    const tide = within(all).getByRole("button", { name: "tide" });
+    expect(tide).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(
+      within(all).getByRole("button", { name: "warp-lane" }),
+    );
+    expect(sent.at(-1)).toEqual({
+      type: "look",
+      look: MOCK_LOOKS["warp-lane"],
+      fade: null,
+    });
+    await waitFor(() =>
+      expect(
+        within(all).getByRole("button", { name: "warp-lane" }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(tide).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(within(all).getByRole("button", { name: /close/ }));
+    await userEvent.click(screen.getByRole("button", { name: /surprise me/ }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /^all \d+ looks$/ }),
+    );
+    const again = screen.getByRole("region", { name: "looks" });
+    expect(within(again).queryAllByRole("button", { pressed: true })).toEqual(
+      [],
+    );
   });
 
   it("shows the running look's main knobs and layers, and sets a knob by its address", async () => {

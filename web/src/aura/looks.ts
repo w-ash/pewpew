@@ -210,3 +210,13 @@ export const FADES: readonly { readonly value: string; readonly label: string }[
 export function fadeSeconds(choice: string): number | null {
   return choice === "stored" ? null : Number(choice);
 }
+
+/** The looks state of `names`, looks that are no looks file (the studio's examples): `current` the one marked as
+ * playing, `pending` the one asked for; none in shuffle, changed, saved or made. */
+export function listedLooks(names: readonly string[], current: string | null, pending: string | null): LooksState {
+  return {
+    items: names.map((name) => ({ name, cycle: false, fade: 0 })),
+    current, changed: false, fading: null, progress: null, pending, cycling: false, idle: null, dwell: [0, 0],
+    made: null, offered: null, saved: null,
+  };
+}

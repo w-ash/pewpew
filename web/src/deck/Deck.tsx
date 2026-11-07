@@ -2,15 +2,14 @@ import { useId, useRef, useState } from "react";
 import { shuffleLine } from "../aura/looks";
 import { armable } from "../aura/triggers";
 import { useStandingAura } from "../wire/store";
-import { Button, IconButton } from "../design/Button";
+import { IconButton } from "../design/Button";
 import { DisclosureNote, useDisclosure } from "../design/Disclosure";
 import { useDismiss } from "../design/useDismiss";
 import { useMedia, WIDE } from "../design/useMedia";
-import { ALL_LOOKS } from "./AllLooks";
 import { Blackout } from "./Blackout";
 import { useFade } from "./fade";
 import { FadeSelect } from "./FadeSelect";
-import { KEYS, Looks, looksAbout, MarkSign } from "./Looks";
+import { looksAbout, LooksGroup, MarkSign, useRecall } from "./Looks";
 import { Master } from "./Master";
 import { CuesOn, cuesAbout, CuesRow } from "./Triggers";
 import { Variety } from "./Variety";
@@ -38,10 +37,10 @@ export function Deck({ allOpen, onAll }: Props) {
   const wide = useMedia(WIDE);
   const deck = useRef<HTMLElement>(null);
   const moreId = useId();
-  const captionId = useId();
   const moreButton = useRef<HTMLButtonElement>(null);
   const moreNote = useRef<HTMLDivElement>(null);
   const looksNote = useDisclosure();
+  const recall = useRecall();
   const madeNote = useDisclosure();
   const [fade, setFade] = useFade();
   const [more, setMore] = useState(false);
@@ -105,31 +104,18 @@ export function Deck({ allOpen, onAll }: Props) {
       }
     />
   );
-  const hidden = looks ? looks.items.length - KEYS.length : 0;
   const saved = looks && (
-    <div key="looks" className="deck-group looks-group">
-      <span id={captionId} className="t-heading looks-caption">
-        looks
-      </span>
-      <div className="row looks-row">
-        <Looks looks={looks} triggers={triggers} note={looksNote} labelledBy={captionId} />
-        {hidden > 0 && onAll && (
-          <Button
-            variant="tertiary"
-            className="all-looks-button"
-            aria-label={`all ${looks.items.length} looks`}
-            aria-expanded={!!allOpen}
-            aria-controls={allOpen ? ALL_LOOKS : undefined}
-            onPress={onAll}
-          >
-            all {looks.items.length} ›
-          </Button>
-        )}
-        {ending}
-      </div>
-      {moreWell}
-      <DisclosureNote disclosure={looksNote} live />
-    </div>
+    <LooksGroup
+      key="looks"
+      looks={looks}
+      play={recall}
+      triggers={triggers}
+      note={looksNote}
+      allOpen={allOpen}
+      onAll={onAll}
+      ending={ending}
+      more={moreWell}
+    />
   );
   const made = looks && (
     <div key="made" className="deck-group">

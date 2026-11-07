@@ -5,4 +5,4 @@
 
 export { parseFrame, type ClientMessage, type Frame, type Sender, type ServerMessage, type TypedMessage } from "./wire/protocol";
 export { Socket } from "./wire/socket";
-export { useRefusalExcept, useSender, useStandingAura, useWire, WireContext, WireStore } from "./wire/store";
+export { useRefusalExcept, useStandingAura, useWire, WireContext, WireStore } from "./wire/store";
