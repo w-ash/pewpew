@@ -1,1 +1,5 @@
 .vitest/
+# The studio build, and the studio e2e run
+dist/
+test-results/
+playwright-report/

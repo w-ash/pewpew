@@ -159,7 +159,9 @@ def test_the_page_never_reads_the_capabilities():
     """`hello.capabilities` is for clients outside the package: the page
     ships with its engine and never branches on it (ADR-020 amendment
     "capabilities"). Only the protocol's description names it."""
-    files = sorted(PAGE_SOURCE.rglob("*.ts")) + sorted(PAGE_SOURCE.rglob("*.tsx"))
+    studio = PAGE_SOURCE / "studio"  # the hosted studio's source, beside the page's
+    sources = PAGE_SOURCE.rglob("*.ts*")
+    files = sorted(f for f in sources if f.suffix in {".ts", ".tsx"} and not f.is_relative_to(studio))
     assert len(files) > 10
     readers = [f.relative_to(PAGE_SOURCE).as_posix() for f in files if "capabilities" in f.read_text()]
     assert readers == ["wire/protocol.ts"]

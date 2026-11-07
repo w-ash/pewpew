@@ -1,12 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin, type UserConfig } from "vite";
 import type { BrowserCommand } from "vitest/node";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import { upgradeAllowed } from "./dev-origin.ts";
+
+// Two pages from one source tree. The default mode is the engine's control page
+// (index.html), built into one file the engine serves. The modes `studio` and
+// `mock` are the hosted studio (studio.html), built into dist/studio; `mock`
+// serves it against msw's mock server instead of a running studio.
 
 // The build stamp, from the same function tests/test_page_build.py checks.
 function buildStamp(): Plugin {
@@ -45,10 +51,88 @@ function inlineLicenses(): Plugin {
   };
 }
 
+/** The studio's page: served for `/` and a share link `/a/<id>` in dev, and
+ * built as index.html, the name the studio server serves (studio/app.py). */
+function studioPage(): Plugin {
+  return {
+    name: "pewpew-studio-page",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = req.url?.split("?")[0];
+        if (path === "/" || path?.startsWith("/a/")) req.url = "/studio.html";
+        next();
+      });
+    },
+    generateBundle: {
+      order: "post",
+      handler(_, bundle) {
+        const page = bundle["studio.html"];
+        if (page?.type !== "asset") throw new Error("no studio page");
+        delete bundle["studio.html"];
+        this.emitFile({ type: "asset", fileName: "index.html", source: page.source });
+      },
+    },
+  };
+}
+
+/** Serve msw's service worker in `--mode mock` dev only, so it never reaches dist/. */
+function mockServiceWorker(): Plugin {
+  const file = createRequire(import.meta.url).resolve("msw/mockServiceWorker.js");
+  return {
+    name: "pewpew-mock-service-worker",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/mockServiceWorker.js", (_req, res) => {
+        res.setHeader("Content-Type", "text/javascript");
+        res.end(readFileSync(file));
+      });
+    },
+  };
+}
+
 // Moves the pointer off the page, so it lies over nothing a test renders (test/setup.ts).
 const pointerAway: BrowserCommand = ({ page }) => page.mouse.move(-1, -1);
 
+// A component the React Compiler cannot compile fails the build, so none
+// silently goes without memoization.
+const compiledReact = () => [react(), babel({ presets: [reactCompilerPreset({ panicThreshold: "all_errors" })] })];
+
+/** The hosted studio: a single-page app with its three.js chunk apart, beside a studio server. */
+function studio(mode: string): UserConfig {
+  const server = "http://127.0.0.1:8000";
+  return {
+    plugins: [compiledReact(), studioPage(), mode === "mock" && mockServiceWorker()],
+    server: {
+      host: "127.0.0.1",
+      port: 5173,
+      // The default arrangement is imported from the rig package's examples.
+      fs: { allow: [".", "../src/pewpew/rig/examples"] },
+      proxy:
+        mode === "studio"
+          ? { "/api": { target: server, changeOrigin: true }, "/ws": { target: server, ws: true, changeOrigin: true } }
+          : undefined,
+    },
+    build: {
+      outDir: "dist/studio",
+      rolldownOptions: {
+        input: "studio.html",
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: "three-vendor", test: /[\\/]node_modules[\\/](three|three-stdlib|@react-three)[\\/]/, priority: 30 },
+              { name: "react-vendor", test: /[\\/]node_modules[\\/](react|react-dom|scheduler|@tanstack|zustand)[\\/]/, priority: 20 },
+            ],
+          },
+        },
+      },
+      // The three.js chunk is about 1 MB minified (277 kB gzipped) and loads once.
+      chunkSizeWarningLimit: 1100,
+    },
+  };
+}
+
 export default defineConfig(({ command, mode }) => {
+  if (mode === "studio" || mode === "mock") return studio(mode);
   // The dev server proxies to a running engine, e.g.
   // PEWPEW_ENGINE=http://127.0.0.1:52011 pnpm dev
   const engine = process.env.PEWPEW_ENGINE;
@@ -56,9 +140,7 @@ export default defineConfig(({ command, mode }) => {
     throw new Error("set PEWPEW_ENGINE to the engine's preview URL, e.g. http://127.0.0.1:52011");
   }
   return {
-    // A component the React Compiler cannot compile fails the build, so none
-    // silently goes without memoization.
-    plugins: [react(), babel({ presets: [reactCompilerPreset({ panicThreshold: "all_errors" })] }), viteSingleFile(), buildStamp(), inlineLicenses()],
+    plugins: [compiledReact(), viteSingleFile(), buildStamp(), inlineLicenses()],
     // Every dependency found up front: one found mid-run reloads the test page
     // with a second copy of React.
     optimizeDeps: { entries: ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}"] },

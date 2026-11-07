@@ -740,6 +740,13 @@ series (batch mode).
 
 ### Changed
 
+- One front-end package, `web/`, builds both pages: the control page into
+  `src/pewpew/sinks/web/index.html` and the studio (`web/src/studio/`)
+  into `web/dist/studio` (`vite build --mode studio`; `--mode mock` serves
+  it against mocks). One toolchain: TypeScript at the page's strictness,
+  Vitest browser mode in Chromium and WebKit for both pages' unit tests,
+  and the React Compiler on the studio too. `studio-web/`, Biome, jsdom and
+  Testing Library are gone, and `just studio` is folded into `just web`.
 - The studio runs the aura (ADR-025): each session builds the pipeline
   `run` builds (`pewpew.aura.pipeline.build_aura_pipeline`), starts in
   `examples/tide.look.json`'s look, takes every aura request

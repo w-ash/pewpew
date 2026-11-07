@@ -33,8 +33,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      # The pnpm workspace (web/, studio-web/): pnpm at the version the root
-      # package.json pins, and the two browsers web/'s tests run in.
+      # The pnpm workspace (web/: the control page and the studio): pnpm at
+      # the version the root package.json pins, and the two browsers web/'s
+      # tests run in.
       - uses: pnpm/action-setup@v6.1.0
         with:
           package_json_file: package.json

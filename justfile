@@ -1,7 +1,7 @@
 # Checks for pewpew. CI (.github/workflows/ci.yml) runs `just check`.
 
 # Every gate CI runs.
-check: lint sources typecheck web studio test
+check: lint sources typecheck web test
 
 lint:
     uv run ruff check .
@@ -13,8 +13,10 @@ sources:
 typecheck:
     uv run basedpyright
 
-# The preview page: install the workspace from its lockfile, type-check and test
-# the source in web/, then build it into src/pewpew/sinks/web/index.html.
+# Both pages in web/: install from the lockfile, type-check, run the unit tests
+# (Chromium and WebKit), then build the control page into
+# src/pewpew/sinks/web/index.html and the studio into web/dist/studio.
+# The studio's E2E (`pnpm -C web e2e`) is not in the gate.
 web:
     pnpm install --frozen-lockfile
     pnpm -C web check
@@ -25,13 +27,6 @@ web:
 # Run only when the fonts change; fontTools and brotli are for this run alone.
 fonts:
     uv run --no-project --with fonttools==4.68.0 --with brotli==1.2.1 python tools/fonts.py
-
-# The studio frontend: install the workspace from its lockfile, then biome, tsc and
-# the build (`check`) and the unit tests. E2E (`pnpm -C studio-web e2e`) is not in the gate.
-studio:
-    pnpm install --frozen-lockfile
-    pnpm -C studio-web check
-    pnpm -C studio-web test
 
 # The L1 suite. Extra arguments go to pytest, e.g. `just test -k "health or room"`.
 [positional-arguments]
