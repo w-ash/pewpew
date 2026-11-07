@@ -68,9 +68,9 @@ runs on the laptop and on fly.io.
   - FastAPI, uvicorn, psycopg and manifold3d 3.5.4 go in a `studio` extra. manifold3d builds the
     bar geometry.
   - The laptop `run --preview` page is unchanged.
-- **Rendering.** The engine renders on the server, one `Renderer` per visitor, on its own thread.
+- **Rendering.** The engine renders on the server, one aura pipeline per visitor (the one `run` builds, ADR-025), on its own thread.
   Frames reach FastAPI's websocket through `loop.call_soon_threadsafe` into a one-slot,
-  newest-wins mailbox. There is no JavaScript copy of the patterns
+  newest-wins mailbox. There is no JavaScript copy of the effects
   (backlog story "Keep preview ports honest", `docs/backlog/v0.2.x.md`).
 - **Color.** The page draws the display-ready bytes unchanged. It uses a custom `shaderMaterial`
   over an sRGB-tagged RGBA `DataTexture` with `LinearFilter`, one `InstancedMesh` per GLB part,
@@ -203,7 +203,7 @@ already look.
 | 2 | Wiring and electrical per A6 §4: auto-wiring, output timing, feeds, fuse windows, drop, PSU packing, Class 2, effect power from the linear frame, BOM, the three validation tiers | general-purpose, Opus | 1 |
 | 3 | Backend: FastAPI app, session threads and frame bridge, REST (catalog, arrangements, share), websocket protocol, store (SQLite/Neon), limits, health, SIGTERM drain, OpenAPI export | general-purpose, Sonnet | 1 |
 | 4 | Frontend: `web/src/studio/` Vite + React + R3F; orval client; GLB parts drawn as instanced meshes using server matrices; LED `DataTexture` shader reading each part's `glow` and `gain`; editor (select, gizmo with snaps, inspector, duplicate, flip, ring/array tools, undo), report and share panels | general-purpose, Opus for the viewer and shader, Sonnet for the panels | 1b's GLB; 3's OpenAPI |
-| 5 | Rainbow pattern + goldens + liveness, in `STUDY_CASES` on the golden-rings mapping | general-purpose, Sonnet | 1 |
+| 5 | Example looks for the studio: `GET /api/looks` serves `examples/*.look.json`; each passes `verify looks` on the golden-rings mapping | general-purpose, Sonnet | 1 |
 | 6 | Deploy: Dockerfile (uv + node + runtime stages), `.dockerignore`, `fly.toml`, `release.yml`, `docs/deployment.md`, copied from another of the maintainer's fly.io apps | general-purpose, Haiku | 3, 4 |
 | 7 | Records: ADR-024 (hosted studio, stack, trust model), ADR-007 amendment (format), source fragments + `merge_sources.py`, backlog epic, CHANGELOG | general-purpose, Sonnet | the design |
 | 8 | Gates: `uv run pytest`, `pnpm check`/`test`, visual check per `.claude/rules/preview-visual-verify.md` | gate-runner (Haiku) and me | each merge |
@@ -229,8 +229,8 @@ The uncommitted backlog edits in the working tree are not mine. Every commit lea
     (`docs/studio/prototype/golden-tubes-3d.html:273`);
   - INV-002 compiling from catalog data alone;
   - the report's arithmetic against hand-worked cases;
-  - the server: session, edit-rebind with `t` kept, pattern swap, oversize refusal, save and load;
-  - the rainbow pattern's golden frames and liveness.
+  - the server: session, edit-rebind with `t` kept, look swap, oversize refusal, save and load;
+  - the example looks pass `verify looks`.
 - `pnpm check` and `pnpm test` pass in `web/`.
 - The visual check uses a headless Playwright screenshot of the golden rings, compared with
   `overview.png`, plus `getImageData` statistics including the low-end glow band. The bar's lit

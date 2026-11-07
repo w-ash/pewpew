@@ -1,4 +1,4 @@
-# Look shapes
+# Looks by shape
 
 Shapes that work, as small single looks. Each one passes `look_check`
 (a test in `tests/test_agent_docs.py` checks and renders every JSON
@@ -39,8 +39,8 @@ A coord op (`kaleid`, `polar`, `rotate`, `mirror`, `repeat`, ...)
 changes where the node it reads samples, so it sits after its input in
 `in` and wraps it. A plane op needs a map with two axes or more: on a
 strip, `look_check` and `look_render` refuse it with what to use instead
-(`mirror` on u). Only a warpable source may sit under a coord op; a
-pattern node is warpable when its catalog record says so.
+(`mirror` on u). Only a warpable source may sit under a coord op; an
+op's catalog record says whether it is.
 
 ```json
 {"layers": [{"id": "base", "out": "tint", "nodes": {
@@ -52,30 +52,18 @@ pattern node is warpable when its catalog record says so.
 
 ## Sparks over a field
 
-Two layers: a calm field at the bottom and a sparse pattern on top,
+Two layers: a calm field at the bottom and sparse `particles` on top,
 mixed with `screen` at part opacity. `screen` adds light without washing
-out to white; `add` runs to white and clips. A fixture-unit pattern
-(`sparkle`) runs only as a layer of its own, never inside a program.
+out to white; `add` runs to white and clips.
 
 ```json
 {"layers": [
   {"id": "base", "out": "glow", "nodes": {
     "heat": {"op": "noise", "args": {"scale": 2.0, "speed": 0.07}},
     "glow": {"op": "palette", "in": ["heat"], "args": {"palette": "ember"}}}},
-  {"id": "sparks", "blend": "screen", "opacity": 0.6, "nodes": {
-    "sparkle": {"op": "pattern", "args": {"pattern": "sparkle"}}}}]}
-```
-
-## A gallery pattern inside a program
-
-A `pattern` node runs a gallery pattern at the program's points, so other
-ops can colour or fold it. Inside a program it must be a pixel-unit
-pattern, and a warpable one under a coord op.
-
-```json
-{"layers": [{"id": "base", "out": "shift", "nodes": {
-  "wave": {"op": "pattern", "args": {"pattern": "wave"}},
-  "shift": {"op": "hue", "in": ["wave"], "args": {"amount": 60.0}}}}]}
+  {"id": "sparks", "blend": "screen", "opacity": 0.6, "out": "glint", "nodes": {
+    "motes": {"op": "particles", "args": {"rate": 80.0, "life": 0.6, "speed": 0.02, "emit": "anywhere", "size": 0.03}},
+    "glint": {"op": "palette", "in": ["motes"], "args": {"palette": "ember"}}}}]}
 ```
 
 ## An effect on the layers below
@@ -86,7 +74,9 @@ adding a picture of its own. On the bottom layer it reads black.
 
 ```json
 {"layers": [
-  {"id": "base", "nodes": {"wash": {"op": "pattern", "args": {"pattern": "wash"}}}},
+  {"id": "base", "out": "tint", "nodes": {
+    "swell": {"op": "osc", "args": {"freq": 3.0, "sync": 0.15, "axis": "u"}},
+    "tint": {"op": "palette", "in": ["swell"], "args": {"palette": "ocean"}}}},
   {"id": "tilt", "out": "turn", "nodes": {
     "under": {"op": "below", "args": {}},
     "turn": {"op": "hue", "in": ["under"], "args": {"amount": 90.0}}}}]}

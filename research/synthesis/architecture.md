@@ -5,14 +5,15 @@ Status: Proposed (Phase 3 synthesis). Every major decision links to an ADR in
 [`decisions/`](decisions/); requirements referenced as `Q-*/W-*/P-*/R-*` live
 in [`requirements.md`](requirements.md).
 
-pewpew is a **Python-first addressable-LED engine** with one pattern contract
-spanning four tiers: a host engine (room-scale), dumb network receivers
+pewpew is a **Python-first addressable-LED engine** whose one effect, a look
+over an op catalog ([ADR-025](decisions/ADR-025-one-effect-system.md)), spans
+four tiers: a host engine (room-scale), dumb network receivers
 (portable/room), an on-device ulab runtime (wearable), and an autonomous
 mesh-group tier (independent fixtures coordinating leaderlessly over
 ESP-NOW, §4d). Its differentiator
 is the union no existing system has (see
 [comparison-matrix.md](comparison-matrix.md#what-no-single-system-has--what-pewpew-uniquely-combines)):
-live Python pattern authoring, a float-linear quantize-once pipeline, 16-bit
+look authoring over a Python op catalog, a float-linear quantize-once pipeline, 16-bit
 transport, and vectorized execution of a per-pixel authoring surface.
 
 ## 1. Overview
@@ -20,8 +21,8 @@ transport, and vectorized execution of a per-pixel authoring surface.
 ```
                              ┌─────────────────────── HOST ENGINE (Python, Pi 5 / mini-PC / laptop) ───────────────────────┐
                              │                                                                                             │
-  audio in ──► Feature bus   │   Patterns (pure fns over normalized coords)      Parameter tree (typed params)             │
-  (mic/line) │ melbanks,beat │        │  beforeRender(dt) / render(coords)            │  auto UI / OSC / MIDI / HA         │
+  audio in ──► Feature bus   │   Looks (ops over normalized coords)              Parameter tree (typed params)             │
+  (mic/line) │ melbanks,beat │        │  advance(dt) / build() closure                │  auto UI / OSC / MIDI / HA         │
              └──────────────►│        ▼                                               ▼                                    │
                              │   ┌──────────┐   ┌──────────┐   ┌────────────┐   ┌──────────────┐   ┌────────────────────┐  │
    map file (fixtures,       │   │ evaluate │──►│ composite│──►│ color ops  │──►│ per-sink     │──►│ sinks (self-       │  │
@@ -71,7 +72,7 @@ Fadecandy's LUT builder [S600:server/src/fcdevice.cpp#L235-L360] (req Q-1, Q-2, 
 
 | # | Stage | Representation | Notes |
 |---|---|---|---|
-| 1 | Pattern evaluation | float32 `(N,3)` linear RGB, 0–1; coords float32 `(N,3)` normalized | Vectorized over the whole map ([ADR-005](decisions/ADR-005-pattern-authoring-model.md)); optional OKLab blending helpers convert out to linear RGB per frame — no LED project uses OKLab yet, low-risk differentiator [S055][S068]; palette lookup tables are built through them, OKLab being the web platform's default interpolation space [S1416] ([ADR-022](decisions/ADR-022-effect-programs.md)) |
+| 1 | Program evaluation | float32 `(N,3)` linear RGB, 0–1; coords float32 `(N,3)` normalized | Vectorized over the whole map ([ADR-005](decisions/ADR-005-pattern-authoring-model.md)); what is evaluated is a layer's effect program and nothing else ([ADR-025](decisions/ADR-025-one-effect-system.md)); optional OKLab blending helpers convert out to linear RGB per frame — no LED project uses OKLab yet, low-risk differentiator [S055][S068]; palette lookup tables are built through them, OKLab being the web platform's default interpolation space [S1416] ([ADR-022](decisions/ADR-022-effect-programs.md)) |
 | 2 | Layer compositing | float32 linear | [ADR-021](decisions/ADR-021-layer-compositing.md): a stack of layers, each a full `Renderer` running an effect program ([ADR-022](decisions/ADR-022-effect-programs.md)), blended bottom to top into one accumulator through one blend table and clamped once at the end (a lone layer at full opacity passes untouched) — LX and WLED blend and clip per layer in 8 bits instead [S035][S1403]. A layer's subset is its program's alpha output, not a point-subset view (LedFx virtuals [S305], projectMM layers [S715:docs/architecture.md#L285-L318] and Chromatik views [S1401] are the rejected alternative); a stack-level effect is a layer that reads `below()`. A look recall still crossfades two rendered frames, now two stacks, never two engines ([ADR-006](decisions/ADR-006-parameterization.md), 2026-10-30 amendment; avoiding WLED's copy-the-whole-Segment transition [S645:wled00/FX_fcn.cpp#L1330-L1367]) |
 | 3 | Color ops (per sink group) | float32 linear | Order: white-point/batch trim (multiplicative [S600:server/src/fcdevice.cpp#L235-L360]) → RGBW W-derivation, colorimetric where profiled (FastLED DiodeProfile direction [S008:src/fl/gfx/rgbw.h]) → master brightness → power limit (estimate-and-scale on linear values, per-chip current model [S413][S645:wled00/bus_manager.cpp#L183-L253], req Q-8). The power limit landed ahead of Phase 2 on 2026-10-23 as `pewpew.power`: a brightness ceiling and a watt cap split across supplies ([ADR-001](decisions/ADR-001-internal-color-pipeline.md) amendment) |
 | 4 | Perceptual curve | float32 → uint16 | Inverse-CIE-L\*/configurable gamma ≈2.6–3.0 with linear toe, as a 16-bit LUT — the last lossy step (req Q-2) [S059][S061][S600:server/src/fcdevice.cpp#L243-L253] |
@@ -87,82 +88,83 @@ pewpew receivers (Fadecandy/SmoothLed-style, real +2–3 bits
 **not at all** on 16-bit chips, where native depth replaces it (Pixelblaze's
 route [S063][S684], req Q-6).
 
-## 3. Pattern authoring model
+## 3. Effect authoring model
 
-Decision ([ADR-005](decisions/ADR-005-pattern-authoring-model.md)): patterns
-are **Pixelblaze-shaped, Python-real, NumPy-executed**.
+Decision ([ADR-025](decisions/ADR-025-one-effect-system.md), which narrows
+[ADR-005](decisions/ADR-005-pattern-authoring-model.md)'s authoring
+contract): **a look over the op catalog is the only effect.** An op is
+Pixelblaze-shaped, Python-real and NumPy-executed; a look is data.
 
 ```python
-class Comet(Pattern):
-    speed = Float(0.5, 0.0, 1.0, "/s")         # typed param (a kind) → UI/OSC/MIDI (ADR-006)
-
-    def __init__(self):
-        self.phase = 0.0
-
-    def before_render(self, dt, features):     # once per frame: advance state
-        self.phase = (self.phase + dt * self.speed) % 1.0
-
-    def render(self, x, y, z, index):          # pure; x/y/z are ARRAYS (N,)
-        return hsv(x + self.phase, 1.0, wave(x * 3 + self.phase))
+osc(8, 0.1).id("waves").kaleid(5).modulate(noise(3, 0.1), 0.2).palette("ember")
 ```
 
-- **`before_render(dt)` / `render(coords)` split** and 0–1 phase idioms
-  (`time()`, `wave()`, `triangle()`, `square()`) come straight from Pixelblaze
-  [S680:README.expressions.md#L19-L23,L151-L163]; the per-pixel-pure-function
-  model survived two independent reimplementations (led-control [S660], ARTI-FX
-  [S207]) — strong evidence it is what authors want.
+- **A look is data over a fixed vocabulary.** A look is a stack of layers
+  ([ADR-021](decisions/ADR-021-layer-compositing.md)), each an effect
+  program over the op catalog
+  ([ADR-022](decisions/ADR-022-effect-programs.md)), saved as JSON (looks
+  version 4). Every op it names is in the catalog, every arg is a declared
+  param, and the codec checks it whole. Variety comes from composing a fixed
+  vocabulary: Hydra's 53 functions in five type signatures compose with one
+  another [S1400], and AVS and webvs build a preset from typed components
+  that serialize as plain JSON [S1406][S1408]. The control page, the hosted
+  studio, the CLI and agents ([ADR-023](decisions/ADR-023-agent-interface.md))
+  write the same JSON.
+- **An op splits state from rendering.** `advance` changes state once per
+  frame and `build` returns the pure closure that gives the node's field
+  from coordinate arrays: Pixelblaze's `beforeRender` / `render` split
+  [S680:README.expressions.md#L19-L23,L151-L163], a model that survived two
+  independent reimplementations (led-control [S660], ARTI-FX [S207]).
 - **Coordinates arrive normalized 0–1 world units**, computed at map-load time
   (Fill and Contain policies; aspect-preserving default — fixing Pixelblaze's
   known distortion gotcha [S680:README.mapper.md#L12-L36][S304]). Raw physical
   coords and wiring index remain available (Chromatik precedent: both raw and
   normalized per point [S309]).
-- **Execution is vectorized**: the same author-visible function is called once
-  per frame with coordinate *arrays*; scalar-looking NumPy-compatible
-  expressions broadcast. Rationale: per-pixel CPython caps at ~22.5k px/s
+- **Execution is vectorized**: a closure is called once per frame with
+  coordinate *arrays*. Rationale: per-pixel CPython caps at ~22.5k px/s
   [S660:README.md#L17-L24] while vectorization buys ≥10× even on an RP2040
-  [S400][S211] ([ADR-011](decisions/ADR-011-language-performance.md)). Whether
-  authors trip over branching (`if` vs `np.where`) is a prototype item.
-- **Frame buffer persists** (`self.pixels` prev-frame access) for
-  trails/decay — LedFx convention [S630:ledfx/effects/__init__.py#L479-L547];
-  projectMM learned the hard way that auto-clearing breaks every trail effect
-  [S715:docs/history/decisions.md#L540-L549].
-- **Private per-pixel state is sanctioned** (ADR-005 amendment 2026-07-27):
-  a `setup(n, x, y, z, index)` hook hands the pattern its coordinates once
-  per binding, and buffers declared there with `self.buffer(name, shape)`
-  are engine-managed — zeroed on rebind, reallocated on mapping change,
-  carried across hot reload by name+shape (the registry keys on name and
-  spec, never array identity, because authors rebind their buffers);
-  `self.pixels` is just the engine's own entry. Shape is
-  free-form, so fire's 16×32 heat field is as legitimate as an `(N,)` array.
-  `render` keeps seeing read-only views, so it stays pure. Precedents:
-  Pixelblaze's persistent pattern arrays [S680:README.expressions.md#L86,L93]
-  (which pay for them with an impure `render`
-  [S680:README.expressions.md#L35] — we do not), ISF's host-created
-  `PERSISTENT` buffers at
-  their own `WIDTH`/`HEIGHT` [S218], and Shadertoy's previous-state/next-state
+  [S400][S211] ([ADR-011](decisions/ADR-011-language-performance.md)). Branching
+  (`if` vs `np.where`) is the op author's trap (`docs/authoring.md` §9.3).
+- **Private state is sanctioned.** An op declares buffers in `setup` with
+  `ctx.buffer(name, shape)`. They are engine-managed (zeroed at a bind,
+  carried across a save of the look) and read-only while the program
+  renders, so the closure stays pure. Shape is free-form, so a 16×32 heat
+  field is as legitimate as an `(N,)` array. Precedents: Pixelblaze's
+  persistent pattern arrays [S680:README.expressions.md#L86,L93] (which pay
+  for them with an impure `render` [S680:README.expressions.md#L35] — we do
+  not), ISF's host-created `PERSISTENT` buffers at their own
+  `WIDTH`/`HEIGHT` [S218], and Shadertoy's previous-state/next-state
   buffers, which also warn persistence breaks on a resolution change [S219].
-- **Effect programs** ([ADR-022](decisions/ADR-022-effect-programs.md)):
-  inside a layer, a typed node graph of ops (sources, coordinate ops, color
-  ops, combines, modulators and signals) whose args are the same typed
-  params as a pattern's (§5). Coordinate ops wrap what comes before them,
-  Hydra's rule [S1400]; feedback is MilkDrop's warp-and-decay loop
-  [S1407], made from `prev()` and stateful nodes, never a graph cycle. A
-  fluent Python builder and one versioned JSON codec write the same
-  values, since a library's own expression serialization is not stable
-  across versions [S1409]. One op catalog describes every op to the page,
-  the CLI, agents and the docs. A `ProgramPattern` hosts a program in a
-  normal `Renderer`, so the contract above gains no hook; a pattern opts
-  into warped coordinates with `warpable`, and `index` stays the stable
-  identity, as Pixelblaze passes it beside the coordinates [S680] (ADR-005,
-  2026-11-05 amendment).
+- **Programs** (ADR-022): a typed node graph of ops (sources, coordinate
+  ops, color ops, combines, modulators and signals) whose args are typed
+  params (§5). Coordinate ops wrap what comes before them, Hydra's rule
+  [S1400]; feedback is MilkDrop's warp-and-decay loop [S1407], made from
+  `prev()` and stateful nodes, never a graph cycle. A fluent Python builder
+  and one versioned JSON codec write the same values, since a library's own
+  expression serialization is not stable across versions [S1409]. One op
+  catalog describes every op to the page, the CLI, agents and the docs. An op
+  opts into warped coordinates with `warpable`, and `index` stays the stable
+  identity, as Pixelblaze passes it beside the coordinates [S680].
+- **A new effect is a new op.** It lives in `src/pewpew/fx/ops/`, with its
+  tests, catalog record and examples. There is no gallery of patterns, no
+  `pattern` op, no hand-written Python effect, no hot reload of a file and
+  no per-fixture rendering (every layer renders per pixel; a room's
+  fixtures keep wiring, power and DDP, [ADR-007](decisions/ADR-007-mapping-calibration.md)).
+  `Pattern`, `Renderer`, `Crossfader` and `ParamSet` stay as internals, not
+  as an author API. An `--ops-dir` that loaded user op files was rejected:
+  plugin discovery finds installed packages, not a file handed to a running
+  program [S1414]. The price is that a new effect needs an engine change
+  and a release.
 - **Errors never stop rendering**: per-frame exception containment with a
-  visible error state and the last-good pattern kept running — led-control's
+  visible error state. Under `--unattended` a layer that raises is left out
+  of the mix and named, and a room left dark pulses red — led-control's
   pulsing-red frame [S660:ledcontrol/animationcontroller.py#L418-L434] and
   Pixelblaze's crash-proof editor semantics [S504].
-- Sandboxing (RestrictedPython) is **not** adopted for the trusted local case;
-  it taxes the hot loop and still can't stop unbounded loops
-  [S660:ledcontrol/animationcontroller.py#L228-L282] — patterns are plain
-  modules; a future shared-pattern-gallery mode can revisit.
+- **No sandbox is needed.** With no hand-written Python, no file, path or
+  code reaches the engine from a client: looks are JSON, checked by the
+  codec and its caps (16 layers, 32 nodes a layer). RestrictedPython taxes
+  the hot loop and still can't stop unbounded loops
+  [S660:ledcontrol/animationcontroller.py#L228-L282], so it is not adopted.
 
 ## 4. The tiers
 
@@ -269,12 +271,12 @@ parameter tree; typed one-line parameter declarations; every knob addressable
 and modulatable.**
 
 - **Typed parameter objects, declared in one line** (a kind constructor
-  such as `Float(default, lo, hi, unit)`, as in §3's example): LX/Chromatik
+  such as `Float(default, lo, hi, unit)`, as an op declares its args, §3): LX/Chromatik
   semantics — a registered parameter automatically gets UI, OSC/MIDI
   address, and modulation input [S216] — with Pixelblaze's zero-ceremony
   ergonomics (its naming-convention reflection has no range/default
   metadata, which is the gap we close) [S203]. Serialized ISF-style so a
-  pattern file is a portable, self-describing document [S214]. WLED's
+  look is a portable, self-describing document [S214]. WLED's
   fixed-slot relabeling (≤5 knobs, uint8 only) is the anti-pattern [S206];
   LedFx's pydantic configs are typed but static — no per-frame modulation
   [S1356].
@@ -323,7 +325,7 @@ and modulatable.**
   Home Assistant/cron — FPP-grade scheduling is out of scope
   [S554][S022].
 - **Hub-friendliness**: mDNS/zeroconf advertisement and push-on-change are
-  what earn HA's "Local Push" grade; enumerable presets/patterns/palettes are
+  what earn HA's "Local Push" grade; enumerable looks/ops/palettes are
   what become `select` entities [S553]. Live preview is an opt-in exclusive
   stream (WLED peek `{"lv":true}` / Pixelblaze binary previewFrame), never an
   always-on broadcast [S551][S552].
@@ -340,7 +342,8 @@ another site's page [S522]. An opt-in PIN or token is the later hardening
 for a shared network.
 
 **Hosted studio exception.** The public studio deployment is
-unauthenticated by a different rule: gallery patterns only, no hardware
+unauthenticated by a different rule: JSON looks over the built-in op
+catalog only (no file, path or code crosses the socket; ADR-025), no hardware
 sinks, per-IP limits, immutable content-addressed share links
 ([ADR-024](decisions/ADR-024-hosted-studio.md)). This applies to that
 deployment only; the private-network control port keeps the decision
@@ -468,24 +471,26 @@ samples — distributed to patterns and nodes.**
 
 The dev loop is a first-class deliverable: Pixelblaze's editor is the UX
 benchmark (recompile-and-push on every keystroke; runtime errors surface as
-annotations while the last valid pattern keeps running [S504]), and a Python
+annotations while the last valid state keeps running [S504]), and a Python
 engine gets that loop cheaper than anyone — no compile step, versus
 fastled-wasm's 1–3 s state of the art for compiled LED dev [S500].
 
 Build order (leverage-ordered, from RA-11's recommendation):
 
 1. **Pure render core + preview-as-a-sink.**
-   `pewpew.render.render_sequence` is pure; the preview is just another
+   The render core is pure; the preview is just another
    sink beside DDP/sACN —
    LedFx's dummy device proves this costs ~nothing and is the documented
    no-hardware dev path [S508]. Purity unlocks deterministic scrubbing and
    testing.
-2. **Hot-reload with state carry-over.** watchfiles-driven re-import of the
-   edited pattern module while the engine keeps running; `t`, parameter
-   values, and the frame buffer carry across the swap [S519]. Leaf-module
-   re-import, not jurigged-style whole-process hot-patching — patterns are
-   small modules with a known interface [S520]. Per-frame exception
-   containment per §3 [S504][S660:ledcontrol/animationcontroller.py#L418-L434].
+2. **Live edit with state carry-over.** The control page, a saved looks
+   file and a saved room map change the running look while the engine keeps
+   running; `t`, knob values and node buffers carry across the change, and
+   a bad save keeps the last good state and shows why. Carry-over follows
+   the hot-reload precedent [S519]. There is no re-import of Python files
+   (ADR-025): the loop for a new op is its tests and the `fx` verbs, not a
+   reload. Per-frame exception containment per §3
+   [S504][S660:ledcontrol/animationcontroller.py#L418-L434].
 3. **Browser preview over websocket**: serve map positions once, stream
    compact color buffers; 2D canvas first, three.js `Points` cloud when the
    map is 3D (tens of thousands of points at 60 fps is routine WebGL
@@ -493,8 +498,8 @@ Build order (leverage-ordered, from RA-11's recommendation):
    Budget the stream deliberately — LedFx's frontend caps at 4096 px with a
    throttle slider [S508]. ANSI terminal preview comes free via the same
    sink interface (ssh/CI) [S514]; xLights' photo-underlay preview is the
-   later nice-to-have [S506]. The page renders each pattern's controls from
-   its param records and is built from `web/` (Vite, React, TypeScript, Ark
+   later nice-to-have [S506]. The page renders each knob's control from
+   its param record and is built from `web/` (Vite, React, TypeScript, Ark
    UI) into one committed, inlined HTML file; building needs Node, running
    pewpew does not ([ADR-020](decisions/ADR-020-preview-transport.md),
    2026-11-04 amendment) [S1367][S1369][S1363].
@@ -503,7 +508,7 @@ Build order (leverage-ordered, from RA-11's recommendation):
    ([ADR-024](decisions/ADR-024-hosted-studio.md)) [S523][S526]. The laptop
    `run --preview` page above is unchanged ([ADR-020]).
 4. **Golden-frame tests from day one.** Fixed seed + fake clock → N frames
-   per pattern, compared with perceptual tolerance (pytest-mpl's
+   per look, compared with perceptual tolerance (pytest-mpl's
    baseline+RMS model [S518]). No surveyed project tests effect output at
    all — LedFx asserts HTTP responses, FastLED tests primitives, WLED has
    no effect tests [S516][S517] — the pure core makes pewpew the first.
@@ -685,9 +690,9 @@ note); Phase 0 also assembles the ~$200 bench core
 ([ADR-018](decisions/ADR-018-agent-driveable-bench.md)) so every later
 phase's §12 items run as scripted rigs, not lab afternoons (§13).
 
-**Phase 1 — host engine core, end-to-end on real LEDs.** Pure render core
-(`pewpew.render.render_sequence`), pattern contract (§3), typed params
-(§5), preview-as-a-sink + ANSI sink, hot reload with state carry-over (§8),
+**Phase 1 — host engine core, end-to-end on real LEDs.** Pure render core,
+looks over the op catalog (§3, ADR-025), typed params (§5),
+preview-as-a-sink + ANSI sink, live edit with state carry-over (§8),
 one paced clock ([ADR-010]), DDP 8-bit out to a stock WLED node
 ([ADR-003], [ADR-004]). Golden-frame tests start here, not later (§8).
 

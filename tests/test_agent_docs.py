@@ -36,7 +36,7 @@ def test_the_skill_has_its_name_a_description_and_stays_short() -> None:
 
 
 def test_every_look_shape_the_skill_teaches_checks_and_renders_without_a_warning() -> None:
-    blocks = re.findall(r"```json\n(.*?)```", (SKILL / "references" / "patterns.md").read_text(), re.DOTALL)
+    blocks = re.findall(r"```json\n(.*?)```", (SKILL / "references" / "looks-by-shape.md").read_text(), re.DOTALL)
     assert len(blocks) >= 6
     for block in blocks:
         assert check_look(block).ok, block

@@ -2,8 +2,9 @@
 
 Python-first addressable-LED engine, four tiers (host / receivers /
 wearables / mesh groups). Currently: provenance-tracked research tree,
-test harness, and the Phase-1 render core in `src/pewpew/` (ADR-005
-authoring contract — author-facing guide in `docs/authoring.md`).
+test harness, and the Phase-1 render core in `src/pewpew/` (a look over
+the op catalog is the only effect, ADR-025 — author-facing guide in
+`docs/authoring.md`).
 Architecture: `research/synthesis/architecture.md`;
 requirements IDs (Q/W/P/R/M/T-*): `research/synthesis/requirements.md`;
 every major decision has an ADR in `research/synthesis/decisions/`.
@@ -35,7 +36,7 @@ every major decision has an ADR in `research/synthesis/decisions/`.
 ## Looks and audio
 
 - Looks: `python -m pewpew fx ...` and `verify looks` check, render and
-  compare offline (tier 0, `docs/authoring.md` §11); `mcp` serves them (§12;
+  compare offline (tier 0, `docs/authoring.md` §6); `mcp` serves them (§7;
   `.mcp.json`: `pewpew`, `pewpew-live` tier 1); `authoring-looks` skill.
 - Live audio: `docs/audio.md`. Agents open no input: a privacy act (§7).
 

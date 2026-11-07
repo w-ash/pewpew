@@ -14,7 +14,7 @@ fraction is a share of samples (one pixel of one frame) from 0 to 1.
 | `p95_luma` | the 95th percentile of brightness | the highlights; a look with no highlights reads flat |
 | `black_fraction` | samples darker than one 8-bit step | 1 is an all-black render, which `verify looks` fails; some black gives contrast |
 | `clip_fraction` | samples with a channel at full | a bright layer alone reads high and is fine; when layers add, high values lose detail: lower the opacity or use `screen` in place of `add` |
-| `nonfinite` | NaN and infinite values before the sink cleans them | above 0 is a bug in an op or pattern |
+| `nonfinite` | NaN and infinite values before the sink cleans them | above 0 is a bug in an op |
 | `motion_energy` | mean change of a pixel's brightness, per second | near 0 is static; the `mcp-*` looks under `examples/` sit at 0.15 to 0.30 |
 | `frozen_fraction` | spans of 0.1 s where nothing moves, at any fps | near 1 means the look is still; check its speed and sync args |
 | `spatial_detail` | mean brightness step between neighbouring pixels, in wiring order | low is smooth fields; high is busy texture or noise |

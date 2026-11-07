@@ -81,7 +81,7 @@ def test_the_same_seed_gives_the_same_bytes(op: str) -> None:
 def test_feedback_holds_a_static_input_and_never_climbs_past_it(py: str, mapping: np.ndarray) -> None:
     """The field takes the brighter of itself and its input, so on a static
     input it settles at most at the input's brightest, never at white
-    (the ratchet of docs/authoring.md §7.2)."""
+    (the ratchet of docs/authoring.md §9.2)."""
     program = program_of(py)
     source = program_of(py.rsplit(".feedback", 1)[0])
     top = frames(hosted(source, mapping), 1).max()

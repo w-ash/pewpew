@@ -38,13 +38,13 @@ agents only read (CLAUDE.md T-7).
       `uv run python -m pewpew verify looks <looks.json> --map <room.json>`.
       Every look must PASS: it checks, flashes at most 3 times a second
       (WCAG 2.3.1), is not black, and every knob changes the picture
-      (`docs/authoring.md` §11, `src/pewpew/lab/verify.py`).
+      (`docs/authoring.md` §6, `src/pewpew/lab/verify.py`).
 - [ ] Dry-run the unattended run command and check the per-board plan (backlog, DDP
       sink notes):
-      `uv run python -m pewpew run <pattern> --room <room.json> --looks
-      <looks.json> --ddp-fps <rate> --dry-run`. It also reads the looks file
-      and checks each `--param`, so a refused file or param stops here
-      rather than in launchd's restarts (`src/pewpew/run.py`).
+      `uv run python -m pewpew run <looks.json> --room <room.json>
+      --ddp-fps <rate> --dry-run`. It also reads the looks file, so a
+      refused file stops here rather than in launchd's restarts
+      (`src/pewpew/run.py`).
 - [ ] If the look reacts to sound, add `--audio "<exact name>"` to the dry
       run and to the LaunchAgent, with the name exactly as `uv run python
       -m pewpew audio list` prints it; never `--feature-log`
@@ -60,7 +60,7 @@ agents only read (CLAUDE.md T-7).
       ```sh
       uv sync                                  # the template runs .venv/bin/python
       mkdir -p ~/Library/Logs/pewpew
-      sed -e "s|__REPO__|$PWD|g" -e "s|__PATTERN__|plasma|g" \
+      sed -e "s|__REPO__|$PWD|g" \
           -e "s|__ROOM__|/path/to/room.json|g" -e "s|__LOOKS__|/path/to/looks.json|g" \
           -e "s|__HOST__|<the laptop's address on the private router>|g" \
           -e "s|__LOGS__|$HOME/Library/Logs/pewpew|g" -e "s|__FPS__|40|g" \
@@ -209,11 +209,12 @@ Things a restart or a trigger changes:
 - An operator disarm does not survive a restart: the LaunchAgent passes
   `--armed`, so after a crash or a watchdog exit the triggers are armed
   again (`deploy/launchd/pewpew-aura.plist`).
-- After a watchdog stall exit, the restart skips the last look once (a stall
-  marker tells it to) and starts the command-line pattern instead, so a
-  look that stalls the loop does not stall it again. The marker is
+- After a watchdog stall exit, the restart does not start the looks file's current
+  look (a stall marker tells it to): it starts the next look in the idle
+  cycle's order and says so on the status line, so a look
+  that stalls the loop does not stall it again. The marker is
   `~/.local/state/pewpew/stalled` and counts as fresh for 10 minutes
-  (`src/pewpew/watchdog.py`); the page shows a warning when it was used.
+  (`src/pewpew/watchdog.py`, `pewpew.run.after_stall`); the page shows a warning when it was used.
 - The trigger log stops at 50 MB per file (`--trigger-log-max`) with one
   warning; each run starts with a header record.
 - Param edits made while a trigger holds a look are dropped when the aura

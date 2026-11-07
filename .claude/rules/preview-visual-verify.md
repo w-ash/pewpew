@@ -18,7 +18,7 @@ Changes to visual surfaces are verified BOTH ways before committing:
 The visual surface is the preview sink's served page
 (`src/pewpew/sinks/web/index.html`), built from `web/` (React + Ark UI,
 inlined by Vite). Edit `web/`, never the page. Run an engine in the
-background, `uv run python -m pewpew run <pattern> --map <spec> --preview --port 0`,
+background, `uv run python -m pewpew run <looks.json> --map <spec> --preview --port 0`,
 and read the port from its `preview at http://127.0.0.1:PORT/` line (7447
 is often a live unattended run). Iterate with the Vite dev server against it:
 `PEWPEW_ENGINE=http://127.0.0.1:PORT pnpm -C web dev` (`web/vite.config.ts`).

@@ -3,7 +3,7 @@
 pewpew is a Python-first engine for addressable LEDs, for wearables,
 portables and mid-scale light art (room-sized and up). Its quality bar is
 better than clown mode: temporal dithering, perceptual color and smooth
-motion. Patterns and layered effects render on a host computer against a
+motion. Looks, layered effects built from a catalog of ops, render on a host computer against a
 map of where each pixel is, and Phase 1, the host engine, streams them to
 stock WLED boards over DDP. A browser preview, a phone control page and an
 agent interface drive the same engine, so no hardware is needed to start
@@ -11,7 +11,7 @@ agent interface drive the same engine, so no hardware is needed to start
 
 ## Docs
 
-- [`docs/authoring.md`](docs/authoring.md) — how patterns are written and run
+- [`docs/authoring.md`](docs/authoring.md) — how looks and ops are written and run
 - [`docs/unattended-checklist.md`](docs/unattended-checklist.md) — an unattended run,
   with the LaunchAgent and board backups
 - [`docs/audio.md`](docs/audio.md) — live sound from a line-in or a
@@ -22,7 +22,7 @@ agent interface drive the same engine, so no hardware is needed to start
   layout of a board and its level shifter
 - [`docs/hardware-buying-list.md`](docs/hardware-buying-list.md) — what to buy
 - [`docs/reference/catalog.md`](docs/reference/catalog.md) — every effect op,
-  pattern, blend and palette
+  blend and palette
 - [`docs/deployment.md`](docs/deployment.md) — deploying your own studio
   instance to Fly.io
 - [`docs/backlog/`](docs/backlog/README.md) and [`CHANGELOG.md`](CHANGELOG.md)
@@ -45,18 +45,19 @@ uv run just check                                          # every gate CI runs
 pnpm is the version the root `package.json` pins, and Node is in its
 `engines` range.
 
-## Live preview
+## Play a look
 
-Run a gallery pattern against the real engine — no hardware needed:
+Play a looks file against the real engine, with no hardware:
 
 ```sh
-uv run python -m pewpew run comet --map line:64 --ansi       # in the terminal
-uv run python -m pewpew run fire --map grid:16x16 --preview  # in the browser
+uv run python -m pewpew run examples/tide.look.json --preview             # in the browser
+uv run python -m pewpew run examples/tide.look.json --map line:64 --ansi  # in the terminal
 ```
 
-`--preview` serves http://127.0.0.1:7447/ — positions once over websocket,
-then display-ready color frames; `--ansi` renders truecolor half-blocks for
-ssh/CI.
+The run starts in the file's `current` look, on a 16x16 grid unless
+`--map` or `--room` says otherwise. `--preview` serves
+http://127.0.0.1:7447/ — positions once over websocket, then display-ready
+color frames; `--ansi` renders truecolor half-blocks for ssh/CI.
 
 ## License
 

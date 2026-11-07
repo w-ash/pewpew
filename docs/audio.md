@@ -48,10 +48,12 @@ input, so a missing file is refused rather than waited for.
 
 `--audio-channel N` reads one channel, numbered from 0; without it pewpew
 reads the mean of all the input's channels. A dry run prints what the run
-would open, and opens nothing:
+would open, and opens nothing. The examples here play
+`examples/warp-lane.look.json`, whose `band` and `beat` signals move its
+knobs with the sound; any look with those signals reacts the same way:
 
 ```sh
-uv run python -m pewpew run geq --room room.json --audio "Scarlett 2i2 USB" --dry-run
+uv run python -m pewpew run examples/warp-lane.look.json --room room.json --audio "Scarlett 2i2 USB" --dry-run
 ```
 
 An input that is not plugged in at launch is not refused: the run starts
@@ -171,7 +173,7 @@ pass^k, never a gate (CLAUDE.md T-5).
    passes when the input is lost within 30 s of "unplug" and listening
    again within 60 s of "plug in". The results go to
    `bench/results/audio-replug-<date>-<label>.json`.
-4. Repeat once with the aura running (`run geq --audio NAME --preview`):
+4. Repeat once with the aura running (`run examples/warp-lane.look.json --map line:120 --audio NAME --preview`):
    unplug, wait for the health row to say lost, replug, and check the
    levels come back within about 10 s.
 5. Record pass^k and anything odd (a hang, a crash, another input opened)
@@ -246,8 +248,8 @@ address with `--allow-host`; the run refuses a node without it, and one
 whose name resolves to another address:
 
 ```sh
-uv run python -m pewpew run geq --audio net:pewpew-line-1 --allow-host 192.168.8.42 --preview --dry-run
-uv run python -m pewpew run geq --audio net:pewpew-line-1 --allow-host 192.168.8.42 --preview
+uv run python -m pewpew run examples/warp-lane.look.json --map line:120 --audio net:pewpew-line-1 --allow-host 192.168.8.42 --preview --dry-run
+uv run python -m pewpew run examples/warp-lane.look.json --map line:120 --audio net:pewpew-line-1 --allow-host 192.168.8.42 --preview
 ```
 
 For an unattended run, put `--audio` and `net:pewpew-line-1` in the

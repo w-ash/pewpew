@@ -374,8 +374,8 @@ async def test_the_resources_list_and_read(client: Client) -> None:
     assert await read("pewpew://docs/catalog") == (ROOT / "docs" / "reference" / "catalog.md").read_text()
     guide = (ROOT / "docs" / "authoring.md").read_text()
     assert await read("pewpew://docs/authoring") == guide
-    layers = await read("pewpew://docs/authoring/9")
-    assert layers.startswith("## 9. Layers\n") and "\n## 10." not in layers and layers in guide
+    layers = await read("pewpew://docs/authoring/4")
+    assert layers.startswith("## 4. Layers\n") and "\n## 5." not in layers and layers in guide
     assert len(layers) < len(guide) / 4  # a section is what an agent reads, not the whole guide
     for uri in sorted(looks):
         assert lab.check_look(await read(uri)).ok

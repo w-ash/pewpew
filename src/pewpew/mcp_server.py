@@ -96,8 +96,8 @@ INSTRUCTIONS = """\
 pewpew renders looks for addressable LEDs. A look is layers bottom first, each running an effect program (a \
 graph of ops), and signals whose routes move its knobs each frame. Loop: catalog_search for \
 the parts, write the look, look_check it, look_render it and read the metrics before the image, change one \
-thing, look_compare against the last render. The look format is in pewpew://docs/authoring/9 (layers) and \
-pewpew://docs/authoring/10 (effect programs); example looks are at pewpew://looks/{name}."""
+thing, look_compare against the last render. The look format is in pewpew://docs/authoring/4 (layers) and \
+pewpew://docs/authoring/5 (effect programs); example looks are at pewpew://looks/{name}."""
 
 # ---- argument types: module level, so the SDK reads them off the signatures --------------
 # The SDK (mcp 2.3.0) resolves a tool's annotations, and its result dataclass's fields, in the
@@ -453,8 +453,9 @@ def _resources(server: MCPServer) -> None:
 
     guides: dict[str, Callable[[], str]] = {"authoring": GUIDE.read_text} if GUIDE.is_file() else {}
     guides["catalog"] = lambda: markdown(whole_catalog())
-    about = {"authoring": "The authoring guide: params, layers (section 9), effect programs (section 10) "
-             "and the command line (section 11)", "catalog": "The catalog reference: every op, blend, "
+    about = {"authoring": "The authoring guide: knobs, layers (section 4), effect programs (section 5), "
+             "the command line (section 6) and writing a new op (section 9)",
+             "catalog": "The catalog reference: every op, blend, "
              "palette and param kind, with examples"}
     for topic, read in guides.items():
         server.add_resource(FunctionResource(uri=f"pewpew://docs/{topic}", name=f"docs-{topic}", fn=read,
@@ -469,8 +470,8 @@ def _resources(server: MCPServer) -> None:
 
     @server.resource("pewpew://docs/authoring/{section}", name="docs-authoring-section", mime_type="text/markdown")
     def authoring_section(section: str) -> str:
-        """One section of the authoring guide, by its number: 9 is layers, 10 effect programs, 11 the
-        command line, 12 the MCP server."""
+        """One section of the authoring guide, by its number: 4 is layers, 5 effect programs, 6 the
+        command line, 7 the MCP server, 9 writing a new op."""
         text = GUIDE.read_text() if GUIDE.is_file() else ""
         found = section_of(text, section)
         if found is None:
@@ -507,7 +508,7 @@ def _prompts(server: MCPServer) -> None:
             f"Design a pewpew look for this brief: {brief}\n\n"
             "1. catalog_search with words from the brief for ops, palettes and blends; read the "
             "detailed record of each part you use.\n"
-            "2. Write the look as JSON (pewpew://docs/authoring/9 and pewpew://docs/authoring/10; examples at "
+            "2. Write the look as JSON (pewpew://docs/authoring/4 and pewpew://docs/authoring/5; examples at "
             "pewpew://looks/{name}).\n"
             "3. look_check it and apply each fix it gives.\n"
             "4. look_render it. Read the metrics and warnings before the image: flash_rate_max at most 3, "

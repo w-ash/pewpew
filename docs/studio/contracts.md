@@ -12,7 +12,7 @@ needs to change a contract says so in its report rather than changing it on its 
 | `src/pewpew/rig/geometry.py` | ws1b |
 | `src/pewpew/rig/wiring.py`, `src/pewpew/rig/electrical.py` | ws2 |
 | `schemas/arrangement.v1.json`, `schemas/catalog.v1.json` (generated, committed) | ws1 |
-| `src/pewpew/patterns/rainbow.py` | ws5 |
+| `examples/*.look.json` (the studio's example looks) | ws5 |
 | `src/pewpew/studio/` (FastAPI app, sessions, store, limits) and `python -m pewpew studio` | ws3 |
 | `web/src/studio/` (Vite + React + R3F) | ws4 |
 | `Dockerfile`, `.dockerignore`, `fly.toml`, `.github/workflows/release.yml`, `docs/deployment.md` | ws6 |
@@ -55,10 +55,10 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
 
 - `RigError(ValueError)` carries `.issues`. It is raised for error-level issues; violations and
   warnings are returned on `rig.issues`.
-- The pattern contract is unchanged (ADR-005, `research/synthesis/decisions/ADR-005-pattern-authoring-model.md`):
-  `Renderer(pattern, rig.mapping, grouping=rig.grouping)` and
-  `renderer.rebind(rig.mapping, rig.grouping)`. A pattern with `units = "fixture"` renders one
-  colour per fixture. `index` follows data order because the pixels are compiled in that order.
+- A look renders per pixel (ADR-025, `research/synthesis/decisions/ADR-025-one-effect-system.md`):
+  the running look is rebound to `rig.mapping` and `rig.grouping` (`renderer.rebind(rig.mapping,
+  rig.grouping)` on each layer's renderer). `index` follows data order because the pixels are
+  compiled in that order.
 
 **Pinned 2026-10-22 after ws1 and ws3 landed.**
 - **`Catalog.to_json()`** (in `src/pewpew/rig/catalog.py`) returns
@@ -172,7 +172,7 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
   - any request of `pewpew.aura.control.REQUESTS`, as the preview takes it, with an optional
     `id` for its answer: `{"type":"set","name":<knob address>,"value"}` (the value in its kind's
     JSON form), `{"type":"look","look":{...},"fade"?}` (one look in the looks file's form, such
-    as a `GET /api/looks` entry), `pick`, `add_layer`, `remove_layer`, `move_layer`, `front`,
+    as a `GET /api/looks` entry), `add_layer`, `remove_layer`, `move_layer`, `front`,
     `master`, `blackout`, `surprise`, `vary`, `arm` and `fire`. A request that needs a looks file
     (`recall`, `save`, `keep`, `delete`, `cycle`, `fade`), boards (`scan`, `rebind`) or a room
     (`blink`) is refused. A session makes one look at a time: a `surprise` or `vary` sent while
@@ -188,8 +188,8 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
 - `python -m pewpew studio [--host 127.0.0.1] [--port 8000] [--db PATH]`. The store is
   `DATABASE_URL` when it is set (Neon Postgres, psycopg 3), and otherwise SQLite at `--db`
   (default: `PEWPEW_STUDIO_DB`, else `./studio.sqlite3`).
-- `python -m pewpew run <pattern> --map <arrangement>.json` runs a pattern on a compiled
-  arrangement, one unit per fixture. The arrangement's `power` block is the power limit, an
+- `python -m pewpew run LOOKS --map <arrangement>.json` plays a looks file on a compiled
+  arrangement. The arrangement's `power` block is the power limit, an
   `after` stage behind the master; `--max-watts W` and `--max-brightness B` replace its values.
   `--max-watts` needs an arrangement map, whose fixtures give the power model.
 - The app factory is `pewpew.studio.app:create_app`, run with `uvicorn --factory`.
@@ -202,4 +202,4 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
 ## Sources
 
 - `src/pewpew/sinks/preview.py`, the module docstring and `message`
-- `research/synthesis/decisions/ADR-005-pattern-authoring-model.md`
+- `research/synthesis/decisions/ADR-025-one-effect-system.md`
