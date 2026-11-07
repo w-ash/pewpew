@@ -8,7 +8,7 @@
 import type { TypedMessage } from "../../wire/protocol";
 import type { Arrangement } from "../api/types";
 
-/** The gamma the session's frames are encoded with (`DISPLAY_GAMMA`, src/pewpew/sinks/base.py). */
+/** The gamma the session's frames are encoded with (`DISPLAY_GAMMA`, src/pewpew/sinks/sink.py). */
 export const DISPLAY_GAMMA = 2.2;
 
 const FRAME_HEADER_BYTES = 8;

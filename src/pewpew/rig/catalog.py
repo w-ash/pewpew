@@ -44,7 +44,7 @@ from pewpew.rig.models import (
     value,
 )
 
-DATA_ROOT = Path(__file__).with_name("catalog_entries")
+CATALOG_ENTRIES_DIR = Path(__file__).with_name("catalog_entries")
 HOST_PREFIX = "host:"
 
 _KIND_ORDER = {kind: i for i, kind in enumerate(KINDS)}
@@ -617,5 +617,5 @@ def _cached(root: str) -> Catalog:
 
 
 def load_catalog(root: Path | str | None = None) -> Catalog:
-    """The catalog under `root` (default: the bundled data), validated and cached."""
-    return _cached(str(Path(root or DATA_ROOT).resolve()))
+    """The catalog under `root` (default: the bundled entries), validated and cached."""
+    return _cached(str(Path(root or CATALOG_ENTRIES_DIR).resolve()))

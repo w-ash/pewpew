@@ -15,7 +15,7 @@ import pytest
 m3d = pytest.importorskip("manifold3d")
 
 from pewpew.rig import compile_rig, geometry, load_arrangement, load_catalog, read_catalog
-from pewpew.rig.catalog import DATA_ROOT
+from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
 from pewpew.rig.geometry import SMOOTH_ANGLE_DEG, GeometryError, assembly_digest, build_glb
 
 BAR, TUBE, POINT, EYE = "clen-rgbw-bar-1m", "clen-360-tube-1500", "point-v0", "eye-v0"
@@ -112,7 +112,7 @@ def ray_z(part: dict, x: float, y: float) -> list[float]:
 def catalog_with(tmp_path, kind: str, type_id: str, edit, new_id: str | None = None):
     """The bundled catalog with one entity edited, or with an edited copy added as `new_id`."""
     root = tmp_path / "data"
-    shutil.copytree(DATA_ROOT, root)
+    shutil.copytree(CATALOG_ENTRIES_DIR, root)
     obj = json.loads((root / kind / f"{type_id}.json").read_text())
     edit(obj)
     if new_id is not None:
