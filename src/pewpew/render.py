@@ -158,16 +158,6 @@ class Live(FrameSource, Protocol):
     def rebind(self, mapping: np.ndarray, grouping: Grouping | None = None) -> None: ...
 
 
-class SwapTarget(Protocol):
-    """What a hot reload swaps a new pattern into (pewpew.reload): a
-    `Renderer`, or one layer of the running stack."""
-
-    @property
-    def t(self) -> float: ...
-
-    def swap(self, pattern: Pattern) -> SwapReport: ...
-
-
 def error_frame(n: int, t: float) -> np.ndarray:
     """The deterministic pulsing-red frame of `n` pixels at engine time `t`:
     what a contained failure shows."""
@@ -204,7 +194,7 @@ class Renderer:
             )
         self.pattern = pattern
         self.name = name or pattern_name(type(pattern))
-        # Built once and never replaced (see `params`): a bad `--param` is
+        # Built once and never replaced (see `params`): a bad param is
         # refused before the first frame.
         self._params = ParamSet(type(pattern), params, name=self.name)
         self.seed = seed

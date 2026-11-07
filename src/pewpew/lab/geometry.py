@@ -2,10 +2,9 @@
 
 A map spec is what `run` takes: a synthetic mapping by name (`line:64`,
 `grid:16x16`, `lattice:8`; pewpew.mapping.parse_map) or a room map file
-(`run --room`; pewpew.room.map), which brings its fixture grouping. `auto`
-is the mapping `run` gives the look's bottom pattern when it has no `--map`
-or `--room`: the gallery's study fixture for that pattern (`line:300` for
-comet, the canopy room for pulse), else `grid:16x16`.
+(`run --room`; pewpew.room.map), which brings its fixture grouping.
+`pewpew.mapping.DEFAULT_MAP` is the one `run` uses without `--map` or
+`--room`, and the offline renders' default.
 """
 
 from __future__ import annotations
@@ -16,13 +15,10 @@ from pathlib import Path
 
 import numpy as np
 
-import pewpew.patterns as gallery
 from pewpew.errors import describe_exception
 from pewpew.jsonfile import ProblemsError
 from pewpew.mapping import Grouping, dimensions, parse_map
 from pewpew.room.map import load_room
-
-AUTO = "auto"
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -57,7 +53,7 @@ class Geometry:
 
 
 def parse_geometry(spec: str) -> Geometry:
-    """The geometry map spec `spec` names; not `auto`. A spec with a "/"
+    """The geometry map spec `spec` names. A spec with a "/"
     or ending in ".json" is a room map file. Raises ValueError, saying why."""
     if "/" in spec or spec.endswith(".json"):
         try:
@@ -69,12 +65,6 @@ def parse_geometry(spec: str) -> Geometry:
         return Geometry(spec, parse_map(spec))
     except ValueError:
         raise ValueError(
-            f"expected auto, line:64, grid:16x16, lattice:8 or a room map file (.json); got {spec!r}"
+            f"expected line:64, grid:16x16, lattice:8 or a room map file (.json); got {spec!r}"
         ) from None
 
-
-def auto_geometry(bottom: type) -> Geometry:
-    """The geometry `run` gives pattern class `bottom` without `--map` or
-    `--room` (module docstring)."""
-    mapping, grouping = gallery.default_geometry(bottom)
-    return Geometry(AUTO, mapping, grouping)

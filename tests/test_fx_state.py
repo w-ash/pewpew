@@ -33,7 +33,7 @@ from pewpew.fx.ops.sims import arrivals
 from pewpew.fx.prims.sample import sample
 from pewpew.fx.types import Coords
 from pewpew.lab import Verification, verify_looks
-from pewpew.lab.geometry import AUTO
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.params import Float, ParamSet
 
 FPS = 30.0
@@ -344,7 +344,7 @@ OWN_MAPS = {
 # then the long runs. A verdict is the same in any process, so the suite's
 # process pool runs them beside the tests in front of them (conftest.py).
 JOBS = {
-    **{(name, AUTO): partial(verify_looks, [path], map_spec=AUTO, seconds=2.0) for name, path in EXAMPLE_LOOKS.items()},
+    **{(name, DEFAULT_MAP): partial(verify_looks, [path], seconds=2.0) for name, path in EXAMPLE_LOOKS.items()},
     **{(name, spec): partial(verify_looks, [EXAMPLE_LOOKS[name]], map_spec=spec, seconds=1.0)
        for name, spec in OWN_MAPS.items()},
     **LONG_RUNS,
@@ -355,7 +355,7 @@ def test_every_example_look_passes_the_content_gate(pooled: Pooled) -> None:
     """`verify looks examples/`, a file at a time: each checks, renders
     without a raise, flashes at most 3 times a second, is not black, and
     every knob is live."""
-    files = tuple(file for name in EXAMPLE_LOOKS for file in pooled[name, AUTO].files)
+    files = tuple(file for name in EXAMPLE_LOOKS for file in pooled[name, DEFAULT_MAP].files)
     verdict = Verification(all(file.ok for file in files), files)
     assert len(files) == len(EXAMPLE_LOOKS)
     assert verdict.ok, failures(verdict)

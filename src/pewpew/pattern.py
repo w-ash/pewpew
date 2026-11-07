@@ -196,7 +196,7 @@ class Pattern:
     # What one element of x, y, z, index is: "pixel", or "fixture" to render
     # once per fixture at its centre and light the whole fixture in that
     # colour (ADR-007 amendment 2026-10-30). A mapping without fixtures
-    # renders per pixel either way. `run --units` overrides it.
+    # renders per pixel either way.
     units = "pixel"
 
     # True if `render` stays correct when its x, y, z differ from the ones

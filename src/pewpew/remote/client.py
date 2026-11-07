@@ -250,6 +250,6 @@ def why_unreachable(url: str, exc: BaseException | None, open_timeout: float) ->
         return f"cannot find the host of {url} ({exc.strerror}): give its IP address, such as {_EXAMPLE}"
     reason = describe_exception(exc) if exc is not None else "no attempt"
     return (
-        f"nothing answered at {url} ({reason}): start the engine with `python -m pewpew run PATTERN --preview`, "
+        f"nothing answered at {url} ({reason}): start the engine with `python -m pewpew run LOOKS --preview`, "
         "or give the address its `preview at` line prints"
     )

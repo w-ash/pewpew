@@ -63,7 +63,6 @@ class FakeControl:
         self.pattern = "plasma"
         self.patterns = ["comet", "plasma"]
         self.calls: list[dict] = []
-        self.rescans = 0
         self.health_ = health
         self.replies = dict(replies or {})
         self.mods: dict[str, float] = {}
@@ -88,9 +87,6 @@ class FakeControl:
 
     def health(self) -> dict | None:
         return self.health_() if self.health_ is not None else None
-
-    def rescan(self) -> None:
-        self.rescans += 1
 
     def catalog(self) -> dict:
         return self.catalog_
@@ -611,7 +607,6 @@ def test_a_new_client_gets_the_aura_state():
                 "type": "aura", "pattern": "plasma", "patterns": ["comet", "plasma"],
                 "master": 0.6, "cap": 0.6, "blackout": False,
             }
-            assert aura.rescans == 1  # a file added since launch is offered on load
 
 
 def test_accepted_pick_echoes_the_new_pattern_to_every_client():

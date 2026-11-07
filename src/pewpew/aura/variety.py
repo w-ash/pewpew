@@ -79,18 +79,16 @@ class Variety:
     def vary(self, strength: float | None = None, seed: int | None = None, of: str | None = None) -> Made:
         """A look like the running one, moved by `strength` (None: mutate's
         default) from `seed` (None: the run's next), named after `of`, the
-        look that runs (`tide variation 2`), when it has a name. Its patterns resolve
-        as the run resolves them (pewpew.load.resolve): a pattern the run
-        was launched with may be a file. Raises ValueError when the running
-        look does not check (a pattern file broken since it started), or
-        no change of it passes the content gate."""
+        look that runs (`tide variation 2`), when it has a name. Raises
+        ValueError when the running look does not check, or no change of it
+        passes the content gate."""
         seed = self.next_seed() if seed is None else seed
         stack = self._deck.fader.current
         running = self._deck.snapshot()
         try:
             look = surprise.mutate(
                 running, seed, stack.mapping, strength=surprise.STRENGTH if strength is None else strength,
-                grouping=stack.grouping, pattern_dir=self._deck.catalog.search_dir,
+                grouping=stack.grouping,
             )
         except Refused as exc:
             raise ValueError(f"the running look cannot vary: {scrub(str(exc))}") from exc

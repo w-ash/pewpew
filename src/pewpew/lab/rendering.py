@@ -3,7 +3,7 @@
 `play` is the one render path: it builds the look's layer stack with its
 signals and routes (pewpew.compose.Compositor) and the master
 (pewpew.aura.master.Master) as
-`python -m pewpew run --seed SEED --looks FILE` does when it starts in the
+`python -m pewpew run LOOKS --seed SEED` does when it starts in the
 look, and steps them on the loop's slot times (`SlotClock`). So the frames
 are what that run shows, byte for byte. `seed` is `run --seed`: it seeds
 the stand-in audio and room features (`FakeFeatures`); the look's own
@@ -20,7 +20,6 @@ rendering again on a miss when it has the spec.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -30,9 +29,9 @@ from pewpew.compose import Compositor, LayerError
 from pewpew.features import EventFeatures, FakeFeatures
 from pewpew.fx.codec import encode_look
 from pewpew.lab.check import LookDoc, Ready, dims_problems, ready
-from pewpew.lab.geometry import AUTO, Geometry, auto_geometry, parse_geometry
+from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.lab.handles import ENGINE, Cache, Expired, handle, is_handle
-from pewpew.load import Catalog
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.metrics import FLASH_LIMIT, Metrics, measure
 from pewpew.problems import Refused, problem
 from pewpew.render import SlotClock
@@ -48,8 +47,8 @@ MAX_FPS = 240.0
 class RenderSpec(Result):
     """What a render depends on, normalized: the look (looks-file form,
     every param written out), the map spec and what it gave (points, axes
-    spanned), seconds, fps, the frame count, the features' seed, the engine
-    fingerprint, and the `--pattern-dir` the look's names resolve in."""
+    spanned), seconds, fps, the frame count, the features' seed, and the
+    engine fingerprint."""
 
     look: dict[str, Any]
     map: str
@@ -60,7 +59,6 @@ class RenderSpec(Result):
     frames: int
     seed: int
     engine: str
-    pattern_dir: str | None = None
 
 
 @dataclass(frozen=True)
@@ -92,34 +90,28 @@ class Take:
 
 def render(
     look: LookDoc,
-    map_spec: str | Geometry = AUTO,
+    map_spec: str | Geometry = DEFAULT_MAP,
     seconds: float = DEFAULT_SECONDS,
     fps: float = DEFAULT_FPS,
     seed: int = 0,
     *,
     name: str | None = None,
-    pattern_dir: Path | None = None,
-    catalog: Catalog | None = None,
     cache: Cache | None = None,
 ) -> Rendered:
     """Render `look` (a look, or the look `name` of a looks file) on the
     map `map_spec` names (pewpew.lab.geometry), or on a geometry, for
-    `seconds` at `fps`, the features seeded `seed` (module docstring). Its
-    patterns resolve as `check_look` resolves them, by name alone through
-    a `catalog`, which replaces `pattern_dir`. The cache answers a render
-    it holds. Raises Refused for a look with problems, and ValueError for
+    `seconds` at `fps`, the features seeded `seed` (module docstring). The
+    cache answers a render it holds. Raises Refused for a look with problems, and ValueError for
     a bad map spec, seconds or fps."""
-    staged = ready(look, name=name, pattern_dir=pattern_dir, catalog=catalog)
-    if catalog is not None:
-        pattern_dir = catalog.search_dir
-    geometry = where(map_spec, staged)
+    staged = ready(look, name=name)
+    geometry = where(map_spec)
     spec = RenderSpec(
         encode_look(staged.look), geometry.spec, geometry.points, geometry.dims, float(seconds), float(fps),
-        frame_count(seconds, fps), int(seed), ENGINE, None if pattern_dir is None else str(pattern_dir),
+        frame_count(seconds, fps), int(seed), ENGINE,
     )
     key = handle({
         "look": spec.look, "map": geometry.digest, "seconds": spec.seconds, "fps": spec.fps, "seed": spec.seed,
-        "engine": ENGINE, "sources": list(staged.sources),
+        "engine": ENGINE,
     })
     cache = cache if cache is not None else Cache()
     notes: tuple[str, ...] = ()
@@ -179,23 +171,21 @@ def take(source: Rendered | str, cache: Cache | None = None) -> Take:
     if spec is None:
         raise Expired(key)
     staged = restage(spec)
-    geometry = where(spec.map, staged)
+    geometry = where(spec.map)
     frames, _ = play(staged, geometry, spec.frames, spec.fps, spec.seed)
     return Take(key, spec, frames, geometry)
 
 
 def restage(spec: RenderSpec) -> Ready:
-    """The look of `spec` ready to run again, its names resolved in the
-    spec's `--pattern-dir`. Raises Refused as `ready` does."""
-    return ready(spec.look, pattern_dir=None if spec.pattern_dir is None else Path(spec.pattern_dir))
+    """The look of `spec` ready to run again. Raises Refused as `ready`
+    does."""
+    return ready(spec.look)
 
 
-def where(map_spec: str | Geometry, staged: Ready) -> Geometry:
-    """The geometry `map_spec` names for `staged`; `auto` follows its
-    bottom layer's pattern (pewpew.lab.geometry)."""
-    if isinstance(map_spec, Geometry):
-        return map_spec
-    return auto_geometry(staged.layers[0].cls) if map_spec == AUTO else parse_geometry(map_spec)
+def where(map_spec: str | Geometry) -> Geometry:
+    """The geometry `map_spec` names (pewpew.lab.geometry), or `map_spec`
+    when it is one."""
+    return map_spec if isinstance(map_spec, Geometry) else parse_geometry(map_spec)
 
 
 def frame_count(seconds: float, fps: float) -> int:

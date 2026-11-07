@@ -97,10 +97,6 @@ class Control(Protocol):
         "add layer" cards; the same object until it changes."""
         ...
 
-    def rescan(self) -> None:
-        """Refresh what the state offers from disk. Not for every frame."""
-        ...
-
     @property
     def capabilities(self) -> tuple[str, ...]:
         """The requests this control takes beyond the page's own, such as

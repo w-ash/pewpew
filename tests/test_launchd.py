@@ -7,14 +7,13 @@ import plistlib
 import re
 from pathlib import Path
 
-from fakes import EXAMPLE_ROOM
+from fakes import EXAMPLE_ROOM, EXAMPLES
 from pewpew.__main__ import main
 
 TEMPLATE = Path(__file__).parents[1] / "deploy" / "launchd" / "pewpew-aura.plist"
 
 VALUES = {
     "__REPO__": "/opt/pewpew/repo",
-    "__PATTERN__": "plasma",
     "__ROOM__": "/opt/pewpew/room.json",
     "__LOOKS__": "/opt/pewpew/looks.json",
     "__HOST__": "192.0.2.2",  # TEST-NET-1
@@ -35,10 +34,10 @@ def test_the_template_renders_to_a_valid_launch_agent():
     assert job["WorkingDirectory"] == "/opt/pewpew/repo"
     assert job["StandardOutPath"] == job["StandardErrorPath"] == "/opt/pewpew/logs/pewpew-aura.log"
     args = job["ProgramArguments"]
-    assert args[:5] == ["/opt/pewpew/repo/.venv/bin/python", "-m", "pewpew", "run", "plasma"]
+    assert args[:5] == ["/opt/pewpew/repo/.venv/bin/python", "-m", "pewpew", "run", "/opt/pewpew/looks.json"]
     for flag in ("--armed", "--unattended", "--preview"):
         assert flag in args
-    for flag, value in (("--looks", "/opt/pewpew/looks.json"), ("--room", "/opt/pewpew/room.json"),
+    for flag, value in (("--room", "/opt/pewpew/room.json"),
                         ("--host", "192.0.2.2"), ("--ddp-fps", "40"),
                         ("--trigger-log", "/opt/pewpew/logs/triggers.jsonl")):
         assert args[args.index(flag) + 1] == value
@@ -58,10 +57,11 @@ def test_the_template_never_keeps_a_feature_log():
 
 
 def test_the_runner_accepts_the_templates_arguments(tmp_path, capsys):
-    # A dry run reads the looks file (one not saved yet is an empty book)
-    # and checks that the trigger log's folder takes the file.
-    values = {**VALUES, "__ROOM__": str(EXAMPLE_ROOM), "__LOOKS__": str(tmp_path / "looks.json"),
-              "__LOGS__": str(tmp_path)}
+    # A dry run reads the looks file, checks that its current look starts on
+    # the room, and that the trigger log's folder takes the file.
+    looks = tmp_path / "looks.json"
+    looks.write_bytes((EXAMPLES / "tide.look.json").read_bytes())
+    values = {**VALUES, "__ROOM__": str(EXAMPLE_ROOM), "__LOOKS__": str(looks), "__LOGS__": str(tmp_path)}
     text = TEMPLATE.read_text()
     for name, value in values.items():
         text = text.replace(name, value)

@@ -5,8 +5,8 @@ status line, a reload error or a refusal carries, and `scrub` the one
 filter it applies: every absolute path goes, and the home dir with it.
 `unknown` is the one wording for a name nothing answers to, and
 `typo_hint` its did-you-mean. `Refusal` is a refused request as the
-socket answers it. `LoadError` is a pattern file that does not resolve to
-one usable class. `blame` marks an exception with the address of the part
+socket answers it. `LoadError` is a pattern name that no pattern answers
+to. `blame` marks an exception with the address of the part
 that raised it (a node of an effect program), and `blamed` reads it back.
 Imports nothing from pewpew, so every layer can use them.
 """
@@ -50,15 +50,7 @@ class Worded(ValueError):
 
 
 class LoadError(ValueError):
-    """The spec did not resolve to exactly one usable `Pattern` subclass.
-
-    The message never contains a path (pewpew.load); `path` is the file it
-    concerns, or None, for the one caller allowed to print it.
-    """
-
-    def __init__(self, message: str, path: Path | None = None) -> None:
-        super().__init__(message)
-        self.path = path
+    """A pattern name that no pattern answers to (pewpew.load)."""
 
 
 def scrub(text: str) -> str:

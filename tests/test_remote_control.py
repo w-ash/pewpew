@@ -11,6 +11,7 @@ import json
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
 import pytest
 from websockets.sync.client import connect
 from websockets.sync.server import serve
@@ -26,10 +27,11 @@ from fakes import (
     next_of,
     next_text,
     preview_sink,
+    restore,
     serving,
     wait_until,
 )
-from pewpew import grid, line
+from pewpew import Float, Pattern, grid, line
 from pewpew.__main__ import main
 from pewpew.aura.control import BUSY
 from pewpew.load import Catalog
@@ -125,15 +127,17 @@ def test_a_pushed_look_runs_and_is_acked_with_its_id():
     assert sent["look"]["layers"][0]["nodes"]["comet"]["args"] == {"pattern": "comet", "speed": 0.4}  # as authored
 
 
-def test_a_look_goes_out_as_authored_so_the_engine_fills_in_its_own_defaults(tmp_path):
-    """The engine's comet, from its --pattern-dir, has no `tail`: a look
-    that never named one runs there, though the gallery comet has one."""
-    (tmp_path / "comet.py").write_text(
-        "import numpy as np\nfrom pewpew import Float, Pattern\n\n\nclass Comet(Pattern):\n"
-        "    speed = Float(0.5, 0.0, 2.0)\n\n    def render(self, x, y, z, index):\n"
-        "        return np.zeros((self.n, 3), dtype=np.float32)\n"
-    )
-    with engine(Catalog(tmp_path), accept_looks=True) as (rig, url):
+def test_a_look_goes_out_as_authored_so_the_engine_fills_in_its_own_defaults():
+    """The engine's comet has no `tail`: a look that never named one runs
+    there, though the gallery comet has one."""
+
+    class Comet(Pattern):
+        speed = Float(0.5, 0.0, 2.0)
+
+        def render(self, x, y, z, index):
+            return np.zeros((self.n, 3), dtype=np.float32)
+
+    with engine(Catalog({"comet": Comet}), accept_looks=True) as (rig, url):
         pushed = push(url, COMET)
         values = rig.control.values()
     assert pushed.answers == (Answer("1", "look", True),)
@@ -322,12 +326,12 @@ def test_a_look_that_names_a_file_is_refused_with_its_path_and_id():
         assert rig.deck.current == "solid"
     assert (reply["type"], reply["control"], reply["id"]) == ("refused", "look", 3)
     assert reply["name"] == "layers.base.x.pattern"
-    assert "/tmp" not in reply["reason"] and "never by file" in reply["reason"]
+    assert "/tmp" not in reply["reason"] and "unknown pattern" in reply["reason"]
 
 
 def test_a_program_look_runs_but_a_pattern_node_named_by_file_is_refused_inside_it():
     """A pushed look's program runs node by node; a pattern node anywhere
-    in it is named by pick name, never by file."""
+    in it is named by its catalog name, never by file."""
     nodes = {"p": {"op": "pattern", "args": {"pattern": "/tmp/x.py"}},
              "fold": {"op": "mirror", "in": ["p"]}, "tint": {"op": "hue", "in": ["fold"]}}
     with engine(mapping=grid(4, 4), accept_looks=True) as (rig, url):
@@ -336,7 +340,7 @@ def test_a_program_look_runs_but_a_pattern_node_named_by_file_is_refused_inside_
         reply = answer(url, {"type": "look", "id": 2, "look": {"layers": [{"id": "base", "nodes": nodes}]}})
         assert rig.control.values()["layers.base.fold.sides"] == 5  # the refused look never started
     assert (reply["type"], reply["id"], reply["name"]) == ("refused", 2, "layers.base.p.pattern")
-    assert "/tmp" not in reply["reason"] and "never by file" in reply["reason"]
+    assert "/tmp" not in reply["reason"] and "unknown pattern" in reply["reason"]
 
 
 def test_a_program_look_checks_renders_verifies_and_pushes(tmp_path, capsys):
@@ -383,9 +387,9 @@ def test_a_look_refusal_names_no_folder(tmp_path):
     private = tmp_path / "private-folder-xyz"
     private.mkdir()
     (private / "broken.py").write_text("def (:\n")
-    rig = aura_rig(mapping=line(4), catalog=Catalog(private), accept_looks=True, timeout=2.0)
+    rig = aura_rig(mapping=line(4), catalog=Catalog(), accept_looks=True, timeout=2.0)
     with serving(rig.control, rig.calls) as (_, ws, _):
-        for i, spec in enumerate(("broken", str(private / "mine.py"), f"{private}/mine", "nosuch")):
+        for i, spec in enumerate((str(private / "broken.py"), f"{private}/mine", "nosuch")):
             ws.send(json.dumps({"type": "look", "id": i, "look": with_pattern(spec)}))
             reply = next_of(ws, "refused")
             assert (reply["id"], reply["name"]) == (i, "layers.base.x.pattern")
@@ -396,7 +400,7 @@ def test_a_pushed_look_is_no_saved_look_until_a_save_keeps_it(tmp_path):
     path = tmp_path / "looks.json"
     rig = aura_rig(Solid, mapping=line(4), catalog=Catalog(), looks={"blue": look("wash")}, current="blue",
                    path=path, accept_looks=True)
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     with LoopThread(rig.calls):
         assert rig.control.look(COMET) is None
         assert rig.looks.book.current is None and list(rig.looks.book.looks) == ["blue"]

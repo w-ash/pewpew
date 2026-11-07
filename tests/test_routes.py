@@ -20,7 +20,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from fakes import FakeCatalog, LoopThread, Pooled, Solid, aura_rig, frames
+from fakes import LoopThread, Pooled, Solid, aura_rig, frames, restore
 from pewpew import grid, line
 from pewpew.aura.book import LookBook, pattern_problems
 from pewpew.compose import Compositor, Look, Resolved, Route, controls_of, pattern_layer
@@ -38,6 +38,7 @@ from pewpew.lab.check import ready
 from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.rendering import play
 from pewpew.lab.verify import Verification, verify_looks
+from pewpew.load import Catalog
 from pewpew.params import Float, Int, declared_params
 from pewpew.render import error_frame
 from pewpew.run import status_line
@@ -456,9 +457,9 @@ def test_verify_catches_a_fast_lfo_on_brightness_and_a_signal_knob_that_moves_no
 def test_the_aura_sets_a_signals_knob_and_reports_the_stack_and_its_live_values(tmp_path: Path) -> None:
     macro = Look((pattern_layer("base", "solid", {"red": 0.0}),), Graph((Node("macro", "knob"),)),
                  (Route("macro", "layers.base.solid.red", 1.0),), front=("signals.macro.value",))
-    rig = aura_rig(Solid, catalog=FakeCatalog({"solid": Solid}), looks={"macro": macro}, current="macro",
+    rig = aura_rig(Solid, catalog=Catalog({"solid": Solid}), looks={"macro": macro}, current="macro",
                    path=tmp_path / "looks.json")
-    assert rig.looks.restore() is None
+    assert restore(rig) is None
     rig.frame(rig.clock.advance())
     assert rig.control.state()["stack"]["routes"] == [{"source": "macro", "path": "layers.base.solid.red",
                                                        "depth": 1.0}]

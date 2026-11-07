@@ -15,7 +15,6 @@ import pytest
 
 from fakes import (
     LOOK_CLASSES,
-    FakeCatalog,
     LoopThread,
     Painter,
     Solid,
@@ -24,7 +23,8 @@ from fakes import (
     ddp_sink,
     look,
     next_of,
-    no_watch,
+    offered,
+    pattern_looks,
     serving,
     solid,
     wait_until,
@@ -42,10 +42,10 @@ from pewpew.patterns import Comet, Plasma, Wash, Wave
 from pewpew.sinks.ddp import Board
 
 
-def gallery_rig(start=Plasma, search_dir=None, **kw):
-    """An aura on an 8-pixel line whose catalog is the real one: the gallery
-    and, when given, a patterns directory."""
-    return aura_rig(start, mapping=line(8), catalog=Catalog(search_dir), **kw)
+def gallery_rig(start=Plasma, **kw):
+    """An aura on an 8-pixel line whose catalog is the real one: the
+    gallery, with any pattern a test `offered`."""
+    return aura_rig(start, mapping=line(8), catalog=Catalog(), **kw)
 
 
 # ---- params ------------------------------------------------------------------
@@ -137,56 +137,39 @@ def test_a_queued_set_gone_stale_logs_instead_of_killing_the_loop(caplog, monkey
 # ---- picks -------------------------------------------------------------------
 
 
-def test_a_pick_cuts_on_the_loop_thread_and_the_reloader_follows():
-    watched = []
-
-    def watch(source, stop):
-        watched.append((source, stop))
-        stop.wait(5.0)
-        return iter(())
-
-    rig = gallery_rig(watch=watch)
-    rig.deck.watch()
-    try:
-        assert {"comet", "plasma"} <= set(rig.control.state()["patterns"])
-        with LoopThread(rig.calls):
-            assert rig.control.pick("comet") is None
-        assert type(rig.renderer().pattern) is Comet and not rig.fader.fading
-        assert rig.control.state()["pattern"] == "comet" and rig.reloader().loaded.cls is Comet
-        # The watch moved to comet.py, and the plasma watcher was told to stop.
-        wait_until(lambda: len(watched) == 2)
-        (old_source, old_stop), (new_source, new_stop) = watched
-        assert (old_source.name, new_source.name) == ("plasma.py", "comet.py")
-        assert old_stop.is_set() and not new_stop.is_set()
-    finally:
-        rig.deck.unwatch()
-    assert watched[1][1].is_set()
+def test_a_pick_cuts_on_the_loop_thread():
+    rig = gallery_rig()
+    assert {"comet", "plasma"} <= set(rig.control.state()["patterns"])
+    with LoopThread(rig.calls):
+        assert rig.control.pick("comet") is None
+    assert type(rig.renderer().pattern) is Comet and not rig.fader.fading
+    assert rig.control.state()["pattern"] == "comet"
 
 
-def test_a_pick_off_the_list_is_refused_before_anything_resolves(tmp_path):
-    rig = gallery_rig(search_dir=tmp_path)
+def test_a_pick_off_the_list_is_refused_before_anything_resolves():
+    rig = gallery_rig()
     for name in ("nosuch", "../plasma.py", "/etc/passwd", 7):
-        reason = rig.control.pick(name)
-        assert reason is not None and str(tmp_path) not in reason
+        reason = rig.control.pick(name) or ""
+        assert reason.startswith(("unknown pattern", "pick takes a pattern name")), reason
     assert rig.control.pick("nosuch").startswith("unknown pattern 'nosuch'; patterns: colorplasma, comet, ")
     assert type(rig.renderer().pattern) is Plasma
 
 
-def test_a_pattern_whose_setup_raises_keeps_the_old_one(tmp_path):
-    (tmp_path / "broken.py").write_text(
+def test_a_pattern_whose_setup_raises_keeps_the_old_one(monkeypatch):
+    offered(monkeypatch, broken=(
         "import numpy as np\nfrom pewpew import Pattern\n"
         "class Broken(Pattern):\n"
         "    def setup(self, n, x, y, z, index):\n        raise RuntimeError('no fixture')\n"
         "    def render(self, x, y, z, index):\n"
         "        return np.ones((self.n, 3), dtype=np.float32)\n"
-    )
-    rig = gallery_rig(search_dir=tmp_path)
+    ))
+    rig = gallery_rig()
     running = rig.renderer()
     assert "broken" in rig.control.state()["patterns"]
     with LoopThread(rig.calls):
         reason = rig.control.pick("broken")
     assert reason == "cannot switch to 'broken', plasma is still running: layers.base: RuntimeError: no fixture"
-    assert running is rig.renderer() and rig.reloader().loaded.cls is Plasma
+    assert running is rig.renderer()
     assert rig.control.state()["pattern"] == "plasma"
     rig.fader.advance_to(1 / 60)  # and it still renders
     assert rig.fader.error is None
@@ -278,20 +261,15 @@ def test_a_control_it_does_not_know_is_refused_when_its_sender_waits_for_an_answ
 
 @pytest.fixture
 def served_from_a_private_folder(tmp_path, monkeypatch):
-    """An aura whose looks file and patterns directory sit in a folder whose
-    name must never reach the socket, served over the preview."""
+    """An aura whose looks file sits in a folder whose name must never reach
+    the socket, served over the preview."""
     private = tmp_path / "private-folder-xyz"
     private.mkdir()
-    unreadable = private / "mine.py"
-    unreadable.write_text("from pewpew.patterns import Comet as Mine\n")
-    unreadable.chmod(0)  # listed, but its read fails as a permission error
-    (private / "broken.py").write_text("def (:\n")
     triggers = {"cue": Trigger(look="blue")}
-    rig = aura_rig(mapping=line(4), catalog=Catalog(private), looks={"blue": solid(0.0, 0.0, 1.0)},
+    rig = aura_rig(mapping=line(4), catalog=Catalog(), looks={"blue": solid(0.0, 0.0, 1.0)},
                    triggers=triggers, path=private / "looks.json", timeout=2.0)
     with serving(rig.control, rig.calls) as (_, ws, _):
         yield rig, ws, private
-    unreadable.chmod(0o644)
 
 
 def refusals(ws, messages) -> list[dict]:
@@ -303,9 +281,9 @@ def refusals(ws, messages) -> list[dict]:
 
 def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, monkeypatch):
     """Every refusal crosses one socket, which anyone on the private network can
-    reach (architecture §5): a file read that fails, a file that does not
-    load, a look request whose write fails, and every malformed message
-    must say why without the folder, a file name or `.py`."""
+    reach (architecture §5): a pattern named by a path, a look request whose
+    write fails, and every malformed message must say why without the
+    folder, a file name or `.py`."""
     _, ws, private = served_from_a_private_folder
     messages = [
         {"type": "recall", "name": "nosuch"}, {"type": "recall", "name": "../looks.json"},
@@ -325,7 +303,7 @@ def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, m
         reason = reply["reason"]
         assert str(private) not in reason and "private-folder" not in reason, reason
         assert "mine.py" not in reason and "broken.py" not in reason and ".py" not in reason, reason
-    assert "cannot switch to 'mine', solid is still running" in replies[13]["reason"]
+    assert replies[13]["reason"].startswith("unknown pattern 'mine'; patterns: colorplasma")
 
 
 SECRET = Path.home() / "secret-folder" / "mine.py"
@@ -344,8 +322,8 @@ def leaks(text: str) -> bool:
 
 @pytest.mark.parametrize("make", PATH_ERRORS.values(), ids=PATH_ERRORS)
 def test_no_error_text_that_reaches_the_page_names_a_path(make, tmp_path, monkeypatch):
-    """Each channel an exception's text takes to the page: the render,
-    reload and looks status, a pick, recall and failed-request refusal, a
+    """Each channel an exception's text takes to the page: the render and
+    looks status, a pick, recall and failed-request refusal, a
     trigger's `last.error`, a board's reasons, the scan error and the sleep
     detail."""
 
@@ -358,15 +336,11 @@ def test_no_error_text_that_reaches_the_page_names_a_path(make, tmp_path, monkey
             raise make()
 
     classes = {**LOOK_CLASSES, "raising": Raising, "unbuildable": Unbuildable}
-    rig = aura_rig(Raising, catalog=FakeCatalog(classes), looks={"bad": look("unbuildable", fade=0.0)},
+    rig = aura_rig(Raising, catalog=Catalog(classes), looks={"bad": look("unbuildable", fade=0.0)},
                    triggers={"cue": Trigger(look="bad", debounce=0.0)}, path=tmp_path / "looks.json")
     texts = [describe_exception(make()), wled.failure(make())]
     rig.frame(rig.clock.advance())
-    reloader = rig.reloader()
-    reloader._digest = None
-    monkeypatch.setattr(reloader, "_apply", lambda data: (_ for _ in ()).throw(make()))
-    reloader.reload()
-    texts += [rig.fader.error and str(rig.fader.error), rig.deck.error]
+    texts.append(rig.fader.error and str(rig.fader.error))
     with LoopThread(rig.calls):
         texts += [rig.control.pick("unbuildable"), rig.control.recall("bad")]
         monkeypatch.setattr(rig.looks, "save", lambda *a: (_ for _ in ()).throw(make()))
@@ -411,15 +385,14 @@ def test_a_look_request_that_raises_is_a_refusal_and_the_aura_goes_on(tmp_path, 
 
 def test_a_recall_and_a_pick_start_a_pattern_the_same_way(tmp_path):
     """One sequence for both: the deck resolves, builds at the values that
-    still fit, cuts or fades, and follows the file."""
+    still fit, and cuts or fades."""
     rig = gallery_rig(Comet, looks={"calm": look("wave", {"speed": 0.75, "gone": 3}, fade=0.0)},
-                      path=tmp_path / "looks.json", watch=no_watch)
+                      path=tmp_path / "looks.json")
     assert rig.looks.recall("calm") is None
     assert type(rig.renderer().pattern) is Wave and rig.renderer().params["speed"] == 0.75
-    assert rig.deck.current == "wave" and rig.reloader().loaded.cls is Wave
+    assert rig.deck.current == "wave"
     assert rig.deck.put("base", "comet") is None
     assert type(rig.renderer().pattern) is Comet and rig.deck.current == "comet"
-    assert rig.reloader().loaded.cls is Comet
     assert rig.deck.put("base", "nosuch").startswith("layers.base: unknown pattern 'nosuch'; patterns:")
     assert rig.deck.put("top", "comet") == "unknown layer 'top'; layers: base"
 
@@ -444,14 +417,14 @@ def test_a_number_too_large_for_a_float_is_a_refusal_not_a_crash():
     assert rig.control.fire("cue", huge).startswith("a trigger value is a finite number or null")
 
 
-def test_a_pattern_dir_file_goes_by_its_pick_name_everywhere_on_the_page(tmp_path):
-    """`mine.py` defines `class Spark`: the picker, the status line and a
-    refusal all call it `mine`, before and after a hot reload."""
-    (tmp_path / "mine.py").write_text(
+def test_a_pattern_goes_by_its_catalog_name_everywhere_on_the_page(monkeypatch):
+    """`mine` is `class Spark`: the picker, the status line and a refusal
+    all call it `mine`."""
+    offered(monkeypatch, mine=(
         "from pewpew import Float\nfrom pewpew.patterns import Comet\n\n\n"
         "class Spark(Comet):\n    speed = Float(0.5, 0.0, 1.0)\n"
-    )
-    rig = gallery_rig(search_dir=tmp_path)
+    ))
+    rig = gallery_rig()
     assert rig.deck.put("base", "mine") is None
     assert rig.control.state()["pattern"] == "mine"
     assert rig.control.state()["stack"]["layers"] == [
@@ -462,15 +435,6 @@ def test_a_pattern_dir_file_goes_by_its_pick_name_everywhere_on_the_page(tmp_pat
     rig.fader.advance_to(1 / 60)
     error = rig.fader.error
     assert error.pattern == "layers.base.mine" and str(error).startswith("layers.base.mine.render raised: ")
-    rig.fader.current.swap("base", rig.deck.catalog.resolve("mine").cls())
-    assert rig.control.set("layers.base.mine.speed", 3.0).startswith("layers.base.mine.speed ")
-
-
-def test_the_catalog_reads_its_directory_again_before_refusing_a_name(tmp_path):
-    catalog = Catalog(tmp_path)
-    assert "late" not in catalog.names
-    (tmp_path / "late.py").write_text("from pewpew.patterns import Comet\n\n\nclass Late(Comet):\n    pass\n")
-    assert catalog.resolve("late").cls.__name__ == "Late"  # added after the list was read
 
 
 # ---- looks made for the aura ------------------------------------------------------------
@@ -493,7 +457,7 @@ def test_a_surprise_and_a_vary_over_the_socket_are_acked_play_and_are_not_saved(
     ws.send(json.dumps({"type": "vary", "id": "v", "strength": 0.8, "seed": 2}))
     assert next_of(ws, "ack")["id"] == "v"
     assert rig.renderer().params.snapshot_json()["red"] == 0.8
-    assert list(rig.looks.book.looks) == ["blue"] and json.loads(rig.path.read_text())["current"] is None
+    assert list(rig.looks.book.looks) == ["blue"] and not rig.path.exists()  # nothing written
 
 
 def test_keep_saves_the_made_look_under_its_own_name_and_a_number_past_it(made):
@@ -606,7 +570,7 @@ def test_an_aura_without_a_looks_file_plays_a_surprise_but_cannot_keep_it():
         assert next_of(ws, "ack")["id"] == 1
         assert rig.renderer().params.snapshot_json()["green"] == 1.0
         ws.send(json.dumps({"type": "keep", "id": 2}))
-        assert next_of(ws, "refused")["reason"] == "no looks file: start the run with --looks PATH"
+        assert next_of(ws, "refused")["reason"] == "no looks file: this aura saves no looks"
 
 
 def test_a_surprise_without_a_seed_takes_the_run_s_next_one_the_same_in_every_run():
@@ -615,20 +579,10 @@ def test_a_surprise_without_a_seed_takes_the_run_s_next_one_the_same_in_every_ru
     assert len(set(seeds)) == 3 and seeds == [again.next_seed() for _ in range(3)]
 
 
-MINE = "from pewpew.patterns import Pulse\n\n\nclass Mine(Pulse):\n    pass\n"
-
-
-def test_a_run_launched_by_a_file_varies_and_one_whose_file_broke_since_is_refused_naming_no_path(tmp_path):
-    mine = tmp_path / "mine.py"
-    mine.write_text(MINE)
-    run = build(["run", str(mine), "--map", "line:16"])
+def test_a_run_varies_its_look_and_the_socket_answers_after(tmp_path):
+    run = build(["run", pattern_looks("pulse"), "--map", "line:16"])
     with serving(run.control, run.calls) as (_, ws, _):
         ws.send(json.dumps({"type": "vary", "id": 1, "strength": 0.5, "seed": 3}))
         assert next_of(ws, "ack") == {"type": "ack", "id": 1, "control": "vary"}
-        mine.write_text(MINE + ")(\n")
-        ws.send(json.dumps({"type": "vary", "id": 2, "strength": 0.5, "seed": 3}))
-        refused = next_of(ws, "refused")
-        assert refused["id"] == 2 and refused["reason"].startswith("the running look cannot vary: layers.base.")
-        assert "SyntaxError" in refused["reason"] and "mine.py" not in refused["reason"]
         ws.send(json.dumps({"type": "master", "id": 3, "value": 0.5}))
         assert next_of(ws, "ack")["id"] == 3  # the socket still answers

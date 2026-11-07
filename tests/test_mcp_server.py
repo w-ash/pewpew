@@ -221,7 +221,7 @@ async def test_look_vary_gives_n_candidates_and_their_numbered_sheet(
 ) -> None:
     instant_looks(monkeypatch)
     result = await client.call_tool("look_vary", {"seed": 4, "n": 2, "map": "line:64"})
-    made = lab.vary(None, 4, 2, map_spec="line:64", catalog=Catalog())
+    made = lab.vary(None, 4, 2, map_spec="line:64")
     assert payload(result) == made.to_json() and len(made.candidates) == 2
     assert [b.type for b in result.content] == ["text", "image"]
     rows = await client.read_resource(f"pewpew://render/{made.candidates[1].handle}/sheet.png")
@@ -316,8 +316,8 @@ async def test_a_wrong_argument_gets_its_did_you_mean_and_the_corrected_call(cli
     ("look_render", {"layers": [{"id": "base", "nodes": {"x": {"op": "kaleidd", "args": {}}}}]},
      ["  fix: set layers.base.x.op to 'kaleid'"]),
     ("look_render", layered("/tmp/x.py", node="x"),
-     [("bad-ref at layers.base.x.pattern: layers.base.x: pattern '…' does not load: a look sent to an engine names "
-      "its pattern by name, never by file")]),
+     [("bad-ref at layers.base.x.pattern: layers.base.x: pattern '…' does not load: unknown pattern '…'; "
+       "patterns: colorplasma, comet, fire, geq, plasma, pulse, rainbow, sdf3d, sparkle, wash, wave")]),
     ("engine_apply", {"layers": [{"id": "base", "blend": "scren", "nodes": {}}]},
      ["  fix: set layers.base.blend to 'screen'"]),
 ])
@@ -328,12 +328,12 @@ async def test_a_look_with_problems_is_an_error_that_teaches_each_fix(
     result = await client.call_tool(tool, args)
     lines = text(result.content[0]).splitlines()
     assert set(says) <= set(lines) and lines[-1] == f"apply each fix and call {tool} again"
-    assert refusal(result) == lab.Check(False, None, lab.check_look(look, catalog=Catalog()).problems).to_json()
+    assert refusal(result) == lab.Check(False, None, lab.check_look(look).problems).to_json()
 
 
 @pytest.mark.parametrize(("tool", "args", "says"), [
     ("look_compare", {"a": "r1-00000000000000000000", "b": COMET}, "render again with the same look, map"),
-    ("look_render", {"look": COMET, "map": "grid16"}, "expected auto, line:64, grid:16x16"),
+    ("look_render", {"look": COMET, "map": "grid16"}, "expected line:64, grid:16x16"),
     ("engine_observe", {"url": LOCAL, "seconds": 0.5}, "nothing answered at ws://127.0.0.1:9/"),
     ("engine_set", {"url": "ws://10.1.2.3:7447/", "path": "layers.base.comet.speed", "value": 0.4},
      "10.1.2.3 is not this machine"),

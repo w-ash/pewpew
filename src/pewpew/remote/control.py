@@ -10,10 +10,9 @@ amendment 2026-11-05) holds in this code, not in a tool's description:
   loopback (127.0.0.0/8 or ::1), unless `allow_hosts` names it. Those are
   IP addresses, so what they allow cannot move with DNS. The client
   connects to an address it checked and never resolves again.
-- A look is checked here first, as the engine checks it: through a pattern
-  catalog, so each pattern goes by name, never by file
-  (`pewpew.lab.check_look`), and each knob value set after it against the
-  look's knobs; a set alone is checked for a knob address's form. A dry
+- A look is checked here first, as the engine checks it: each pattern
+  by its gallery name (`pewpew.lab.check_look`), and each knob value set
+  after it against the look's knobs; a set alone is checked for a knob address's form. A dry
   run stops after the checks with the messages it would send, and opens
   no socket, so what only the engine knows (its map, `--accept-looks`,
   the knobs of the look it runs) is checked on a send alone. The look goes out as its document
@@ -50,7 +49,6 @@ from pewpew.compose.stack import MAX_FADE, parse_fade
 from pewpew.errors import describe_exception
 from pewpew.fx.codec import encode_look
 from pewpew.lab.check import Check, LookDoc, ready
-from pewpew.load import Catalog
 from pewpew.pace import ASK_TIMEOUT_S
 from pewpew.problems import Code, Problem, Refused, problem
 from pewpew.remote.client import Client, Unreachable, engine_url, why_unreachable, with_host
@@ -113,7 +111,6 @@ def push(
     fade: float | None = None,
     sets: Mapping[str, Any] | None = None,
     name: str | None = None,
-    pattern_dir: Path | None = None,
     dry_run: bool = False,
     allow_hosts: Collection[str] = (),
     argv: Sequence[str] = (),
@@ -125,8 +122,7 @@ def push(
 
     `look` is a single look or a looks file, as `pewpew.lab.check_look`
     takes it; `name` picks a look of a file. Each pattern resolves by name
-    in the gallery and `pattern_dir`, as on an engine run with that
-    `--pattern-dir`, and the engine checks the look again with its own.
+    in the gallery, and the engine checks the look again with its own.
     `argv` is the command line the audit record names. Raises Refused for
     problems with the look, `fade` or a set, Forbidden for a write tier 1
     rules out or the engine cannot take, Unreachable when the engine does
@@ -137,7 +133,7 @@ def push(
         if reason is not None:
             raise Refused([problem(reason)])
     sets = dict(sets or {})
-    staged = ready(look, name=name, catalog=Catalog(pattern_dir))
+    staged = ready(look, name=name)
     knobs = controls_of(staged.layers, staged.look.signals)
     problems = [replace(problem(reason), path=path) for path, value in sets.items()
                 if (reason := knobs.parse(path, value)[1]) is not None]
@@ -269,8 +265,6 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
                    help="then set the knob at PATH (layers.base.comet.speed) to VALUE, JSON or a choice key; "
                    "repeat per knob")
     add_allow_host(p, "also write to the engine at IP, a bench machine (default: only an engine on this machine)")
-    p.add_argument("--pattern-dir", type=Path, default=None, metavar="DIR",
-                   help="the engine's --pattern-dir, so its patterns check here too")
     p.add_argument("--dry-run", action="store_true",
                    help="check the look against this machine's patterns and that the engine is on this machine, "
                    "print what would be sent, and open no socket; the engine's map and --accept-looks are checked "
@@ -285,8 +279,8 @@ def cli(args: argparse.Namespace, argv: list[str]) -> int:
     doc: LookDoc = sys.stdin.read() if args.source == STDIN else Path(args.source)
     try:
         pushed = push(
-            args.url, doc, fade=args.fade, sets=dict(args.sets), name=args.name, pattern_dir=args.pattern_dir,
-            dry_run=args.dry_run, allow_hosts=args.allow_hosts, argv=argv,
+            args.url, doc, fade=args.fade, sets=dict(args.sets), name=args.name, dry_run=args.dry_run,
+            allow_hosts=args.allow_hosts, argv=argv,
         )
     except Refused as exc:
         if args.json:

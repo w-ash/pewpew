@@ -24,8 +24,8 @@ holds tier 1 for them (an engine on this machine or an `--allow-host` IP,
 run with `--accept-looks`, an audit record before the first byte). No
 tool writes to the fleet.
 
-A look's patterns resolve by name alone (pewpew.load.Catalog), as on an
-engine, so no tool argument makes the server run a file.
+A look's patterns resolve by their gallery names (pewpew.load), as on an
+engine; no tool argument names a file the server runs.
 
 A refused look, kind or cursor is an `isError` result that teaches: each
 problem's code, path, reason and fix, then the corrected call or what to
@@ -76,7 +76,7 @@ from pewpew.lab import CatalogPage, Check, Comparison, Expired, Problem, Refused
 from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, MAX_FPS, MAX_SECONDS
 from pewpew.lab.search import Detail, example_looks, index
 from pewpew.lab.variations import MAX_VARIANTS
-from pewpew.load import Catalog
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.remote.client import Unreachable
 from pewpew.remote.control import Forbidden, Pushed, push, report, set_value
 from pewpew.remote.observe import WATCH_S, Observation, capture
@@ -135,8 +135,8 @@ Cursor = Annotated[str | None, Field(description="The next_cursor of the page be
 Explain = Annotated[bool, Field(description="Also describe the look in words, knob by knob; each look of a "
                                             "looks file")]
 MapArg = Annotated[str, Field(
-    description="Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), "
-    "line:N, grid:WxH, lattice:N, or a room map file", examples=["grid:16x16", "line:64"],
+    description="Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
+    examples=["grid:16x16", "line:64"],
 )]
 Seconds = Annotated[float, Field(gt=0, le=MAX_SECONDS, description="Seconds to render; flashing needs at least 1")]
 Fps = Annotated[float, Field(gt=0, le=MAX_FPS, description="Frames per second")]
@@ -188,8 +188,6 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
     prompts. `allow_hosts` and `argv` go to the tier-1 writes: the bench
     machines they may write to, and the command line the audit record
     names."""
-    patterns = Catalog()  # the gallery, by name
-
     @_teaching
     def catalog_search(
         query: Query = None, kind: Kind = None, response_format: Format = "concise", cursor: Cursor = None,
@@ -208,14 +206,14 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
         """Check a look, or a looks file, without rendering it: the aura's own checks, each problem with a
         code, its path (layers.base.comet.speed), a did-you-mean and a fix. A look that checks comes back
         normalized, every knob of every node written out with its value."""
-        checked = lab.check_look(look, catalog=patterns)
+        checked = lab.check_look(look)
         if not checked.ok:
             raise Refused(checked.problems)
-        return _ok(checked, texts=_words(look, checked, patterns) if explain else ())
+        return _ok(checked, texts=_words(look, checked) if explain else ())
 
     @_teaching
     def look_render(
-        look: LookArg, map: MapArg = "auto", seconds: Seconds = DEFAULT_SECONDS, fps: Fps = DEFAULT_FPS,
+        look: LookArg, map: MapArg = DEFAULT_MAP, seconds: Seconds = DEFAULT_SECONDS, fps: Fps = DEFAULT_FPS,
         seed: Seed = 0, sheet: SheetArg = True, response_format: RenderFormat = "concise",
     ) -> Annotated[CallToolResult, Rendered]:
         """Render a look offline, as the aura runs it, and measure the frames. Returns a handle (r1-...) that
@@ -223,24 +221,24 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
         second, mean_luma, black_fraction, clip_fraction, motion_energy, frozen_fraction, palette_spread,
         ...); warnings, such as a gate the look would fail; and a contact sheet of the frames. Read the
         metrics before the image. The same arguments always give the same handle and frames."""
-        rendered = lab.render(look, map, seconds, fps, seed, catalog=patterns)
+        rendered = lab.render(look, map, seconds, fps, seed)
         images = (Path(lab.sheet(rendered).path).read_bytes(),) if sheet else ()
         return _ok(rendered if response_format == "detailed" else rendered.brief(), images=images)
 
     @_teaching
-    def look_compare(a: Side, b: Side, map: MapArg = "auto") -> Annotated[CallToolResult, Comparison]:
+    def look_compare(a: Side, b: Side, map: MapArg = DEFAULT_MAP) -> Annotated[CallToolResult, Comparison]:
         """How render B differs from render A: each knob, signal, route or front list that differs, by its
         path; RMS and largest difference of the frames; the first frame that differs; each metric of B less
         A's; and a sheet with rows A and B at the same times. A look renders as the other side was rendered
         (map, seconds, fps, seed); two looks both render on `map`. The numbers are evidence, never a verdict."""
-        result = lab.compare(a, b, map_spec=map, catalog=patterns)
-        drawn = lab.compare_sheet(a, b, map_spec=map, catalog=patterns)
+        result = lab.compare(a, b, map_spec=map)
+        drawn = lab.compare_sheet(a, b, map_spec=map)
         return _ok(result, images=(Path(drawn.path).read_bytes(),))
 
     @_teaching
     def look_vary(
         look: VaryLook = None, seed: MakeSeed = 0, n: Count = 4, strength: Strength = STRENGTH, keep: Keep = None,
-        map: MapArg = "auto", audio: Audio = False, sheet: SheetArg = True,
+        map: MapArg = DEFAULT_MAP, audio: Audio = False, sheet: SheetArg = True,
     ) -> Annotated[CallToolResult, Variations]:
         """Make n looks from a seed: from nothing, or like `look` at `strength`, holding the addresses in `keep`.
         Each is judged on the map before it is given (it checks, flashes at most 3 times a second, is not black,
@@ -249,7 +247,7 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
         gates its render fails (too dark, washed out, dies out, frozen, noise, grey), which a made look avoids
         when it can. The sheet shows them in
         rows numbered 1 to n, at the same times. The same arguments always give the same looks."""
-        made = lab.vary(look, seed, n, strength, keep or (), map, audio=audio, catalog=patterns)
+        made = lab.vary(look, seed, n, strength, keep or (), map, audio=audio)
         images = (Path(lab.rows([c.handle for c in made.candidates]).path).read_bytes(),) if sheet else ()
         return _ok(made, images=images)
 
@@ -349,13 +347,13 @@ def _pushed(pushed: Pushed) -> CallToolResult:
     return _failed(f"{report(pushed)}\nfix what the engine refused and call again", pushed)
 
 
-def _words(look: Mapping[str, Any], checked: Check, patterns: Catalog) -> tuple[str, ...]:
+def _words(look: Mapping[str, Any], checked: Check) -> tuple[str, ...]:
     """The look that `checked` passed in words; for a looks file, each of
     its looks, by name."""
     names = (checked.look_normalized or {}).get("looks")
     if names is None:
-        return (lab.explain(look, catalog=patterns).text(),)
-    return tuple(f"look {name!r}: {lab.explain(look, name=name, catalog=patterns).text()}" for name in names)
+        return (lab.explain(look).text(),)
+    return tuple(f"look {name!r}: {lab.explain(look, name=name).text()}" for name in names)
 
 
 def _teaching(tool: Callable[..., CallToolResult]) -> Callable[..., CallToolResult]:

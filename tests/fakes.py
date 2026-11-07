@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import itertools
 import json
 import os
 import pickle
@@ -21,7 +22,7 @@ from concurrent.futures import Future
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Self, TypeVar, cast
+from typing import Any, Self, TypeVar
 
 import numpy as np
 from websockets.sync.client import connect
@@ -35,7 +36,6 @@ from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.aura.variety import Made, at_once
 from pewpew.classinfo import pattern_name
 from pewpew.compose import Compositor, Layer, Look, Resolved, pattern_layer, pattern_of
-from pewpew.errors import LoadError, unknown
 from pewpew.fx import expr, surprise
 from pewpew.fx.catalog import example as catalog_example
 from pewpew.fx.compile import is_pattern_program
@@ -43,7 +43,7 @@ from pewpew.fx.expr import noise
 from pewpew.fx.graph import Program
 from pewpew.fx.host import ProgramPattern
 from pewpew.lab import handles
-from pewpew.load import Catalog, LoadedPattern, from_class
+from pewpew.load import Catalog
 from pewpew.pace import Calls
 from pewpew.patterns import Pulse, Sparkle, Wave
 from pewpew.render import SlotClock
@@ -53,7 +53,8 @@ from pewpew.sinks.preview import PreviewSink
 
 T = TypeVar("T")
 
-EXAMPLE_ROOM = Path(__file__).resolve().parents[1] / "examples" / "room-60-bars.json"
+EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
+EXAMPLE_ROOM = EXAMPLES / "room-60-bars.json"
 
 
 class FakeProcess:
@@ -316,6 +317,38 @@ def look(pattern: str, params: Mapping | None = None, **kw) -> Look:
     return Look((pattern_layer("base", pattern, params),), **kw)
 
 
+def offered(monkeypatch, **sources: str) -> dict[str, type]:
+    """Add to the gallery (pewpew.load) the pattern class each of `sources`
+    defines, under its key: a test's own pattern, which a look names as it
+    names a gallery one. Returns the classes by name."""
+    import pewpew.load
+
+    classes = {}
+    for name, source in sources.items():
+        module = f"offered_{name}"
+        namespace: dict[str, Any] = {"__name__": module}
+        exec(compile(source, f"<{module}>", "exec"), namespace)  # noqa: S102  a test's own pattern source
+        (classes[name],) = (v for v in namespace.values()
+                            if isinstance(v, type) and issubclass(v, Pattern) and v.__module__ == module)
+    gallery = pewpew.load.gallery
+    monkeypatch.setattr(pewpew.load, "gallery", lambda: {**gallery(), **classes})
+    return classes
+
+
+# Where `pattern_looks` writes; removed when the process ends.
+_LOOKS_FOLDER = tempfile.TemporaryDirectory(prefix="pewpew-looks-")
+_LOOKS_MADE = itertools.count()
+
+
+def pattern_looks(pattern: str = "comet", params: Mapping | None = None, **kw) -> str:
+    """The path, as text, of a new looks file whose one look, current, is
+    `look(pattern, params, **kw)`: what `run LOOKS` plays where a test runs
+    one gallery pattern."""
+    path = Path(_LOOKS_FOLDER.name) / f"{next(_LOOKS_MADE)}-{pattern}.look.json"
+    path.write_bytes(LookBook({pattern: look(pattern, params, **kw)}, pattern).to_bytes())
+    return str(path)
+
+
 def layered(pattern: str, args=None, *, node: str | None = None, **fields) -> dict:
     """`look(pattern, args, **fields)` as a looks file holds it, its node
     id `node` (default: `pattern`, which a path is not). `args` that is not
@@ -467,26 +500,9 @@ def layer_renderer(aura, lid: str = "base") -> Renderer:
     return aura.fader.current.layer(lid).renderer
 
 
-class FakeCatalog:
-    """A `pewpew.load.Catalog` over test pattern classes, by pattern name."""
-
-    def __init__(self, classes: Mapping[str, type]) -> None:
-        self.classes = dict(classes)
-        self.names = sorted(self.classes)
-        self.search_dir: Path | None = None  # no pattern files
-
-    def rescan(self) -> None:
-        self.names = sorted(self.classes)
-
-    def resolve(self, name: str) -> LoadedPattern:
-        if name not in self.classes:
-            raise LoadError(unknown("pattern", name, self.names))
-        return from_class(self.classes[name])
-
-
 def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, cap: float = 1.0,
              looks: Mapping[str, Look] | None = None, current: str | None = None, cycle=None,
-             triggers: Mapping | None = None, path=None, watch=no_watch, timeout: float = 5.0,
+             triggers: Mapping | None = None, path=None, timeout: float = 5.0,
              log=None, blink=None, boards=None, health=None, accept_looks: bool = False,
              variety=None, submit=None) -> SimpleNamespace:
     """An aura without a loop or sinks: a one-layer stack (`base`, running
@@ -498,23 +514,23 @@ def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, 
     once, on the caller's thread).
     `frame(t)` runs the `before` hooks and renders, as one loop tick does;
     `calls.drain()` runs what the controls queued. `renderer(lid)` is the
-    renderer layer `lid` runs now, and `reloader(lid)` its reloader."""
+    renderer layer `lid` runs now. The catalog is `LOOK_CLASSES` unless
+    `catalog` names another."""
     r = SimpleNamespace()
     name = pattern_name(start)
-    r.catalog = catalog if catalog is not None else FakeCatalog(LOOK_CLASSES)
+    r.catalog = catalog if catalog is not None else Catalog(LOOK_CLASSES)
     r.path = path
     r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {}) if looks is not None else None
     layer = pattern_layer("base", name)
     aura = build_aura_pipeline(
-        Look((layer,)), [(Resolved(layer, start, name), from_class(start))], line(4) if mapping is None else mapping,
-        catalog=cast(Catalog, r.catalog), grouping=grouping, watch=watch, master_cap=cap, looks_path=path, book=r.book,
+        Look((layer,)), [Resolved(layer, start, name)], line(4) if mapping is None else mapping,
+        catalog=r.catalog, grouping=grouping, master_cap=cap, looks_path=path, book=r.book,
         trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
         make_variety=variety, submit=submit or at_once,
     )
     r.calls, r.features, r.fader, r.deck, r.master = aura.calls, aura.features, aura.fader, aura.deck, aura.master
     r.variety, r.looks, r.triggers, r.control = aura.variety, aura.looks, aura.triggers, aura.control
     r.renderer = lambda lid="base": layer_renderer(r, lid)
-    r.reloader = lambda lid="base": r.deck.reloaders[lid]
     r.clock = SlotClock(60.0)
 
     def frame(t: float):
@@ -525,6 +541,11 @@ def aura_rig(start: type = Solid, *, mapping=None, grouping=None, catalog=None, 
 
     r.frame = frame
     return r
+
+
+def restore(rig) -> str | None:
+    """Recall a rig's current look with no fade, as a run starts in it."""
+    return rig.looks.recall(rig.looks.book.current, 0.0)
 
 
 class Painter:

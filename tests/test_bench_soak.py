@@ -14,9 +14,7 @@ from bench.bench_soak import (
     RowLog,
     board_summary,
     build_schedule,
-    edit_pattern,
     health_summary,
-    pattern_source,
     sliders,
     summarize,
     trend,
@@ -87,16 +85,10 @@ def test_schedule_is_seeded_and_ordered():
     a, b = build_schedule(1200.0, 1), build_schedule(1200.0, 1)
     assert a == b and a != build_schedule(1200.0, 2)
     assert [e["t"] for e in a] == sorted(e["t"] for e in a)
-    assert sum(e["kind"] == "reload" for e in a) == 5
+    assert {e["kind"] for e in a} == {"recall", "fire", "churn"}
     assert all(e["t"] < 1200.0 - 10.0 for e in a)
     churn = [e for e in a if e["kind"] == "churn"]
     assert all(1.0 <= e["drag_at"] and e["drag_at"] + 5.0 < e["stay"] for e in churn)
-
-
-def test_each_edit_changes_the_pattern():
-    base = pattern_source()
-    assert "class Soakwave(Pattern):" in base
-    assert edit_pattern(base, 1) != edit_pattern(base, 2) != base
 
 
 def test_watchdog_threshold_matches_the_unattended_watchdog():

@@ -558,8 +558,6 @@ class PreviewSink:
         return _bytes_response(conn, data, {"Content-Type": kind, "Cache-Control": "no-store"})
 
     def _handler(self, conn: ServerConnection) -> None:
-        if self._control is not None:
-            self._control.rescan()  # a pattern file added since launch is offered on the next load
         view = self._view
         messages = self._states(self._current_status)
         conn.send(view.hello)

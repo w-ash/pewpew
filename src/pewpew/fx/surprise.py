@@ -10,8 +10,7 @@ for its arguments: the same seed and mapping give the same look.
 The grammar. A look has one to three layers (`LAYERS`). Each layer is one
 of four kinds of program, built from the built-in ops by role (`role`), so
 a new built-in op joins the grammar when its module is added to
-pewpew.fx.ops. An op a pattern file defines never does: the same seed
-would make another look in a process that ran the file.
+pewpew.fx.ops.
 
     field   a source, then 1 to 3 warps (coord or modulate ops), maybe a tone op, then a palette
     trail   a source and maybe one warp, then a state op before or after the palette
@@ -81,7 +80,6 @@ import zlib
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import cache
-from pathlib import Path
 from typing import Any, TypeVar
 
 import numpy as np
@@ -104,7 +102,6 @@ from pewpew.lab.check import Ready, ready
 from pewpew.lab.geometry import Geometry
 from pewpew.lab.liveness import each_probe
 from pewpew.lab.rendering import limits, play
-from pewpew.load import Catalog
 from pewpew.mapping import Grouping, extents, spanned
 from pewpew.metrics import FLASH_LIMIT, LIVENESS_RMS, Metrics, measure
 from pewpew.params import HSV, Gradient, Palette, ParamSet, Stop
@@ -225,21 +222,17 @@ def mutate(
     grouping: Grouping | None = None,
     audio: bool = False,
     budget: float = BUDGET_US,
-    pattern_dir: Path | None = None,
-    catalog: Catalog | None = None,
 ) -> Look:
     """A look like `look`, changed by `strength` (above 0, at most 1) from
     `seed`, for `mapping` (module docstring), holding each address of
-    `keep` and all under it; never `look` itself. Its patterns resolve as
-    pewpew.lab.check `ready` resolves them, from `pattern_dir` or through
-    `catalog`. Raises NoLook when no change passes the content gate,
+    `keep` and all under it; never `look` itself. Raises NoLook when no change passes the content gate,
     Refused for a look that does not check or a `keep` address that names
     nothing in it, and ValueError for a bad strength (`check_strength`), a
     negative seed or a map no look runs on (`Space.of`)."""
     s = require_strength(strength)
     require_seed(seed)
-    space = Space.of(mapping, grouping, budget, pattern_dir=pattern_dir, catalog=catalog)
-    staged = ready(look, pattern_dir=pattern_dir, catalog=catalog)
+    space = Space.of(mapping, grouping, budget)
+    staged = ready(look)
     held = Held.of(keep, staged)
     drawn = (_mutated(Draw("mutate", seed, k), staged, space, s, held, audio) for k in range(TRIES))
     try:
@@ -255,21 +248,17 @@ def mutate(
 @dataclass(frozen=True, slots=True, eq=False)
 class Space:
     """Where a made look runs: how many points, how many axes they span and
-    which, the cost budget in microseconds a frame, the geometry the judge
-    renders on, and where a look's patterns resolve (pewpew.lab.check
-    `ready`): from `pattern_dir`, or through `catalog`."""
+    which, the cost budget in microseconds a frame, and the geometry the
+    judge renders on."""
 
     points: int
     dims: int
     axes: frozenset[str]
     budget: float
     preview: Geometry
-    pattern_dir: Path | None = None
-    catalog: Catalog | None = None
 
     @classmethod
-    def of(cls, mapping: np.ndarray, grouping: Grouping | None, budget: float, *,
-           pattern_dir: Path | None = None, catalog: Catalog | None = None) -> Space:
+    def of(cls, mapping: np.ndarray, grouping: Grouping | None, budget: float) -> Space:
         """The space of `mapping`. Raises ValueError for a mapping that is
         not (N, 3) points, one whose points all sit at one place (every op
         needs an axis to run along), or a budget that is not above 0."""
@@ -282,7 +271,7 @@ class Space:
         if not axes:
             raise ValueError(f"no look is made for a map whose {len(mapping)} point(s) sit at one place: "
                              "every op runs along an axis, so give a map that spans one")
-        return cls(len(mapping), len(axes), axes, float(budget), _preview(mapping, grouping), pattern_dir, catalog)
+        return cls(len(mapping), len(axes), axes, float(budget), _preview(mapping, grouping))
 
     def takes(self, cls: type[Op]) -> bool:
         """Whether op `cls` runs on this mapping."""
@@ -890,7 +879,7 @@ def judge(candidate: Look, space: Space) -> Verdict:
     """`candidate` checked, rendered on `space`'s preview and measured
     (module docstring), without its liveness (`dead_knob`). Never raises."""
     try:
-        staged = ready(candidate, pattern_dir=space.pattern_dir, catalog=space.catalog)
+        staged = ready(candidate)
         frames, errors = play(staged, space.preview, round(PREVIEW_S * PREVIEW_FPS), PREVIEW_FPS, 0)
     except Refused as exc:
         return Verdict((f"it does not check: {exc}",))

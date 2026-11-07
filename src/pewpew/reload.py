@@ -1,36 +1,22 @@
-"""Hot reload: re-execute the edited pattern file and swap it in live.
+"""Hot reload of a watched file: apply each saved version live.
 
-Architecture §8's dev loop: watch the pattern's source, re-import the leaf
-module on change, and `Renderer.swap` the new class in while the engine
-keeps running — `t`, parameter values, buffers, the RNG stream and plain
-scalar state all continue (render.py). Never jurigged-style whole-process
-patching: a pattern is one small module with a known interface.
+`FileReloader` watches one file, skips unchanged bytes, applies new bytes
+on the loop thread, and keeps the last good version on failure.
+`pewpew.room.live` builds on it for a room map (`--room`), whose apply
+step rebinds the renderer and relays out the sinks.
 
 Threading. A daemon thread blocks in the watcher and hands every change
 batch to the loop thread through `call_soon`. `reload()` runs on the loop
-thread, so the renderer keeps one owner at the cost of one hitched frame.
-`reload()` never raises (a queued closure that raises ends the run, see
-`pewpew.pace.Calls`), and a dying watcher thread disables reload, never the
-run.
+thread, so what it applies keeps one owner at the cost of one hitched
+frame. `reload()` never raises (a queued closure that raises ends the run,
+see `pewpew.pace.Calls`), and a dying watcher thread disables reload,
+never the run.
 
-A failed reload keeps the last-good pattern running with a visible error
-(ADR-005): `error` holds a path-free description (pewpew.load) that the
-runner feeds to both sinks' status line, cleared on the next reload that
-succeeds. A save that leaves the bytes unchanged is skipped by digest, so a
-watcher that fires twice for one write costs nothing.
-
-Only the entry file is watched. Edits to a sibling module it imports, or to
-the engine itself, need a restart. `Reloader.follow` moves the watch to
-another pattern's file once something else has put that pattern in place
-(the preview's picker, a look recall). What it swaps into is any
-`SwapTarget`: a `Renderer`, or one layer of the running stack
-(pewpew.aura.deck), which during a fade is the look fading in.
-
-`FileReloader` is the part that is not about patterns: watch one file, skip
-unchanged bytes, apply new bytes on the loop thread, keep the last good
-version on failure. `Reloader` builds on it for a pattern;
-`pewpew.room.live` builds on it for a room map (`--room`), whose apply step
-rebinds the renderer and relays out the sinks.
+A failed reload keeps the last good version running with a visible error:
+`error` holds a path-free description that the runner feeds to the sinks'
+status line, cleared on the next reload that succeeds. A save that leaves
+the bytes unchanged is skipped by digest, so a watcher that fires twice
+for one write costs nothing.
 """
 
 from __future__ import annotations
@@ -43,8 +29,6 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from pewpew.errors import describe_exception
-from pewpew.load import LoadedPattern, Source
-from pewpew.render import SwapTarget
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +82,7 @@ class FileReloader:
     returns a line for the log; if it raises, the last good version keeps
     running and `error` says why. Its exceptions must carry no path: the
     text reaches the status line and the preview socket. `noun` names what
-    the file holds in those messages ("pattern", "map").
+    the file holds in those messages ("map").
 
     `watch` is the seam tests use — it is called with the file and the stop
     event, and each item it yields queues one `reload`. The default watches
@@ -107,13 +91,12 @@ class FileReloader:
 
     def __init__(
         self,
-        source: Path | None,
+        source: Path,
         digest: str | None,
         call_soon: CallSoon,
         apply: Callable[[bytes], str],
         *,
         noun: str,
-        file_noun: str | None = None,
         watch: Watch | None = None,
     ) -> None:
         self._source = source
@@ -121,14 +104,9 @@ class FileReloader:
         self._call_soon = call_soon
         self._apply = apply
         self._noun = noun
-        self._file_noun = file_noun or f"{noun} file"
         self._watch = watch_file if watch is None else watch
-        # One stop event per watcher thread, so `retarget` can retire a
-        # watcher without waiting for it and start the next one at once.
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self._started = False
-        self._stopped = False
         # Written on the loop thread, read by sink workers building a status
         # line. A plain attribute store is atomic; readers snapshot it once.
         self.error: str | None = None
@@ -139,45 +117,19 @@ class FileReloader:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self) -> None:
-        """Start watching; a no-op when there is no file."""
-        if self._started:
-            return
-        self._started = True
-        self._spawn()
-
-    def stop(self, timeout: float = 1.0) -> None:
-        self._stopped = True
-        self._stop.set()
+        """Start watching; a no-op once started."""
         if self._thread is not None:
-            self._thread.join(timeout)
-
-    def retarget(self, source: Path | None, digest: str | None) -> None:
-        """Follow a different file from now on. Loop thread only.
-
-        The old watcher is told to stop and is not waited for: it exits on
-        its next step, and a change it still reports reloads the *current*
-        file, which the digest then skips. A new watcher starts only if
-        `start` ran and `stop` has not, and the file is not the one a live
-        watcher already follows.
-        """
-        same = source == self._source and self.active
-        self._source = source
-        self._digest = digest
-        self.error = None
-        if self._started and not self._stopped and not same:
-            self._stop.set()
-            self._stop = threading.Event()
-            self._thread = None
-            self._spawn()
-
-    def _spawn(self) -> None:
-        if self._source is None:
             return
         self._thread = threading.Thread(
             target=self._run, args=(self._source, self._stop),
             name=f"pewpew-reload-{self._noun}", daemon=True,
         )
         self._thread.start()
+
+    def stop(self, timeout: float = 1.0) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout)
 
     def _run(self, source: Path, stop: threading.Event) -> None:
         try:
@@ -196,16 +148,13 @@ class FileReloader:
         Never raises. Returns True when the new version was applied; False
         when the file was unchanged or the reload failed (see `error`).
         """
-        path = self._source
-        if path is None:
-            return False
         try:
-            data = path.read_bytes()
+            data = self._source.read_bytes()
         except OSError:
             # Forgotten digest: when the file comes back, even byte-identical,
             # the next event reloads it and clears this error.
             self._digest = None
-            self._fail(f"{self._file_noun} is gone; keeping the last-good {self._noun}")
+            self._fail(f"{self._noun} file is gone; keeping the last-good {self._noun}")
             return False
         digest = hashlib.sha256(data).hexdigest()
         if digest == self._digest:
@@ -215,7 +164,7 @@ class FileReloader:
         self._digest = digest
         try:
             summary = self._apply(data)
-        except Exception as exc:  # noqa: BLE001  LoadError, RoomError, a raising setup, ...
+        except Exception as exc:  # noqa: BLE001  RoomError, a raising setup, ...
             self._fail(describe_exception(exc), exc)
             return False
         self.error = None
@@ -226,46 +175,3 @@ class FileReloader:
         self.error = f"reload failed, last-good {self._noun} still running: {message}"
         logger.error("%s", self.error, exc_info=exc)
 
-
-class Reloader(FileReloader):
-    """Supervises one swap target's pattern file: a save re-executes the
-    file and `swap`s the new class in."""
-
-    def __init__(
-        self,
-        target: SwapTarget,
-        loaded: LoadedPattern,
-        call_soon: CallSoon,
-        *,
-        watch: Watch | None = None,
-    ) -> None:
-        super().__init__(
-            loaded.source, loaded.digest, call_soon, self._swap,
-            noun="pattern", file_noun="source file", watch=watch,
-        )
-        self._target = target
-        self._loaded = loaded
-
-    @property
-    def loaded(self) -> LoadedPattern:
-        """The pattern now running, as last loaded."""
-        return self._loaded
-
-    def follow(self, loaded: LoadedPattern) -> None:
-        """Watch `loaded`'s source from now on, as the pattern now running.
-        Loop thread only. For a pattern that something other than this
-        reloader put in place (a pick, a look recall). A reload error left
-        by the old file is cleared: that file is no longer the one running."""
-        self._loaded = loaded
-        self.retarget(loaded.source, loaded.digest)
-
-    def _swap(self, data: bytes) -> str:
-        assert self._source is not None
-        loaded = Source(self._source, data).load(self._loaded.attr)
-        report = self._target.swap(loaded.cls())
-        self._loaded = loaded
-        return (
-            f"reloaded {loaded.cls.__name__} (t={self._target.t:.3f}): "
-            f"kept buffers {list(report.buffers)}, scalars {list(report.scalars)}; "
-            f"reset params {list(report.reset_params)}; fresh {list(report.skipped)}"
-        )

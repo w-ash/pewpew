@@ -16,7 +16,7 @@ the control offers.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
@@ -33,10 +33,9 @@ from pewpew.aura.variety import Submit, Variety, in_background
 from pewpew.compose import Compositor, Look, Resolved
 from pewpew.crossfade import Crossfader
 from pewpew.features import EventFeatures, FakeFeatures
-from pewpew.load import Catalog, LoadedPattern
+from pewpew.load import Catalog
 from pewpew.mapping import Grouping
 from pewpew.pace import ASK_TIMEOUT_S, Calls, PacedLoop, PaceStats, Stage
-from pewpew.reload import Watch
 from pewpew.room.blink import Blink
 
 
@@ -79,17 +78,15 @@ class AuraPipeline:
 
 def build_aura_pipeline(
     look: Look,
-    layers: Sequence[tuple[Resolved, LoadedPattern]],
+    layers: Sequence[Resolved],
     mapping: np.ndarray,
     *,
-    catalog: Catalog,
+    catalog: Catalog | None = None,
     seed: int = 0,
     features: EventFeatures | None = None,
     grouping: Grouping | None = None,
-    units: str | None = None,
     bypass: bool = False,
     now: Callable[[], float] | None = None,
-    watch: Watch | None = None,
     master_cap: float = 1.0,
     looks_path: Path | None = None,
     book: LookBook | None = None,
@@ -104,14 +101,16 @@ def build_aura_pipeline(
     make_variety: Callable[[Deck], Variety] | None = None,
     submit: Submit = in_background,
 ) -> AuraPipeline:
-    """Build the aura that starts in `look` on `mapping`.
+    """Build the aura that starts in `look` on `mapping`, at the look's
+    master when it has one.
 
-    `layers` are `look`'s layers ready to build, each with the pattern its
-    reloader follows (`pewpew.aura.deck.ready_layer`). `seed` seeds the
-    made looks, and the default features (the seeded fake). `grouping`,
-    `units`, `bypass` and `now` are as for `Compositor`. `book`, with its
-    file at `looks_path`, gives the saved looks and the triggers; without
-    it there are no looks and no triggers. `blink`, `boards`, `health`,
+    `layers` are `look`'s layers ready to build
+    (`pewpew.aura.deck.ready_layer`). `catalog` holds the patterns a pick,
+    a recall and a layer edit start by name (default: the gallery). `seed`
+    seeds the made looks, and the default features (the seeded fake).
+    `grouping`, `bypass` and `now` are as for `Compositor`. `book`, with
+    its file at `looks_path`, gives the saved looks and the triggers;
+    without it there are no looks and no triggers. `blink`, `boards`, `health`,
     `accept_looks`, `max_making` and `timeout` are as for `AuraControl`.
     `make_variety(deck)` makes the made looks' `Variety` (default: one
     seeded from `seed`), and `submit` is how the looks make a fresh slot's
@@ -119,15 +118,16 @@ def build_aura_pipeline(
     calls = Calls()
     features = features if features is not None else EventFeatures(FakeFeatures(seed))
     stack = Compositor(
-        [resolved for resolved, _ in layers], mapping, seed=look.seed, signals=look.signals, routes=look.routes,
-        front=look.front, features=features, grouping=grouping, units=units, bypass=bypass, now=now,
+        layers, mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
+        features=features, grouping=grouping, bypass=bypass, now=now,
     )
     # The loop drives the crossfader, and everything that would reach the
     # stack reaches it, so a look recall can put a new stack in place.
     fader = Crossfader(stack)
-    loaded: Mapping[str, LoadedPattern] = {resolved.layer.id: found for resolved, found in layers}
-    deck = Deck(fader, catalog, calls.call_soon, loaded, watch=watch)
+    deck = Deck(fader, catalog if catalog is not None else Catalog())
     master = Master(master_cap)
+    if look.master is not None:
+        master.set(look.master)
     variety = make_variety(deck) if make_variety is not None else Variety(deck, seed=seed)
     looks = None
     if book is not None:

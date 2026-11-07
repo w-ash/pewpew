@@ -15,16 +15,16 @@ import numpy as np
 import pytest
 
 import pewpew.run as run_module
-from fakes import FakeTime, build, run_main, wait_until
-from pewpew import HSV, Choice, Renderer, line, render_sequence
+from fakes import EXAMPLES as EXAMPLE_LOOKS
+from fakes import FakeTime, build, layered, pattern_looks, run_main, wait_until
+from pewpew import Renderer, line, render_sequence
 from pewpew.__main__ import main
 from pewpew.aura.master import Master
-from pewpew.color import OCEAN
 from pewpew.compose import layer_seed
 from pewpew.pace import PacedLoop
 from pewpew.patterns import Comet
 from pewpew.rig import EXAMPLES
-from pewpew.run import geometry, load, parse_params, preview_url, status_line
+from pewpew.run import preview_url, status_line
 from pewpew.sinks import ddp, preview
 from pewpew.sinks.base import to_linear_u8
 
@@ -38,7 +38,7 @@ def usage_error(argv, capsys) -> str:
 
 
 def test_run_renders_n_frames_to_ansi_and_exits_clean():
-    rc, out = run_main(["run", "comet", "--map", "line:8", "--frames", "3"])
+    rc, out = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "3"])
     assert rc == 0
     # Pipe mode (StringIO is not a tty): three frame blocks, no cursor codes.
     # Exactly three because teardown drains the mailbox before stopping —
@@ -48,67 +48,52 @@ def test_run_renders_n_frames_to_ansi_and_exits_clean():
     assert "\x1b[38;2;" in out
 
 
-def test_run_defaults_the_map_to_the_patterns_own_study_fixture():
-    """Each study pattern runs on the geometry it was written against."""
-    for name, expected in [("comet", 300), ("plasma", 300), ("geq", 256), ("fire", 512), ("sdf3d", 1000)]:
-        assert len(geometry(None, load(name).cls, None)[0]) == expected
-    # Rainbow was written on the studio's golden rings, which come from the
-    # rig compiler that the gallery does not load, so it runs on the canopy.
-    assert len(geometry(None, load("rainbow").cls, None)[0]) == 3840
+def test_run_defaults_the_map_to_a_16x16_grid():
+    rc, out = run_main(["run", pattern_looks(), "--frames", "1"])
+    assert rc == 0 and out.count("▀") == 128  # two rows of the grid a character
+    assert build(["run", pattern_looks()]).launch.mapping.shape == (256, 3)
 
 
 def test_an_explicit_map_wins_over_the_default():
-    rc, out = run_main(["run", "comet", "--map", "line:8", "--frames", "1"])
+    rc, out = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1"])
     assert rc == 0
-    assert out.count("█") == 8  # the 8 asked for, not comet's 300
+    assert out.count("█") == 8  # the 8 asked for, not the default grid's 256
 
 
-def test_run_rejects_unknown_pattern_and_bad_map(capsys):
-    with pytest.raises(SystemExit, match="unknown pattern") as exc:
-        main(["run", "nope", "--frames", "1"])
-    # The gallery's __all__ is wider than its runnable patterns; only Pattern
-    # subclasses may be offered.
-    assert "study_cases" not in str(exc.value)
+def test_run_rejects_a_bad_looks_file_and_a_bad_map(tmp_path, capsys):
+    with pytest.raises(SystemExit, match=r"nope.look.json: cannot read the looks file: No such file or directory$"):
+        main(["run", str(tmp_path / "nope.look.json"), "--frames", "1"])
+    unknown = pattern_looks("nope")
+    with pytest.raises(SystemExit, match=rf"^{re.escape(unknown)}: cannot start look 'nope': layers.base: unknown "
+                       "pattern 'nope'; patterns: colorplasma"):
+        main(["run", unknown, "--frames", "1"])
     assert "argument --map: expected line:64, grid:16x16 or lattice:8, sizes at least 1; got 'torus:9'" in usage_error(
-        ["run", "comet", "--map", "torus:9", "--frames", "1"], capsys)
-    with pytest.raises(SystemExit, match="bad --param"):
-        main(["run", "comet", "--param", "speed", "--frames", "1"])
+        ["run", pattern_looks(), "--map", "torus:9", "--frames", "1"], capsys)
+    for flag in (["--param", "speed=1"], ["--units", "pixel"], ["--pattern-dir", "."], ["--no-reload"],
+                 ["--looks", unknown]):
+        assert "unrecognized arguments" in usage_error(["run", pattern_looks(), *flag, "--frames", "1"], capsys)
 
 
-def test_a_param_value_is_json_or_else_text(monkeypatch):
-    """`--param` reads JSON (a number, true, a color object), and falls back
-    to the raw text, which is how a choice key needs no quotes."""
-    from params_zoo import Zoo
-
-    assert parse_params(["color={\"h\": 30, \"s\": 1, \"v\": 0.5}", "invert=true", "shape=steps", "bands=4"], Zoo) == {
-        "color": HSV(30.0, 1.0, 0.5), "invert": True, "shape": "steps", "bands": 4,
-    }
-    with pytest.raises(SystemExit, match=r"zoo.color.s must be within 0.0..1.0, got 2.0; edit the 'color' param"):
-        parse_params(['color={"h": 30, "s": 2, "v": 1}'], Zoo)
-    with pytest.raises(SystemExit, match="zoo.shape takes one of 'ramp', 'steps', 'flat', got 'stripes'"):
-        parse_params(["shape=stripes"], Zoo)
-    assert parse_params(["palette=ocean"], Zoo) == {"palette": OCEAN}  # a preset by its label
-    with pytest.raises(SystemExit, match="zoo.palette: unknown preset 'oceans'; presets: ember, ocean"):
-        parse_params(["palette=oceans"], Zoo)
-
-    class Numbered(Zoo):
-        shape = Choice("1", ["1", "2", "true"])
-
-    assert parse_params(["shape=2"], Numbered) == {"shape": "2"}
-    assert parse_params(["shape=true"], Numbered) == {"shape": "true"}
+def test_a_run_starts_in_the_current_look_else_the_first(tmp_path):
+    two = {"version": 4, "looks": {"warm": layered("comet", {"speed": 2.0}), "cool": layered("comet")}}
+    path = tmp_path / "looks.json"
+    path.write_text(json.dumps(two))
+    run = build(["run", str(path), "--map", "line:8"])
+    assert run.looks.book.current == "warm" and run.control.values()["layers.base.comet.speed"] == 2.0
+    path.write_text(json.dumps({**two, "current": "cool"}))
+    run = build(["run", str(path), "--map", "line:8"])
+    assert run.looks.book.current == "cool" and run.control.values()["layers.base.comet.speed"] != 2.0
+    path.write_text(json.dumps({"version": 4, "looks": {}}))
+    with pytest.raises(SystemExit, match=r"looks.json: the looks file holds no look$"):
+        build(["run", str(path)])
 
 
-def test_a_param_is_named_on_the_command_line_as_on_the_page():
-    """The address `observe --json` and the page show is accepted too, and a
-    refusal names the knob by it, as the socket's does."""
-    from params_zoo import Zoo
-
-    owner = "layers.base.zoo"
-    assert parse_params([f"{owner}.bands=4", "invert=true"], Zoo, owner) == {"bands": 4, "invert": True}
-    with pytest.raises(SystemExit, match=r"^layers.base.zoo.bands must be within"):
-        parse_params([f"{owner}.bands=400"], Zoo, owner)
-    with pytest.raises(SystemExit, match=r"--param layers.base.opacity: the command line sets only the launch"):
-        parse_params(["layers.base.opacity=0.5"], Zoo, owner)
+def test_a_look_the_map_cannot_run_is_refused_with_a_map_that_can(tmp_path):
+    path = tmp_path / "tide.look.json"
+    path.write_bytes((EXAMPLE_LOOKS / "tide.look.json").read_bytes())
+    with pytest.raises(SystemExit, match=r"cannot start look 'tide': .*needs a map of 2 or 3 dimensions.*; run with "
+                       "--map grid:16x16 or --map lattice:8$"):
+        build(["run", str(path), "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run"])
 
 
 class _HealingRenderer:
@@ -135,7 +120,7 @@ def test_status_supplier_snapshots_the_error_once():
 
 
 def test_run_announces_the_preview_url(capsys):
-    rc, _ = run_main(["run", "comet", "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
+    rc, _ = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
     assert rc == 0
     err = capsys.readouterr().err
     assert "preview at http://127.0.0.1:" in err  # port 0 -> whatever we bound
@@ -151,7 +136,7 @@ def test_a_preview_that_cannot_listen_leaves_the_room_running_and_tries_again(au
         held.bind(("127.0.0.1", 0))
         held.listen()
         port = held.getsockname()[1]
-        argv = ["run", "comet", "--map", "line:8", "--ddp", "127.0.0.1=0+8", "--preview", "--port", str(port)]
+        argv = ["run", pattern_looks(), "--map", "line:8", "--ddp", "127.0.0.1=0+8", "--preview", "--port", str(port)]
         assert run_main([*argv, "--frames", "3"])[0] == 0
         assert recorder.sent  # the boards got frames
         assert f"preview: cannot listen on 127.0.0.1:{port} (Address already in use); the aura runs on" in (
@@ -189,7 +174,7 @@ def test_log_records_are_deferred_while_the_ansi_sink_owns_the_terminal(monkeypa
 
     term = Tty()
     monkeypatch.setattr(sys, "stderr", term)  # one device, as in a real shell
-    rc, out = run_main(["run", "comet", "--map", "line:8", "--frames", "3"], ansi_stream=term)
+    rc, out = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "3"], ansi_stream=term)
     assert rc == 0
     assert "TRACEBACK" in out  # deferred, never dropped
     # ...and only after the sink restored the cursor and released the terminal.
@@ -200,67 +185,25 @@ def test_log_records_are_deferred_while_the_ansi_sink_owns_the_terminal(monkeypa
 def test_cli_logging_leaves_no_handler_behind():
     root = logging.getLogger("pewpew")
     before = list(root.handlers)
-    run_main(["run", "comet", "--map", "line:8", "--frames", "1"])
-    run_main(["run", "comet", "--map", "line:8", "--frames", "1"])
+    run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1"])
+    run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1"])
     assert root.handlers == before  # repeated in-process runs must not stack
 
 
-def test_run_takes_a_pattern_file_and_a_search_dir(tmp_path):
-    (tmp_path / "mine.py").write_text(
-        "import numpy as np\nfrom pewpew import Pattern\n"
-        "class Mine(Pattern):\n"
-        "    def render(self, x, y, z, index):\n"
-        "        return np.ones((self.n, 3), dtype=np.float32)\n"
-    )
-    rc, out = run_main(["run", str(tmp_path / "mine.py"), "--map", "line:4", "--frames", "1"])
-    assert rc == 0 and out.count("█") == 4
-    rc, _ = run_main(["run", "mine", "--pattern-dir", str(tmp_path), "--map", "line:4", "--frames", "1"])
-    assert rc == 0
-    # A load failure is one clean line naming the file — the CLI is the one
-    # surface allowed to print a path.
-    (tmp_path / "broken.py").write_text("def (:\n")
-    with pytest.raises(SystemExit) as exc:
-        main(["run", str(tmp_path / "broken.py"), "--frames", "1"])
-    assert str(exc.value) == f"{tmp_path / 'broken.py'}: SyntaxError: invalid syntax (line 1)"
+def test_ctrl_c_ends_the_run_through_the_whole_teardown(recorder, monkeypatch):
+    """Ctrl-C is how a run ends from the terminal: exit 0, with the outputs
+    stopped as at the end of `--frames`."""
 
+    def interrupted(self, x, y, z, index):
+        raise KeyboardInterrupt
 
-def test_ctrl_c_ends_the_run_through_the_whole_teardown(tmp_path, recorder):
-    """Ctrl-C is how a run ends from the terminal: exit 0, with the
-    watcher and the outputs stopped as at the end of `--frames`."""
-    (tmp_path / "interrupted.py").write_text(
-        "from pewpew import Pattern\n"
-        "class Interrupted(Pattern):\n"
-        "    def render(self, x, y, z, index):\n"
-        "        raise KeyboardInterrupt\n"
-    )
-    stops = []
+    monkeypatch.setattr(Comet, "render", interrupted)
     try:
-        rc, _ = run_main(["run", str(tmp_path / "interrupted.py"), "--map", "line:4", "--frames", "100",
-                          "--ddp", "127.0.0.1=0+4"], watch=lambda source, stop: stops.append(stop) or iter(()))
+        rc, _ = run_main(["run", pattern_looks(), "--map", "line:4", "--frames", "100", "--ddp", "127.0.0.1=0+4"])
     except KeyboardInterrupt:
         pytest.fail("Ctrl-C escaped the run")
     assert rc == 0
-    assert [stop.is_set() for stop in stops] == [True]
     assert recorder.sent == [] and recorder.closed == 1  # the DDP sink stopped and closed its socket
-
-
-def test_reload_watches_the_source_by_default_and_not_with_no_reload(tmp_path):
-    calls = []
-
-    def watch(source, stop):
-        calls.append((source, stop))
-        return iter(())
-
-    rc, _ = run_main(["run", "comet", "--map", "line:8", "--frames", "1"], watch=watch)
-    assert rc == 0
-    assert len(calls) == 1
-    source, stop = calls[0]
-    assert source.name == "comet.py"  # gallery patterns reload too
-    assert stop.is_set()  # teardown stopped the watcher before the sinks
-
-    calls.clear()
-    rc, _ = run_main(["run", "comet", "--map", "line:8", "--frames", "1", "--no-reload"], watch=watch)
-    assert rc == 0 and calls == []
 
 
 def test_status_prefers_the_reload_error_over_the_pattern_error():
@@ -277,7 +220,7 @@ def test_status_prefers_the_reload_error_over_the_pattern_error():
 
 
 def test_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
-    argv = ["run", "comet", "--map", "line:3840", "--dry-run"]
+    argv = ["run", pattern_looks(), "--map", "line:3840", "--dry-run"]
     for i in range(3):
         argv += ["--ddp", f"10.0.0.1{i + 1}={1280 * i}+1280"]
     assert run_main(argv)[0] == 0
@@ -289,27 +232,26 @@ def test_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
 
 
 @pytest.mark.parametrize(
-    "extra, message",
+    "looks, message",
     [
-        (["--looks", "{looks}"], "looks file is version 1; this pewpew reads version 4"),
-        (["--looks", "{folder}"], r"folder: cannot read the looks file: Is a directory$"),
-        (["--param", "speed=5"], r"^layers.base.comet.speed must be within"),
-        (["--param", "layers.base.comet.speed=5"], r"^layers.base.comet.speed must be within"),
-        (["--param", "layers.top.comet.speed=1"], r"^--param layers.top.comet.speed: the command line sets only"),
+        ("{old}", "looks file is version 1; this pewpew reads version 4"),
+        ("{folder}", r"folder: cannot read the looks file: Is a directory$"),
+        ("{unknown}", r"cannot start look 'nope': layers.base: unknown pattern 'nope'"),
     ],
 )
-def test_dry_run_refuses_what_a_launch_would(extra, message, tmp_path, recorder):
-    looks = tmp_path / "looks.json"
-    looks.write_text(json.dumps({"version": 1, "looks": {}}))
+def test_dry_run_refuses_what_a_launch_would(looks, message, tmp_path, recorder):
+    old = tmp_path / "looks.json"
+    old.write_text(json.dumps({"version": 1, "looks": {}}))
     (tmp_path / "folder").mkdir()
-    extra = [arg.format(looks=looks, folder=tmp_path / "folder") for arg in extra]
+    looks = looks.format(old=old, folder=tmp_path / "folder", unknown=pattern_looks("nope"))
     with pytest.raises(SystemExit, match=message):
-        run_main(["run", "comet", "--map", "line:8", "--ddp", "10.0.0.11=0+8", *extra, "--dry-run"])
+        run_main(["run", looks, "--map", "line:8", "--ddp", "10.0.0.11=0+8", "--dry-run"])
     assert recorder.sent == []
 
 
 def test_real_run_audits_first_then_streams(audit_log, recorder, capsys):
-    argv = ["run", "comet", "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8", "--ddp-fps", "50"]
+    argv = ["run", pattern_looks(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8",
+            "--ddp-fps", "50"]
     assert run_main(argv)[0] == 0
     assert len(recorder.sent) == 3  # one packet per frame, last frame drained
     assert {addr for _, addr in recorder.sent} == {("127.0.0.1", 4049)}
@@ -326,7 +268,7 @@ def test_real_run_audits_first_then_streams(audit_log, recorder, capsys):
 
 
 def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
-    base = ["run", "comet", "--map", "line:8", "--fps", "30", "--ddp", "127.0.0.1=0+8", "--ddp-fps", "60"]
+    base = ["run", pattern_looks(), "--map", "line:8", "--fps", "30", "--ddp", "127.0.0.1=0+8", "--ddp-fps", "60"]
     assert run_main([*base, "--dry-run"])[0] == 0
     assert "at 30 fps" in capsys.readouterr().out
     assert run_main([*base, "--frames", "2"])[0] == 0
@@ -350,7 +292,7 @@ def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
     ("--map", "grid:4", "sizes at least 1; got 'grid:4'"),
 ])
 def test_a_bad_value_is_a_usage_error_naming_its_flag(flag, value, message, capsys):
-    assert message in usage_error(["run", "comet", "--map", "line:8", "--frames", "1", flag, value], capsys)
+    assert message in usage_error(["run", pattern_looks(), "--map", "line:8", "--frames", "1", flag, value], capsys)
 
 
 @pytest.mark.parametrize(
@@ -364,7 +306,7 @@ def test_a_bad_value_is_a_usage_error_naming_its_flag(flag, value, message, caps
 )
 def test_cli_rejects_bad_targets_with_one_line(extra, message, audit_log, recorder):
     with pytest.raises(SystemExit, match=message) as exc:
-        run_main(["run", "comet", "--map", "line:8", "--dry-run", *extra])
+        run_main(["run", pattern_looks(), "--map", "line:8", "--dry-run", *extra])
     assert "\n" not in str(exc.value)
     assert recorder.sent == []
     assert not audit_log.exists()
@@ -372,7 +314,7 @@ def test_cli_rejects_bad_targets_with_one_line(extra, message, audit_log, record
 
 def test_a_dry_run_with_nothing_to_stream_is_a_usage_error(capsys, audit_log):
     assert "--dry-run needs at least one --ddp target, a --room or --audio net:NODE" in usage_error(
-        ["run", "comet", "--map", "line:8", "--dry-run"], capsys)
+        ["run", pattern_looks(), "--map", "line:8", "--dry-run"], capsys)
     assert not audit_log.exists()
 
 
@@ -390,7 +332,7 @@ def test_host_reaches_the_server_and_the_url_line(monkeypatch, capsys):
         return real_serve(handler, "127.0.0.1", port, **kw)
 
     monkeypatch.setattr(preview, "serve", serve)
-    rc, _ = run_main(["run", "comet", "--map", "line:8", "--frames", "1", "--preview", "--port", "0",
+    rc, _ = run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0",
                       "--host", "10.0.0.2"])
     assert rc == 0 and bound == ["10.0.0.2"]
     assert "preview at http://10.0.0.2:" in capsys.readouterr().err
@@ -409,40 +351,41 @@ def test_the_preview_url_brackets_ipv6_and_knows_localhost_is_loopback():
 @pytest.mark.parametrize("flag", [["--host", "10.0.0.2"], ["--port", "0"], ["--accept-looks"]])
 def test_host_and_port_need_the_preview(flag, capsys):
     assert f"{flag[0]} only applies with --preview" in usage_error(
-        ["run", "comet", "--map", "line:8", "--frames", "1", *flag], capsys)
+        ["run", pattern_looks(), "--map", "line:8", "--frames", "1", *flag], capsys)
 
 
 def test_a_run_takes_looks_only_when_asked_and_never_an_unattended_run(capsys):
     """`--accept-looks` lets any client of the preview change the look, so
     only a run that asks offers `look`, and an unattended run refuses the flag
     (ADR-020 amendment "capabilities")."""
-    argv = ["run", "comet", "--map", "line:8", "--frames", "1", "--preview", "--port", "0"]
+    argv = ["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"]
     assert build(argv).control.capabilities == ()
     assert build([*argv, "--accept-looks"]).control.capabilities == ("look",)
     assert "--accept-looks lets any client of the preview change the look, which --unattended refuses" in (
         usage_error([*argv, "--accept-looks", "--unattended"], capsys))
 
 
-def test_the_preview_flag_takes_no_value_so_it_never_swallows_the_pattern():
-    run_ = build(["run", "--preview", "comet", "--map", "line:8", "--frames", "1"])
-    assert run_.args.pattern == "comet" and run_.args.port == 7447
+def test_the_preview_flag_takes_no_value_so_it_never_swallows_the_looks_file():
+    path = pattern_looks()
+    run_ = build(["run", "--preview", path, "--map", "line:8", "--frames", "1"])
+    assert str(run_.args.looks) == path and run_.args.port == 7447
 
 
 @pytest.mark.parametrize("cap", ["0", "1.5", "-0.1", "nan", "bright"])
 def test_the_master_cap_must_be_above_0_and_at_most_1(cap, capsys):
     assert "argument --master-cap: expected a number above 0 and at most 1" in usage_error(
-        ["run", "comet", "--map", "line:8", "--frames", "1", "--master-cap", cap], capsys)
+        ["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--master-cap", cap], capsys)
 
 
 @pytest.mark.parametrize("extra, params, scale", [
     (["--master-cap", "0.5"], {}, 0.5),
-    (["--param", "speed=1.5", "--param", "tail=2"], {"speed": 1.5, "tail": 2.0}, 1.0),
-], ids=["master-cap", "param"])
+    ([], {"speed": 1.5, "tail": 2.0}, 1.0),
+], ids=["master-cap", "params"])
 def test_the_boards_receive_the_render_of_the_params_dimmed_by_the_master(extra, params, scale, recorder):
-    argv = ["run", "comet", "--map", "line:8", "--frames", "3", "--fps", "60", "--ddp-fps", "60",
-            "--ddp", "127.0.0.1=0+8", *extra]
+    argv = ["run", pattern_looks("comet", params), "--map", "line:8", "--frames", "3", "--fps", "60",
+            "--ddp-fps", "60", "--ddp", "127.0.0.1=0+8", *extra]
     assert run_main(argv)[0] == 0
-    # The command line's pattern runs as layer `base`, seeded from --seed.
+    # The look runs its layer `base`, seeded from the look's own seed.
     frames = render_sequence(Comet, line(8), frames=3, fps=60.0, params=params, seed=layer_seed(0, "base"))
     want = [to_linear_u8(f * np.float32(scale)).tobytes() for f in frames]
     assert [data[ddp.HEADER_LEN:] for data, _ in recorder.sent] == want
@@ -509,41 +452,42 @@ def test_boards_lists_what_the_sweep_found(monkeypatch, capsys):
 
 def test_armed_arms_the_triggers_at_the_first_tick(tmp_path):
     log = tmp_path / "events.jsonl"
-    assert run_main(["run", "comet", "--map", "line:8", "--frames", "2", "--armed", "--trigger-log", str(log)])[0] == 0
+    argv = ["run", pattern_looks(), "--map", "line:8", "--frames", "2", "--armed", "--trigger-log", str(log)]
+    assert run_main(argv)[0] == 0
     assert [json.loads(line) for line in log.read_text().splitlines()] == [
-        {"run": {"seed": 0, "fps": 60.0, "pattern": "comet", "look": None, "armed": True}},
+        {"run": {"seed": 0, "fps": 60.0, "pattern": "comet", "look": "comet", "armed": True}},
         {"tick": 0, "t": 1 / 60, "source": "launch", "arm": True},
     ]
 
 
 def test_triggers_start_disarmed_without_armed(tmp_path):
     log = tmp_path / "events.jsonl"
-    assert run_main(["run", "comet", "--map", "line:8", "--frames", "2", "--trigger-log", str(log)])[0] == 0
+    assert run_main(["run", pattern_looks(), "--map", "line:8", "--frames", "2", "--trigger-log", str(log)])[0] == 0
     assert [json.loads(line).get("run", {}).get("armed") for line in log.read_text().splitlines()] == [False]
 
 
 def test_an_unattended_run_holds_the_sleep_assertion_and_arms_the_watchdog():
-    unattended = build(["run", "comet", "--map", "line:8", "--frames", "3", "--unattended"])
+    unattended = build(["run", pattern_looks(), "--map", "line:8", "--frames", "3", "--unattended"])
     assert unattended.awake is not None and unattended.awake.args[:4] == ["caffeinate", "-i", "-s", "-w"]
     assert unattended.watchdog is not None and unattended.watchdog.timeout == 5.0
     assert unattended.serve() == 0
     assert unattended.awake.state()["held"] is False and not unattended.watchdog.fired  # released at the end
 
-    dev = build(["run", "comet", "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
+    dev = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"])
     assert dev.awake is None and dev.watchdog is None  # a dev run holds neither
-    held = build(["run", "comet", "--map", "line:8", "--frames", "1", "--keep-awake", "--watchdog", "2"])
+    held = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--keep-awake", "--watchdog", "2"])
     assert held.awake is not None and held.watchdog is not None and held.watchdog.timeout == 2.0
-    off = build(["run", "comet", "--map", "line:8", "--frames", "1", "--unattended", "--watchdog", "0"])
+    off = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--unattended", "--watchdog", "0"])
     assert off.watchdog is None and off.monitor is not None and off.monitor.state()["loop"]["watchdog"] is None
 
 
 def test_keep_awake_alone_gets_a_monitor_that_restarts_caffeinate():
-    run_ = build(["run", "comet", "--map", "line:8", "--frames", "1", "--keep-awake"])
+    run_ = build(["run", pattern_looks(), "--map", "line:8", "--frames", "1", "--keep-awake"])
     assert run_.monitor is not None and run_.monitor.state()["awake"]["requested"] is True
 
 
 def test_the_health_monitor_polls_the_ddp_boards(recorder):
-    run_ = build(["run", "comet", "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8"])
+    run_ = build(["run", pattern_looks(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8"])
     assert run_.monitor is not None
     run_.monitor.step()
     assert [b["host"] for b in run_.monitor.state()["boards"]] == ["127.0.0.1"]
@@ -557,36 +501,36 @@ GOLDEN_RINGS = EXAMPLES / "golden-rings.json"
 
 
 def test_run_accepts_an_arrangement_map_with_one_unit_per_fixture(capsys):
-    rc, out = run_main(["run", "comet", "--map", str(GOLDEN_RINGS), "--frames", "1"])
+    rc, out = run_main(["run", pattern_looks(), "--map", str(GOLDEN_RINGS), "--frames", "1"])
     assert rc == 0 and "\x1b[38;2;" in out
     assert "warning: connector/clen-4pin.rated_a = 4.0 is assumed" in capsys.readouterr().err
-    launch = build(["run", "pulse", "--map", str(GOLDEN_RINGS), "--frames", "1"]).launch
+    launch = build(["run", pattern_looks("pulse"), "--map", str(GOLDEN_RINGS), "--frames", "1"]).launch
     assert len(launch.mapping) == 3072 and launch.grouping is not None and len(launch.grouping.centres) == 48
 
 
 def test_run_reports_a_bad_arrangement(tmp_path):
     with pytest.raises(SystemExit, match="no such file"):
-        main(["run", "comet", "--map", str(tmp_path / "missing.json"), "--frames", "1"])
+        main(["run", pattern_looks(), "--map", str(tmp_path / "missing.json"), "--frames", "1"])
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps(
         {"format": "pewpew.arrangement", "version": 1, "fixtures": [{"id": "x", "type": "no-such-bar"}]}
     ))
     with pytest.raises(SystemExit, match="no fixture type 'no-such-bar'"):
-        main(["run", "comet", "--map", str(bad), "--frames", "1"])
+        main(["run", pattern_looks(), "--map", str(bad), "--frames", "1"])
 
 
 def test_run_reports_an_unreadable_or_empty_arrangement(tmp_path):
     (tmp_path / "dir.json").mkdir()
     with pytest.raises(SystemExit, match="cannot read the file: is a directory"):
-        main(["run", "comet", "--map", str(tmp_path / "dir.json"), "--frames", "1"])
+        main(["run", pattern_looks(), "--map", str(tmp_path / "dir.json"), "--frames", "1"])
     latin1 = tmp_path / "latin1.json"
     latin1.write_bytes(b'{"name": "\xe9"}')
     with pytest.raises(SystemExit, match="not UTF-8"):
-        main(["run", "comet", "--map", str(latin1), "--frames", "1"])
+        main(["run", pattern_looks(), "--map", str(latin1), "--frames", "1"])
     empty = tmp_path / "empty.json"
     empty.write_text(json.dumps({"format": "pewpew.arrangement", "version": 1}))
     with pytest.raises(SystemExit, match="has no pixels"):
-        main(["run", "comet", "--map", str(empty), "--frames", "1"])
+        main(["run", pattern_looks(), "--map", str(empty), "--frames", "1"])
 
 
 def test_a_run_on_any_other_map_never_imports_the_rig_stack():
@@ -594,9 +538,10 @@ def test_a_run_on_any_other_map_never_imports_the_rig_stack():
     code = (
         "import io, sys\n"
         "from pewpew.__main__ import main\n"
-        "rc = main(['run', 'plasma', '--map', 'line:8', '--frames', '1'], ansi_stream=io.StringIO())\n"
+        f"rc = main(['run', {pattern_looks('plasma')!r}, '--map', 'line:8', '--frames', '1'], "
+        "ansi_stream=io.StringIO())\n"
         "assert rc == 0\n"
-        "rc = main(['run', 'pulse', '--frames', '1'], ansi_stream=io.StringIO())\n"
+        f"rc = main(['run', {pattern_looks('pulse')!r}, '--frames', '1'], ansi_stream=io.StringIO())\n"
         "assert rc == 0\n"
         "bad = [m for m in ('pewpew.rig', 'pydantic', 'pewpew.studio.app') if m in sys.modules]\n"
         "assert not bad, bad\n"
@@ -612,9 +557,9 @@ def test_a_failing_rig_compile_cannot_break_a_run_on_another_map(monkeypatch):
         raise RuntimeError("rig compile broke")
 
     monkeypatch.setattr(pewpew.rig, "compile_rig", boom)
-    assert run_main(["run", "plasma", "--map", "line:8", "--frames", "1"])[0] == 0
+    assert run_main(["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1"])[0] == 0
     with pytest.raises(RuntimeError, match="rig compile broke"):
-        run_main(["run", "plasma", "--map", str(GOLDEN_RINGS), "--frames", "1"])
+        run_main(["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--frames", "1"])
 
 
 def _colors(out: str) -> set[str]:
@@ -622,8 +567,8 @@ def _colors(out: str) -> set[str]:
 
 
 def test_max_brightness_caps_every_frame_before_the_sink():
-    _, lit = run_main(["run", "plasma", "--map", "line:8", "--frames", "1"])
-    rc, dark = run_main(["run", "plasma", "--map", "line:8", "--frames", "1", "--max-brightness", "0"])
+    _, lit = run_main(["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1"])
+    rc, dark = run_main(["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1", "--max-brightness", "0"])
     assert rc == 0 and _colors(lit) != {"0;0;0"} and _colors(dark) == {"0;0;0"}
 
 
@@ -631,15 +576,15 @@ def test_an_arrangement_cap_applies_and_each_flag_replaces_its_value(tmp_path):
     data = json.loads(GOLDEN_RINGS.read_text())
     capped = tmp_path / "capped.json"
     capped.write_text(json.dumps({**data, "power": {"max_brightness": 0.0, "max_watts": 500}}))
-    _, dark = run_main(["run", "plasma", "--map", str(capped), "--frames", "1"])
+    _, dark = run_main(["run", pattern_looks("plasma"), "--map", str(capped), "--frames", "1"])
     assert _colors(dark) == {"0;0;0"}
-    _, lit = run_main(["run", "plasma", "--map", str(capped), "--frames", "1", "--max-brightness", "1"])
+    _, lit = run_main(["run", pattern_looks("plasma"), "--map", str(capped), "--frames", "1", "--max-brightness", "1"])
     assert _colors(lit) != {"0;0;0"}
 
 
 def test_the_power_limit_runs_after_the_master():
     """Architecture §2 stage 3: the master dims, then the limit caps what is left."""
-    run = build(["run", "plasma", "--map", str(GOLDEN_RINGS), "--max-watts", "50", "--frames", "1"])
+    run = build(["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--max-watts", "50", "--frames", "1"])
     assert run.launch.limiter is not None
     run.master.set(0.5)
     frame = np.ones((3072, 3), np.float32)
@@ -652,13 +597,13 @@ def test_the_power_limit_runs_after_the_master():
 
 def test_bad_power_flags_are_refused(capsys):
     assert "--max-watts needs --map with an arrangement .json" in usage_error(
-        ["run", "plasma", "--map", "line:8", "--frames", "1", "--max-watts", "100"], capsys)
+        ["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1", "--max-watts", "100"], capsys)
     assert "argument --max-brightness: expected a number from 0 to 1, got '1.5'" in usage_error(
-        ["run", "plasma", "--map", "line:8", "--frames", "1", "--max-brightness", "1.5"], capsys)
+        ["run", pattern_looks("plasma"), "--map", "line:8", "--frames", "1", "--max-brightness", "1.5"], capsys)
     assert "argument --max-watts: expected watts above 0, got '0'" in usage_error(
-        ["run", "plasma", "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "0"], capsys)
+        ["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "0"], capsys)
     with pytest.raises(SystemExit, match="bad power cap: max_watts must be over 0 and at most"):
-        main(["run", "plasma", "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "1e7"])
+        main(["run", pattern_looks("plasma"), "--map", str(GOLDEN_RINGS), "--frames", "1", "--max-watts", "1e7"])
 
 
 def test_studio_serves_its_app_with_the_message_cap(monkeypatch, tmp_path):

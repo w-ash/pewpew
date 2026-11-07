@@ -17,9 +17,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pewpew.lab.check import Ready, ready_looks
-from pewpew.lab.geometry import AUTO, Geometry, parse_geometry
+from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.lab.liveness import dead, probe_knobs, unprobed
-from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, frame_count, limits, play, where
+from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, frame_count, limits, play
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.metrics import Metrics, measure
 from pewpew.problems import Code, Problem, Refused
 from pewpew.result import Result
@@ -62,18 +63,16 @@ class Verification(Result):
 def verify_looks(
     paths: Iterable[Path],
     *,
-    map_spec: str = AUTO,
+    map_spec: str = DEFAULT_MAP,
     seconds: float = DEFAULT_SECONDS,
     fps: float = DEFAULT_FPS,
     seed: int = 0,
-    pattern_dir: Path | None = None,
 ) -> Verification:
     """The verdict on each looks file of `paths`, a folder standing for
-    its `*.look.json` files. Each look renders on `map_spec` (`auto`: each
-    look's own) for `seconds` at `fps`, the features seeded `seed`. Raises
+    its `*.look.json` files. Each look renders on `map_spec` for `seconds` at `fps`, the features seeded `seed`. Raises
     ValueError for a bad map spec, seconds or fps."""
     frames = frame_count(seconds, fps)
-    geometry: str | Geometry = map_spec if map_spec == AUTO else parse_geometry(map_spec)
+    geometry = parse_geometry(map_spec)
     verdicts: list[FileVerdict] = []
     for path in paths:
         files = sorted(path.glob(PATTERN)) if path.is_dir() else [path]
@@ -81,7 +80,7 @@ def verify_looks(
             verdicts.append(_empty(path, "", f"no {PATTERN} file in {path}"))
         for file in files:
             try:
-                looks = ready_looks(file, pattern_dir=pattern_dir)
+                looks = ready_looks(file)
             except Refused as exc:
                 verdicts.append(FileVerdict(str(file), False, exc.problems))
                 continue
@@ -89,7 +88,7 @@ def verify_looks(
                 verdicts.append(_empty(file, "looks", "the looks file holds no look"))
                 continue
             judged = tuple(
-                _judge(name, staged, where(geometry, staged), frames, fps, seed)
+                _judge(name, staged, geometry, frames, fps, seed)
                 for name, staged in looks.items()
             )
             verdicts.append(FileVerdict(str(file), all(v.ok for v in judged), (), judged))

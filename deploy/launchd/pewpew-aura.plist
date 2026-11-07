@@ -9,8 +9,8 @@
   exits non-zero (a crash, or the render-loop watchdog's exit 70), and
   leaves it stopped after a clean exit (Ctrl-C, launchctl bootout).
   ProcessType=Interactive: without it launchd throttles the job's CPU and
-  I/O. The restart comes back in the look the looks file names as current,
-  armed: an operator's disarm on the page does not survive a restart.
+  I/O. __LOOKS__ is the looks file the run plays and saves to; the restart
+  comes back in the look it names as current, armed: an operator's disarm on the page does not survive a restart.
   __FPS__ is the DDP frame rate the Wi-Fi ingest test chose (unattended checklist
   section 9); the trigger log goes beside the run's log.
   To react to the room's sound, add two strings after armed: the audio
@@ -29,11 +29,9 @@
     <string>-m</string>
     <string>pewpew</string>
     <string>run</string>
-    <string>__PATTERN__</string>
+    <string>__LOOKS__</string>
     <string>--room</string>
     <string>__ROOM__</string>
-    <string>--looks</string>
-    <string>__LOOKS__</string>
     <string>--preview</string>
     <string>--host</string>
     <string>__HOST__</string>

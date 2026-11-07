@@ -250,7 +250,7 @@ def test_an_engine_that_is_not_there_exits_3_and_says_what_to_do(capsys):
     out, err = capsys.readouterr()
     assert out == ""
     assert err.startswith(f"observe: nothing answered at ws://127.0.0.1:{port}/ (ConnectionRefusedError")
-    assert "start the engine with `python -m pewpew run PATTERN --preview`" in err
+    assert "start the engine with `python -m pewpew run LOOKS --preview`" in err
 
 
 def test_an_https_address_is_told_the_preview_speaks_plain_websocket():

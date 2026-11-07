@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pytest
 
-from fakes import EXAMPLE_ROOM, bar, ddp_sink, room, run_main
+from fakes import EXAMPLE_ROOM, bar, ddp_sink, pattern_looks, room, run_main
 from pewpew import Float, Pattern, Renderer, hsv, render_sequence
 from pewpew.crossfade import Crossfader
 from pewpew.pace import Calls
@@ -427,7 +427,7 @@ def test_a_reload_with_a_plan_gives_the_listeners_the_plan_and_its_image_file(tm
 
 
 def test_room_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
-    assert run_main(["run", "plasma", "--room", str(EXAMPLE_ROOM), "--dry-run"])[0] == 0
+    assert run_main(["run", pattern_looks("plasma"), "--room", str(EXAMPLE_ROOM), "--dry-run"])[0] == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "dry run: nothing sent"
     assert out[1] == "ddp 10.0.0.11:4048  pixels 0-1279 (1280)  3 packets/frame  154,800 B/s at 40 fps  board A"
@@ -443,21 +443,22 @@ def test_room_run_streams_to_the_rooms_boards_and_watches_the_map(audit_log, rec
         watched.append(source)
         return iter(())
 
-    argv = ["run", "plasma", "--room", str(EXAMPLE_ROOM), "--units", "fixture", "--frames", "1"]
+    argv = ["run", pattern_looks("pulse"), "--room", str(EXAMPLE_ROOM), "--frames", "1"]
     assert run_main(argv, watch=watch)[0] == 0
     assert len(recorder.sent) == 9  # 3 packets to each of 3 boards
     assert {addr for _, addr in recorder.sent} == {(f"10.0.0.1{i}", 4048) for i in (1, 2, 3)}
     [entry] = [json.loads(s) for s in audit_log.read_text().splitlines()]
     assert entry["room"] == str(EXAMPLE_ROOM) and len(entry["targets"]) == 3
-    assert EXAMPLE_ROOM in watched  # the pattern's source and the room map
-    # Per fixture: every bar's 64 pixels carry one colour on the wire.
+    assert watched == [EXAMPLE_ROOM]
+    # Pulse renders per fixture: every bar's 64 pixels carry one colour on the wire.
     payload = b"".join(p[10:] for p, addr in recorder.sent if addr[0] == "10.0.0.11")
     first_bar = np.frombuffer(payload[: 64 * 3], dtype=np.uint8).reshape(64, 3)
     assert (first_bar == first_bar[0]).all()
 
 
 def test_room_no_ddp_simulates_without_sending(audit_log, recorder, capsys):
-    argv = ["run", "plasma", "--room", str(EXAMPLE_ROOM), "--no-ddp", "--preview", "--port", "0", "--frames", "1"]
+    argv = ["run", pattern_looks("plasma"), "--room", str(EXAMPLE_ROOM), "--no-ddp", "--preview", "--port", "0",
+            "--frames", "1"]
     assert run_main(argv)[0] == 0
     assert recorder.sent == [] and not audit_log.exists()
 
@@ -473,16 +474,14 @@ def test_room_no_ddp_simulates_without_sending(audit_log, recorder, capsys):
 )
 def test_room_rejects_options_it_replaces(extra, message, audit_log, recorder, capsys):
     with pytest.raises(SystemExit) as exc:
-        run_main(["run", "plasma", "--room", str(EXAMPLE_ROOM), "--frames", "1", *extra])
+        run_main(["run", pattern_looks("plasma"), "--room", str(EXAMPLE_ROOM), "--frames", "1", *extra])
     assert exc.value.code == 2 and message in capsys.readouterr().err  # a usage error
     assert recorder.sent == [] and not audit_log.exists()
 
 
-def test_units_fixture_and_no_ddp_need_a_room(capsys):
-    with pytest.raises(SystemExit, match="--units fixture needs --room or an arrangement --map"):
-        run_main(["run", "plasma", "--units", "fixture", "--frames", "1"])
+def test_no_ddp_needs_a_room(capsys):
     with pytest.raises(SystemExit) as exc:
-        run_main(["run", "plasma", "--no-ddp", "--frames", "1"])
+        run_main(["run", pattern_looks("plasma"), "--no-ddp", "--frames", "1"])
     assert exc.value.code == 2 and "--no-ddp only applies with --room" in capsys.readouterr().err
 
 
@@ -490,11 +489,11 @@ def test_a_bad_room_file_is_one_line_naming_the_file(tmp_path):
     path = tmp_path / "room.json"
     path.write_text(json.dumps(room(_drop(bar("west"), "input"))))
     with pytest.raises(SystemExit) as exc:
-        run_main(["run", "plasma", "--room", str(path), "--dry-run"])
+        run_main(["run", pattern_looks("plasma"), "--room", str(path), "--dry-run"])
     assert str(exc.value).startswith(f"{path}: fixture 'west': has no input end")
     path.write_text(json.dumps({**room(_drop(bar("west"), "input")), "lable": "x"}))
     with pytest.raises(SystemExit) as exc:
-        run_main(["run", "plasma", "--room", str(path), "--dry-run"])
+        run_main(["run", pattern_looks("plasma"), "--room", str(path), "--dry-run"])
     assert str(exc.value).splitlines() == [
         f"{path}:",
         "  unknown key 'lable'; expected boards, fixtures, label, notes, plan",

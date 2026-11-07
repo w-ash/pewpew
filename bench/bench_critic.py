@@ -11,7 +11,7 @@ than chance (`.claude/agents/look-critic.md`):
     bench/results/critic-<label>/
         manifest.json     the looks, their handles and seeds, and each pair
         looks.png         every look in rows numbered 1 to K
-        look-<i>.json     look i, for look_check, look_render or `run --looks`
+        look-<i>.json     look i, for look_check, look_render or `run LOOKS`
         pair-<i>-<j>.png  looks i and j as rows A and B, and pair-<j>-<i>.png
 
 The procedure is manual (L1 bench, test-and-feedback.md §4; not a pytest

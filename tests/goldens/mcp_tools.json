@@ -443,8 +443,8 @@
           "type": "object"
         },
         "map": {
-          "default": "auto",
-          "description": "Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), line:N, grid:WxH, lattice:N, or a room map file",
+          "default": "grid:16x16",
+          "description": "Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
           "examples": [
             "grid:16x16",
             "line:64"
@@ -610,7 +610,7 @@
           "type": "object"
         },
         "RenderSpec": {
-          "description": "What a render depends on, normalized: the look (looks-file form,\nevery param written out), the map spec and what it gave (points, axes\nspanned), seconds, fps, the frame count, the features' seed, the engine\nfingerprint, and the `--pattern-dir` the look's names resolve in.",
+          "description": "What a render depends on, normalized: the look (looks-file form,\nevery param written out), the map spec and what it gave (points, axes\nspanned), seconds, fps, the frame count, the features' seed, and the\nengine fingerprint.",
           "properties": {
             "look": {
               "additionalProperties": true,
@@ -648,18 +648,6 @@
             "engine": {
               "title": "Engine",
               "type": "string"
-            },
-            "pattern_dir": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Pattern Dir"
             }
           },
           "required": [
@@ -790,8 +778,8 @@
           "title": "B"
         },
         "map": {
-          "default": "auto",
-          "description": "Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), line:N, grid:WxH, lattice:N, or a room map file",
+          "default": "grid:16x16",
+          "description": "Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
           "examples": [
             "grid:16x16",
             "line:64"
@@ -1011,8 +999,8 @@
           "title": "Keep"
         },
         "map": {
-          "default": "auto",
-          "description": "Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), line:N, grid:WxH, lattice:N, or a room map file",
+          "default": "grid:16x16",
+          "description": "Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
           "examples": [
             "grid:16x16",
             "line:64"

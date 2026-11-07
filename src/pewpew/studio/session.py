@@ -50,7 +50,7 @@ from pewpew.aura.control import AuraControl
 from pewpew.aura.deck import ready_layer
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.compose import Look
-from pewpew.load import Catalog
+from pewpew.load import resolve
 from pewpew.mapping import Grouping, grid
 from pewpew.power import PowerLimiter
 from pewpew.sinks.base import to_display_u8
@@ -128,15 +128,12 @@ class Session:
         (default a 16 x 16 grid, which every example look renders on), its
         made looks seeded from `seed`; a bind falls back on `looks` in
         order. Raises as `Compositor` does for a look it cannot start."""
-        catalog = Catalog(None)
         self._looks = looks
         look = next(iter(looks.values()))
         self._aura = build_aura_pipeline(
-            look, [ready_layer(layer, catalog.resolve, catalog.names) for layer in look.layers],
-            grid(16, 16) if mapping is None else mapping, catalog=catalog, seed=seed, accept_looks=True, max_making=1,
+            look, [ready_layer(layer, resolve) for layer in look.layers], grid(16, 16) if mapping is None else mapping,
+            seed=seed, accept_looks=True, max_making=1,
         )
-        if look.master is not None:
-            self._aura.master.set(look.master)
         # The stack a bind cut to, and why, while it runs: the `status` says so.
         self._fallback: tuple[object, str] | None = None
         self._sink = sink

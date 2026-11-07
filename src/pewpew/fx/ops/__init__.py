@@ -12,9 +12,6 @@ registry by op name once they are in.
 - `state`: feedback, trails
 - `sims`: diffuse, ripple, reaction, life, on the map's own points
 - `swarm`: particles, attractor
-
-An op defined in a pattern file registers when the file runs, and shows in
-`OPS` from then on.
 """
 
 from __future__ import annotations

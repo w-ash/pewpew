@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from pewpew.classinfo import pattern_summary
@@ -29,7 +28,6 @@ from pewpew.fx.op import Resolve
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.signal import Range, ranges
 from pewpew.lab.check import LookDoc, ready
-from pewpew.load import Catalog
 from pewpew.params import ParamSet
 from pewpew.result import Result
 
@@ -82,13 +80,10 @@ class Explanation(Result):
         return "\n".join(lines)
 
 
-def explain(
-    look: LookDoc, *, name: str | None = None, pattern_dir: Path | None = None, catalog: Catalog | None = None,
-) -> Explanation:
-    """`look` (a look, or the look `name` of a looks file) in words, its
-    patterns resolved as `check_look` resolves them. Raises Refused for a
-    look with problems."""
-    staged = ready(look, name=name, pattern_dir=pattern_dir, catalog=catalog)
+def explain(look: LookDoc, *, name: str | None = None) -> Explanation:
+    """`look` (a look, or the look `name` of a looks file) in words.
+    Raises Refused for a look with problems."""
+    staged = ready(look, name=name)
     shown = staged.look
     stack = ", then ".join(f"{r.label} ({_mix(r)})" for r in staged.layers)
     count = len(staged.layers)

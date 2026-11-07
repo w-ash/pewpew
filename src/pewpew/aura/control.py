@@ -22,9 +22,9 @@ reason, and every value in `state`, may cross an unauthenticated socket
 Thread discipline. A request is checked on the caller's thread and only
 what passed reaches the loop thread, through `Calls`: `call_soon` for a
 change that cannot fail there (a param, the master, a blink), `ask` for
-one whose outcome only the loop knows (a pick loads a file and builds a
-layer; a look request writes the looks file; a look sent whole loads its
-patterns and builds its layers). A `surprise` or `vary` makes its look
+one whose outcome only the loop knows (a pick builds a layer; a look
+request writes the looks file; a look sent whole resolves its patterns
+and builds its layers). A `surprise` or `vary` makes its look
 on a thread of its own (pewpew.aura.variety `in_background`), which takes
 a second or more, and answers once the look starts or is refused: never
 on the loop thread, nor on the caller's, so a blackout or any other
@@ -58,7 +58,6 @@ from pewpew.errors import Refusal, describe_exception, unknown
 from pewpew.fx import catalog as book
 from pewpew.fx.codec import MAX_LAYERS, decode_program
 from pewpew.fx.graph import check_id, free_id
-from pewpew.fx.ops import OPS
 from pewpew.fx.surprise import check_seed, check_strength
 from pewpew.lab.check import ready
 from pewpew.pace import ASK_TIMEOUT_S, Calls
@@ -103,7 +102,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
 }
 
 NO_LOOKS = "this engine takes no looks: start it with `python -m pewpew run ... --preview --accept-looks`"
-NO_LOOKS_FILE = "no looks file: start the run with --looks PATH"
+NO_LOOKS_FILE = "no looks file: this aura saves no looks"
 BUSY = "the engine is busy, so the look did not start; send it again"
 BUSY_LAYER = "the engine is busy, so the layer was not added; send it again"
 OVERTAKEN = "a request sent after this one changed what runs first, so this one did not run"
@@ -157,8 +156,8 @@ class AuraControl:
         self._timeout = timeout
         # One slot per look a `surprise` or `vary` may be making at once; None: no limit.
         self._making = threading.BoundedSemaphore(max_making) if max_making is not None else None
-        # The catalog a page shows, and what it was made from: the ops and the pattern names.
-        self._catalog: tuple[tuple[object, ...], dict] | None = None
+        # The catalog a page shows, made on first use.
+        self._catalog: dict | None = None
         # Each request that changes what runs is numbered as it is asked
         # (any thread); `_ran` is the number of the last that ran (loop thread).
         self._numbers = itertools.count(1)
@@ -212,27 +211,17 @@ class AuraControl:
 
     def catalog(self) -> dict:
         """What a layer can run, for a page's "add layer" cards, and what
-        each blend mode does (pewpew.fx.catalog.page). The same object until
-        an op registers (a pattern file that defines one loads or reloads)
-        or the pattern names change, so a sink serializes it once. Never
-        raises: when the catalog cannot be made (an op's example that does
-        not build), the page keeps the last one, or gets no cards, and the
-        log says why once."""
-        names = self._deck.catalog.names
-        made = (*OPS.values(), *names)
-        cached = self._catalog
-        if cached is None or cached[0] != made:
+        each blend mode does (pewpew.fx.catalog.page). Made once, so a sink
+        serializes it once. Never raises: when the catalog cannot be made
+        (an op's example that does not build), the page gets no cards, and
+        the log says why once."""
+        if self._catalog is None:
             try:
-                cards = book.page(book.catalog(), names)
-            except Exception:  # contained: one op file must not take the page down
-                logger.warning("the page keeps its last catalog: the catalog cannot be made", exc_info=True)
-                cards = cached[1] if cached is not None else {"cards": [], "blends": []}
-            cached = self._catalog = (made, cards)
-        return cached[1]
-
-    def rescan(self) -> None:
-        """Refresh the pattern names from disk (a file added since launch)."""
-        self._deck.catalog.rescan()
+                self._catalog = book.page(book.catalog(), self._deck.catalog.names)
+            except Exception:  # contained: one op must not take the page down
+                logger.warning("the page has no catalog: the catalog cannot be made", exc_info=True)
+                self._catalog = {"cards": [], "blends": []}
+        return self._catalog
 
     # ---- requests (any thread) -------------------------------------------------
 
@@ -274,11 +263,9 @@ class AuraControl:
             return f"pick takes a pattern name, got {name!r}"
         if layer is not None and (reason := self._layer(layer)) is not None:
             return reason
-        catalog = self._deck.catalog
-        catalog.rescan()
-        if name not in catalog.names:
-            # Refused before anything resolves: no path reaches `resolve`.
-            return unknown("pattern", name, catalog.names)
+        names = self._deck.catalog.names
+        if name not in names:
+            return unknown("pattern", name, names)
         return self._ask(self._runs(lambda: self._pick(name, layer)),
                          f"{name!r} is still loading; the page shows it once it runs")
 
