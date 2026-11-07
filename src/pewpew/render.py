@@ -48,7 +48,7 @@ class RenderFailure:
     """One contained render failure — what `Renderer.error` exposes. Its
     text names no frame, so a layer that fails every frame keeps one
     status line; the log gives the frame and time. `layer` is the address
-    of the layer that failed, such as `layers.base`."""
+    of the layer (or signal) that failed, such as `layers.base`."""
 
     layer: str
     phase: str  # "advance" | "render"
