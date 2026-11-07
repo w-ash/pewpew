@@ -1,0 +1,9 @@
+{
+  "kind": "chipset",
+  "id": "ucs1903n",
+  "name": "UCS1903N",
+  "notes": "800 kbps only (RES-015, the maintainer's private notes). A 400 kbps UCS1903 would be a separate chipset file (docs/studio/domain-model.md:341-349).",
+  "bit_s": {"v": 1.25e-6, "status": "stated", "src": "DS-UCS1903N p. 4, 1.25 µs per bit in its refresh example, the UCS1903N datasheet from ledco.sk"},
+  "bits_per_channel": {"v": 8, "status": "stated", "src": "DS-UCS1903N p. 4, 24 bits per chip, the UCS1903N datasheet from ledco.sk"},
+  "reset_s": {"v": 2.4e-5, "status": "stated", "src": "DS-UCS1903N p. 5, reset > 24 µs, the UCS1903N datasheet from ledco.sk"}
+}

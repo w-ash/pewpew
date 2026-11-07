@@ -1,0 +1,2185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Anchor": {
+      "additionalProperties": false,
+      "description": "A named point on an entity: an end, a connector, a mount.\n\nAn anchor with `accepts` takes an attachment whose `fits` names the same\nprofile. Its `dir` points out of the fixture.",
+      "properties": {
+        "at": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "description": "an expression over the entity's dims: + - * / ( )",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "description": "an expression over the entity's dims: + - * / ( )",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "description": "an expression over the entity's dims: + - * / ( )",
+                  "type": "string"
+                }
+              ]
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "dir": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dir"
+        },
+        "connector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connector"
+        },
+        "gender": {
+          "anyOf": [
+            {
+              "enum": [
+                "male",
+                "female"
+              ],
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedGender"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gender"
+        },
+        "pigtail_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pigtail M"
+        },
+        "accepts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accepts"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        }
+      },
+      "required": [
+        "at"
+      ],
+      "title": "Anchor",
+      "type": "object"
+    },
+    "AttachmentType": {
+      "additionalProperties": false,
+      "description": "A part that fits on a fixture anchor whose `accepts` equals `fits`.\n\nIts frame has the origin at the anchor, +y along the anchor's `dir` and +z\nalong the host's +z. `host:<profile>` names a profile of the host.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "attachment_type",
+          "title": "Kind",
+          "type": "string"
+        },
+        "rev": {
+          "default": 1,
+          "title": "Rev",
+          "type": "integer"
+        },
+        "fits": {
+          "title": "Fits",
+          "type": "string"
+        },
+        "dims": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "description": "an expression over the entity's dims: + - * / ( )",
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/SourcedNum"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Dims",
+          "type": "object"
+        },
+        "profiles": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Profile"
+          },
+          "default": {},
+          "title": "Profiles",
+          "type": "object"
+        },
+        "parts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Part"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "anchors": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "default": {},
+          "title": "Anchors",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "fits"
+      ],
+      "title": "AttachmentType",
+      "type": "object"
+    },
+    "Cable": {
+      "additionalProperties": false,
+      "description": "A cable. A null `length_m` means it is cut to the length a feed gives.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "cable",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Length M"
+        },
+        "ends": {
+          "default": [
+            null,
+            null
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "title": "Ends",
+          "type": "array"
+        },
+        "conductors_mm2": {
+          "$ref": "#/$defs/Conductors"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "conductors_mm2"
+      ],
+      "title": "Cable",
+      "type": "object"
+    },
+    "Chipset": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "chipset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "bit_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Bit S"
+        },
+        "bits_per_channel": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "title": "Bits Per Channel"
+        },
+        "reset_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Reset S"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "bit_s",
+        "bits_per_channel",
+        "reset_s"
+      ],
+      "title": "Chipset",
+      "type": "object"
+    },
+    "Conductors": {
+      "additionalProperties": false,
+      "properties": {
+        "vplus": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vplus"
+        },
+        "gnd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gnd"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "spare": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spare"
+        }
+      },
+      "title": "Conductors",
+      "type": "object"
+    },
+    "Connector": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "connector",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pins": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "title": "Pins"
+        },
+        "rated_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Rated A"
+        },
+        "pinmap": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "$ref": "#/$defs/SourcedPinmap"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pinmap"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "pins",
+        "rated_a"
+      ],
+      "title": "Connector",
+      "type": "object"
+    },
+    "Controller": {
+      "additionalProperties": false,
+      "description": "A controller board. `components` names the parts each board needs\nbeyond itself, such as a level shifter, with the count per board.\n`power_w` is what the board draws at its own supply input, without its\nLEDs. A PSU that powers the board (`PsuPlacement.powers`) carries it\nthrough a buck converter.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "controller",
+          "title": "Kind",
+          "type": "string"
+        },
+        "firmware": {
+          "title": "Firmware",
+          "type": "string"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/Output"
+          },
+          "title": "Outputs",
+          "type": "array"
+        },
+        "groups": {
+          "additionalProperties": {
+            "$ref": "#/$defs/OutputGroup"
+          },
+          "title": "Groups",
+          "type": "object"
+        },
+        "data_out_v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Data Out V"
+        },
+        "lead_max_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lead Max M"
+        },
+        "max_px_advised": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Px Advised"
+        },
+        "network": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Network",
+          "type": "array"
+        },
+        "components": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "$ref": "#/$defs/SourcedInt"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Components",
+          "type": "object"
+        },
+        "power_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Power W"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "firmware",
+        "outputs",
+        "groups",
+        "data_out_v"
+      ],
+      "title": "Controller",
+      "type": "object"
+    },
+    "Firmware": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "firmware",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_px_per_output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "title": "Max Px Per Output"
+        },
+        "max_px_total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "title": "Max Px Total"
+        },
+        "warn_px_per_output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "title": "Warn Px Per Output"
+        },
+        "min_frame_interval_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Min Frame Interval S"
+        },
+        "ingest": {
+          "$ref": "#/$defs/Ingest"
+        },
+        "led_types": {
+          "items": {
+            "$ref": "#/$defs/LedType"
+          },
+          "title": "Led Types",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "max_px_per_output",
+        "max_px_total",
+        "warn_px_per_output",
+        "min_frame_interval_s",
+        "ingest",
+        "led_types"
+      ],
+      "title": "Firmware",
+      "type": "object"
+    },
+    "FixtureType": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "fixture_type",
+          "title": "Kind",
+          "type": "string"
+        },
+        "rev": {
+          "default": 1,
+          "title": "Rev",
+          "type": "integer"
+        },
+        "inventory": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inventory"
+        },
+        "dims": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "description": "an expression over the entity's dims: + - * / ( )",
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/SourcedNum"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Dims",
+          "type": "object"
+        },
+        "profiles": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Profile"
+          },
+          "default": {},
+          "title": "Profiles",
+          "type": "object"
+        },
+        "parts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Part"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "anchors": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "default": {},
+          "title": "Anchors",
+          "type": "object"
+        },
+        "pixels": {
+          "$ref": "#/$defs/Pixels"
+        },
+        "power": {
+          "$ref": "#/$defs/Power"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "pixels",
+        "power"
+      ],
+      "title": "FixtureType",
+      "type": "object"
+    },
+    "Ingest": {
+      "additionalProperties": false,
+      "description": "How the firmware takes frames. `auto_white` is how it derives W from\nRGB on an RGBW output; None is `manual`, which derives no W.",
+      "properties": {
+        "protocol": {
+          "title": "Protocol",
+          "type": "string"
+        },
+        "udp_port": {
+          "title": "Udp Port",
+          "type": "integer"
+        },
+        "send": {
+          "title": "Send",
+          "type": "string"
+        },
+        "auto_white": {
+          "anyOf": [
+            {
+              "enum": [
+                "manual",
+                "brighter",
+                "accurate",
+                "dual",
+                "max"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Auto White"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        }
+      },
+      "required": [
+        "protocol",
+        "udp_port",
+        "send"
+      ],
+      "title": "Ingest",
+      "type": "object"
+    },
+    "LedType": {
+      "additionalProperties": false,
+      "description": "One firmware LED type and the pixel format it drives.",
+      "properties": {
+        "chipset": {
+          "title": "Chipset",
+          "type": "string"
+        },
+        "channels": {
+          "pattern": "^[RGBWC]{1,6}$",
+          "title": "Channels",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "integer"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        }
+      },
+      "required": [
+        "chipset",
+        "channels",
+        "type",
+        "label"
+      ],
+      "title": "LedType",
+      "type": "object"
+    },
+    "Output": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "group"
+      ],
+      "title": "Output",
+      "type": "object"
+    },
+    "OutputGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "same_led_type": {
+          "default": false,
+          "title": "Same Led Type",
+          "type": "boolean"
+        }
+      },
+      "title": "OutputGroup",
+      "type": "object"
+    },
+    "Part": {
+      "additionalProperties": false,
+      "description": "One solid of an assembly.\n\nA `profile` part is the profile extruded over `range_m` along `axis`; with\n`taper_to` the far end scales to that factor (0 gives a cone). A `box` part\nis a cuboid of sizes (x, y, z) centred at `at`, or at every pixel when\n`at_pixels` is true. `glow` says how the part takes pixel colour\n(docs/studio/domain-model.md:245-252).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "axis": {
+          "default": "y",
+          "enum": [
+            "y",
+            "z"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "range_m": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Range M"
+        },
+        "taper_to": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Taper To"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "at_pixels": {
+          "default": false,
+          "title": "At Pixels",
+          "type": "boolean"
+        },
+        "glow": {
+          "enum": [
+            "pixels",
+            "pixel_nearest",
+            "none"
+          ],
+          "title": "Glow",
+          "type": "string"
+        },
+        "gain": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "default": 1.0,
+          "title": "Gain"
+        },
+        "finish": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finish"
+        }
+      },
+      "required": [
+        "id",
+        "glow"
+      ],
+      "title": "Part",
+      "type": "object"
+    },
+    "Pixels": {
+      "additionalProperties": false,
+      "description": "The emitters along the fixture's +y axis, in data order.\n\nPixel j sits at local (0, -span/2 + (j+0.5)*span/count, z_m). A null\n`facing` marks an omnidirectional fixture.",
+      "properties": {
+        "count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "title": "Count"
+        },
+        "span_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Span M"
+        },
+        "z_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Z M"
+        },
+        "leds_per_pixel": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/SourcedInt"
+            }
+          ],
+          "default": 1,
+          "title": "Leds Per Pixel"
+        },
+        "facing": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "$ref": "#/$defs/SourcedVec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Facing"
+        },
+        "beam_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Beam Deg"
+        },
+        "chipset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedText"
+            }
+          ],
+          "title": "Chipset"
+        },
+        "channels": {
+          "anyOf": [
+            {
+              "pattern": "^[RGBWC]{1,6}$",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedChannels"
+            }
+          ],
+          "title": "Channels"
+        },
+        "color_order": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedText"
+            }
+          ],
+          "title": "Color Order"
+        }
+      },
+      "required": [
+        "count",
+        "span_m",
+        "z_m",
+        "chipset",
+        "channels",
+        "color_order"
+      ],
+      "title": "Pixels",
+      "type": "object"
+    },
+    "Power": {
+      "additionalProperties": false,
+      "description": "How a fixture draws power at `v_nominal`.\n\n`max_w` is the draw with every channel of every pixel full. `model` says\nhow the draw follows the frame: `linear` scales `max_w` by the channel\nsum, `flat` draws `max_w` whatever the frame shows. Omitted, it is\n`DEFAULT_POWER_MODEL`.",
+      "properties": {
+        "v_nominal": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "V Nominal"
+        },
+        "max_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "Max W"
+        },
+        "measured_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Measured W"
+        },
+        "passthrough_ohm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passthrough Ohm"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "enum": [
+                "linear",
+                "flat"
+              ],
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedPowerModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        }
+      },
+      "required": [
+        "v_nominal",
+        "max_w"
+      ],
+      "title": "Power",
+      "type": "object"
+    },
+    "Profile": {
+      "additionalProperties": false,
+      "description": "A 2D CSG shape: one primitive at `at`, minus the shapes in `minus`.\n\nA part extruded along y reads the profile's 2D coordinates as (x, z). A\npart extruded along z reads them as (x, y). `circle` is a diameter.\n`ref` names another profile of the same entity, or `host:<name>` in an\nattachment.",
+      "properties": {
+        "rect": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "description": "an expression over the entity's dims: + - * / ( )",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rect"
+        },
+        "circle": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Circle"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "description": "an expression over the entity's dims: + - * / ( )",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "description": "an expression over the entity's dims: + - * / ( )",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "at": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "description": "an expression over the entity's dims: + - * / ( )",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "description": "an expression over the entity's dims: + - * / ( )",
+                  "type": "string"
+                }
+              ]
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "minus": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Profile"
+          },
+          "title": "Minus",
+          "type": "array"
+        }
+      },
+      "title": "Profile",
+      "type": "object"
+    },
+    "Psu": {
+      "additionalProperties": false,
+      "description": "A power supply. `connector` names its output connector, which limits\nevery feed it powers as a fixture's input connector does.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "kind": {
+          "const": "psu",
+          "title": "Kind",
+          "type": "string"
+        },
+        "v_out": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "V Out"
+        },
+        "i_max_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedNum"
+            }
+          ],
+          "title": "I Max A"
+        },
+        "connector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connector"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "v_out",
+        "i_max_a"
+      ],
+      "title": "Psu",
+      "type": "object"
+    },
+    "SourcedChannels": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "pattern": "^[RGBWC]{1,6}$",
+          "title": "V",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedChannels",
+      "type": "object"
+    },
+    "SourcedGender": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "enum": [
+            "male",
+            "female"
+          ],
+          "title": "V",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedGender",
+      "type": "object"
+    },
+    "SourcedInt": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedInt",
+      "type": "object"
+    },
+    "SourcedNum": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            }
+          ],
+          "title": "V"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedNum",
+      "type": "object"
+    },
+    "SourcedPinmap": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "V"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedPinmap",
+      "type": "object"
+    },
+    "SourcedPowerModel": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "enum": [
+            "linear",
+            "flat"
+          ],
+          "title": "V",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedPowerModel",
+      "type": "object"
+    },
+    "SourcedText": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "title": "V",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedText",
+      "type": "object"
+    },
+    "SourcedVec": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "V"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedVec",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "attachment_type": "#/$defs/AttachmentType",
+      "cable": "#/$defs/Cable",
+      "chipset": "#/$defs/Chipset",
+      "connector": "#/$defs/Connector",
+      "controller": "#/$defs/Controller",
+      "firmware": "#/$defs/Firmware",
+      "fixture_type": "#/$defs/FixtureType",
+      "psu": "#/$defs/Psu"
+    },
+    "propertyName": "kind"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/FixtureType"
+    },
+    {
+      "$ref": "#/$defs/AttachmentType"
+    },
+    {
+      "$ref": "#/$defs/Chipset"
+    },
+    {
+      "$ref": "#/$defs/Connector"
+    },
+    {
+      "$ref": "#/$defs/Cable"
+    },
+    {
+      "$ref": "#/$defs/Psu"
+    },
+    {
+      "$ref": "#/$defs/Firmware"
+    },
+    {
+      "$ref": "#/$defs/Controller"
+    }
+  ],
+  "title": "pewpew catalog entity"
+}

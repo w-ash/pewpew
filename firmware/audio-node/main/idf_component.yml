@@ -1,0 +1,4 @@
+# Exact versions: the component manager resolves the same build every time.
+dependencies:
+  idf: "==6.1.0"
+  espressif/mdns: "==1.15.1"

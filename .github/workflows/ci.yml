@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # Full history: the changelog check needs the merge base with main.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Exact tag: setup-uv publishes no major/minor tags since v8.0.0.
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      # --locked fails when uv.lock is stale for pyproject.toml; --frozen
+      # would install the stale lock. Python comes from .python-version.
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # The page source in web/: pnpm at the version web/package.json pins,
+      # and the two browsers its tests run in.
+      # studio-web/ pins pnpm 11.20.0. pnpm 10 reads that packageManager field
+      # and runs the pinned version itself, so one setup step serves both apps.
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          package_json_file: web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            web/pnpm-lock.yaml
+            studio-web/pnpm-lock.yaml
+
+      # Uncached: Playwright advises against caching browsers, and a cached
+      # WebKit built for one Ubuntu release breaks on the next.
+      - name: Install Playwright browsers
+        run: |
+          pnpm -C web install --frozen-lockfile
+          pnpm -C web exec playwright install --with-deps chromium webkit
+
+      # The same recipe a laptop runs. Host-only: the suite drives fakes
+      # (FakeClock, fake sockets) and never reaches a board (CLAUDE.md, T-7).
+      - name: Lint, type check, test
+        run: uv run just check
+
+      # `just check` rebuilds the page; it must match the committed one.
+      - name: Generated files are committed
+        run: git diff --exit-code
+
+      - name: Changelog
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: scripts/check_changelog.sh "origin/$BASE_REF"

@@ -1,0 +1,851 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Aim": {
+      "additionalProperties": false,
+      "description": "A rotation given by the fixture's +y direction and a roll about it.\n\nOnly the direction of `axis` counts; any nonzero length works.",
+      "properties": {
+        "axis": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Axis",
+          "type": "array"
+        },
+        "roll_deg": {
+          "default": 0.0,
+          "title": "Roll Deg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "axis"
+      ],
+      "title": "Aim",
+      "type": "object"
+    },
+    "ArrayGroup": {
+      "additionalProperties": false,
+      "description": "A line or grid: member (i, j) sits at `i*steps_m[0] + j*steps_m[1]`.\n\nMembers are numbered row-major, `k = i*counts[1] + j`. Each one takes the\n`member` pose relative to its grid point. `attach` maps an anchor name to\nan attachment type for every member.",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "preset": {
+          "const": "array",
+          "title": "Preset",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "counts": {
+          "items": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Counts",
+          "type": "array"
+        },
+        "steps_m": {
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "maximum": 1000.0,
+                "minimum": -1000.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1000.0,
+                "minimum": -1000.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1000.0,
+                "minimum": -1000.0,
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Steps M",
+          "type": "array"
+        },
+        "member": {
+          "$ref": "#/$defs/Pose",
+          "default": {
+            "position_m": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "quat_xyzw": null,
+            "aim": null
+          }
+        },
+        "attach": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Attach",
+          "type": "object"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose",
+          "default": {
+            "position_m": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "quat_xyzw": null,
+            "aim": null
+          }
+        }
+      },
+      "required": [
+        "id",
+        "preset",
+        "type",
+        "counts",
+        "steps_m"
+      ],
+      "title": "ArrayGroup",
+      "type": "object"
+    },
+    "AutoWiring": {
+      "additionalProperties": false,
+      "description": "Options for the deterministic auto-wiring (docs/studio/domain-model.md:217-226).\n\nThe defaults are the design's: 3 m hop\n(https://auschristmaslighting.com/threads/maximum-distance-between-ws2811-pixel-nodes.7607),\n75% loading of a fuse sized to the connector, Littelfuse's guidance as\nRES-033 records it (the maintainer's private notes;\nhttps://info.littelfuse.com/hubfs/Fuseology%20Design%20Guide.pdf),\n10% drop (https://quinled.info/the-ultimate-led-strip-power-injection-guide/)\nand 80% PSU loading (https://flexfireleds.com/blog/LED-power-supply-derating).\nThe 1.2 slack is the design's example figure (docs/studio/domain-model.md:239);\nit lengthens every straight cable run: data hops, leads and feeds.\n`feed_cable` names the cable of every feed; None takes the catalog cable\nwith the lowest loop resistance per metre.",
+      "properties": {
+        "target_fps": {
+          "default": 40.0,
+          "minimum": 0.1,
+          "title": "Target Fps",
+          "type": "number"
+        },
+        "fixtures_per_output": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixtures Per Output"
+        },
+        "max_hop_m": {
+          "default": 3.0,
+          "exclusiveMinimum": 0,
+          "title": "Max Hop M",
+          "type": "number"
+        },
+        "hop_slack": {
+          "default": 1.2,
+          "maximum": 10.0,
+          "minimum": 1,
+          "title": "Hop Slack",
+          "type": "number"
+        },
+        "connector_load_fraction": {
+          "default": 0.75,
+          "maximum": 1,
+          "minimum": 0.01,
+          "title": "Connector Load Fraction",
+          "type": "number"
+        },
+        "max_drop_fraction": {
+          "default": 0.1,
+          "maximum": 1,
+          "minimum": 0.01,
+          "title": "Max Drop Fraction",
+          "type": "number"
+        },
+        "psu_load_fraction": {
+          "default": 0.8,
+          "maximum": 1,
+          "minimum": 0.01,
+          "title": "Psu Load Fraction",
+          "type": "number"
+        },
+        "feed_cable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feed Cable"
+        }
+      },
+      "title": "AutoWiring",
+      "type": "object"
+    },
+    "Chain": {
+      "additionalProperties": false,
+      "description": "Fixtures in data order on one controller output.\n\n`tee` hangs each fixture on a drop of a T trunk. The fixture takes data\nand power at its `in` port and sends its data back up the same drop, so\neach data hop runs from one fixture's `in` to the next one's, and the\ntrunk, not the fixture, carries the current on.",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "controller": {
+          "title": "Controller",
+          "type": "string"
+        },
+        "output": {
+          "title": "Output",
+          "type": "string"
+        },
+        "fixtures": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 200,
+          "minItems": 1,
+          "title": "Fixtures",
+          "type": "array"
+        },
+        "color_order": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color Order"
+        },
+        "tee": {
+          "default": false,
+          "title": "Tee",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "controller",
+        "output",
+        "fixtures"
+      ],
+      "title": "Chain",
+      "type": "object"
+    },
+    "ControllerPlacement": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "profile": {
+          "title": "Profile",
+          "type": "string"
+        },
+        "position_m": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 10000.0,
+                  "minimum": -10000.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 10000.0,
+                  "minimum": -10000.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 10000.0,
+                  "minimum": -10000.0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position M"
+        }
+      },
+      "required": [
+        "id",
+        "profile"
+      ],
+      "title": "ControllerPlacement",
+      "type": "object"
+    },
+    "Feed": {
+      "additionalProperties": false,
+      "description": "A PSU feed into `count` fixtures of a chain, from index `first`.\n\nIt injects at the input of fixture `first`, with V+ open toward the\nupstream run (docs/studio/domain-model.md:50).",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "psu": {
+          "title": "Psu",
+          "type": "string"
+        },
+        "chain": {
+          "title": "Chain",
+          "type": "string"
+        },
+        "first": {
+          "minimum": 0,
+          "title": "First",
+          "type": "integer"
+        },
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "cable": {
+          "title": "Cable",
+          "type": "string"
+        },
+        "length_m": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000000.0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "fuse_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fuse A"
+        }
+      },
+      "required": [
+        "id",
+        "psu",
+        "chain",
+        "first",
+        "count",
+        "cable",
+        "length_m"
+      ],
+      "title": "Feed",
+      "type": "object"
+    },
+    "FixturePlacement": {
+      "additionalProperties": false,
+      "description": "One free fixture. `attach` maps an anchor name to an attachment type.",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose",
+          "default": {
+            "position_m": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "quat_xyzw": null,
+            "aim": null
+          }
+        },
+        "attach": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Attach",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "FixturePlacement",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "description": "A placement: `T(position_m) · R`, with R from `quat_xyzw` or `aim`.\n\nThe quaternion is stored canonical (unit length, w >= 0). With neither\nrotation given, R is the identity.",
+      "properties": {
+        "position_m": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 10000.0,
+              "minimum": -10000.0,
+              "type": "number"
+            },
+            {
+              "maximum": 10000.0,
+              "minimum": -10000.0,
+              "type": "number"
+            },
+            {
+              "maximum": 10000.0,
+              "minimum": -10000.0,
+              "type": "number"
+            }
+          ],
+          "title": "Position M",
+          "type": "array"
+        },
+        "quat_xyzw": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quat Xyzw"
+        },
+        "aim": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Aim"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Pose",
+      "type": "object"
+    },
+    "PowerLimit": {
+      "additionalProperties": false,
+      "description": "A software cap on the rig's light and power (`pewpew.power.PowerCap`).\n\n`max_brightness` scales every frame. `max_watts`, when set, then holds\nthe estimated draw at or under it. The default caps nothing. The report\nsizes PSUs for the capped worst case, and sizes fuses and connectors for\nfull white, because a fallback preset or a bug can exceed a software cap.",
+      "properties": {
+        "max_watts": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 1000000.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Watts"
+        },
+        "max_brightness": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Max Brightness",
+          "type": "number"
+        }
+      },
+      "title": "PowerLimit",
+      "type": "object"
+    },
+    "PsuPlacement": {
+      "additionalProperties": false,
+      "description": "A PSU. `powers` names the controllers it also powers through a buck\nconverter; the report adds their draw to its load.",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "position_m": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 10000.0,
+                  "minimum": -10000.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 10000.0,
+                  "minimum": -10000.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 10000.0,
+                  "minimum": -10000.0,
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position M"
+        },
+        "powers": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Powers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "PsuPlacement",
+      "type": "object"
+    },
+    "RingAttach": {
+      "additionalProperties": false,
+      "properties": {
+        "inner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inner"
+        },
+        "outer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outer"
+        }
+      },
+      "title": "RingAttach",
+      "type": "object"
+    },
+    "RingGroup": {
+      "additionalProperties": false,
+      "description": "`count` fixtures on a ring, each one's midpoint at radius `start_radius_m + L/2`.\n\nL is the fixture's length, end anchor to end anchor, so `start_radius_m`\nis the inner-end radius of an untilted member. Member k sits at angle\n`angle_offset_deg + 360k/count`, tilts up by `tilt_deg` about its\nmidpoint and rolls by `roll_deg` (docs/studio/domain-model.md:193-200).\nWith tilt a, the inner end is at plan radius\n`start_radius_m + L/2 · (1 - cos a)`. `data_in` says which end takes\ndata; `\"outer\"` turns each member end for end and keeps its facing.",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "preset": {
+          "const": "ring",
+          "title": "Preset",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "start_radius_m": {
+          "maximum": 1000.0,
+          "minimum": 0,
+          "title": "Start Radius M",
+          "type": "number"
+        },
+        "angle_offset_deg": {
+          "default": 0.0,
+          "title": "Angle Offset Deg",
+          "type": "number"
+        },
+        "tilt_deg": {
+          "default": 0.0,
+          "title": "Tilt Deg",
+          "type": "number"
+        },
+        "roll_deg": {
+          "default": 0.0,
+          "title": "Roll Deg",
+          "type": "number"
+        },
+        "data_in": {
+          "default": "inner",
+          "enum": [
+            "inner",
+            "outer"
+          ],
+          "title": "Data In",
+          "type": "string"
+        },
+        "attach": {
+          "$ref": "#/$defs/RingAttach",
+          "default": {
+            "inner": null,
+            "outer": null
+          }
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose",
+          "default": {
+            "position_m": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "quat_xyzw": null,
+            "aim": null
+          }
+        }
+      },
+      "required": [
+        "id",
+        "preset",
+        "type",
+        "count",
+        "start_radius_m"
+      ],
+      "title": "RingGroup",
+      "type": "object"
+    },
+    "Wiring": {
+      "additionalProperties": false,
+      "description": "Explicit `chains` and `feeds`, or `auto`. Both empty leaves all unwired.",
+      "properties": {
+        "target_fps": {
+          "anyOf": [
+            {
+              "minimum": 0.1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Fps"
+        },
+        "chains": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Chain"
+          },
+          "maxItems": 200,
+          "title": "Chains",
+          "type": "array"
+        },
+        "feeds": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Feed"
+          },
+          "maxItems": 200,
+          "title": "Feeds",
+          "type": "array"
+        },
+        "auto": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AutoWiring"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Wiring",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A rig as the user or the studio writes it (format v1).\n\n`power` is optional, so a file without it caps nothing. A reader older\nthan the block refuses a file that has it, as an unknown field.",
+  "properties": {
+    "format": {
+      "const": "pewpew.arrangement",
+      "title": "Format",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+    },
+    "groups": {
+      "default": [],
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "array": "#/$defs/ArrayGroup",
+            "ring": "#/$defs/RingGroup"
+          },
+          "propertyName": "preset"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/RingGroup"
+          },
+          {
+            "$ref": "#/$defs/ArrayGroup"
+          }
+        ]
+      },
+      "maxItems": 200,
+      "title": "Groups",
+      "type": "array"
+    },
+    "fixtures": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FixturePlacement"
+      },
+      "maxItems": 200,
+      "title": "Fixtures",
+      "type": "array"
+    },
+    "controllers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ControllerPlacement"
+      },
+      "maxItems": 200,
+      "title": "Controllers",
+      "type": "array"
+    },
+    "psus": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PsuPlacement"
+      },
+      "maxItems": 200,
+      "title": "Psus",
+      "type": "array"
+    },
+    "wiring": {
+      "$ref": "#/$defs/Wiring",
+      "default": {
+        "target_fps": null,
+        "chains": [],
+        "feeds": [],
+        "auto": null
+      }
+    },
+    "power": {
+      "$ref": "#/$defs/PowerLimit",
+      "default": {
+        "max_watts": null,
+        "max_brightness": 1.0
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version"
+  ],
+  "title": "Arrangement",
+  "type": "object"
+}

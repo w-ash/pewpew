@@ -1,0 +1,7 @@
+# Name,  Type, SubType, Offset,  Size
+# nvs holds the Wi-Fi settings and the names; nodekey holds the key alone,
+# so a key image never touches the Wi-Fi settings.
+nvs,      data, nvs,     0x9000,  0x6000
+phy_init, data, phy,     0xf000,  0x1000
+nodekey,  data, nvs,     0x10000, 0x3000
+factory,  app,  factory, 0x20000, 0x300000

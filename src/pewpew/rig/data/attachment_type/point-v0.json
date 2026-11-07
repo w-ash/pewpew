@@ -1,0 +1,19 @@
+{
+  "kind": "attachment_type",
+  "id": "point-v0",
+  "rev": 1,
+  "name": "Point v0",
+  "notes": "A nose cone on the host's own outer profile, so it fits flush (stated by the maintainer, 2026-10-17). The plug slides into the diffuser. Lengths are the prototype's placeholders.",
+  "fits": "diffuser_outer",
+  "dims": {
+    "len": {"v": 0.1, "status": "assumed", "src": "prototype placeholder, docs/studio/prototype/golden-tubes-3d.html:291"},
+    "plug": {"v": 0.015, "status": "assumed", "src": "not measured; Q-012, the maintainer's private notes"}
+  },
+  "parts": [
+    {"id": "cone", "profile": "host:diffuser_outer", "range_m": [0, "len"], "taper_to": 0, "glow": "pixels", "gain": {"v": 0.25, "status": "assumed", "src": "the maintainer expects the glow through it to be minimal (stated 2026-10-17)"}},
+    {"id": "plug", "profile": "host:diffuser_inner", "range_m": ["-plug", 0], "glow": "pixels", "gain": {"v": 0.25, "status": "assumed", "src": "the maintainer expects the glow through it to be minimal (stated 2026-10-17)"}}
+  ],
+  "anchors": {
+    "tip": {"at": [0, "len", 0]}
+  }
+}

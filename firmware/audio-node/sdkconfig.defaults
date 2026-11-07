@@ -1,0 +1,18 @@
+# ESP32-S3-DevKitC-1 N8R8: 8 MB quad flash, of which the node uses 4 MB; its
+# octal PSRAM stays off, since the node needs none.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Logs on the UART port only; the USB port is Improv's (improv.c).
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# ADR-019: a task that stops panics and reboots the board.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+
+CONFIG_FREERTOS_HZ=1000

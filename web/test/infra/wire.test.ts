@@ -1,0 +1,240 @@
+// The wire contract with the engine: tests/goldens/wire.json holds messages a
+// real preview sent (tests/test_wire_contract.py). Each key list below is
+// checked against its type by the compiler, and against the golden here, so a
+// key renamed on either side fails.
+import { expect, test } from "vitest";
+import wire from "../../../tests/goldens/wire.json";
+import type {
+  AwakeHealth, BoardHealth, FoundBoard, HealthState, LoopHealth, ScanState,
+} from "../../src/domain/health/health";
+import { chip, healthRows, scanNote } from "../../src/domain/health/health";
+import { decodeParam, readValue } from "../../src/domain/params/kinds";
+import { makeLayout, planUrl, roomOf, type RoomFixture, type RoomPlan, type RoomShape } from "../../src/domain/room/layout";
+import type { Held, LastEvent, TriggersState } from "../../src/domain/aura/triggers";
+import { cueText, lastText } from "../../src/domain/aura/triggers";
+import type { LookItem, LooksState } from "../../src/domain/aura/looks";
+import { lookStatus } from "../../src/domain/aura/looks";
+import { nowOf, patternList } from "../../src/domain/aura/aura";
+import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/domain/stack/catalog";
+import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/domain/stack/stack";
+import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/domain/stack/stack";
+import { parseMessage, type ClientMessage, type Control, type ServerMessage } from "../../src/infra/wire/protocol";
+import { WireStore } from "../../src/infra/wire/store";
+import { first, GREETING, LATER } from "../fixtures/messages";
+
+type Message<T extends ServerMessage["type"]> = Extract<ServerMessage, { type: T }>;
+
+/** A key list for `T`: the compiler holds it to exactly `T`'s keys. */
+const keys = <T>(r: Readonly<Record<keyof T, true>>): string[] => Object.keys(r).sort();
+
+interface Shape {
+  readonly keys: string[];
+  /** The shapes of fields that hold objects, or arrays of them. */
+  readonly fields?: Readonly<Record<string, Shape>>;
+}
+
+const ROOM: Shape = {
+  keys: keys<RoomShape>({ scale: true, fixtures: true, fixture_of: true, plan: true }),
+  fields: {
+    fixtures: { keys: keys<RoomFixture>({ id: true, pitch: true, start: true, end: true, input: true }) },
+    plan: { keys: keys<Extract<RoomPlan, { url: string }>>({ corner: true, unit: true, url: true }) },
+  },
+};
+const MAP = { n: true, total: true, positions: true, is3d: true, room: true } as const;
+
+const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
+  hello: {
+    keys: keys<Message<"hello">>({ type: true, ...MAP, display_gamma: true, build: true, capabilities: true }),
+    fields: { room: ROOM },
+  },
+  layout: { keys: keys<Message<"layout">>({ type: true, ...MAP }), fields: { room: ROOM } },
+  status: { keys: keys<Message<"status">>({ type: true, error: true, source: true, path: true }) },
+  declare: { keys: keys<Message<"declare">>({ type: true, params: true }) },
+  params: { keys: keys<Message<"params">>({ type: true, values: true }) },
+  mod: { keys: keys<Message<"mod">>({ type: true, values: true }) },
+  aura: {
+    keys: keys<Message<"aura">>({
+      type: true, pattern: true, patterns: true, stack: true, fading: true, progress: true, master: true, cap: true,
+      blackout: true, looks: true, triggers: true,
+    }),
+    fields: {
+      stack: {
+        keys: keys<StackState>({ layers: true, signals: true, routes: true, front: true, dims: true }),
+        fields: {
+          layers: {
+            keys: keys<LayerItem>({ id: true, nodes: true }),
+            fields: { nodes: { keys: keys<NodeItem>({ id: true, op: true, label: true, in: true }) } },
+          },
+          signals: { keys: keys<SignalItem>({ id: true, op: true, label: true, in: true, range: true }) },
+          routes: { keys: keys<RouteItem>({ source: true, path: true, depth: true }) },
+        },
+      },
+      looks: {
+        keys: keys<LooksState>({
+          items: true, current: true, changed: true, fading: true, progress: true, pending: true, cycling: true, idle: true, dwell: true,
+          made: true, offered: true, saved: true,
+        }),
+        fields: { items: { keys: keys<LookItem>({ name: true, cycle: true, fade: true }) } },
+      },
+      triggers: {
+        keys: keys<TriggersState>({ armed: true, names: true, cues: true, held: true, last: true }),
+        fields: {
+          held: { keys: keys<Held>({ trigger: true, look: true, until: true }) },
+          last: { keys: keys<LastEvent>({ name: true, fired: true, reason: true, error: true }) },
+        },
+      },
+    },
+  },
+  health: {
+    keys: keys<Message<"health">>({ type: true, level: true, boards: true, sent_fps: true, loop: true, awake: true, scan: true }),
+    fields: {
+      boards: {
+        keys: keys<BoardHealth>({
+          host: true, board: true, address: true, mac: true, lost: true, fix: true, level: true, reasons: true, live: true,
+          lip: true, from_us: true, fps: true, count: true, expected: true, rssi: true, channel: true, uptime: true,
+          freeheap: true, ver: true, reboots: true, reset_reason: true,
+        }),
+      },
+      loop: { keys: keys<LoopHealth>({ level: true, fps: true, target: true, skips: true, watchdog: true, fix: true }) },
+      awake: { keys: keys<AwakeHealth>({ level: true, requested: true, held: true, detail: true, fix: true }) },
+      scan: {
+        keys: keys<ScanState>({ running: true, subnet: true, found: true, error: true }),
+        fields: {
+          found: {
+            keys: keys<FoundBoard>({
+              address: true, mac: true, name: true, ver: true, live: true, lm: true, lip: true, board: true, at: true,
+            }),
+          },
+        },
+      },
+    },
+  },
+  catalog: {
+    keys: keys<Message<"catalog">>({ type: true, cards: true, blends: true }),
+    fields: {
+      cards: {
+        keys: keys<Card>({
+          kind: true, name: true, label: true, summary: true, sig: true, dims: true, fix: true, examples: true,
+        }),
+        fields: { examples: { keys: keys<Example>({ py: true, json: true, dims: true }) } },
+      },
+      blends: { keys: keys<BlendNote>({ name: true, label: true, doc: true, black: true }) },
+    },
+  },
+  refused: { keys: keys<Message<"refused">>({ type: true, control: true, name: true, id: true, reason: true }) },
+  ack: { keys: keys<Message<"ack">>({ type: true, id: true, control: true }) },
+};
+
+type Fields<K extends Control> = Readonly<Record<Exclude<keyof Extract<ClientMessage, { type: K }>, "type">, true>>;
+
+const CONTROLS: { readonly [K in Control]: Fields<K> } = {
+  set: { name: true, value: true },
+  pick: { name: true, layer: true },
+  add_layer: { layer: true, below: true },
+  remove_layer: { lid: true },
+  move_layer: { lid: true, to: true },
+  front: { paths: true },
+  master: { value: true },
+  blackout: { on: true },
+  recall: { name: true, fade: true },
+  look: { look: true, fade: true },
+  surprise: { seed: true },
+  vary: { strength: true, seed: true },
+  keep: {},
+  save: { name: true, fade: true, master: true },
+  delete: { name: true },
+  cycle: { name: true, on: true },
+  fade: { name: true, fade: true },
+  arm: { on: true },
+  fire: { name: true, value: true },
+  scan: {},
+  rebind: { board: true, address: true },
+  blink: { fixture: true },
+};
+
+/** Where `value` has other keys than `shape`, recording each shape a value reached in `seen`. */
+function mismatches(where: string, value: unknown, shape: Shape, seen: Set<Shape>): string[] {
+  if (value === null) return [];
+  if (Array.isArray(value)) return value.flatMap((v, i) => mismatches(`${where}[${i}]`, v, shape, seen));
+  seen.add(shape);
+  const record = value as Record<string, unknown>;
+  const found = Object.keys(record).sort();
+  const out = found.join() === shape.keys.join() ? [] : [`${where} has ${found.join(", ")}; the page reads ${shape.keys.join(", ")}`];
+  for (const [key, sub] of Object.entries(shape.fields ?? {})) out.push(...mismatches(`${where}.${key}`, record[key], sub, seen));
+  return out;
+}
+
+function allShapes(shape: Shape): Shape[] {
+  return [shape, ...Object.values(shape.fields ?? {}).flatMap(allShapes)];
+}
+
+test("every message in wire.json has the keys the page's types give, and every shape is in it", () => {
+  const messages = [...GREETING, ...LATER];
+  const seen = new Set<Shape>();
+  const found = messages.flatMap((msg, i) => mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], seen));
+  expect(found).toEqual([]);
+  const types = new Set(messages.map((m) => m.type));
+  expect(Object.keys(SHAPES).filter((t) => !types.has(t as ServerMessage["type"]))).toEqual([]);
+  expect(Object.values(SHAPES).flatMap(allShapes).filter((s) => !seen.has(s))).toEqual([]);
+});
+
+test("every control the engine takes is a message the page can send, with the same fields", () => {
+  const page = Object.fromEntries(Object.entries(CONTROLS).map(([name, fields]) => [name, Object.keys(fields).sort()]));
+  const engine = Object.fromEntries(Object.entries(wire.controls).map(([name, fields]) => [name, [...fields].sort()]));
+  expect(page).toEqual(engine);
+});
+
+test("every message decodes through the wire and the store, and reads through the domain", () => {
+  const store = new WireStore();
+  for (const msg of [...GREETING, ...LATER]) {
+    const parsed = parseMessage(JSON.stringify(msg));
+    expect(parsed).toEqual(msg);
+    store.receive(parsed!);
+  }
+  const declared = first("declare").params.map(decodeParam);
+  expect(store.getState().params).toEqual(declared);
+  const values = first("params").values;
+  for (const p of declared) expect(store.value(p)).toEqual(readValue(p, values[p.name]));
+
+  const aura = store.getState().aura!;
+  expect(patternList(aura).find((e) => e.current)).toEqual({ name: "zoo", current: true, pickable: true });
+  expect(aura.stack.layers.map((l) => [l.id, l.nodes.map((n) => n.label)])).toEqual([["base", ["zoo"]]]);
+  expect(declared.map((p) => p.name)).toContain("layers.base.opacity");
+  const { stack } = first("aura"); // the greeting's look, before the held trigger's
+  expect(stack.signals.map((n) => [n.label, n.range])).toEqual([["LFO", [-1, 1]], ["Macro", [0, 1]]]);
+  expect(frontFirst(declared, stack.front).front.map((p) => p.name)).toEqual(stack.front);
+  expect(movedBy(stack.routes, "layers.base.zoo.color", undefined, stack.signals)).toBe("modulated by ‘macro’ on h +60");
+  expect(movedBy(stack.routes, "layers.base.zoo.level", undefined, stack.signals)).toBe("modulated by ‘breath’ ±0.2");
+  expect(store.mod("layers.base.zoo.level")).toBe(first("mod").values["layers.base.zoo.level"]);
+  expect(declared.filter(isSignal).map((p) => sectionOf(p, stack.layers, stack.signals)?.title)).toEqual([
+    "breath · LFO", "breath · LFO", "breath · LFO", "macro · macro",
+  ]);
+  expect(nowOf(aura)).toEqual({ name: "cool", changed: false, draft: false, master: "80%" });
+  expect(lookStatus(aura.looks!, aura.triggers, "warm")).toMatchObject({ returnsTo: true, held: false });
+  expect(cueText("door", aura.triggers!.held, 0)).toBe("door · 9s");
+  expect(lastText(aura.triggers!.last).text).toBe("door fired");
+  expect(store.getState().error).toEqual({
+    text: "layers.base.zoo.render raised: RuntimeError: boom", source: "render", path: "layers.base.zoo",
+  });
+  expect(store.getState().refusals.set).toMatchObject({
+    name: "layers.base.zoo.level", reason: "layers.base.zoo.level must be within 0.0..1.0, got 3.0",
+  });
+  expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.x.pattern" });
+  expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.x.x.pattern" });
+
+  const catalog = store.getState().catalog!;
+  const shelfOf = (c: Card): Shelf | undefined => [...shelve(catalog.cards)].find(([, held]) => held.some((h) => h.card === c))?.[0];
+  expect(catalog.cards.map((c) => [c.name, shelfOf(c), offReason(c, stack.dims)])).toEqual([
+    ["wave", "patterns", null], ["kaleid", "space", "a strip has no plane to fold; use mirror along the strip"],
+  ]);
+  expect(newLayer(catalog.cards[0]!.examples[0]!)).toMatchObject({ out: "wave", blend: "screen", opacity: 0.7 });
+
+  const health = store.getState().health as HealthState;
+  expect(chip(health, 0).text).toBe("1 ok");
+  expect(healthRows(health, 0, null)[0]!.name).toBe("A · 192.168.1.50");
+  expect(scanNote(health.scan)).toBe("2 WLED boards in 192.168.1.0/24");
+
+  const map = store.getState().map!;
+  expect(planUrl(roomOf(map))).toBe("/plan?v=1");
+  expect(makeLayout(map, { width: 400, height: 400, dpr: 1 }, null).fixtures.map((f) => f.id)).toEqual(["a", "b"]);
+});

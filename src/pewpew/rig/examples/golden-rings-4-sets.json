@@ -1,0 +1,53 @@
+{
+  "format": "pewpew.arrangement",
+  "version": 1,
+  "name": "golden rings in 4 sets",
+  "groups": [
+    {"id": "inner", "preset": "ring", "type": "clen-rgbw-bar-1m", "count": 24, "start_radius_m": 0.618034, "angle_offset_deg": 0, "tilt_deg": 30, "attach": {"inner": "point-v0", "outer": "eye-v0"}},
+    {"id": "outer", "preset": "ring", "type": "clen-rgbw-bar-1m", "count": 24, "start_radius_m": 1.0, "angle_offset_deg": 7.5, "tilt_deg": 30, "attach": {"inner": "point-v0", "outer": "eye-v0"}}
+  ],
+  "controllers": [
+    {"id": "c1", "profile": "esp32s3-devkitc1-ahct125", "position_m": [0.318, -0.27, 0.318]},
+    {"id": "c2", "profile": "esp32s3-devkitc1-ahct125", "position_m": [-0.318, -0.27, 0.318]},
+    {"id": "c3", "profile": "esp32s3-devkitc1-ahct125", "position_m": [-0.318, -0.27, -0.318]},
+    {"id": "c4", "profile": "esp32s3-devkitc1-ahct125", "position_m": [0.318, -0.27, -0.318]}
+  ],
+  "psus": [
+    {"id": "p1", "type": "btf-24v-5a-120w", "position_m": [0.318, -0.27, 0.318], "powers": ["c1"]},
+    {"id": "p2", "type": "btf-24v-5a-120w", "position_m": [-0.318, -0.27, 0.318], "powers": ["c2"]},
+    {"id": "p3", "type": "btf-24v-5a-120w", "position_m": [-0.318, -0.27, -0.318], "powers": ["c3"]},
+    {"id": "p4", "type": "btf-24v-5a-120w", "position_m": [0.318, -0.27, -0.318], "powers": ["c4"]}
+  ],
+  "wiring": {
+    "target_fps": 40,
+    "chains": [
+      {"id": "s1a", "controller": "c1", "output": "rmt0", "fixtures": ["inner/1", "inner/0", "outer/0", "outer/1"]},
+      {"id": "s1b", "controller": "c1", "output": "rmt1", "fixtures": ["inner/3", "inner/2", "outer/2", "outer/3"]},
+      {"id": "s1c", "controller": "c1", "output": "rmt2", "fixtures": ["inner/5", "inner/4", "outer/4", "outer/5"]},
+      {"id": "s2a", "controller": "c2", "output": "rmt0", "fixtures": ["inner/7", "inner/6", "outer/6", "outer/7"]},
+      {"id": "s2b", "controller": "c2", "output": "rmt1", "fixtures": ["inner/9", "inner/8", "outer/8", "outer/9"]},
+      {"id": "s2c", "controller": "c2", "output": "rmt2", "fixtures": ["inner/11", "inner/10", "outer/10", "outer/11"]},
+      {"id": "s3a", "controller": "c3", "output": "rmt0", "fixtures": ["inner/13", "inner/12", "outer/12", "outer/13"]},
+      {"id": "s3b", "controller": "c3", "output": "rmt1", "fixtures": ["inner/15", "inner/14", "outer/14", "outer/15"]},
+      {"id": "s3c", "controller": "c3", "output": "rmt2", "fixtures": ["inner/17", "inner/16", "outer/16", "outer/17"]},
+      {"id": "s4a", "controller": "c4", "output": "rmt0", "fixtures": ["inner/19", "inner/18", "outer/18", "outer/19"]},
+      {"id": "s4b", "controller": "c4", "output": "rmt1", "fixtures": ["inner/21", "inner/20", "outer/20", "outer/21"]},
+      {"id": "s4c", "controller": "c4", "output": "rmt2", "fixtures": ["inner/23", "inner/22", "outer/22", "outer/23"]}
+    ],
+    "feeds": [
+      {"id": "f1a", "psu": "p1", "chain": "s1a", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f1b", "psu": "p1", "chain": "s1b", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f1c", "psu": "p1", "chain": "s1c", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f2a", "psu": "p2", "chain": "s2a", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f2b", "psu": "p2", "chain": "s2b", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f2c", "psu": "p2", "chain": "s2c", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f3a", "psu": "p3", "chain": "s3a", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f3b", "psu": "p3", "chain": "s3b", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f3c", "psu": "p3", "chain": "s3c", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f4a", "psu": "p4", "chain": "s4a", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f4b", "psu": "p4", "chain": "s4b", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3},
+      {"id": "f4c", "psu": "p4", "chain": "s4c", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 1.0, "fuse_a": 3}
+    ]
+  },
+  "power": {"max_brightness": 0.6194}
+}

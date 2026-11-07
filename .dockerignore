@@ -1,0 +1,50 @@
+# Allowlist: exclude everything, then re-include exactly what the Dockerfile
+# copies. Patterns match the full relative path, so a directory rule never
+# matches the files inside it — each tree needs both `dir` and `dir/**`. Last
+# match wins, so re-exclusions come after the re-include that covered them.
+*
+
+# --- Python build inputs (python-builder) ---
+!pyproject.toml
+!uv.lock
+!src
+!src/**
+
+# --- Frontend build inputs (node-builder does `COPY studio-web/ ./`) ---
+!studio-web
+!studio-web/**
+
+# Dev-only trees inside studio-web/. studio-web/tsconfig.json includes "e2e" as well as "src",
+# so studio-web/e2e stays in the build context and is type-checked by `pnpm build`.
+studio-web/node_modules
+studio-web/node_modules/**
+studio-web/dist
+studio-web/dist/**
+studio-web/test-results
+studio-web/test-results/**
+studio-web/playwright-report
+studio-web/playwright-report/**
+studio-web/playwright.config.ts
+studio-web/vitest.config.ts
+studio-web/**/*.log
+
+# --- Junk that would otherwise ride along inside the allowlisted trees ---
+**/__pycache__
+**/__pycache__/**
+**/*.py[cod]
+**/.DS_Store
+
+# --- Secrets, databases and caches that a developer's tree may hold inside
+# the allowlisted trees (the Python wheel and the Vite build would ship them) ---
+**/.env*
+**/*.local
+**/*.pem
+**/*.key
+**/*.sqlite3*
+**/*.db
+**/.pytest_cache
+**/.pytest_cache/**
+studio-web/.vite
+studio-web/.vite/**
+studio-web/*.tsbuildinfo
+studio-web/.eslintcache

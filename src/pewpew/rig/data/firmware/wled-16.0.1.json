@@ -1,0 +1,14 @@
+{
+  "kind": "firmware",
+  "id": "wled-16.0.1",
+  "name": "WLED 16.0.1",
+  "max_px_per_output": {"v": 2048, "status": "stated", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L575"},
+  "max_px_total": {"v": 16384, "status": "stated", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L543-L551"},
+  "warn_px_per_output": {"v": 800, "status": "stated", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/data/settings_leds.htm#L494-L496"},
+  "min_frame_interval_s": {"v": 0.015, "status": "stated", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/udp.cpp#L477"},
+  "ingest": {"protocol": "ddp", "udp_port": 4048, "send": "RGB", "auto_white": "accurate", "src": "RES-028, the maintainer's private notes; https://kno.wled.ge/interfaces/ddp/; docs/studio/domain-model.md:214"},
+  "led_types": [
+    {"chipset": "sk6812", "channels": "RGBW", "type": 30, "label": "SK6812/WS2814 RGBW", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L332"},
+    {"chipset": "ucs1903n", "channels": "RGB", "type": 22, "label": "WS281x RGB", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L324"}
+  ]
+}

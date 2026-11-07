@@ -1,0 +1,9 @@
+{
+  "kind": "connector",
+  "id": "barrel-5.5x2.1",
+  "name": "5.5 x 2.1 mm DC barrel",
+  "notes": "The output plug of the BTF-LIGHTING 24 V 5 A brick (psu/btf-24v-5a-120w).",
+  "pins": {"v": 2, "status": "inferred", "src": "a coaxial barrel has a centre pin and a sleeve"},
+  "rated_a": {"v": 5, "status": "inferred", "src": "the brick's rated 5 A output goes through it (BTF-LIGHTING listing, https://www.amazon.com/dp/B09T6QX737, seen 2026-10-23); the plug's own rating is not found"},
+  "pinmap": null
+}

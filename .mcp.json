@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "pewpew": {
+      "command": "uv",
+      "args": ["run", "--extra", "agent", "python", "-m", "pewpew", "mcp", "--tier", "0"]
+    },
+    "pewpew-live": {
+      "command": "uv",
+      "args": ["run", "--extra", "agent", "python", "-m", "pewpew", "mcp", "--tier", "1"]
+    }
+  }
+}

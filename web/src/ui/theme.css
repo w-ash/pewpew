@@ -1,0 +1,420 @@
+/* The visual foundations (RA-27c §3): the fonts, the tokens, the type roles and the base elements. The
+   page is the aura's control surface on a phone and on the laptop. Nothing loads from the internet: the
+   fonts are subsets inlined into the one file (ADR-020). Dark only, by choice: the page is used in a dark
+   room beside the light it controls, and the canvas is that light. Both text tiers hold 4.5:1 on every
+   surface (WCAG 1.4.3); --border-strong, a field's edge, holds 3:1 on every surface (WCAG 1.4.11). */
+
+/* Martian Grotesk for every word; Martian Mono for keycaps and board addresses; "Martian Figures", Mono's
+   digits and signs alone, for numbers that change while shown, so they never jitter (Grotesk has no
+   tabular figures). Letters fall through to Grotesk. */
+@font-face {
+  font-family: "Martian Grotesk";
+  src: url(./fonts/martian-grotesk.woff2) format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Martian Mono";
+  src: url(./fonts/martian-mono.woff2) format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Martian Figures";
+  src: url(./fonts/martian-mono.woff2) format("woff2");
+  font-weight: 400;
+  unicode-range: U+25, U+2B-2E, U+30-39, U+B0-B1, U+D7, U+2212;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Type: seven roles in four sizes per pointer (.t-*). Weights 400 and 600 only. Martian is wide and tall
+     (x-height 0.60), so its sizes run a step under a neo-grotesk's: 13 px Martian reads as 15 px Helvetica.
+     Each size has its own line height in whole pixels, so every line box, row and card lands on the pixel. */
+  --font-ui: "Martian Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-code: "Martian Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-value: "Martian Figures", var(--font-ui);
+  --fs-display: 1.125rem;
+  --fs-title: 0.9375rem;
+  --fs-body: 0.8125rem;
+  --fs-caption: 0.6875rem;
+  --lh-display: 1.5rem;
+  --lh-title: 1.25rem;
+  --lh-body: 1.125rem;
+  --lh-caption: 1rem;
+  /* A typed field's text: the body's size, but never under 16 px under a finger, or iOS Safari zooms. */
+  --fs-field: var(--fs-body);
+  --fw-regular: 400;
+  --fw-strong: 600;
+  --track-caps: 0.06em;
+
+  /* Space: a group sits at least twice its largest inner gap from the next. */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+
+  /* Controls; wells and cards nested in a region; regions and overlays. */
+  --radius-control: 6px;
+  --radius-inset: 8px;
+  --radius-surface: 12px;
+  --radius-pill: 999px;
+
+  /* Surfaces: lighter as they rise, never shadowed. */
+  --surface-page: #0b0b0e;
+  --surface-region: #17171a;
+  --surface-raised: #212124;
+  --surface-overlay: #2b2b2e;
+  /* State layers: text-1 at an alpha over whatever surface is under them. */
+  --state-hover: rgb(237 237 240 / 0.04);
+  --state-press: rgb(237 237 240 / 0.08);
+  --surface-selected: rgb(237 237 240 / 0.12);
+
+  --text-1: #ededf0;
+  --text-2: #a7a7aa;
+  --text-disabled: #5f5f62;
+  --border-strong: #7b7b7e;
+  /* A secondary button's edge: quieter than a field's. */
+  --border-control: rgb(237 237 240 / 0.18);
+  --border-subtle: rgb(237 237 240 / 0.12);
+  --focus: var(--text-1);
+
+  /* Amber is what the room is shown: the primary action, the playing look, a held cue, armed cues. */
+  --accent: #d99a2b;
+  --accent-hover: #e6aa45;
+  --on-accent: #0b0b0e;
+  --accent-tint: rgb(217 154 43 / 0.16);
+  /* Red darkens, removes or failed; filled only while confirming, and for a lost connection. */
+  --danger-fg: #f87171;
+  --danger-fill: #b91c1c;
+  --on-danger: #fff;
+  /* Green: connected and running. */
+  --ok: #22c55e;
+  /* The page's ground over the canvas, and the shade behind a dialog. */
+  --veil: rgb(11 11 14 / 0.72);
+  --scrim: rgb(0 0 0 / 0.5);
+  /* A list's caret, in text-2. */
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6.5l4 4 4-4' fill='none' stroke='%23a7a7aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  /* Targets: macOS's control on a fine pointer. On a coarse one a control is drawn 40 px and its target is
+     iOS's 44 (--hit, a ::before past its edges, controls.css); WCAG's 24 px is the floor. */
+  --control-h: 28px;
+  --hit: var(--control-h);
+  --thumb: 12px;
+  --slider-h: 24px;
+  /* An icon in a control, on its own 16-unit grid. */
+  --icon: 16px;
+  /* A region card's inset above its first row and beside its column. */
+  --region-pad-block: var(--space-sm);
+  /* A typed value's well with its unit, as wide for every knob and the master, so each ends at the column's
+     edge and starts where blackout does (two controls and this: blackout's "again to black out"). */
+  --entry: 6.5rem;
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+@media (pointer: coarse) {
+  :root {
+    --fs-display: 1.25rem;
+    --fs-title: 1.0625rem;
+    --fs-body: 0.9375rem;
+    --fs-caption: 0.75rem;
+    --lh-display: 1.625rem;
+    --lh-title: 1.375rem;
+    --lh-body: 1.25rem;
+    --lh-caption: 1rem;
+    --fs-field: 1rem;
+    --control-h: 40px;
+    --hit: 44px;
+    --thumb: 20px;
+    --slider-h: 32px;
+    --entry: 5.5rem;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--surface-page);
+  color: var(--text-1);
+  font: var(--fw-regular) var(--fs-body) / var(--lh-body) var(--font-ui);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font: inherit;
+}
+
+/* ---- type roles ----------------------------------------------------------------------------- */
+
+.t-display {
+  font: var(--fw-strong) var(--fs-display) / var(--lh-display) var(--font-ui);
+  color: var(--text-1);
+}
+.t-title {
+  font: var(--fw-strong) var(--fs-title) / var(--lh-title) var(--font-ui);
+  color: var(--text-1);
+}
+.t-heading {
+  font: var(--fw-strong) var(--fs-body) / var(--lh-body) var(--font-ui);
+  color: var(--text-1);
+}
+.t-label {
+  color: var(--text-2);
+}
+.t-caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-2);
+}
+.t-eyebrow {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-strong);
+  color: var(--text-2);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  font-feature-settings: "case";
+}
+/* Every number that changes while shown. */
+.t-value {
+  font-family: var(--font-value);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "case";
+  white-space: nowrap;
+}
+/* Keycaps and board addresses. */
+.t-code {
+  font-family: var(--font-code);
+  font-weight: var(--fw-regular);
+}
+
+/* A line that explains, under what it explains. */
+.note {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-2);
+}
+
+/* `hidden` hides, whatever display a class gives the element; a part that keeps its room while hidden says
+   so in its own rule (the knob's ↺). */
+[hidden] {
+  display: none !important;
+}
+
+/* Read by assistive tech, not drawn. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* A heading or note that focus is handed to (a panel's title, the look's, a cue's hold) needs no ring: it is
+   not a control, and a ring would make it read as one. */
+:is(h2, h3, p)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- fields --------------------------------------------------------------------------------- */
+
+/* A field is a well in the page's ground with a strong edge: never the look of a button. */
+/* Every field is one size, whatever text is round it. */
+input,
+select {
+  font: inherit;
+  font-size: var(--fs-field);
+  color: var(--text-1);
+  background: var(--surface-page);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  min-height: var(--control-h);
+  min-width: 0;
+  padding: 0 var(--space-xs);
+}
+select {
+  appearance: none;
+  min-width: var(--control-h);
+  padding-right: var(--space-lg);
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  background: var(--surface-page) var(--caret) no-repeat right var(--space-2xs) center / 1rem;
+}
+select:hover:not(:disabled) {
+  background-color: var(--surface-raised);
+}
+select:disabled {
+  cursor: default;
+  color: var(--text-disabled);
+  border-color: var(--text-disabled);
+}
+
+/* A key: a small raised cap, quieter than a control. */
+kbd {
+  font: inherit;
+  font-family: var(--font-code);
+  font-size: var(--fs-caption);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-2xs);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  white-space: nowrap;
+}
+
+/* Waiting on the engine: the fill pulses, the words keep still. */
+@keyframes busy {
+  to {
+    background-color: var(--state-press);
+  }
+}
+[data-busy] {
+  animation: busy 0.8s ease-in-out infinite alternate;
+}
+
+/* ---- a checkbox drawn as a switch ----------------------------------------------------------- */
+
+/* On: a text-2 track and a dark thumb. Off: an edge and a thumb in --border-strong, no fill; the words say
+   "off" where the state needs saying. Neutral either way: amber is for the room. */
+.switch {
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: none;
+  cursor: pointer;
+}
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: transform 0.12s;
+}
+.switch:checked {
+  border-color: var(--text-2);
+  background: var(--text-2);
+}
+.switch:checked::before {
+  background: var(--surface-page);
+  transform: translateX(14px);
+}
+@media (pointer: coarse) {
+  .switch {
+    width: 40px;
+    height: 24px;
+  }
+  .switch::before {
+    width: 18px;
+    height: 18px;
+  }
+  .switch:checked::before {
+    transform: translateX(16px);
+  }
+}
+.switch:disabled {
+  cursor: default;
+  border-color: var(--text-disabled);
+}
+.switch:disabled::before {
+  background: var(--text-disabled);
+}
+
+/* A setting's words first, then its switch at the column's edge; the label is the target. */
+.bool-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: fit-content;
+  min-height: var(--control-h);
+  cursor: pointer;
+}
+.bool-control:has(> span:first-child) {
+  width: auto;
+  justify-content: space-between;
+}
+/* A sign before the words keeps an icon's 8 from them. */
+.bool-control > span:has(> .icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+/* A "?" after the words follows them, as a heading's does; the switch keeps the column's edge. */
+.bool-control > .switch:not(:last-child) {
+  order: 1;
+  margin-left: auto;
+}
+.bool-control > .about {
+  margin-left: calc(-1 * var(--space-sm));
+}

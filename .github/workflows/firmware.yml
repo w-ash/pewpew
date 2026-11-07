@@ -1,0 +1,44 @@
+name: Firmware
+
+# The capture node's firmware (firmware/audio-node), built in the pinned
+# ESP-IDF image by the same recipe a laptop runs (`just firmware`, which
+# holds the image's digest). `just check` stays IDF-free, so this job runs
+# only when the firmware or its recipe changes, or by hand on any branch.
+on:
+  push:
+    branches: [main]
+    paths: ["firmware/**", "justfile", ".github/workflows/firmware.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["firmware/**", "justfile", ".github/workflows/firmware.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  audio-node:
+    name: Audio node
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Exact tag: setup-uv publishes no major/minor tags since v8.0.0.
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      # Only the `just` binary is needed; it comes locked with the dev group.
+      - name: Install just
+        run: uv sync --locked --only-group dev
+
+      - name: Build
+        run: uv run --no-sync just firmware
+
+      # The build leaves only ignored files behind; the lock must match.
+      - name: Component lock is committed
+        run: git diff --exit-code firmware/audio-node/dependencies.lock

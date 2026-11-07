@@ -1,0 +1,21 @@
+{
+  "kind": "controller",
+  "id": "quinled-dig-octa-32-8l",
+  "name": "QuinLED Dig-Octa Brainboard-32-8L",
+  "notes": "ESP32-WROOM-32UE with LAN8720A Ethernet and 8 outputs level-shifted to 5.12 V (https://quinled.info/quinled-dig-octa-brainboard-32-8l-specifications/). Classic ESP32 builds of WLED have 8 RMT channels (https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L92-L93).",
+  "firmware": "wled-16.0.1",
+  "outputs": [
+    {"id": "o1", "group": "rmt"},
+    {"id": "o2", "group": "rmt"},
+    {"id": "o3", "group": "rmt"},
+    {"id": "o4", "group": "rmt"},
+    {"id": "o5", "group": "rmt"},
+    {"id": "o6", "group": "rmt"},
+    {"id": "o7", "group": "rmt"},
+    {"id": "o8", "group": "rmt"}
+  ],
+  "groups": {"rmt": {"same_led_type": false}},
+  "data_out_v": {"v": 5.12, "status": "stated", "src": "https://quinled.info/quinled-dig-octa-brainboard-32-8l-specifications/"},
+  "max_px_advised": {"v": 2000, "status": "stated", "src": "https://quinled.info/quinled-dig-octa-brainboard-32-8l-specifications/"},
+  "network": ["ethernet", "wifi"]
+}

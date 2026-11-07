@@ -1,0 +1,14 @@
+<!-- Excerpt from ewowi/projectMM@d5ee07ce3d6c590019cbbde670de8c532b2df511
+     docs/history/decisions.md lines 540-549, verbatim. GPL-3.0; ewowi (Ewoud Wijma) / MoonModules contributors.
+     Source entry [S715]. See LICENSE-NOTE.md. -->
+<!-- lines 540-549 -->
+## The layer buffer persists frame-to-frame; effects own their background (fade/fill/read-prior)
+
+The render buffer is **not** cleared each frame — `Layer::loop()` leaves last frame's pixels in place, the FastLED / WLED / MoonLight convention (their `leds[]` / segment / VirtualLayer buffers all persist; none auto-clears). An earlier design cleared the buffer before every effect frame ("the buffer is the effect's to fill, every time"), but that silently broke every persistence effect: a scroll (FreqMatrix) reads the prior column via `draw::get` and shifts it — reading a wiped buffer, so only the freshly-painted pixel survived; a trail effect calls `fadeToBlackBy` to decay the previous frame — fading zeroes, so the trail never formed; Game-of-Life reads its prior cell state — gone. The symptom that surfaced it: FreqMatrix lit only one row, and ~13 effects' `fade` controls did nothing.
+
+**The model (matches the three reference frameworks):**
+- **Persistence is the default and universal** — the buffer holds the previous frame; there is no per-effect "persist" flag (a flag would be bespoke and change no framework behaviour, unlike `dimensions()` which drives `extrude`). The buffer is zeroed **once** on allocation/resize, then persists.
+- **Each effect owns its background inside its own `loop()`:** a full-grid effect overwrites every pixel; a **trail** effect calls `layer()->fadeToBlackBy(amt)`; a **sparse** effect that wants a clean frame calls `draw::fill(buf, {0,0,0})` itself (e.g. RubiksCube, whose `drawCube` writes only surface voxels). Multiple effects on one layer deliberately *interact* through the shared persistent buffer — that's a feature, not a defect.
+- **`fadeToBlackBy` is a Layer operation, collected once per frame** (MoonLight's `VirtualLayer::fadeToBlackBy`): effects register an amount, the Layer keeps the **MIN** across them (the gentlest fade wins, so the longest requested trail is honoured), and applies **one** buffer pass at the next frame's start, then resets. N fading effects cost one pass, not N, and never fade each other's fresh pixels. `unit_Layer_persistence` pins persistence + the MIN-collect + reset.
+
+**GoL corollary (still holds, now for the right reason):** separate *when the simulation advances* from *when the effect paints*. `GameOfLifeEffect` steps one generation per `bpm` beat but its state lives in the persistent buffer, so between beats it simply leaves the buffer untouched (the automaton holds). Time-gate the state update (the `dt*bpm` accumulator, same shape as `CheckerboardEffect`); the sim runs at `bpm`, the buffer persists at frame rate. A `unit_GameOfLifeEffect` case pins it.

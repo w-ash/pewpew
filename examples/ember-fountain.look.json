@@ -1,0 +1,19 @@
+{
+  "version": 4,
+  "current": "ember-fountain",
+  "looks": {
+    "ember-fountain": {
+      "seed": 13, "master": 0.7, "fade": 4.0, "cycle": true,
+      "layers": [
+        {"id": "embers", "out": "tint", "nodes": {
+            "sparks": {"op": "particles", "args": {"rate": 30.0, "life": 1.5, "speed": 0.2, "gravity": 0.12, "swirl": 0.25, "emit": "bottom", "size": 0.1}},
+            "smoke": {"op": "feedback", "in": ["sparks"], "args": {"decay": 1.5, "zoom": 1.0, "drift": 0.1, "warp": 0.2}},
+            "tint": {"op": "palette", "in": ["smoke"], "args": {"palette": {"stops": [{"at": 0, "h": 0, "s": 1, "v": 0}, {"at": 0.35, "h": 5, "s": 1, "v": 0.35}, {"at": 0.7, "h": 25, "s": 0.95, "v": 0.85}, {"at": 1, "h": 45, "s": 0.5, "v": 1}]}}}}}],
+      "signals": {
+          "crackle": {"op": "band", "args": {"band": "high", "release": 0.5}},
+          "gust": {"op": "walk", "args": {"rate": 0.03}}},
+      "routes": [
+          {"source": "crackle", "path": "layers.embers.sparks.rate", "depth": 15.0},
+          {"source": "crackle", "path": "layers.embers.tint.shift", "depth": -40.0},
+          {"source": "gust", "path": "layers.embers.sparks.swirl", "depth": 0.3}],
+      "front": ["layers.embers.sparks.rate", "layers.embers.smoke.drift", "layers.embers.sparks.swirl"]}}}

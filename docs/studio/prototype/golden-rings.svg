@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420.000" height="420.000" viewBox="0 0 420.000 420.000" fill="#111111">
+  <rect width="100%" height="100%" fill="#FFFFFF"/>
+  <g id="inner-ring">
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(0.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(15.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(30.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(45.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(60.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(75.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(90.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(105.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(120.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(135.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(150.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(165.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(180.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(195.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(210.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(225.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(240.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(255.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(270.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(285.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(300.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(315.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(330.000 210.000 210.000)"/>
+    <rect x="271.803" y="208.500" width="100" height="3" transform="rotate(345.000 210.000 210.000)"/>
+  </g>
+  <g id="outer-ring">
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(7.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(22.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(37.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(52.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(67.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(82.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(97.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(112.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(127.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(142.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(157.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(172.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(187.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(202.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(217.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(232.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(247.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(262.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(277.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(292.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(307.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(322.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(337.500 210.000 210.000)"/>
+    <rect x="310.000" y="208.500" width="100" height="3" transform="rotate(352.500 210.000 210.000)"/>
+  </g>
+</svg>

@@ -1,0 +1,42 @@
+{
+  "kind": "attachment_type",
+  "id": "eye-v0",
+  "rev": 1,
+  "name": "Eye v0",
+  "notes": "A flat blade in the host's x-y plane with a slot through it, after the prototype's eye (docs/studio/prototype/golden-tubes-3d.html:354-378), on the point's plug. The prototype's 3 mm bevels are left out. Lengths are the prototype's placeholders.",
+  "fits": "diffuser_outer",
+  "dims": {
+    "len": {"v": 0.1, "status": "assumed", "src": "prototype placeholder, docs/studio/prototype/golden-tubes-3d.html:291"},
+    "plug": {"v": 0.015, "status": "assumed", "src": "not measured; Q-012, the maintainer's private notes"},
+    "blade_w": {"v": 0.03, "status": "assumed", "src": "prototype eye width with its bevel, the tube diameter, docs/studio/prototype/golden-tubes-3d.html:290,356-357"},
+    "blade_t": {"v": 0.02, "status": "assumed", "src": "prototype eye thickness 1.4 cm plus two 0.3 cm bevels, docs/studio/prototype/golden-tubes-3d.html:356,373-374"},
+    "slot_w": {"v": 0.016, "status": "assumed", "src": "prototype slot, 2 x 0.8 cm, docs/studio/prototype/golden-tubes-3d.html:365"},
+    "slot_y0": {"v": 0.03, "status": "assumed", "src": "prototype slot start, docs/studio/prototype/golden-tubes-3d.html:365"},
+    "slot_y1": {"v": 0.075, "status": "assumed", "src": "prototype slot end, 1 cm short of the tip arc, docs/studio/prototype/golden-tubes-3d.html:358,365"},
+    "tip_y": {"v": "len - blade_w/2", "status": "derived"}
+  },
+  "profiles": {
+    "blade": {
+      "rect": ["blade_w", "tip_y"],
+      "at": [0, "tip_y/2"],
+      "minus": [
+        {"rect": ["slot_w", "slot_y1 - slot_y0"], "at": [0, "(slot_y0 + slot_y1)/2"]},
+        {"circle": "slot_w", "at": [0, "slot_y0"]},
+        {"circle": "slot_w", "at": [0, "slot_y1"]}
+      ]
+    },
+    "blade_tip": {
+      "circle": "blade_w",
+      "at": [0, "tip_y"],
+      "minus": [{"rect": ["blade_w", "blade_w/2"], "at": [0, "tip_y - blade_w/4"]}]
+    }
+  },
+  "parts": [
+    {"id": "plug", "profile": "host:diffuser_inner", "range_m": ["-plug", 0], "glow": "pixels", "gain": {"v": 0.25, "status": "assumed", "src": "the maintainer expects the glow through it to be minimal (stated 2026-10-17)"}},
+    {"id": "blade", "profile": "blade", "axis": "z", "range_m": ["-blade_t/2", "blade_t/2"], "glow": "pixels", "gain": {"v": 0.25, "status": "assumed", "src": "the maintainer expects the glow through it to be minimal (stated 2026-10-17)"}},
+    {"id": "blade_tip", "profile": "blade_tip", "axis": "z", "range_m": ["-blade_t/2", "blade_t/2"], "glow": "pixels", "gain": {"v": 0.25, "status": "assumed", "src": "the maintainer expects the glow through it to be minimal (stated 2026-10-17)"}}
+  ],
+  "anchors": {
+    "tip": {"at": [0, "len", 0]}
+  }
+}

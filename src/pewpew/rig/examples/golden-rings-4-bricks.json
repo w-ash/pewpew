@@ -1,0 +1,52 @@
+{
+  "format": "pewpew.arrangement",
+  "version": 1,
+  "name": "golden rings on 4 bricks",
+  "groups": [
+    {"id": "inner", "preset": "ring", "type": "clen-rgbw-bar-1m", "count": 24, "start_radius_m": 0.618034, "angle_offset_deg": 0, "tilt_deg": 30, "attach": {"inner": "point-v0", "outer": "eye-v0"}},
+    {"id": "outer", "preset": "ring", "type": "clen-rgbw-bar-1m", "count": 24, "start_radius_m": 1.0, "angle_offset_deg": 7.5, "tilt_deg": 30, "attach": {"inner": "point-v0", "outer": "eye-v0"}}
+  ],
+  "controllers": [
+    {"id": "c1", "profile": "esp32s3-devkitc1-ahct125"},
+    {"id": "c2", "profile": "esp32s3-devkitc1-ahct125"},
+    {"id": "c3", "profile": "esp32s3-devkitc1-ahct125"}
+  ],
+  "psus": [
+    {"id": "p1", "type": "btf-24v-5a-120w"},
+    {"id": "p2", "type": "btf-24v-5a-120w"},
+    {"id": "p3", "type": "btf-24v-5a-120w"},
+    {"id": "p4", "type": "btf-24v-5a-120w"}
+  ],
+  "wiring": {
+    "target_fps": 40,
+    "chains": [
+      {"id": "inner0", "controller": "c1", "output": "rmt0", "fixtures": ["inner/0", "inner/1", "inner/2", "inner/3"]},
+      {"id": "inner1", "controller": "c1", "output": "rmt1", "fixtures": ["inner/4", "inner/5", "inner/6", "inner/7"]},
+      {"id": "inner2", "controller": "c1", "output": "rmt2", "fixtures": ["inner/8", "inner/9", "inner/10", "inner/11"]},
+      {"id": "inner3", "controller": "c1", "output": "rmt3", "fixtures": ["inner/12", "inner/13", "inner/14", "inner/15"]},
+      {"id": "inner4", "controller": "c2", "output": "rmt0", "fixtures": ["inner/16", "inner/17", "inner/18", "inner/19"]},
+      {"id": "inner5", "controller": "c2", "output": "rmt1", "fixtures": ["inner/20", "inner/21", "inner/22", "inner/23"]},
+      {"id": "outer0", "controller": "c2", "output": "rmt2", "fixtures": ["outer/0", "outer/1", "outer/2", "outer/3"]},
+      {"id": "outer1", "controller": "c2", "output": "rmt3", "fixtures": ["outer/4", "outer/5", "outer/6", "outer/7"]},
+      {"id": "outer2", "controller": "c3", "output": "rmt0", "fixtures": ["outer/8", "outer/9", "outer/10", "outer/11"]},
+      {"id": "outer3", "controller": "c3", "output": "rmt1", "fixtures": ["outer/12", "outer/13", "outer/14", "outer/15"]},
+      {"id": "outer4", "controller": "c3", "output": "rmt2", "fixtures": ["outer/16", "outer/17", "outer/18", "outer/19"]},
+      {"id": "outer5", "controller": "c3", "output": "rmt3", "fixtures": ["outer/20", "outer/21", "outer/22", "outer/23"]}
+    ],
+    "feeds": [
+      {"id": "f1", "psu": "p1", "chain": "inner0", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f2", "psu": "p1", "chain": "inner1", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f3", "psu": "p1", "chain": "inner2", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f4", "psu": "p2", "chain": "inner3", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f5", "psu": "p2", "chain": "inner4", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f6", "psu": "p2", "chain": "inner5", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f7", "psu": "p3", "chain": "outer0", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f8", "psu": "p3", "chain": "outer1", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f9", "psu": "p3", "chain": "outer2", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f10", "psu": "p4", "chain": "outer3", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f11", "psu": "p4", "chain": "outer4", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3},
+      {"id": "f12", "psu": "p4", "chain": "outer5", "first": 0, "count": 4, "cable": "wire-16awg-pair", "length_m": 2.0, "fuse_a": 3}
+    ]
+  },
+  "power": {"max_brightness": 0.625}
+}

@@ -1,0 +1,2017 @@
+[
+  {
+    "name": "catalog_search",
+    "description": "Search what a look is made of: ops (by signature; kind lists them), gallery patterns, blend modes, palettes and param kinds. Concise items give each one's kind, name, label and first sentence; detailed ones add its whole record: params with defaults and ranges, and examples as builder chains and as JSON, a layer's program (out and nodes: a look holds it as {\"layers\": [{\"id\": \"base\", ...program}]}) or, for a signal op, a whole look. A page holds 50 concise or 10 detailed items; pass next_cursor back as cursor for the next. pewpew://catalog/{kind}/{name} holds one record whole.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Words that each must appear in a name, label or doc",
+          "examples": [
+            "fold",
+            "noise palette"
+          ],
+          "title": "Query"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only one kind: op, pattern, blend, palette or kind (a param kind), or the ops of one signature: source, coord, color, combine, modulate, state or signal",
+          "examples": [
+            "coord",
+            "palette"
+          ],
+          "title": "Kind"
+        },
+        "response_format": {
+          "default": "concise",
+          "description": "concise: kind, name, label and first sentence; detailed: also each whole record, with params and examples",
+          "enum": [
+            "concise",
+            "detailed"
+          ],
+          "title": "Response Format",
+          "type": "string"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The next_cursor of the page before; omit for the first page",
+          "title": "Cursor"
+        }
+      },
+      "title": "catalog_searchArguments",
+      "examples": [
+        {
+          "query": "fold",
+          "kind": "coord"
+        },
+        {
+          "kind": "palette"
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "CatalogItem": {
+          "description": "One record found: its kind, name, label, first sentence and, for an\nop, its signature (`source`, `coord`, ...); with `detail=\"detailed\"`,\nthe whole record too.",
+          "properties": {
+            "kind": {
+              "title": "Kind",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "label": {
+              "title": "Label",
+              "type": "string"
+            },
+            "summary": {
+              "title": "Summary",
+              "type": "string"
+            },
+            "sig": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sig"
+            },
+            "record": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Record"
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "label",
+            "summary"
+          ],
+          "title": "CatalogItem",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CatalogItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Cursor"
+        }
+      },
+      "required": [
+        "items",
+        "total"
+      ],
+      "title": "CatalogPage",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "look_check",
+    "description": "Check a look, or a looks file, without rendering it: the aura's own checks, each problem with a code, its path (layers.base.comet.speed), a did-you-mean and a fix. A look that checks comes back normalized, every knob of every node written out with its value.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "look": {
+          "additionalProperties": true,
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}; a pattern node is {\"op\": \"pattern\", \"args\": {\"pattern\": NAME, ...its params}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame. Patterns go by name, never by file.",
+          "examples": [
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "comet": {
+                      "args": {
+                        "pattern": "comet",
+                        "speed": 0.4
+                      },
+                      "op": "pattern"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "kaleid": {
+                      "args": {
+                        "sides": 5
+                      },
+                      "in": [
+                        "osc"
+                      ],
+                      "op": "kaleid"
+                    },
+                    "osc": {
+                      "args": {
+                        "freq": 8.0
+                      },
+                      "op": "osc"
+                    }
+                  },
+                  "out": "kaleid"
+                }
+              ]
+            }
+          ],
+          "title": "Look",
+          "type": "object"
+        },
+        "explain": {
+          "default": false,
+          "description": "Also describe the look in words, knob by knob; each look of a looks file",
+          "title": "Explain",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "look"
+      ],
+      "title": "look_checkArguments",
+      "examples": [
+        {
+          "look": {
+            "layers": [
+              {
+                "id": "base",
+                "out": "kaleid",
+                "nodes": {
+                  "osc": {
+                    "op": "osc",
+                    "args": {
+                      "freq": 8.0
+                    }
+                  },
+                  "kaleid": {
+                    "op": "kaleid",
+                    "in": [
+                      "osc"
+                    ],
+                    "args": {
+                      "sides": 5
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "explain": true
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Code": {
+          "description": "What kind of fix a problem needs. The values never change.",
+          "enum": [
+            "unknown-op",
+            "unknown-key",
+            "wrong-kind",
+            "out-of-range",
+            "missing",
+            "bad-ref",
+            "cycle",
+            "wrong-dims",
+            "wrong-version",
+            "not-a-look"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "Problem": {
+          "description": "One problem: where (`path`), what kind (`code`), why (`reason`, the\nrefusal's own words), the name it is closest to, the valid values, an\nexample of a valid value at `path` or None, and the edit that fixes it\nin words (`fix`, made from the rest; None when only its reason can\nsay).",
+          "properties": {
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "code": {
+              "$ref": "#/$defs/Code"
+            },
+            "reason": {
+              "title": "Reason",
+              "type": "string"
+            },
+            "did_you_mean": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Did You Mean"
+            },
+            "valid": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Valid",
+              "type": "array"
+            },
+            "example": {
+              "default": null,
+              "title": "Example"
+            },
+            "fix": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Fix"
+            }
+          },
+          "required": [
+            "path",
+            "code",
+            "reason"
+          ],
+          "title": "Problem",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "look_normalized": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Look Normalized"
+        },
+        "problems": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Problem"
+          },
+          "title": "Problems",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "look_render",
+    "description": "Render a look offline, as the aura runs it, and measure the frames. Returns a handle (r1-...) that look_compare and pewpew://render/{handle}/sheet.png take; the metrics (flash_rate_max at most 3 per second, mean_luma, black_fraction, clip_fraction, motion_energy, frozen_fraction, palette_spread, ...); warnings, such as a gate the look would fail; and a contact sheet of the frames. Read the metrics before the image. The same arguments always give the same handle and frames.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "look": {
+          "additionalProperties": true,
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}; a pattern node is {\"op\": \"pattern\", \"args\": {\"pattern\": NAME, ...its params}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame. Patterns go by name, never by file.",
+          "examples": [
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "comet": {
+                      "args": {
+                        "pattern": "comet",
+                        "speed": 0.4
+                      },
+                      "op": "pattern"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "kaleid": {
+                      "args": {
+                        "sides": 5
+                      },
+                      "in": [
+                        "osc"
+                      ],
+                      "op": "kaleid"
+                    },
+                    "osc": {
+                      "args": {
+                        "freq": 8.0
+                      },
+                      "op": "osc"
+                    }
+                  },
+                  "out": "kaleid"
+                }
+              ]
+            }
+          ],
+          "title": "Look",
+          "type": "object"
+        },
+        "map": {
+          "default": "auto",
+          "description": "Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), line:N, grid:WxH, lattice:N, or a room map file",
+          "examples": [
+            "grid:16x16",
+            "line:64"
+          ],
+          "title": "Map",
+          "type": "string"
+        },
+        "seconds": {
+          "default": 4.0,
+          "description": "Seconds to render; flashing needs at least 1",
+          "exclusiveMinimum": 0,
+          "maximum": 60.0,
+          "title": "Seconds",
+          "type": "number"
+        },
+        "fps": {
+          "default": 30.0,
+          "description": "Frames per second",
+          "exclusiveMinimum": 0,
+          "maximum": 240.0,
+          "title": "Fps",
+          "type": "number"
+        },
+        "seed": {
+          "default": 0,
+          "description": "Seeds the stand-in audio and room features (`run --seed`)",
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "sheet": {
+          "default": true,
+          "description": "Also return the frames as a contact sheet image",
+          "title": "Sheet",
+          "type": "boolean"
+        },
+        "response_format": {
+          "default": "concise",
+          "description": "concise: handle, metrics and warnings; detailed: also the render spec, with the whole look normalized",
+          "enum": [
+            "concise",
+            "detailed"
+          ],
+          "title": "Response Format",
+          "type": "string"
+        }
+      },
+      "required": [
+        "look"
+      ],
+      "title": "look_renderArguments",
+      "examples": [
+        {
+          "look": {
+            "layers": [
+              {
+                "id": "base",
+                "out": "kaleid",
+                "nodes": {
+                  "osc": {
+                    "op": "osc",
+                    "args": {
+                      "freq": 8.0
+                    }
+                  },
+                  "kaleid": {
+                    "op": "kaleid",
+                    "in": [
+                      "osc"
+                    ],
+                    "args": {
+                      "sides": 5
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "map": "grid:16x16",
+          "seconds": 2
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Metrics": {
+          "description": "What `measure` found in one sequence. Luma (Y) is 0-1; a fraction\nis a share of samples (or of frame steps) from 0 to 1.",
+          "properties": {
+            "frames": {
+              "title": "Frames",
+              "type": "integer"
+            },
+            "pixels": {
+              "title": "Pixels",
+              "type": "integer"
+            },
+            "seconds": {
+              "title": "Seconds",
+              "type": "number"
+            },
+            "flash_rate_max": {
+              "title": "Flash Rate Max",
+              "type": "number"
+            },
+            "mean_luma": {
+              "title": "Mean Luma",
+              "type": "number"
+            },
+            "p95_luma": {
+              "title": "P95 Luma",
+              "type": "number"
+            },
+            "black_fraction": {
+              "title": "Black Fraction",
+              "type": "number"
+            },
+            "clip_fraction": {
+              "title": "Clip Fraction",
+              "type": "number"
+            },
+            "nonfinite": {
+              "title": "Nonfinite",
+              "type": "integer"
+            },
+            "motion_energy": {
+              "title": "Motion Energy",
+              "type": "number"
+            },
+            "frozen_fraction": {
+              "title": "Frozen Fraction",
+              "type": "number"
+            },
+            "spatial_detail": {
+              "title": "Spatial Detail",
+              "type": "number"
+            },
+            "palette_spread": {
+              "title": "Palette Spread",
+              "type": "number"
+            },
+            "hue_clusters": {
+              "title": "Hue Clusters",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "frames",
+            "pixels",
+            "seconds",
+            "flash_rate_max",
+            "mean_luma",
+            "p95_luma",
+            "black_fraction",
+            "clip_fraction",
+            "nonfinite",
+            "motion_energy",
+            "frozen_fraction",
+            "spatial_detail",
+            "palette_spread",
+            "hue_clusters"
+          ],
+          "title": "Metrics",
+          "type": "object"
+        },
+        "RenderSpec": {
+          "description": "What a render depends on, normalized: the look (looks-file form,\nevery param written out), the map spec and what it gave (points, axes\nspanned), seconds, fps, the frame count, the features' seed, the engine\nfingerprint, and the `--pattern-dir` the look's names resolve in.",
+          "properties": {
+            "look": {
+              "additionalProperties": true,
+              "title": "Look",
+              "type": "object"
+            },
+            "map": {
+              "title": "Map",
+              "type": "string"
+            },
+            "points": {
+              "title": "Points",
+              "type": "integer"
+            },
+            "dims": {
+              "title": "Dims",
+              "type": "integer"
+            },
+            "seconds": {
+              "title": "Seconds",
+              "type": "number"
+            },
+            "fps": {
+              "title": "Fps",
+              "type": "number"
+            },
+            "frames": {
+              "title": "Frames",
+              "type": "integer"
+            },
+            "seed": {
+              "title": "Seed",
+              "type": "integer"
+            },
+            "engine": {
+              "title": "Engine",
+              "type": "string"
+            },
+            "pattern_dir": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pattern Dir"
+            }
+          },
+          "required": [
+            "look",
+            "map",
+            "points",
+            "dims",
+            "seconds",
+            "fps",
+            "frames",
+            "seed",
+            "engine"
+          ],
+          "title": "RenderSpec",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "handle": {
+          "title": "Handle",
+          "type": "string"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "spec": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RenderSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "handle",
+        "metrics"
+      ],
+      "title": "Rendered",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "look_compare",
+    "description": "How render B differs from render A: each knob, signal, route or front list that differs, by its path; RMS and largest difference of the frames; the first frame that differs; each metric of B less A's; and a sheet with rows A and B at the same times. A look renders as the other side was rendered (map, seconds, fps, seed); two looks both render on `map`. The numbers are evidence, never a verdict.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          ],
+          "description": "A render handle (r1-...) from look_render, or a look to render as the other side was",
+          "examples": [
+            "r1-0123456789abcdef0123",
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "comet": {
+                      "args": {
+                        "pattern": "comet",
+                        "speed": 0.4
+                      },
+                      "op": "pattern"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "title": "A"
+        },
+        "b": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          ],
+          "description": "A render handle (r1-...) from look_render, or a look to render as the other side was",
+          "examples": [
+            "r1-0123456789abcdef0123",
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "comet": {
+                      "args": {
+                        "pattern": "comet",
+                        "speed": 0.4
+                      },
+                      "op": "pattern"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "title": "B"
+        },
+        "map": {
+          "default": "auto",
+          "description": "Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), line:N, grid:WxH, lattice:N, or a room map file",
+          "examples": [
+            "grid:16x16",
+            "line:64"
+          ],
+          "title": "Map",
+          "type": "string"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "look_compareArguments",
+      "examples": [
+        {
+          "a": "r1-0123456789abcdef0123",
+          "b": {
+            "layers": [
+              {
+                "id": "base",
+                "nodes": {
+                  "comet": {
+                    "op": "pattern",
+                    "args": {
+                      "pattern": "comet",
+                      "speed": 0.4
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Change": {
+          "description": "One knob or field whose value differs: its path, its value in A and\nits value in B (None where that side has none).",
+          "properties": {
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "a": {
+              "title": "A"
+            },
+            "b": {
+              "title": "B"
+            }
+          },
+          "required": [
+            "path",
+            "a",
+            "b"
+          ],
+          "title": "Change",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "a": {
+          "title": "A",
+          "type": "string"
+        },
+        "b": {
+          "title": "B",
+          "type": "string"
+        },
+        "look_diff": {
+          "items": {
+            "$ref": "#/$defs/Change"
+          },
+          "title": "Look Diff",
+          "type": "array"
+        },
+        "rms": {
+          "title": "Rms",
+          "type": "number"
+        },
+        "max_abs": {
+          "title": "Max Abs",
+          "type": "number"
+        },
+        "first_divergent_frame": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Divergent Frame"
+        },
+        "metric_deltas": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metric Deltas",
+          "type": "object"
+        },
+        "delta_e_p95": {
+          "title": "Delta E P95",
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "look_diff",
+        "rms",
+        "max_abs",
+        "first_divergent_frame",
+        "metric_deltas",
+        "delta_e_p95"
+      ],
+      "title": "Comparison",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "look_vary",
+    "description": "Make n looks from a seed: from nothing, or like `look` at `strength`, holding the addresses in `keep`. Each is judged on the map before it is given (it checks, flashes at most 3 times a second, is not black, and every knob changes the picture), then rendered: each candidate gives its look, its own seed, its render handle (for look_compare and pewpew://render/{handle}/sheet.png), its metrics, and `taste`, the taste gates its render fails (too dark, washed out, dies out, frozen, noise, grey), which a made look avoids when it can. The sheet shows them in rows numbered 1 to n, at the same times. The same arguments always give the same looks.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "look": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The look to make looks like, as look_check takes it; omit it to make looks from nothing",
+          "examples": [
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "kaleid": {
+                      "args": {
+                        "sides": 5
+                      },
+                      "in": [
+                        "osc"
+                      ],
+                      "op": "kaleid"
+                    },
+                    "osc": {
+                      "args": {
+                        "freq": 8.0
+                      },
+                      "op": "osc"
+                    }
+                  },
+                  "out": "kaleid"
+                }
+              ]
+            }
+          ],
+          "title": "Look"
+        },
+        "seed": {
+          "default": 0,
+          "description": "The seed the looks are made from; the same seed gives the same looks",
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "n": {
+          "default": 4,
+          "description": "How many looks to make",
+          "maximum": 8,
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "strength": {
+          "default": 0.3,
+          "description": "How far each look moves from `look`, above 0 and at most 1: 1 changes it most",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Strength",
+          "type": "number"
+        },
+        "keep": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Addresses of `look` to hold as they are, with all under them: a knob (layers.base.osc.freq), a node (layers.base.osc), a layer (layers.base) or a signal (signals.lfo)",
+          "examples": [
+            [
+              "layers.base.osc"
+            ]
+          ],
+          "title": "Keep"
+        },
+        "map": {
+          "default": "auto",
+          "description": "Where it renders: auto (the bottom pattern's own geometry; a 16x16 grid for a program), line:N, grid:WxH, lattice:N, or a room map file",
+          "examples": [
+            "grid:16x16",
+            "line:64"
+          ],
+          "title": "Map",
+          "type": "string"
+        },
+        "audio": {
+          "default": false,
+          "description": "Let a made look follow the sound (offline, the stand-in audio)",
+          "title": "Audio",
+          "type": "boolean"
+        },
+        "sheet": {
+          "default": true,
+          "description": "Also return the frames as a contact sheet image",
+          "title": "Sheet",
+          "type": "boolean"
+        }
+      },
+      "title": "look_varyArguments",
+      "examples": [
+        {
+          "n": 4,
+          "map": "grid:16x16"
+        },
+        {
+          "look": {
+            "layers": [
+              {
+                "id": "base",
+                "out": "kaleid",
+                "nodes": {
+                  "osc": {
+                    "op": "osc",
+                    "args": {
+                      "freq": 8.0
+                    }
+                  },
+                  "kaleid": {
+                    "op": "kaleid",
+                    "in": [
+                      "osc"
+                    ],
+                    "args": {
+                      "sides": 5
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "seed": 7,
+          "n": 3,
+          "strength": 0.4,
+          "keep": [
+            "layers.base.osc"
+          ]
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Candidate": {
+          "description": "One look `vary` made: the seed that made it, the look (looks-file\nform, every knob written out), its render (handle, metrics and\nwarnings), and the taste gates the render fails (module docstring).",
+          "properties": {
+            "seed": {
+              "title": "Seed",
+              "type": "integer"
+            },
+            "look": {
+              "additionalProperties": true,
+              "title": "Look",
+              "type": "object"
+            },
+            "handle": {
+              "title": "Handle",
+              "type": "string"
+            },
+            "metrics": {
+              "$ref": "#/$defs/Metrics"
+            },
+            "warnings": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            },
+            "taste": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Taste",
+              "type": "array"
+            }
+          },
+          "required": [
+            "seed",
+            "look",
+            "handle",
+            "metrics"
+          ],
+          "title": "Candidate",
+          "type": "object"
+        },
+        "Metrics": {
+          "description": "What `measure` found in one sequence. Luma (Y) is 0-1; a fraction\nis a share of samples (or of frame steps) from 0 to 1.",
+          "properties": {
+            "frames": {
+              "title": "Frames",
+              "type": "integer"
+            },
+            "pixels": {
+              "title": "Pixels",
+              "type": "integer"
+            },
+            "seconds": {
+              "title": "Seconds",
+              "type": "number"
+            },
+            "flash_rate_max": {
+              "title": "Flash Rate Max",
+              "type": "number"
+            },
+            "mean_luma": {
+              "title": "Mean Luma",
+              "type": "number"
+            },
+            "p95_luma": {
+              "title": "P95 Luma",
+              "type": "number"
+            },
+            "black_fraction": {
+              "title": "Black Fraction",
+              "type": "number"
+            },
+            "clip_fraction": {
+              "title": "Clip Fraction",
+              "type": "number"
+            },
+            "nonfinite": {
+              "title": "Nonfinite",
+              "type": "integer"
+            },
+            "motion_energy": {
+              "title": "Motion Energy",
+              "type": "number"
+            },
+            "frozen_fraction": {
+              "title": "Frozen Fraction",
+              "type": "number"
+            },
+            "spatial_detail": {
+              "title": "Spatial Detail",
+              "type": "number"
+            },
+            "palette_spread": {
+              "title": "Palette Spread",
+              "type": "number"
+            },
+            "hue_clusters": {
+              "title": "Hue Clusters",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "frames",
+            "pixels",
+            "seconds",
+            "flash_rate_max",
+            "mean_luma",
+            "p95_luma",
+            "black_fraction",
+            "clip_fraction",
+            "nonfinite",
+            "motion_energy",
+            "frozen_fraction",
+            "spatial_detail",
+            "palette_spread",
+            "hue_clusters"
+          ],
+          "title": "Metrics",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "strength": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Strength"
+        },
+        "keep": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Keep",
+          "type": "array"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "seed",
+        "strength",
+        "keep",
+        "candidates"
+      ],
+      "title": "Variations",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "engine_observe",
+    "description": "Watch a running engine without changing it: its aura state (layers, master, whether a crossfade runs), status, every knob's value by address, health, the metrics of the frames it streams for `seconds` of engine time, and a contact sheet of them. The numbers are approximate: the frames arrive as 8-bit display gamma, and a large map is decimated. `faded` says a crossfade ran in the window, so the frames mix two looks: observe again once it ends.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "The engine's preview address, as its `preview at` line prints it",
+          "examples": [
+            "http://127.0.0.1:7447/"
+          ],
+          "title": "Url",
+          "type": "string"
+        },
+        "seconds": {
+          "default": 2.0,
+          "description": "Seconds of engine time to watch",
+          "exclusiveMinimum": 0,
+          "maximum": 10.0,
+          "title": "Seconds",
+          "type": "number"
+        },
+        "sheet": {
+          "default": true,
+          "description": "Also return the frames as a contact sheet image",
+          "title": "Sheet",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "engine_observeArguments",
+      "examples": [
+        {
+          "url": "http://127.0.0.1:7447/",
+          "seconds": 2
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Metrics": {
+          "description": "What `measure` found in one sequence. Luma (Y) is 0-1; a fraction\nis a share of samples (or of frame steps) from 0 to 1.",
+          "properties": {
+            "frames": {
+              "title": "Frames",
+              "type": "integer"
+            },
+            "pixels": {
+              "title": "Pixels",
+              "type": "integer"
+            },
+            "seconds": {
+              "title": "Seconds",
+              "type": "number"
+            },
+            "flash_rate_max": {
+              "title": "Flash Rate Max",
+              "type": "number"
+            },
+            "mean_luma": {
+              "title": "Mean Luma",
+              "type": "number"
+            },
+            "p95_luma": {
+              "title": "P95 Luma",
+              "type": "number"
+            },
+            "black_fraction": {
+              "title": "Black Fraction",
+              "type": "number"
+            },
+            "clip_fraction": {
+              "title": "Clip Fraction",
+              "type": "number"
+            },
+            "nonfinite": {
+              "title": "Nonfinite",
+              "type": "integer"
+            },
+            "motion_energy": {
+              "title": "Motion Energy",
+              "type": "number"
+            },
+            "frozen_fraction": {
+              "title": "Frozen Fraction",
+              "type": "number"
+            },
+            "spatial_detail": {
+              "title": "Spatial Detail",
+              "type": "number"
+            },
+            "palette_spread": {
+              "title": "Palette Spread",
+              "type": "number"
+            },
+            "hue_clusters": {
+              "title": "Hue Clusters",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "frames",
+            "pixels",
+            "seconds",
+            "flash_rate_max",
+            "mean_luma",
+            "p95_luma",
+            "black_fraction",
+            "clip_fraction",
+            "nonfinite",
+            "motion_energy",
+            "frozen_fraction",
+            "spatial_detail",
+            "palette_spread",
+            "hue_clusters"
+          ],
+          "title": "Metrics",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "build": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Build"
+        },
+        "frames": {
+          "title": "Frames",
+          "type": "integer"
+        },
+        "span": {
+          "title": "Span",
+          "type": "number"
+        },
+        "fps": {
+          "title": "Fps",
+          "type": "number"
+        },
+        "dropped": {
+          "title": "Dropped",
+          "type": "integer"
+        },
+        "sent_pixels": {
+          "title": "Sent Pixels",
+          "type": "integer"
+        },
+        "total_pixels": {
+          "title": "Total Pixels",
+          "type": "integer"
+        },
+        "approximate": {
+          "default": true,
+          "title": "Approximate",
+          "type": "boolean"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "aura": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aura"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params"
+        },
+        "health": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Health"
+        },
+        "faded": {
+          "default": false,
+          "title": "Faded",
+          "type": "boolean"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sheet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sheet"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "url",
+        "build",
+        "frames",
+        "span",
+        "fps",
+        "dropped",
+        "sent_pixels",
+        "total_pixels"
+      ],
+      "title": "Observation",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "fleet_status",
+    "description": "List each WLED board that answers on the network, by address: its name, MAC, WLED version, whether it shows a live stream and from where, its signal, free memory and uptime, and a health level with reasons and a fix. Reads only; takes a few seconds.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subnet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The network to scan, a /22 or smaller; default this machine's /24",
+          "examples": [
+            "192.168.8.0/24"
+          ],
+          "title": "Subnet"
+        }
+      },
+      "title": "fleet_statusArguments",
+      "examples": [
+        {}
+      ]
+    },
+    "outputSchema": {
+      "properties": {
+        "subnet": {
+          "title": "Subnet",
+          "type": "string"
+        },
+        "boards": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Boards",
+          "type": "array"
+        }
+      },
+      "required": [
+        "subnet"
+      ],
+      "title": "Fleet",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "engine_apply",
+    "description": "Send a whole look to an engine on this machine run with --preview --accept-looks, which fades to it over `fade` seconds (the look's own fade when none is given; the message says how long) and answers ack or refused. Observing during the fade measures both looks. The look is checked here first. A dry run (the default) checks the look against this machine's patterns and that the engine is on this machine, and shows the message it would send; the engine's map and --accept-looks are checked only on a send. Call again with dry_run false to send it, which appends an audit record first.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "The engine's preview address, as its `preview at` line prints it",
+          "examples": [
+            "http://127.0.0.1:7447/"
+          ],
+          "title": "Url",
+          "type": "string"
+        },
+        "look": {
+          "additionalProperties": true,
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}; a pattern node is {\"op\": \"pattern\", \"args\": {\"pattern\": NAME, ...its params}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame. Patterns go by name, never by file.",
+          "examples": [
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "comet": {
+                      "args": {
+                        "pattern": "comet",
+                        "speed": 0.4
+                      },
+                      "op": "pattern"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "layers": [
+                {
+                  "id": "base",
+                  "nodes": {
+                    "kaleid": {
+                      "args": {
+                        "sides": 5
+                      },
+                      "in": [
+                        "osc"
+                      ],
+                      "op": "kaleid"
+                    },
+                    "osc": {
+                      "args": {
+                        "freq": 8.0
+                      },
+                      "op": "osc"
+                    }
+                  },
+                  "out": "kaleid"
+                }
+              ]
+            }
+          ],
+          "title": "Look",
+          "type": "object"
+        },
+        "fade": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Seconds to fade over; default the look's own fade",
+          "title": "Fade"
+        },
+        "dry_run": {
+          "default": true,
+          "description": "Check and show what would be sent, and send nothing; false to send",
+          "title": "Dry Run",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "look"
+      ],
+      "title": "engine_applyArguments",
+      "examples": [
+        {
+          "url": "http://127.0.0.1:7447/",
+          "look": {
+            "layers": [
+              {
+                "id": "base",
+                "out": "kaleid",
+                "nodes": {
+                  "osc": {
+                    "op": "osc",
+                    "args": {
+                      "freq": 8.0
+                    }
+                  },
+                  "kaleid": {
+                    "op": "kaleid",
+                    "in": [
+                      "osc"
+                    ],
+                    "args": {
+                      "sides": 5
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "fade": 2
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Answer": {
+          "description": "The engine's answer to one message: an `ack`, or a refusal with its\nreason and the address of what it refused (None when no one part is\nto blame).",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "control": {
+              "title": "Control",
+              "type": "string"
+            },
+            "ok": {
+              "title": "Ok",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Name"
+            }
+          },
+          "required": [
+            "id",
+            "control",
+            "ok"
+          ],
+          "title": "Answer",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "dry_run": {
+          "title": "Dry Run",
+          "type": "boolean"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "addresses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Addresses",
+          "type": "array"
+        },
+        "messages": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "answers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Answer"
+          },
+          "title": "Answers",
+          "type": "array"
+        },
+        "connected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connected"
+        },
+        "audit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audit"
+        }
+      },
+      "required": [
+        "url",
+        "dry_run",
+        "ok",
+        "addresses",
+        "messages"
+      ],
+      "title": "Pushed",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "engine_set",
+    "description": "Set one knob of the look an engine on this machine runs, by its address; the engine checks the knob and the value against its look and answers ack or refused. A dry run (the default) checks that the engine is on this machine and that the address has a knob's form, and shows the message; whether the look has that knob and takes the value is checked only on a send (engine_observe lists every knob and its value). Call again with dry_run false to send it, which appends an audit record first.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "The engine's preview address, as its `preview at` line prints it",
+          "examples": [
+            "http://127.0.0.1:7447/"
+          ],
+          "title": "Url",
+          "type": "string"
+        },
+        "path": {
+          "description": "A knob's address: layers.<layer>.<node>.<arg>, layers.<layer>.opacity or signals.<signal>.<arg>",
+          "examples": [
+            "layers.base.comet.speed",
+            "layers.top.opacity"
+          ],
+          "title": "Path",
+          "type": "string"
+        },
+        "value": {
+          "description": "The knob's new value, as JSON: a number, a choice key, true or false",
+          "examples": [
+            0.4,
+            "screen",
+            true
+          ],
+          "title": "Value"
+        },
+        "dry_run": {
+          "default": true,
+          "description": "Check and show what would be sent, and send nothing; false to send",
+          "title": "Dry Run",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "path",
+        "value"
+      ],
+      "title": "engine_setArguments",
+      "examples": [
+        {
+          "url": "http://127.0.0.1:7447/",
+          "path": "layers.base.osc.freq",
+          "value": 4
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Answer": {
+          "description": "The engine's answer to one message: an `ack`, or a refusal with its\nreason and the address of what it refused (None when no one part is\nto blame).",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "control": {
+              "title": "Control",
+              "type": "string"
+            },
+            "ok": {
+              "title": "Ok",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Name"
+            }
+          },
+          "required": [
+            "id",
+            "control",
+            "ok"
+          ],
+          "title": "Answer",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "dry_run": {
+          "title": "Dry Run",
+          "type": "boolean"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "addresses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Addresses",
+          "type": "array"
+        },
+        "messages": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "answers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Answer"
+          },
+          "title": "Answers",
+          "type": "array"
+        },
+        "connected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connected"
+        },
+        "audit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audit"
+        }
+      },
+      "required": [
+        "url",
+        "dry_run",
+        "ok",
+        "addresses",
+        "messages"
+      ],
+      "title": "Pushed",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    }
+  }
+]

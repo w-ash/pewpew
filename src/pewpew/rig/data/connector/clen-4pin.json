@@ -1,0 +1,9 @@
+{
+  "kind": "connector",
+  "id": "clen-4pin",
+  "name": "Clen 4-pin locking connector",
+  "notes": "Clen calls it \"Canon Head Insertion\"; it looks like an M12 A-coded 4-pin connector (RES-017, the maintainer's private notes). Its pin map is not measured; Clen's XLR adapter gives pin 1 GND, pin 2 nc, pin 3 data, pin 4 vcc at the XLR end (RES-018).",
+  "pins": {"v": 4, "status": "stated", "src": "stated by the maintainer: 4 pins on both types (INV-001, the maintainer's private notes)"},
+  "rated_a": {"v": 4, "status": "assumed", "src": "assumed from M12's 4 A because the connector looks M12 (RES-017, RES-033, the maintainer's private notes); M12 rating per RES-033: https://www.automationdirect.com/pn/7000-12701-0000000"},
+  "pinmap": null
+}

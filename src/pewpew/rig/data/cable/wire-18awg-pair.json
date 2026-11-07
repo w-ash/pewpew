@@ -1,0 +1,12 @@
+{
+  "kind": "cable",
+  "id": "wire-18awg-pair",
+  "name": "18 AWG power pair",
+  "notes": "Two copper conductors, V+ and GND, cut to the length a feed gives.",
+  "length_m": null,
+  "ends": [null, null],
+  "conductors_mm2": {
+    "vplus": {"v": 0.823, "status": "derived", "src": "AWG 18: d = 0.127 mm x 92^((36 - 18)/39) = 1.024 mm, A = pi d^2/4; https://en.wikipedia.org/wiki/American_wire_gauge"},
+    "gnd": {"v": 0.823, "status": "derived", "src": "AWG 18: d = 0.127 mm x 92^((36 - 18)/39) = 1.024 mm, A = pi d^2/4; https://en.wikipedia.org/wiki/American_wire_gauge"}
+  }
+}

@@ -1,0 +1,2006 @@
+/* The page's regions, laid out with the foundations' tokens (theme.css) and components (controls.css).
+   Space first, then a surface, then a line: a region is a card on the page's ground, and lines divide
+   only rows of a list. */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+/* One row swiped sideways on touch or a narrow screen, wrapped on a wide one with a mouse. */
+.scroller {
+  display: flex;
+  gap: var(--space-xs);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+.scroller > * {
+  flex: 0 0 auto;
+}
+/* A row that scrolls fades at an end it can scroll towards, so it reads as more than it shows. */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes scroller-edges {
+  from {
+    --fade-start: 0px;
+    --fade-end: 16px;
+  }
+  1%,
+  99% {
+    --fade-start: 16px;
+    --fade-end: 16px;
+  }
+  to {
+    --fade-start: 16px;
+    --fade-end: 0px;
+  }
+}
+@supports (animation-timeline: scroll()) {
+  .scroller {
+    scroll-padding-inline: var(--space-md);
+    mask-image: linear-gradient(90deg, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+    animation: scroller-edges linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+.scroller.empty {
+  align-self: center;
+  white-space: normal;
+}
+@media (pointer: fine) {
+  [data-wide] .scroller {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* A value read at a glance, drawn only. */
+.readout {
+  color: var(--text-1);
+}
+
+/* ---- the frame ------------------------------------------------------------------------------ */
+
+/* Each scroller, and the frame, holds what is positioned inside it: a visually hidden input placed
+   absolutely cannot reach past its scroller and make the document scroll under the fixed frame. */
+.app {
+  position: relative;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: var(--safe-top);
+}
+
+.head {
+  position: relative;
+  flex: 0 0 auto;
+  z-index: 4;
+}
+/* With a mouse the bar is a control and 4 px either side; under a finger a target tall, its controls' hit
+   areas meeting its edges. Its last control ends where the side column's card does; a word that leads it
+   starts at the gutter. */
+.top-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 var(--space-xs) 0 var(--space-md);
+  min-height: calc(var(--control-h) + var(--space-xs));
+}
+@media (pointer: coarse) {
+  .top-bar {
+    min-height: var(--hit);
+  }
+}
+.top-bar > .button {
+  flex: 0 0 auto;
+}
+/* Status chrome only: the connection word (while there is none) takes the line's free room, so what
+   follows ends at the right edge. */
+.connection {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  /* A badge that says the room is black takes the others' place. */
+  .tags:has(> .hides) > :not(.hides) {
+    display: none;
+  }
+}
+.tags {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2xs);
+  min-width: 0;
+  margin-left: var(--space-xs);
+}
+/* A badge's note, under the top bar. */
+.head > .disclosure-note {
+  padding: var(--space-xs) var(--space-md);
+}
+/* Health: a sign and a word; green only for running, red only for failed. */
+.health-dot {
+  display: inline-flex;
+  color: var(--text-disabled);
+}
+.health-dot[data-level="ok"] {
+  color: var(--ok);
+}
+.health-dot[data-level="warn"] {
+  color: var(--text-1);
+}
+.health-dot[data-level="bad"] {
+  color: var(--danger-fg);
+}
+.health-chip[data-level="bad"] {
+  color: var(--danger-fg);
+}
+/* The health word gives way, cut short, before anything else on the line: its name says it whole. */
+.top-bar > .health-chip {
+  flex: 0 1 auto;
+  min-width: var(--control-h);
+}
+.health-chip > .t-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (pointer: coarse) {
+  .help {
+    display: none;
+  }
+}
+
+/* A bad board under the top bar; a lost connection over the stage alone, so nothing moves when it comes or
+   goes. */
+.banner {
+  font: inherit;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  margin: 0;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: 0;
+  background: var(--surface-region);
+  color: var(--danger-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.banner:hover {
+  background-image: linear-gradient(var(--state-hover), var(--state-hover));
+}
+.banner.lost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: var(--danger-fill);
+  color: var(--on-danger);
+  cursor: default;
+}
+
+/* Phone: the canvas, the slot scrolling, then the deck. */
+.stack {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Lost: the controls are inert, and the frozen frame does not read as live. */
+[inert] {
+  opacity: 0.4;
+}
+
+/* The canvas: about a third of a phone screen, the rest when wide. When the deck grows on a short phone
+   screen the editor gives way first, to a floor, and the canvas only after it. */
+/* Each in whole pixels, so every row under it lands on the pixel. */
+.stage-area {
+  position: relative;
+  flex: 0 1 30svh;
+  flex: 0 1 round(down, 30svh, 1px);
+  min-height: 22svh;
+  min-height: round(down, 22svh, 1px);
+  display: flex;
+}
+.stack > .slot {
+  min-height: 20svh;
+  min-height: round(down, 20svh, 1px);
+}
+/* On a phone the editor's foot fades into the 16 it keeps under its last row, so a row scrolled under the deck
+   dissolves rather than being cut. */
+@media (pointer: coarse) {
+  .stack > .slot {
+    mask-image: linear-gradient(180deg, #000 calc(100% - var(--space-md)), transparent);
+  }
+}
+[data-wide] .stage-area {
+  flex: 1 1 auto;
+}
+/* What the stage shows, inert while the connection is lost; the banner lies over it. */
+.stage-live {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+.stage canvas[data-layout] {
+  cursor: crosshair;
+}
+.stage-note {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  padding: 0 var(--space-md);
+  text-align: center;
+  color: var(--text-2);
+}
+/* A note on the stage, on the region's ground: an error's or a refusal's lead in red. */
+.status-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--surface-region);
+  color: var(--text-1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.status-bar[data-kind="error"] .status-lead {
+  color: var(--danger-fg);
+}
+.status-bar .put-back {
+  margin-left: var(--space-xs);
+}
+/* On touch an error's bar is one line: what failed, its put back and "details". */
+@media (pointer: coarse) {
+  .status-bar:not([hidden]) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-xs);
+  }
+}
+.status-detail {
+  margin-top: var(--space-2xs);
+  font-family: var(--font-code);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+/* Blackout: the stage is black on purpose, and says so, faintly. */
+.stage-cue {
+  position: absolute;
+  inset: auto 0 var(--space-xs);
+  text-align: center;
+  pointer-events: none;
+}
+.plan-dimmer {
+  position: absolute;
+  right: var(--space-xs);
+  bottom: var(--space-xs);
+  width: min(14rem, 60%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-control);
+  background: var(--veil);
+  font-size: var(--fs-caption);
+}
+.plan-dimmer [data-part="label"] {
+  color: var(--text-2);
+}
+
+/* The slot: the editor, or the one panel open in its place. Focus never lands under the pinned header:
+   the look's or a panel's (--head-h, measured). */
+.slot {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: var(--space-md);
+  background: var(--surface-region);
+  scroll-padding-top: calc(var(--head-h, 0px) + var(--space-2xs));
+}
+
+.split {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.stage-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* Wide: the deck pinned at the top of the side column and the slot scrolling under it, two region cards
+   on the page's ground. The column is the panel's child: the splitter sets the panel's own overflow. */
+.side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: min(300px, 50%);
+}
+/* The cards keep 8 from everything round them: the splitter's strip on the left, the window's edges, and
+   the top bar's controls above (the bar's own lower 4, then 4 here). */
+.side-col {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-height: 0;
+  padding: var(--space-2xs) var(--space-xs) var(--space-xs) 0;
+}
+/* The splitter sizes the panel in fractions of a pixel: the column is a whole number of pixels wide, from the
+   window's edge, so every edge in it lands on the pixel. */
+.side > .side-col {
+  width: round(down, 100%, 1px);
+  margin-left: auto;
+}
+[data-wide] :is(.deck, .slot) {
+  border-radius: var(--radius-surface);
+}
+/* The splitter: a grip on a thin strip, its hit area a target wide. */
+[data-scope="splitter"][data-part="resize-trigger"] {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 var(--space-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: var(--space-xs);
+  min-height: 0;
+}
+[data-scope="splitter"][data-part="resize-trigger"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc((var(--space-xs) - var(--control-h)) / 2);
+}
+[data-scope="splitter"][data-part="resize-trigger"]::after {
+  content: "";
+  width: 2px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+[data-scope="splitter"][data-part="resize-trigger"]:is(:hover, [data-focus])::after {
+  background: var(--text-1);
+}
+/* A phone on its side: the side panel scrolls as one column, deck and editor together, and blackout moves
+   to the top bar, which stays. */
+.top-bar > .blackout {
+  display: none;
+}
+@media (pointer: coarse) and (max-height: 500px) {
+  [data-wide] .top-bar > .blackout {
+    display: inline-flex;
+  }
+  [data-wide] .deck .blackout {
+    display: none;
+  }
+  [data-wide] .side-col {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  [data-wide] .deck-rows {
+    max-height: none;
+    overflow: visible;
+  }
+  [data-wide] .side-col > .slot {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+}
+
+/* ---- sliders (params, master, plan) ---------------------------------------------------------- */
+
+[data-scope="slider"][data-part="root"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+[data-scope="slider"][data-part="control"] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--slider-h);
+  flex: 1 1 auto;
+  min-width: 6rem;
+  cursor: pointer;
+  touch-action: none;
+}
+/* The track shows where the end is; the level is read from the fill, not the thumb alone (WCAG 1.4.11). */
+[data-scope="slider"][data-part="track"] {
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+[data-scope="slider"][data-part="range"] {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--text-1);
+}
+[data-scope="slider"][data-part="thumb"] {
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 50%;
+  background: var(--text-1);
+}
+/* Focus rings the thumb, as an outline rings every other control. */
+[data-scope="slider"][data-part="thumb"]:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--surface-region),
+    0 0 0 4px var(--focus);
+}
+/* On touch a slider moves only by its thumb, so a swipe that starts on its track scrolls the page and a
+   stray tap cannot jump a knob or the room; − and + step it. The thumb's hit area is a target. A swipe
+   that starts on the thumb and goes up or down first scrolls the page too (pan-y, over Zag's own none):
+   only a sideways one drags. */
+@media (pointer: coarse) {
+  [data-scope="slider"][data-part="control"] {
+    pointer-events: none;
+    touch-action: pan-y !important;
+  }
+  [data-scope="slider"][data-part="thumb"] {
+    pointer-events: auto;
+    touch-action: pan-y;
+  }
+  [data-scope="slider"][data-part="thumb"]::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--thumb) - var(--hit)) / 2);
+  }
+}
+/* Where a modulator moves the knob now; the thumb stays on the knob's own value. */
+[data-scope="slider"][data-part="marker"].live-mark {
+  top: 50%;
+  width: 3px;
+  height: var(--thumb);
+  margin-top: calc(var(--thumb) / -2);
+  border-radius: 1px;
+  background: var(--text-2);
+}
+/* With motion reduced, no mark moves: the line on what moves the knob shows at rest instead. */
+@media (prefers-reduced-motion: reduce) {
+  .live-mark {
+    display: none !important;
+  }
+  .param > .moved[hidden] {
+    display: block !important;
+  }
+}
+
+/* ---- the deck ------------------------------------------------------------------------------- */
+
+.deck,
+.deck-dock {
+  position: relative;
+  flex: 0 0 auto;
+}
+.deck {
+  background: var(--surface-region);
+}
+.deck-dock {
+  padding-top: var(--space-xs);
+}
+.deck-dock > .deck {
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+}
+/* The deck's rows 12 apart, each its own kind; nothing slides the deck sideways. */
+.deck-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md) calc(var(--space-sm) + var(--safe-bottom));
+  max-height: 50svh;
+  overflow-x: clip;
+  overflow-y: auto;
+  container-type: inline-size;
+}
+/* Rows keep their height; the deck scrolls instead. */
+.deck-rows > * {
+  flex-shrink: 0;
+}
+/* Wide, a card: its first row as far from its top as the editor's header is from its own (--region-pad-block),
+   and its rows 16 apart, twice the gap between rows of tiles, so the make actions do not read as more tiles. */
+[data-wide] .deck-rows {
+  max-height: 60svh;
+  gap: var(--space-md);
+  padding: var(--region-pad-block) var(--space-md) var(--space-md);
+}
+/* What the deck's "⋯" holds opens in the deck, under its row, in a well as what the look's "⋯" opens: it
+   reaches into the gutter, so its words keep the column's edge, and its list takes the column's width. */
+.deck-more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-inline: calc(-1 * var(--space-xs));
+  padding: var(--space-xs);
+  border-radius: var(--radius-inset);
+  background: var(--surface-raised);
+}
+.deck-more .row {
+  flex-wrap: wrap;
+}
+.deck-more .row:empty {
+  display: none;
+}
+.deck-more select {
+  flex: 1 1 auto;
+}
+/* What each sign the looks show means: the sign, 8, its words; 16 between. */
+.marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-md);
+}
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+/* A row and the note it opens under it; the looks' "⋯" well and notes 8 under the tiles. */
+:is(.deck-group, .cues-group) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+.looks-group {
+  row-gap: var(--space-xs);
+}
+/* The looks: a heading as the editor's blocks have (with a mouse; a phone's deck has no room for it), then the
+   tiles, then "all N ›" and the "⋯" at the row's end. */
+.looks-caption {
+  display: block;
+}
+@media (pointer: coarse) {
+  .looks-caption {
+    display: none;
+  }
+}
+.looks-row {
+  align-items: flex-start;
+}
+.looks-row > :is(.all-looks-button, .more) {
+  flex: 0 0 auto;
+}
+.looks-row > :is(.all-looks-button, .more):first-of-type {
+  margin-left: auto;
+}
+/* Wide with a mouse, "all N ›" and the "⋯" end the heading's line, hanging past it as a block head's
+   controls do, so the tiles are 8 under the heading; the tiles take the card's whole width in equal columns,
+   so every full row ends at the card's edge. */
+@media (pointer: fine) {
+  [data-wide] .looks-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--space-xs) var(--space-2xs);
+  }
+  [data-wide] .looks-row {
+    display: contents;
+  }
+  [data-wide] .looks-caption {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  [data-wide] .looks-row > :is(.all-looks-button, .more) {
+    grid-row: 1;
+    margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
+  }
+  [data-wide] .looks-row > .more {
+    grid-column: 3;
+  }
+  [data-wide] .looks-row > .all-looks-button {
+    grid-column: 2;
+  }
+  [data-wide] .looks-row > .looks,
+  [data-wide] .looks-group > :is(.deck-more, .disclosure-note) {
+    grid-column: 1 / -1;
+  }
+  /* The make actions take the tiles' columns, a column each, so they start and end on the tiles' lines. */
+  [data-wide] :is(.looks, .pattern-pick > .scroller, .made-row > .variety) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+  [data-wide] .made-row > .variety {
+    flex: 1 1 auto;
+  }
+}
+/* A name longer than its tile is cut short: the look's header names it whole (.look-name-text). */
+.tile-name {
+  min-width: 0;
+  grid-template-columns: minmax(0, auto);
+}
+.tile-name > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* On a phone the strip stops with a tile flush at its start, the one before it wholly out of view, so its
+   start has no fade; its far end fades over 40 px, so a tile cut there reads as more, never as a stub beside
+   "all N ›". A tile keeps 16 beside its name, so the live ● in its corner clears the name. */
+@media (pointer: coarse) {
+  .looks > .tile {
+    max-width: 13em;
+    padding-inline: var(--space-md);
+    scroll-snap-align: start;
+  }
+  .looks.scroller {
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0;
+    padding-block: calc((var(--hit) - var(--control-h)) / 2);
+    margin-block: calc((var(--control-h) - var(--hit)) / 2);
+  }
+  @supports (animation-timeline: scroll()) {
+    .looks.scroller {
+      mask-image: linear-gradient(90deg, #000 calc(100% - 2.5 * var(--fade-end)), transparent);
+    }
+  }
+}
+/* Fading in: a bar along the tile's foot, as far as the fade has come. */
+.tile[data-fading] {
+  background-image: linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent-tint), var(--accent-tint));
+  background-size:
+    var(--progress) 2px,
+    100% 100%;
+  background-position: left bottom;
+  background-repeat: no-repeat;
+}
+/* The current look waits for a cue's hold to end, marked ↩ in its corner, so a hold moves no tile. */
+.returns {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: flex;
+  color: var(--text-2);
+}
+/* Small enough to clear the name's first letter. */
+.returns > .icon {
+  width: 10px;
+  height: 10px;
+}
+.cyc {
+  display: inline-flex;
+  color: var(--text-2);
+}
+/* Left out of the shuffle, where those are the fewer: ↻ slashed. */
+.cyc[data-out] {
+  position: relative;
+}
+.cyc[data-out]::after {
+  content: "";
+  position: absolute;
+  left: -0.1em;
+  right: -0.1em;
+  top: 50%;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+/* Wide with a mouse, the looks wrap, as many rows as a fifth of the screen holds, and at least three: more
+   scroll inside, a row at a time, fading at the edge they scroll towards, so the rows under them stay in
+   view. Its padding leaves room for a tile's focus ring. */
+@media (pointer: fine) {
+  [data-wide] .looks {
+    max-height: max(calc(3 * var(--control-h) + 2 * var(--space-xs) + 8px), 20svh);
+    scrollbar-width: thin;
+    overflow-y: auto;
+    align-content: flex-start;
+    padding: 4px;
+    margin: -4px;
+    scroll-snap-type: y mandatory;
+    scroll-padding-block: 4px;
+  }
+  [data-wide] .looks > .tile {
+    scroll-snap-align: start;
+  }
+  @supports (animation-timeline: scroll()) {
+    [data-wide] .looks {
+      mask-image: linear-gradient(180deg, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+      animation-timeline: scroll(self block);
+    }
+  }
+}
+.variety {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+/* Under the thumb, the two share a line half and half, down to a 360 px phone. A deck button that gives way
+   puts its confirming words on two lines. */
+@media (pointer: coarse) {
+  .made-row > .variety {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .variety > .button {
+    min-width: 0;
+    padding: 0 var(--space-xs);
+  }
+  .deck .faces {
+    max-width: 100%;
+  }
+  .deck .armed-face {
+    white-space: normal;
+    text-align: center;
+    line-height: var(--lh-caption);
+  }
+}
+/* The brightness, laid out as a knob is: its head (☀ and its name, max and "?", then blackout at the
+   column's edge), then its slider and its steps, as wide as a knob's entry, so the slider is as long as a
+   knob's. */
+/* Its head is a control tall (blackout): its slider and steps 8 under it, as rows of tiles are apart. */
+.master {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+.master-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.master-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+/* Blackout is as wide as the steps under it, so the two share both edges. */
+.master-head > .blackout {
+  margin-left: auto;
+  min-width: calc(2 * var(--control-h) + var(--entry));
+}
+.master > .disclosure-note {
+  grid-column: 1 / -1;
+}
+/* The readout gives the max over the level only where its words are not drawn. */
+.readout-word {
+  display: none;
+}
+/* On touch one row, blackout on its own under it: ☀ names it, then the slider, all the width the steps (and
+   the max's "?", or the "⋯" of a run without looks) leave it, then the steps, the readout giving the max,
+   small, over the level, as wide at 5% as at 100%. The word stays for assistive tech. */
+@media (pointer: coarse) {
+  /* Its columns: ☀, the slider, the steps, the "?" or "⋯". Each but the first is set off by its margin, not
+     a gap, so a column with nothing in it takes no room, and a row can span them all. */
+  .master {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-auto-flow: column;
+    gap: var(--space-xs) 0;
+  }
+  .master-head {
+    display: contents;
+  }
+  .master-label {
+    grid-row: 1;
+  }
+  .master-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .master-head > .cap {
+    display: none;
+  }
+  .master > [data-part="control"],
+  .master > .joined,
+  .master-head > :is(.about, .more) {
+    grid-row: 1;
+    margin-left: var(--space-xs);
+  }
+  .master > .joined {
+    order: 1;
+  }
+  .master-head > :is(.about, .more) {
+    order: 2;
+  }
+  .master > .disclosure-note {
+    grid-row: 2;
+  }
+  /* A wide touch screen keeps blackout in the head: it takes a row of its own under the slider's, at the
+     column's edge, as with a mouse; the max's note comes last, as it does there. */
+  .master-head > .blackout {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .master:has(> .master-head > .blackout) > .disclosure-note {
+    grid-row: 3;
+  }
+  /* As wide at 5% as at 100%: on a phone as wide as a knob's entry, so its − lines up with theirs; where
+     the deck is narrower (a 360 px phone), four figures wide, so the slider keeps its room. */
+  .master > .joined > .readout {
+    min-width: calc(4ch + 2 * var(--space-xs));
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  @container (min-width: 350px) {
+    .master > .joined > .readout {
+      min-width: var(--entry);
+    }
+  }
+  .readout-word {
+    display: flex;
+    align-items: center;
+    color: var(--text-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+  .readout-word > .icon {
+    width: 12px;
+    height: 12px;
+  }
+}
+/* On a phone blackout has a row of its own, the whole width, last, under the thumb. */
+.blackout-row > .blackout {
+  flex: 1 1 auto;
+}
+/* − readout + joined into one control, a knob's typed entry to the pixel: one well of the page's ground with
+   one strong outer edge, its value at its right inset. */
+.joined {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+}
+.joined > .button {
+  border-color: var(--border-strong);
+  background-color: var(--surface-page);
+}
+.joined > .button:hover {
+  background-image: linear-gradient(var(--state-hover), var(--state-hover));
+}
+.joined > .button:active {
+  background-image: linear-gradient(var(--state-press), var(--state-press));
+}
+.joined > .button:first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+  border-right-width: 0;
+}
+.joined > .button:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  border-left-width: 0;
+}
+.joined > .readout {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: var(--entry);
+  padding-right: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-inline-color: var(--border-subtle);
+  background: var(--surface-page);
+  font-size: var(--fs-field);
+}
+.readout > .level {
+  display: flex;
+  align-items: baseline;
+}
+/* The cue buttons keep their width; what they do wraps after them, and a cue's outcome lies in its room for
+   a moment, so neither moves the deck. */
+.cues .scroller {
+  flex: 0 1 auto;
+}
+.cues .last {
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  align-items: center;
+}
+.cues .last > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cue-does[data-out] {
+  visibility: hidden;
+}
+.cues .last > [role="status"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.blackout {
+  flex: 0 0 auto;
+}
+@media (pointer: coarse) {
+  .blackout {
+    min-width: min-content;
+    padding: 0 var(--space-xs);
+  }
+}
+
+/* ---- the editor: the look, the layers, the picked layer's knobs ------------------------------ */
+
+/* A block of the editor under its heading: the look, the layers, a layer's knobs, 24 apart, the heading 8
+   above what it heads. */
+.block {
+  padding: 0 var(--space-md);
+}
+.rest > .block {
+  margin-top: var(--space-lg);
+}
+.block > .block-head {
+  margin-bottom: var(--space-xs);
+}
+/* With no look above it (a run without looks), the first block starts at the slot's top, inset as the
+   look's header would be. */
+.rest:first-child > .block:first-child {
+  margin-top: 0;
+  padding-top: var(--region-pad-block);
+}
+/* The look's header stays at the slot's top at every depth, its name and its save in view. It and a panel's
+   header (.panel-head) are one header: inset as the card is, its last control at the column's edge, 8 over
+   what it heads. */
+.look-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: var(--region-pad-block) var(--space-md) var(--space-xs);
+  background: var(--surface-region);
+}
+.look-head + .look-block {
+  padding-top: 0;
+}
+.held-note {
+  flex: 1 1 100%;
+  margin-bottom: var(--space-2xs);
+}
+/* A head is its heading's line tall (--head-lh): the controls on it hang past the line, so its text is 8 above
+   what it heads whatever is beside it, and the slot's heads (the look's, a panel's, a lone layer's) start
+   their text 12 under the card's top. */
+.block-head {
+  --head-lh: var(--lh-body);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-xs);
+  min-height: var(--head-lh);
+}
+:is(.block-head, .panel-head) > :is(.button, .look-actions) {
+  margin-block: calc((var(--head-lh) - var(--control-h)) / 2);
+}
+.look-head {
+  --head-lh: var(--lh-display);
+}
+:is(.panel-head, .lone-layer > .block-head) {
+  --head-lh: var(--lh-title);
+}
+.block-head > :is(h2, h3) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.look-title {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+.changed {
+  flex: 0 0 auto;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-2);
+  white-space: pre;
+}
+/* The look's actions follow its name at the line's end; the name gives way first, onto more lines. */
+.look-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+.look-head {
+  flex-wrap: nowrap;
+}
+.look-head > :is(.held-note, .disclosure-note) {
+  flex: 1 1 100%;
+}
+.look-head:has(> :is(.held-note, .disclosure-note:not([hidden]))) {
+  flex-wrap: wrap;
+}
+/* ✦ draft after the name, an eyebrow, on the name's line. */
+.look-title > .badge {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: var(--space-xs);
+}
+/* A split button: the action, then its ▾, joined into one control, a line between them. */
+.split-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.split-button > .button:first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+.split-button > .button:last-child {
+  width: auto;
+  padding: 0 var(--space-2xs);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  border-left-color: color-mix(in srgb, var(--on-accent) 35%, var(--accent));
+}
+/* The look's name, whole: a long one wraps rather than being cut, so the header names a look that its tile
+   cuts short on a phone. */
+.look-name-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* A control's own name above it, as a knob's is. */
+.field-label,
+.param-head label {
+  color: var(--text-2);
+}
+.pattern-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+/* What a header's "save as…" or "⋯" opens: rows of a setting's words or action on the left and its control at
+   the column's edge, in a nested card (.look-forms) that starts and ends in view. */
+.look-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+}
+.look-forms:has(> :not([hidden])) {
+  margin-bottom: var(--space-sm);
+}
+.look-editor .row {
+  flex-wrap: wrap;
+}
+.look-name {
+  flex: 1 0 8rem;
+}
+/* Its actions last: save as new… first, then revert and delete, which lose edits or the look, at the column's
+   edge. */
+.look-lossy > :nth-child(2) {
+  margin-left: auto;
+}
+
+/* A knob has no space of its own outside it: what holds knobs sets them 12 apart (its gap). Inside, 4 from
+   its head to its control. */
+.param {
+  position: relative;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+:is(.look-knobs, .layer-body, .lone-layer, [data-scope="accordion"][data-part="item-content"]) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.param-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  min-height: var(--lh-body);
+}
+/* The label gives way first; the marks and the readout keep their room. */
+.param-head > label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.param-head > :not(label) {
+  flex: 0 0 auto;
+}
+/* What a knob's "?" tells, under its line: a line each, where it has more. */
+.param > .knob-help {
+  white-space: pre-line;
+}
+.param-head .context {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  white-space: nowrap;
+}
+/* The reset (↺: back to the saved value, or else the default), the pin and the "?" end the label's line,
+   the "?" last, so showing the others never moves it. ↺ shows while the knob is off its saved value: it is
+   the knob's "changed". Off its default with no saved look, it shows under a pointer or with focus. With a
+   mouse the pin and the "?" show under a pointer or with focus, and the "?" while open; on touch the "?"
+   always shows, and the pin while the "?" is open. */
+/* Its marks are controls, 8 apart, centred on the label's line and hanging past it, so the head is a line of
+   text tall on every pointer: 4 from its control, 12 from the knob before. With its note open, the head keeps
+   the room its "?" takes below the line, so the note starts under the "?". */
+.param-head > .knob-end {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+.knob-end > .button {
+  min-height: 0;
+  width: var(--control-h);
+  height: var(--control-h);
+  margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
+}
+.param-head:has(> .knob-end > .about[aria-expanded="true"]) {
+  margin-bottom: calc((var(--control-h) - var(--lh-body)) / 2 - var(--space-2xs));
+}
+.knob-end > .reset {
+  color: var(--text-2);
+}
+@media (pointer: fine) {
+  .knob-end > :is(.pin, .reset:not([data-changed]), .about:not([aria-expanded="true"])) {
+    opacity: 0;
+  }
+  .param:is(:hover, :focus-within) .knob-end > .button,
+  .knob-end > .button:focus-visible {
+    opacity: 1;
+  }
+}
+@media (pointer: coarse) {
+  .param:not(:focus-within) .reset:not([data-changed]),
+  .knob-end:not(:has(> .about[aria-expanded="true"])) > .pin {
+    display: none;
+  }
+}
+/* Hidden, ↺ keeps its slot in the trailing column, so the "?" after it never moves; on touch, where the "?"
+   always shows, it takes none. */
+.knob-end > .reset[hidden] {
+  display: inline-flex !important;
+  visibility: hidden;
+}
+@media (pointer: coarse) {
+  .knob-end > .reset[hidden] {
+    display: none !important;
+  }
+}
+[data-scope="field"][data-part="helper-text"] {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+[data-scope="field"][data-part="error-text"] {
+  color: var(--danger-fg);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  overflow-wrap: anywhere;
+}
+.control.unknown,
+.param.unknown {
+  color: var(--text-2);
+}
+.crashed {
+  margin: var(--space-lg) var(--space-md);
+}
+
+/* A disclosure row (a layer, a step, a modulator): its chevron first, then its name, weight 600 while open or
+   picked, then what kind of thing it is, what it reads and what it drives, as captions on the name's
+   baseline. A control tall, as every row of a list is. */
+[data-scope="accordion"][data-part="item-trigger"] {
+  font: inherit;
+  width: 100%;
+  min-height: var(--control-h);
+  display: flex;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: calc((var(--control-h) - var(--lh-body)) / 2) 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text-2);
+  text-align: start;
+  cursor: pointer;
+}
+[data-scope="accordion"][data-part="item-trigger"] .section-name {
+  flex: 0 0 auto;
+  color: var(--text-1);
+}
+[data-scope="accordion"][data-part="item-trigger"][data-state="open"] .section-name {
+  font-weight: var(--fw-strong);
+}
+/* What follows a name after a · or → sits 4 from it, as in a label, not a gap away. */
+[data-scope="accordion"][data-part="item-trigger"] .moves {
+  margin-left: calc(var(--space-2xs) - var(--space-xs));
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+[data-scope="accordion"][data-part="item-indicator"] {
+  flex: 0 0 auto;
+  align-self: center;
+  display: flex;
+  color: var(--text-2);
+}
+/* A section's knobs start where its name does: its chevron hangs in the margin. */
+[data-scope="accordion"][data-part="item-content"] {
+  padding: var(--space-2xs) 0 var(--space-sm) calc(var(--icon) + var(--space-xs));
+}
+
+.number-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-sm);
+}
+/* A slider never shorter than its track's least (6rem): where the line has no room for it and the entry,
+   the entry wraps under it, at the column's edge. */
+.number-control > [data-scope="slider"][data-part="root"] {
+  flex: 1 1 6rem;
+  min-width: 6rem;
+}
+.number-control > .number-entry {
+  margin-left: auto;
+}
+/* A colour's part, laid out as a number knob is: its label above its strip and entry. */
+.color-part {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-sm);
+}
+.color-part > .field-label {
+  grid-column: 1 / -1;
+}
+/* An angle's compass: a small dial, its hand drawn where the value points, never an arrow a line of text
+   could read as "drives". */
+.compass {
+  position: relative;
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: 1px solid var(--text-2);
+  border-radius: 50%;
+}
+.compass::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 0.75px);
+  left: 50%;
+  width: 50%;
+  height: 1.5px;
+  background: var(--text-2);
+}
+[data-scope="number-input"][data-part="root"] {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+[data-scope="number-input"][data-part="control"] {
+  display: flex;
+  align-items: stretch;
+}
+/* The value and its unit end at the well's right inset, on one baseline; the lines beside the steps are
+   quiet, so the joined control reads as one well with one strong edge. */
+.value-box {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  min-width: var(--entry);
+  padding-right: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-inline-color: var(--border-subtle);
+  background: var(--surface-page);
+}
+/* Its ring inside the box, clear of the steps joined to it. */
+.value-box:has(> input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.value-box > input {
+  flex: 1 1 auto;
+  width: calc((var(--digits) + 0.5) * 1ch);
+  min-height: calc(var(--control-h) - 2px);
+  padding: 0 0 0 var(--space-2xs);
+  border: none;
+  border-radius: 0;
+  background: none;
+  text-align: right;
+  outline: none;
+}
+[data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"]) {
+  font: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  min-height: var(--control-h);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-page);
+  color: var(--text-1);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+[data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"]):hover:not([data-disabled]) {
+  background-image: linear-gradient(var(--state-hover), var(--state-hover));
+}
+/* A focused step's ring is drawn over the value box beside it. */
+[data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"]):focus-visible {
+  position: relative;
+  z-index: 1;
+}
+[data-scope="number-input"][data-part="decrement-trigger"] {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+  border-right-width: 0;
+}
+[data-scope="number-input"][data-part="increment-trigger"] {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  border-left-width: 0;
+}
+/* A step at its limit keeps the joined frame whole: its sign alone steps back. */
+[data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"])[data-disabled] {
+  color: var(--text-disabled);
+  cursor: default;
+}
+/* The unit, a caption right after the digits, in a slot as wide on every entry, a unitless one too, so the
+   digits of every entry and the brightness end on one line: "/s", the widest unit, fits its 16 px; a word
+   label ("hold") widens it. */
+.unit {
+  flex: 0 0 auto;
+  min-width: var(--icon);
+  padding-left: 2px;
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* A bool knob: its switch, then on or off in words. */
+.control.bool-control {
+  padding-right: var(--space-xs);
+}
+
+/* A choice knob's options in a row, the chosen one in the selected fill. */
+.segments {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+}
+/* Four or more options: equal cells as wide as the longest (--seg), wrapping into rows on a narrow column,
+   ruled apart; a cell left over stays blank. */
+.segments[data-grid] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--seg) + 1.6rem), 1fr));
+  width: 100%;
+  overflow: hidden;
+}
+.segments[data-grid] > [data-part="item"] {
+  box-shadow:
+    1px 0 0 var(--border-subtle),
+    0 1px 0 var(--border-subtle);
+}
+[data-scope="segment-group"][data-part="item"] {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+  padding: 0 var(--space-sm);
+  cursor: pointer;
+  color: var(--text-2);
+}
+[data-scope="segment-group"][data-part="item"]:hover {
+  color: var(--text-1);
+}
+[data-scope="segment-group"][data-part="item"][data-state="checked"] {
+  color: var(--text-1);
+  font-weight: var(--fw-strong);
+}
+[data-scope="segment-group"][data-part="item"][data-focus-visible] {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+[data-scope="segment-group"][data-part="indicator"] {
+  left: var(--left);
+  top: var(--top);
+  width: var(--width);
+  height: var(--height);
+  background: var(--surface-selected);
+  border-radius: calc(var(--radius-control) - 1px);
+}
+
+/* A colour's parts, under its name, set in 12 and 4 apart, as a knob's label is from its control: one control,
+   not more knobs, at least twice as far (12) from the knobs round it as inside. */
+.color-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding-left: var(--space-sm);
+}
+/* A picked stop's editor sits in a well of the page's ground; what a look's header opens, in a card nested in
+   the region. Each reaches into the gutter as a row's fill does, so what is in it keeps the column's edges. */
+.stop-editor,
+.look-forms:has(> :not([hidden])) {
+  margin-inline: calc(-1 * var(--space-xs));
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-inset);
+}
+.stop-editor {
+  background: var(--surface-page);
+}
+.look-forms:has(> :not([hidden])) {
+  background: var(--surface-raised);
+}
+/* A part's strip is a slider whose track shows its colours; its thumb is ringed dark, so it shows on a light
+   strip. */
+.color-part [data-scope="slider"][data-part="thumb"]:not(:focus-visible) {
+  box-shadow: 0 0 0 1px var(--surface-page);
+}
+/* The colour beside its name, as tall as the name's line. */
+.swatch {
+  width: var(--lh-body);
+  height: var(--lh-body);
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  flex: 0 0 auto;
+}
+
+/* The gradient, with a marker under each stop; the picked stop's editor below. */
+.palette-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+/* Its ends where a slider's thumb sits at 0 and at 1. */
+.palette-strip {
+  position: relative;
+  height: 1.5rem;
+  margin: 0 calc(var(--thumb) / 2) var(--control-h);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+}
+/* A target as wide as a touch, centred under its stop; the dot shows the stop's colour. */
+.stop-marker {
+  position: absolute;
+  top: 100%;
+  width: var(--control-h);
+  height: var(--control-h);
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.stop-marker::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 2px solid var(--border-strong);
+}
+.stop-marker[aria-pressed="true"]::before {
+  border-color: var(--text-1);
+  outline: 2px solid var(--text-1);
+}
+/* Focus rings the dot, round as its picked ring, not the target box. */
+.stop-marker:focus-visible {
+  outline: none;
+}
+.stop-marker:focus-visible::before {
+  box-shadow:
+    0 0 0 2px var(--surface-region),
+    0 0 0 4px var(--focus);
+}
+.stop-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.stop-head > span {
+  color: var(--text-2);
+  margin-right: auto;
+  white-space: nowrap;
+}
+/* Its two actions keep together, and wrap under its name as one, ending at the column's edge. */
+.stop-actions {
+  display: flex;
+  margin-left: auto;
+}
+/* A stop's position, labelled above as a knob is. */
+.stop-position {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+.stop-position .param-head > .field-label {
+  flex: 0 1 auto;
+}
+
+/* ---- layers: the list, the picked row, and the catalog ---------------------------------------- */
+
+/* The rows share columns: what the layer is, its opacity slider (with a mouse), its mix in words and its
+   switch, so every slider and readout starts and ends at one edge. */
+.layers > [data-scope="accordion"][data-part="root"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+.layers > [data-part="root"] > .layer,
+.layer > .layer-head {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+}
+.layer > .layer-body {
+  grid-column: 1 / -1;
+}
+/* A row lies flat on the region; the picked one takes the selected fill and weight 600, reaching into the
+   gutter so its words keep the column. */
+.layer-head {
+  align-items: baseline;
+  min-height: var(--control-h);
+  margin-inline: calc(-1 * var(--space-xs));
+  padding-inline: var(--space-xs);
+  border-radius: var(--radius-control);
+}
+.layer-head > .layer-on,
+.layer-head .mix-opacity {
+  align-self: center;
+}
+.layer-head:hover {
+  background: var(--state-hover);
+}
+.layer[data-picked] > .layer-head {
+  background: var(--surface-selected);
+}
+.layer-head > .row-title {
+  grid-column: 1;
+  display: flex;
+}
+.layer-head > .layer-on {
+  grid-column: 4;
+  margin-left: var(--space-xs);
+}
+/* On touch, what the layer makes takes its own line under its id, whole where it fits, both lines starting
+   where the name does, 8 inside the row's fill. */
+@media (pointer: coarse) {
+  .layer-head [data-part="item-trigger"] {
+    flex-wrap: wrap;
+    align-content: center;
+    row-gap: 0;
+    padding-block: var(--space-xs);
+  }
+  /* Its "· changed" stays on the id's line, drawn before what it runs and said after it. */
+  .layer-head [data-part="item-trigger"] > :is(.runs, .badge) {
+    order: 1;
+  }
+  .layer-head .runs {
+    flex: 1 0 100%;
+    padding-left: calc(var(--icon) + var(--space-xs));
+  }
+  .layer-head .runs > .sep {
+    display: none;
+  }
+  /* What ends the row, its mix and its switch, centres on the row's two lines, as a two-line cell's
+     trailing items do; the chevron stays with the name. */
+  .layer-head .mix-glance > .readout {
+    align-self: center;
+  }
+}
+.layer-head [data-part="item-trigger"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-1);
+}
+@media (pointer: fine) {
+  .layer-head .runs {
+    margin-left: calc(var(--space-2xs) - var(--space-xs));
+  }
+}
+/* Its switch ends at the column's edge, as every control does. */
+.layer-on {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+  cursor: pointer;
+}
+.layer[data-picked] .layer-id {
+  font-weight: var(--fw-strong);
+}
+.runs {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+/* Its own columns at the row's end, set apart from what the layer runs: with a mouse, a short opacity
+   slider, then the mix in words, right-aligned. */
+.mix-glance {
+  display: contents;
+}
+.mix-glance > .readout {
+  grid-column: 3;
+  justify-self: end;
+  margin-left: var(--space-xs);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+.mix-glance > .mix-opacity {
+  grid-column: 2;
+  width: 64px;
+  margin-left: var(--space-md);
+}
+.mix-opacity [data-part="control"] {
+  min-width: 0;
+}
+.chain {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  overflow-wrap: anywhere;
+}
+/* A tertiary word that starts or ends a row lines its ink up with the column's edge, not its box (8 of
+   padding and the 1 px edge); a tertiary sign that ends one does too, its icon past the edge by the 2 px its
+   16-unit grid keeps round a glyph, so ⋯, ✕, "?" and "delete" end on one line. */
+:is(.row, .block-head) > .button[data-variant="tertiary"]:not([data-square]):first-child,
+.replace {
+  margin-left: calc(-1 * var(--space-xs) - 1px);
+}
+:is(.row, .block-head) > .button[data-variant="tertiary"]:not([data-square]):last-child {
+  margin-right: calc(-1 * var(--space-xs) - 1px);
+}
+:is(.row, .block-head, .panel-head, .look-actions, .knob-end, .master-head) > .button[data-variant="tertiary"][data-square]:last-child {
+  margin-right: calc((var(--icon) - var(--control-h)) / 2 - 2px);
+}
+.replace {
+  align-self: flex-start;
+}
+/* Off: the switch says so, and the row's words step back to text-2; its knobs in front say "(off)". */
+.layer:has(.layer-head .switch:not(:checked)) :is(.layer-id, .mix-glance > *) {
+  color: var(--text-2);
+}
+/* The open row's head stays under the pinned header, as tall as it is (--head-h), while its knobs scroll,
+   so the path look › layer always shows; it draws over them. Focus in the row lands under both. */
+.layer:has(> .layer-body) > .layer-head {
+  position: sticky;
+  top: calc(var(--head-h, 0px) - 1px);
+  z-index: 2;
+  background-color: var(--surface-region);
+  background-image: linear-gradient(var(--surface-selected), var(--surface-selected));
+}
+.layer-body * {
+  scroll-margin-top: calc(var(--control-h) + 2px);
+}
+/* The open row: what the layer runs, its mix and its knobs, starting where its name does, its one cue of
+   nesting; its actions 8 under the row's fill, its last knob 16 over the next row. */
+.layer > .layer-body {
+  padding: var(--space-xs) 0 var(--space-md) calc(var(--icon) + var(--space-xs));
+}
+/* The open row's own actions first: ▲ ▼, and remove at the column's edge; its defaults under its knobs. */
+.layer-actions > .button:last-child {
+  margin-left: auto;
+}
+.layer-defaults {
+  justify-content: flex-end;
+}
+/* A look of one layer: its knobs under its heading, then, quiet, what changes the layer. */
+.lone-layer > .block-head {
+  margin-bottom: calc(var(--space-xs) - var(--space-sm));
+}
+.lone-actions {
+  flex-wrap: wrap;
+}
+/* "+ layer" ends the row at the column's edge, as it ends the layers' head in a look of more. */
+.row.lone-actions > .button[data-variant="tertiary"]:last-child {
+  margin-left: auto;
+}
+/* A word's "?" follows the word, not the line's end: its glyph a few pixels after the word. */
+.look-signals .block-head > h3 {
+  flex: 0 1 auto;
+}
+.block-head > h3 + .about {
+  margin-left: calc(-1 * var(--space-xs));
+}
+/* Every look, a row each, flat, its key at the end where a keyboard is: each row's fill reaches 8 into the
+   gutter and its name starts at the column's edge, as a layer's row does. */
+.all-looks {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-lg);
+}
+/* Its name and key share a baseline, its signs (↻, the live ●) centre on the name's line right after it, and
+   the key ends at the column's edge on every row. */
+.all-looks .tile {
+  width: calc(100% + 2 * var(--space-xs));
+  margin-inline: calc(-1 * var(--space-xs));
+  padding: calc((var(--control-h) - var(--lh-body)) / 2 - 1px) calc(var(--space-xs) - 1px);
+  justify-content: flex-start;
+  align-items: baseline;
+}
+.all-looks .tile > :not(.tile-name, .key) {
+  align-self: center;
+}
+.all-looks .key {
+  order: 1;
+  margin-block: -1px;
+  margin-left: auto;
+}
+@media (pointer: coarse) {
+  .all-looks .key {
+    display: none;
+  }
+}
+
+.refusal {
+  margin: var(--space-2xs) 0 var(--space-xs);
+  color: var(--danger-fg);
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+}
+/* The catalog: a list of rows, one press each, a line between rows its only edge. */
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.card + .card {
+  border-top: 1px solid var(--border-subtle);
+}
+.card-add {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: calc(100% + 2 * var(--space-xs));
+  margin: 0 calc(-1 * var(--space-xs));
+  padding: var(--space-xs);
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-1);
+  text-align: start;
+  white-space: normal;
+  cursor: pointer;
+}
+.card-add:is(:hover, :active):not(:disabled, [aria-disabled="true"]) {
+  background: var(--state-hover);
+}
+.card-add:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+.card-add .gist {
+  margin: 0;
+}
+.card-add .plus {
+  color: var(--text-2);
+}
+code.arg {
+  font: inherit;
+  font-family: var(--font-code);
+  color: var(--text-1);
+}
+/* A group of sections in a block or panel (the catalog's groups): a heading over them, 24 above the one
+   before; its sections set in under it. */
+.group-head {
+  margin-top: var(--space-lg);
+  padding-bottom: var(--space-2xs);
+}
+.group-head:first-child {
+  margin-top: 0;
+}
+.group-head ~ [data-part="item"] {
+  padding-left: var(--space-sm);
+}
+
+/* ---- panels in the slot: health, layout -------------------------------------------------------- */
+
+.panel {
+  padding: 0 var(--space-md) calc(var(--space-sm) + var(--safe-bottom));
+}
+.panel:focus {
+  outline: none;
+}
+/* Whatever owns the slot heads it as the look does (.look-head), pinned. */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  min-height: var(--head-lh);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 calc(-1 * var(--space-md));
+  padding: var(--region-pad-block) var(--space-md) var(--space-xs);
+  background: var(--surface-region);
+}
+/* In a dialog, on the dialog's own ground. */
+.shortcut-help .panel-head {
+  background: var(--surface-overlay);
+}
+
+.health-row {
+  padding: var(--space-xs) 0;
+  border-top: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+.panel-head + .health-row {
+  border-top: none;
+}
+.health-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.health-head .level {
+  color: var(--text-2);
+}
+.health-head a {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
+  padding: 0 var(--space-xs);
+  color: var(--text-1);
+}
+.health-row :is(.facts, .why, .fix) {
+  padding-left: calc(var(--icon) + var(--space-xs));
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+}
+.health-row :is(.facts, .fix) {
+  color: var(--text-2);
+}
+[data-level="bad"] > .health-head .level,
+[data-level="bad"] > .why {
+  color: var(--danger-fg);
+}
+.find-boards {
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+.find-boards .row {
+  flex-wrap: wrap;
+}
+.found {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2xs) 0 0;
+}
+.found li {
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-xs) 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-sm);
+}
+.found .sub {
+  flex: 1 1 100%;
+}
+
+.layout-tools {
+  flex-wrap: wrap;
+  padding: var(--space-xs) 0;
+}
+[data-wide] .layout-tools {
+  padding: var(--space-xs) var(--space-md);
+}
+.layout-note {
+  flex: 1 1 100%;
+}
+.layout-note .icon {
+  color: var(--text-1);
+}
+.layout-tools.empty {
+  color: var(--text-2);
+}
+
+/* ---- the shortcut list -------------------------------------------------------------------------- */
+
+[data-scope="dialog"][data-part="backdrop"] {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  z-index: calc(var(--layer-index, 0) + 30);
+}
+[data-scope="dialog"][data-part="positioner"] {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: calc(var(--layer-index, 0) + 31);
+}
+.shortcut-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: min(420px, 92vw);
+  padding: 0 var(--space-md) var(--space-md);
+  background: var(--surface-overlay);
+  border-radius: var(--radius-surface);
+  outline: none;
+}
+/* The keys in one column as wide as the widest, what they do in the next. */
+.shortcut-help dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2xs) var(--space-sm);
+}
+.shortcut-help dl > div {
+  display: contents;
+}
+.shortcut-help dd {
+  margin: 0;
+  color: var(--text-2);
+}

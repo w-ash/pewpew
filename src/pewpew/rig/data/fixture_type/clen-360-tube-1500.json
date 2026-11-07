@@ -1,0 +1,47 @@
+{
+  "kind": "fixture_type",
+  "id": "clen-360-tube-1500",
+  "rev": 1,
+  "name": "1.5M 360 LED Tube",
+  "inventory": "INV-002",
+  "notes": "The 1500 mm version of Clen's CL-T100W (RES-012, the maintainer's private notes). Its label reads \"1.5m 360 LED tube. power input DC24V. Max Power 36W. LED QTY 216PCS Pixel QTY 36PCS\" (INV-002).",
+  "dims": {
+    "length": {"v": 1.5, "status": "stated", "src": "label (INV-002, the maintainer's private notes); Clen lists 1480 mm for 36 px (RES-012)"},
+    "tube_d": {"v": 0.04, "status": "stated", "src": "INV-002 and RES-012, the maintainer's private notes"},
+    "cap_d": {"v": 0.042, "status": "stated", "src": "RES-012, the maintainer's private notes; IMG-tube, Clen's tube dimension drawing (not public)"},
+    "cap_t": {"v": 0.02, "status": "assumed", "src": "IMG-tube shows the cap undimensioned, Clen's tube dimension drawing (not public)"},
+    "wall": {"v": 0.002, "status": "assumed", "src": "placeholder, not measured (docs/studio/domain-model.md:113)"}
+  },
+  "profiles": {
+    "tube": {"circle": "tube_d", "minus": [{"circle": "tube_d - 2*wall"}]},
+    "cap": {"circle": "cap_d"}
+  },
+  "parts": [
+    {"id": "tube", "profile": "tube", "range_m": ["cap_t - length/2", "length/2 - cap_t"], "glow": "pixels", "gain": 1.0, "finish": "opal"},
+    {"id": "cap_a", "profile": "cap", "range_m": ["-length/2", "cap_t - length/2"], "glow": "none", "finish": "aluminum"},
+    {"id": "cap_b", "profile": "cap", "range_m": ["length/2 - cap_t", "length/2"], "glow": "none", "finish": "aluminum"}
+  ],
+  "anchors": {
+    "end_a": {"at": [0, "-length/2", 0], "dir": [0, -1, 0]},
+    "end_b": {"at": [0, "length/2", 0], "dir": [0, 1, 0]},
+    "in": {"at": [0, "-length/2", 0], "connector": "clen-4pin", "gender": {"v": "male", "status": "inferred", "src": "RES-016, the maintainer's private notes"}},
+    "out": {"at": [0, "length/2", 0], "connector": "clen-4pin", "gender": {"v": "female", "status": "inferred", "src": "RES-016, the maintainer's private notes"}}
+  },
+  "pixels": {
+    "count": {"v": 36, "status": "stated", "src": "label (INV-002, the maintainer's private notes)"},
+    "span_m": {"v": "length - 2*cap_t", "status": "assumed", "src": "pixels spread between the caps; not measured (docs/studio/domain-model.md:376)"},
+    "z_m": {"v": 0, "status": "inferred", "src": "two back-to-back strips down the middle of the tube (INV-002, the maintainer's private notes)"},
+    "leds_per_pixel": {"v": 6, "status": "derived", "src": "label: 216 LEDs over 36 pixels (INV-002, the maintainer's private notes)"},
+    "facing": {"v": null, "status": "stated", "src": "a 360-degree tube (RES-012, the maintainer's private notes)"},
+    "beam_deg": {"v": 360, "status": "stated", "src": "RES-012, the maintainer's private notes"},
+    "chipset": {"v": "ucs1903n", "status": "inferred", "src": "RES-015, the maintainer's private notes"},
+    "channels": {"v": "RGB", "status": "stated", "src": "RES-012, the maintainer's private notes"},
+    "color_order": {"v": "RGB", "status": "stated", "src": "RES-012, the maintainer's private notes"}
+  },
+  "power": {
+    "v_nominal": {"v": 24, "status": "stated", "src": "label (INV-002, the maintainer's private notes)"},
+    "max_w": {"v": 36, "status": "stated", "src": "label (INV-002, the maintainer's private notes)"},
+    "measured_w": null,
+    "passthrough_ohm": null
+  }
+}

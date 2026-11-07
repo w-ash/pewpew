@@ -1,0 +1,98 @@
+[project]
+name = "pewpew"
+version = "0.0.1"
+description = "A Python-first addressable-LED engine"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = [
+    "numpy>=2",  # NEP 50 type promotion: the goldens and test_port_equivalence hold its bytes
+    "pydantic>=2.14",
+    "pyserial>=3.5",
+    "watchfiles>=1.0",
+    "websockets>=17",
+]
+
+[project.optional-dependencies]
+# The MCP server, `python -m pewpew mcp` (pewpew.mcp_server); mcp brings pydantic.
+agent = [
+    "mcp>=2,<3",
+]
+# Live capture from a line-in or a microphone, `run --audio NAME` and `audio
+# list` (pewpew.audio.device). Pinned: re-enumerating inputs calls its private
+# `_terminate`, `_check` and `_lib.Pa_Initialize`. The macOS wheel bundles
+# PortAudio; Linux needs the system's libportaudio2.
+audio = [
+    "sounddevice==0.5.6",
+]
+studio = [
+    "fastapi>=0.143",
+    "manifold3d>=3.5.4",
+    "psycopg[binary]>=3.3",
+    "uvicorn[standard]>=0.54",
+]
+
+[dependency-groups]
+# `dev` is uv's default group: `uv run` and `uv sync` install it in every
+# checkout and worktree, so a fresh worktree has pytest without extra flags.
+# It pulls the studio extra so the studio tests import fastapi.
+dev = [
+    "pewpew[studio]",
+    "pytest>=8",
+    "httpx2>=2.16.0",
+    "ruff>=0.17",
+    "basedpyright>=1.40",
+    "rust-just>=1.58",  # the `just` binary, so CI runs the same recipes as a laptop
+    "hypothesis>=6",
+    "mcp>=2,<3",  # the agent extra, so the MCP adapter is type-checked and tested
+    "sounddevice==0.5.6",  # the audio extra, so the capture adapter is type-checked; the tests never import it
+]
+bench = ["numba>=0.61"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pewpew", "src/harness"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = ["error"]
+
+# Ruff's default rule set (curated per release), plus E501 at `line-length`.
+# uv.lock pins the version, so a ruff bump that adds rules arrives as its own
+# PR with CI showing the cost.
+[tool.ruff]
+line-length = 120
+src = [".", "src", "tests", "bench"]  # where import sorting finds first-party modules
+extend-exclude = [
+    "research/excerpts",  # verbatim third-party snippets, kept as cited evidence
+    "bench/authoring",  # frozen study code, held bit-exact by tests/test_port_equivalence.py
+    "projects",  # private project repos, cloned in and gitignored
+]
+
+[tool.ruff.per-file-target-version]
+# Run by the system `python3`, which is 3.9 on macOS.
+".claude/hooks/*.py" = "py39"
+"research/tools/*.py" = "py39"
+"scripts/*.py" = "py39"
+"tools/*.py" = "py39"
+
+[tool.ruff.lint]
+extend-select = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# BLE001: a hook must never wedge the session. EXE001: it runs as `python3 <path>`.
+".claude/hooks/gate_mask_check.py" = ["BLE001", "EXE001"]
+
+[tool.basedpyright]
+# tests/ is checked too; .basedpyright/baseline.json holds the debt its
+# files carried before the layered-effects work, to fix, never to add to.
+include = ["src", "tests"]
+typeCheckingMode = "standard"
+strict = ["src/pewpew/params"]
+pythonVersion = "3.11"
+reportUnnecessaryTypeIgnoreComment = "error"

@@ -1,0 +1,539 @@
+<title>Golden Tube Rings</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one-screen viewer; the 3D stage fills the left, a narrow spec panel sits right and drops below on phones. */
+  :root {
+    --bg: #E9EDF1;
+    --surface: #F6F8FA;
+    --ink: #14181D;
+    --muted: #59636E;
+    --line: #C9D1D9;
+    --guide: #8E9BA8;
+    --accent: #2C6CB0;
+    --font-ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1215;
+      --surface: #161A1F;
+      --ink: #E4E8EC;
+      --muted: #8C96A1;
+      --line: #2A3139;
+      --guide: #56616D;
+      --accent: #6AA6EA;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1215;
+    --surface: #161A1F;
+    --ink: #E4E8EC;
+    --muted: #8C96A1;
+    --line: #2A3139;
+    --guide: #56616D;
+    --accent: #6AA6EA;
+    color-scheme: dark;
+  }
+
+  html { height: 100%; box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.45;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 20px;
+  }
+
+  .stage {
+    position: relative;
+    min-height: 0;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+  .stage canvas:active { cursor: grabbing; }
+
+  .views {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .views button {
+    font: 500 12px/1 var(--font-ui);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .views button + button { border-left: 1px solid var(--line); }
+  .views button:hover { color: var(--ink); }
+  .views button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .views button:focus-visible,
+  .tilt input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .hint {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .error {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  aside {
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding-top: 4px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 650;
+    font-stretch: 118%;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .lede { margin: 6px 0 0; color: var(--muted); }
+  h2 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .tilt .row { display: flex; align-items: baseline; justify-content: space-between; }
+  .tilt output { font: 500 22px/1 var(--font-data); font-variant-numeric: tabular-nums; }
+  .tilt input { width: 100%; margin: 10px 0 2px; accent-color: var(--accent); }
+  .tilt .scale { display: flex; justify-content: space-between; font: 11px var(--font-data); color: var(--muted); }
+
+  .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .switch input {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    position: relative;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    border-radius: 10px;
+    background: var(--line);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .switch input::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.15s, background 0.15s;
+  }
+  .switch input:checked { background: var(--accent); }
+  .switch input:checked::before { transform: translateX(16px); background: var(--surface); }
+  .switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .switch input, .switch input::before { transition: none; }
+  }
+
+  .key { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .key li { display: flex; align-items: center; gap: 10px; }
+  .swatch { width: 22px; height: 4px; border-radius: 2px; flex: none; }
+  .swatch.rainbow { background: linear-gradient(90deg, #FF3B30, #FF9500, #FFCC00, #34C759, #32ADE6, #5856D6, #AF52DE); }
+  .swatch.guide { height: 0; border-top: 2px dashed var(--guide); border-radius: 0; }
+
+  dl { margin: 0; display: grid; grid-template-columns: 1fr auto; }
+  dt, dd { padding: 6px 0; border-top: 1px solid var(--line); }
+  dt { color: var(--muted); }
+  dd { margin: 0; text-align: right; font-family: var(--font-data); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 720px) {
+    body {
+      height: auto;
+      min-height: 100%;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto;
+    }
+    .stage { height: 64vh; min-height: 340px; }
+    aside { overflow: visible; }
+  }
+</style>
+
+<main class="stage" id="stage">
+  <div class="views" role="group" aria-label="Camera view">
+    <button type="button" id="view-angle" data-view="angle" aria-pressed="true">Angle</button>
+    <button type="button" id="view-top" data-view="top" aria-pressed="false">Top</button>
+    <button type="button" id="view-side" data-view="side" aria-pressed="false">Side</button>
+  </div>
+  <p class="hint">Drag to rotate. Scroll or pinch to zoom. Right-drag or two-finger drag to pan.</p>
+</main>
+
+<aside>
+  <header>
+    <h1>Golden Tube Rings</h1>
+    <p class="lede">48 tubes in two rings of 24. Each tube tilts about its midpoint, inner end down and outer end up.</p>
+  </header>
+
+  <section class="tilt">
+    <div class="row">
+      <h2><label for="tilt">Tilt</label></h2>
+      <output id="tilt-out" for="tilt">30°</output>
+    </div>
+    <input type="range" id="tilt" min="0" max="90" step="1" value="30">
+    <div class="scale" aria-hidden="true"><span>0° flat</span><span>90° upright</span></div>
+  </section>
+
+  <section>
+    <h2>Needles</h2>
+    <label class="switch" for="needles">
+      <input type="checkbox" id="needles" checked>
+      <span>Points on the inner ends, eyes on the outer ends</span>
+    </label>
+  </section>
+
+  <section>
+    <h2>Spin</h2>
+    <label class="switch" for="spin">
+      <input type="checkbox" id="spin">
+      <span>Turn slowly, one revolution a minute</span>
+    </label>
+  </section>
+
+  <section>
+    <h2>Key</h2>
+    <ul class="key">
+      <li><span class="swatch rainbow"></span>Tube color follows distance from the center and flows inward; each point and eye takes the color of its tube end</li>
+      <li><span class="swatch guide"></span>Pivot circles, at each tube's midpoint</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Dimensions</h2>
+    <dl>
+      <dt>Tube</dt><dd>100 × 3</dd>
+      <dt>Point and eye, each</dt><dd>10.0</dd>
+      <dt>Gap to center, flat</dt><dd>61.8</dd>
+      <dt>Ring overlap, flat</dt><dd>61.8</dd>
+      <dt>Outer ring turned by</dt><dd>7.5°</dd>
+      <dt>Pivot circle radii</dt><dd id="pivots">111.8, 150.0</dd>
+      <dt>Height of the band</dt><dd id="height">50.0</dd>
+      <dt>Inner ring from above</dt><dd id="plan-inner">68.5–155.1</dd>
+      <dt>Outer ring from above</dt><dd id="plan-outer">106.7–193.3</dd>
+      <dt>Overlap from above</dt><dd id="plan-overlap">48.4</dd>
+      <dt>Overall width</dt><dd id="width">386.6 (12 ft 8 in)</dd>
+    </dl>
+    <p class="note">Lengths are in centimeters, with each tube 1 m long, measured on centerlines from the center point. 61.8 is 100 ÷ φ. Live figures include the points and eyes while they are shown.</p>
+  </section>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const stage = document.getElementById("stage");
+  if (!window.THREE || !THREE.OrbitControls) {
+    stage.insertAdjacentHTML("beforeend", '<p class="error">The 3D library did not load. Check your connection and reload the page.</p>');
+    return;
+  }
+
+  const PHI = (1 + Math.sqrt(5)) / 2;
+  const L = 100, DIAM = 3, N = 24;
+  const NEEDLE = 10;  // cm, at 1 m per tube
+  const R_INNER = L / PHI;
+  const R_OUTER = R_INNER + L - L / PHI;
+  const RINGS = [
+    { key: "inner", start: R_INNER, offset: 0 },
+    { key: "outer", start: R_OUTER, offset: 180 / N },
+  ];
+  const EXTENT = R_OUTER + L + NEEDLE + DIAM;
+  const FOV = 30;
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (err) {
+    stage.insertAdjacentHTML("beforeend", '<p class="error">This browser could not start WebGL, which the 3D view needs.</p>');
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x000000, 0);
+  stage.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 10000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  // Tube color follows distance from the center point; the hue bands drift inward as uTime grows.
+  // Color is sampled on the tube axis, clamped to the tube's length, so a point or eye takes the color of the end it sits on.
+  // The tubes light themselves (the scene has no lights) and dim slightly toward their silhouette edges so they read as round.
+  const rainbow = { uTime: { value: 0 }, uWave: { value: L }, uHalf: { value: L / 2 } };
+  const tubeMat = new THREE.MeshStandardMaterial();
+  tubeMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, rainbow);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWorld;\nuniform float uHalf;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWorld = (modelMatrix * vec4(0.0, clamp(transformed.y, -uHalf, uHalf), 0.0, 1.0)).xyz;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>
+varying vec3 vWorld;
+uniform float uTime;
+uniform float uWave;
+vec3 rainbowHue(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }`)
+      .replace("vec4 diffuseColor = vec4( diffuse, opacity );",
+        "vec3 ledColor = rainbowHue(fract(length(vWorld) / uWave + uTime));\nvec4 diffuseColor = vec4( vec3( 0.0 ), opacity );")
+      .replace("#include <emissivemap_fragment>",
+        "#include <emissivemap_fragment>\ntotalEmissiveRadiance = ledColor * mix(0.6, 1.0, abs(dot(normal, normalize(vViewPosition))));");
+  };
+  const guideMat = new THREE.LineDashedMaterial({ dashSize: 4, gapSize: 3 });
+  const piece = new THREE.Group();
+  scene.add(piece);
+
+  // Each tube keeps its midpoint on its ring's pivot circle; only its direction changes with tilt.
+  // In tube space the axis runs along y, with the inner end at -L/2 and the outer end at +L/2.
+  const geo = new THREE.CylinderGeometry(DIAM / 2, DIAM / 2, L, 20);
+  const pointGeo = new THREE.ConeGeometry(DIAM / 2, NEEDLE, 20);
+  pointGeo.rotateX(Math.PI);
+  pointGeo.translate(0, -L / 2 - NEEDLE / 2, 0);
+  const eyeGeo = eyeGeometry();
+  const tubes = [];
+  const needleParts = [];
+
+  // A flattened eye with a slot through it, NEEDLE long, in the x-y plane past the outer end.
+  function eyeGeometry() {
+    const bevel = 0.3, thick = 1.4;
+    const w = DIAM / 2 - bevel;
+    const tip = NEEDLE - bevel - w;
+    const outline = new THREE.Shape();
+    outline.moveTo(-w, 0);
+    outline.lineTo(w, 0);
+    outline.lineTo(w, tip);
+    outline.absarc(0, tip, w, 0, Math.PI, false);
+    outline.lineTo(-w, 0);
+    const sw = 0.8, s0 = 3, s1 = tip - 1;
+    const slot = new THREE.Path();
+    slot.moveTo(sw, s0);
+    slot.lineTo(sw, s1);
+    slot.absarc(0, s1, sw, 0, Math.PI, false);
+    slot.lineTo(-sw, s0);
+    slot.absarc(0, s0, sw, Math.PI, Math.PI * 2, false);
+    outline.holes.push(slot);
+    const g = new THREE.ExtrudeGeometry(outline, {
+      depth: thick, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 16,
+    });
+    g.translate(0, L / 2, -thick / 2);
+    return g;
+  }
+
+  for (const ring of RINGS) {
+    const rMid = ring.start + L / 2;
+    for (let i = 0; i < N; i++) {
+      const t = THREE.MathUtils.degToRad(ring.offset + (i * 360) / N);
+      const group = new THREE.Group();
+      group.position.set(rMid * Math.cos(t), 0, rMid * Math.sin(t));
+      const point = new THREE.Mesh(pointGeo, tubeMat);
+      const eye = new THREE.Mesh(eyeGeo, tubeMat);
+      group.add(new THREE.Mesh(geo, tubeMat), point, eye);
+      needleParts.push(point, eye);
+      piece.add(group);
+      tubes.push({ group, t });
+    }
+    const pts = [];
+    for (let k = 0; k < 160; k++) {
+      const a = (k / 160) * Math.PI * 2;
+      pts.push(new THREE.Vector3(rMid * Math.cos(a), 0, rMid * Math.sin(a)));
+    }
+    const loop = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), guideMat);
+    loop.computeLineDistances();
+    piece.add(loop);
+  }
+  const cross = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-8, 0, 0), new THREE.Vector3(8, 0, 0),
+    new THREE.Vector3(0, 0, -8), new THREE.Vector3(0, 0, 8),
+  ]);
+  const crossLines = new THREE.LineSegments(cross, guideMat);
+  crossLines.computeLineDistances();
+  piece.add(crossLines);
+
+  const fmt = (n) => n.toFixed(1);
+  const tiltInput = document.getElementById("tilt");
+  const tiltOut = document.getElementById("tilt-out");
+  const needleInput = document.getElementById("needles");
+  const dir = new THREE.Vector3(), side = new THREE.Vector3(), face = new THREE.Vector3();
+  const basis = new THREE.Matrix4();
+
+  function feet(cm) {
+    const inches = Math.round(cm / 2.54);
+    return Math.floor(inches / 12) + " ft " + (inches % 12) + " in";
+  }
+
+  function setTilt(deg) {
+    const a = THREE.MathUtils.degToRad(deg);
+    // Tube space y follows the tube outward, x is tangent to the ring, and z is the eye's face normal.
+    for (const { group, t } of tubes) {
+      dir.set(Math.cos(a) * Math.cos(t), Math.sin(a), Math.cos(a) * Math.sin(t));
+      side.set(-Math.sin(t), 0, Math.cos(t));
+      face.crossVectors(side, dir);
+      group.quaternion.setFromRotationMatrix(basis.makeBasis(side, dir, face));
+    }
+    const reach = L / 2 + (needleInput.checked ? NEEDLE : 0);
+    const halfRho = reach * Math.cos(a);
+    const halfZ = reach * Math.sin(a);
+    const [mi, mo] = RINGS.map((r) => r.start + L / 2);
+    tiltOut.textContent = deg + "°";
+    document.getElementById("height").textContent = fmt(2 * halfZ);
+    document.getElementById("plan-inner").textContent = fmt(mi - halfRho) + "–" + fmt(mi + halfRho);
+    document.getElementById("plan-outer").textContent = fmt(mo - halfRho) + "–" + fmt(mo + halfRho);
+    document.getElementById("plan-overlap").textContent = fmt(Math.max(0, mi + halfRho - (mo - halfRho)));
+    const width = 2 * (mo + halfRho);
+    document.getElementById("width").textContent = fmt(width) + " (" + feet(width) + ")";
+  }
+  function showNeedles() {
+    needleParts.forEach((m) => { m.visible = needleInput.checked; });
+    setTilt(Number(tiltInput.value));
+  }
+  document.getElementById("pivots").textContent = RINGS.map((r) => fmt(r.start + L / 2)).join(", ");
+  tiltInput.addEventListener("input", () => setTilt(Number(tiltInput.value)));
+  needleInput.addEventListener("change", showNeedles);
+
+  function applyTheme() {
+    const css = getComputedStyle(document.documentElement);
+    const token = (name) => css.getPropertyValue(name).trim();
+    guideMat.color.set(token("--guide"));
+  }
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // Camera distance that fits the whole piece in the frame at the current aspect ratio.
+  function fitDistance() {
+    const half = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    return (EXTENT * 1.12) / (half * Math.min(1, camera.aspect));
+  }
+  const VIEWS = {
+    angle: new THREE.Vector3(0.62, 0.5, 0.6).normalize(),
+    top: new THREE.Vector3(0, 1, 0.0001).normalize(),
+    side: new THREE.Vector3(0, 0, 1),
+  };
+  const viewButtons = document.querySelectorAll(".views button");
+  const ORIGIN = new THREE.Vector3();
+  let tween = null;
+
+  function markView(name) {
+    viewButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+  }
+  function goTo(name) {
+    const to = VIEWS[name].clone().multiplyScalar(fitDistance());
+    markView(name);
+    if (reduceMotion) {
+      camera.position.copy(to);
+      controls.target.copy(ORIGIN);
+      tween = null;
+      return;
+    }
+    tween = {
+      from: camera.position.clone(),
+      to,
+      fromTarget: controls.target.clone(),
+      start: performance.now(),
+      ms: 650,
+    };
+  }
+  viewButtons.forEach((b) => b.addEventListener("click", () => goTo(b.dataset.view)));
+  controls.addEventListener("start", () => {
+    tween = null;
+    markView(null);
+  });
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  const tmp = new THREE.Vector3();
+  const spinInput = document.getElementById("spin");
+  const SPIN = (Math.PI * 2) / 60;  // radians per second, one turn a minute
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (spinInput.checked) piece.rotation.y -= SPIN * dt;
+    if (!reduceMotion) rainbow.uTime.value = now / 4000;
+    if (tween) {
+      const k = Math.min(1, (now - tween.start) / tween.ms);
+      const e = 1 - Math.pow(1 - k, 3);
+      // Interpolate direction and distance separately so the camera swings around the piece instead of cutting through it.
+      const len = THREE.MathUtils.lerp(tween.from.length(), tween.to.length(), e);
+      tmp.copy(tween.from).normalize().lerp(tween.to.clone().normalize(), e).normalize().multiplyScalar(len);
+      camera.position.copy(tmp);
+      controls.target.lerpVectors(tween.fromTarget, ORIGIN, e);
+      if (k === 1) tween = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  applyTheme();
+  showNeedles();
+  camera.position.copy(VIEWS.angle).multiplyScalar(fitDistance());
+  controls.update();
+  requestAnimationFrame(frame);
+})();
+</script>

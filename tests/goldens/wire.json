@@ -1,0 +1,1470 @@
+{
+  "greeting": [
+    {
+      "type": "hello",
+      "n": 2,
+      "total": 2,
+      "positions": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "is3d": false,
+      "room": null,
+      "display_gamma": 2.2,
+      "build": "0123456789abcdef",
+      "capabilities": [
+        "ack",
+        "look"
+      ]
+    },
+    {
+      "type": "status",
+      "error": null,
+      "source": null,
+      "path": null
+    },
+    {
+      "type": "declare",
+      "params": [
+        {
+          "name": "layers.base.zoo.level",
+          "kind": "float",
+          "label": "Level",
+          "help": "Overall brightness",
+          "group": "",
+          "widget": "",
+          "default": 0.5,
+          "unit": "",
+          "lo": 0.0,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.0,
+            1.0
+          ],
+          "flash_sensitive": false,
+          "layer": "base",
+          "node": "zoo"
+        },
+        {
+          "name": "layers.base.zoo.bands",
+          "kind": "int",
+          "label": "Bands",
+          "help": "Ramps across the strip",
+          "group": "",
+          "widget": "",
+          "default": 2,
+          "unit": "",
+          "lo": 1,
+          "hi": 6,
+          "step": 1,
+          "decimals": 0,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            1,
+            6
+          ],
+          "flash_sensitive": false,
+          "layer": "base",
+          "node": "zoo"
+        },
+        {
+          "name": "layers.base.zoo.invert",
+          "kind": "bool",
+          "label": "Invert",
+          "help": "Run each ramp the other way",
+          "group": "",
+          "widget": "",
+          "default": false,
+          "layer": "base",
+          "node": "zoo"
+        },
+        {
+          "name": "layers.base.zoo.shape",
+          "kind": "choice",
+          "label": "Shape",
+          "help": "",
+          "group": "Shape",
+          "widget": "",
+          "default": "ramp",
+          "options": [
+            {
+              "value": "ramp",
+              "label": "Ramp"
+            },
+            {
+              "value": "steps",
+              "label": "Steps"
+            },
+            {
+              "value": "flat",
+              "label": "Flat"
+            }
+          ],
+          "layer": "base",
+          "node": "zoo"
+        },
+        {
+          "name": "layers.base.zoo.color",
+          "kind": "color",
+          "label": "Color",
+          "help": "",
+          "group": "Shape",
+          "widget": "",
+          "default": {
+            "h": 120.0,
+            "s": 1.0,
+            "v": 1.0
+          },
+          "parts": {
+            "h": {
+              "label": "Hue",
+              "unit": "°",
+              "lo": 0.0,
+              "hi": 360.0,
+              "step": 2.0,
+              "decimals": 0,
+              "periodic": true,
+              "text": []
+            },
+            "s": {
+              "label": "Saturation",
+              "unit": "",
+              "lo": 0.0,
+              "hi": 1.0,
+              "step": 0.005,
+              "decimals": 3,
+              "periodic": false,
+              "text": []
+            },
+            "v": {
+              "label": "Brightness",
+              "unit": "",
+              "lo": 0.0,
+              "hi": 1.0,
+              "step": 0.005,
+              "decimals": 3,
+              "periodic": false,
+              "text": []
+            }
+          },
+          "layer": "base",
+          "node": "zoo"
+        },
+        {
+          "name": "layers.base.zoo.palette",
+          "kind": "palette",
+          "label": "Palette",
+          "help": "Colors along each ramp",
+          "group": "Shape",
+          "widget": "",
+          "default": {
+            "label": "ember",
+            "stops": [
+              {
+                "at": 0.0,
+                "h": 0.0,
+                "s": 1.0,
+                "v": 0.0
+              },
+              {
+                "at": 0.35,
+                "h": 5.0,
+                "s": 1.0,
+                "v": 0.35
+              },
+              {
+                "at": 0.7,
+                "h": 22.0,
+                "s": 1.0,
+                "v": 0.9
+              },
+              {
+                "at": 1.0,
+                "h": 42.0,
+                "s": 0.7,
+                "v": 1.0
+              }
+            ]
+          },
+          "stop": {
+            "at": {
+              "label": "Position",
+              "unit": "",
+              "lo": 0.0,
+              "hi": 1.0,
+              "step": 0.005,
+              "decimals": 3,
+              "periodic": false,
+              "text": []
+            },
+            "h": {
+              "label": "Hue",
+              "unit": "°",
+              "lo": 0.0,
+              "hi": 360.0,
+              "step": 2.0,
+              "decimals": 0,
+              "periodic": true,
+              "text": []
+            },
+            "s": {
+              "label": "Saturation",
+              "unit": "",
+              "lo": 0.0,
+              "hi": 1.0,
+              "step": 0.005,
+              "decimals": 3,
+              "periodic": false,
+              "text": []
+            },
+            "v": {
+              "label": "Brightness",
+              "unit": "",
+              "lo": 0.0,
+              "hi": 1.0,
+              "step": 0.005,
+              "decimals": 3,
+              "periodic": false,
+              "text": []
+            }
+          },
+          "max_stops": 16,
+          "presets": [
+            {
+              "value": {
+                "label": "ember",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 0.0,
+                    "s": 1.0,
+                    "v": 0.0
+                  },
+                  {
+                    "at": 0.35,
+                    "h": 5.0,
+                    "s": 1.0,
+                    "v": 0.35
+                  },
+                  {
+                    "at": 0.7,
+                    "h": 22.0,
+                    "s": 1.0,
+                    "v": 0.9
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 42.0,
+                    "s": 0.7,
+                    "v": 1.0
+                  }
+                ]
+              },
+              "label": "ember"
+            },
+            {
+              "value": {
+                "label": "ocean",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 225.0,
+                    "s": 1.0,
+                    "v": 0.05
+                  },
+                  {
+                    "at": 0.45,
+                    "h": 210.0,
+                    "s": 0.95,
+                    "v": 0.4
+                  },
+                  {
+                    "at": 0.8,
+                    "h": 190.0,
+                    "s": 0.8,
+                    "v": 0.85
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 175.0,
+                    "s": 0.35,
+                    "v": 1.0
+                  }
+                ]
+              },
+              "label": "ocean"
+            },
+            {
+              "value": {
+                "label": "aurora",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 150.0,
+                    "s": 1.0,
+                    "v": 0.1
+                  },
+                  {
+                    "at": 0.4,
+                    "h": 140.0,
+                    "s": 0.85,
+                    "v": 0.7
+                  },
+                  {
+                    "at": 0.7,
+                    "h": 185.0,
+                    "s": 0.7,
+                    "v": 0.8
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 285.0,
+                    "s": 0.65,
+                    "v": 0.7
+                  }
+                ]
+              },
+              "label": "aurora"
+            },
+            {
+              "value": {
+                "label": "synthwave",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 275.0,
+                    "s": 1.0,
+                    "v": 0.25
+                  },
+                  {
+                    "at": 0.5,
+                    "h": 315.0,
+                    "s": 0.9,
+                    "v": 0.9
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 190.0,
+                    "s": 0.85,
+                    "v": 1.0
+                  }
+                ]
+              },
+              "label": "synthwave"
+            },
+            {
+              "value": {
+                "label": "forest",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 120.0,
+                    "s": 1.0,
+                    "v": 0.08
+                  },
+                  {
+                    "at": 0.5,
+                    "h": 105.0,
+                    "s": 0.85,
+                    "v": 0.45
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 65.0,
+                    "s": 0.7,
+                    "v": 0.9
+                  }
+                ]
+              },
+              "label": "forest"
+            },
+            {
+              "value": {
+                "label": "ice",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 220.0,
+                    "s": 1.0,
+                    "v": 0.25
+                  },
+                  {
+                    "at": 0.6,
+                    "h": 200.0,
+                    "s": 0.55,
+                    "v": 0.75
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 195.0,
+                    "s": 0.08,
+                    "v": 1.0
+                  }
+                ]
+              },
+              "label": "ice"
+            },
+            {
+              "value": {
+                "label": "candy",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 330.0,
+                    "s": 0.55,
+                    "v": 1.0
+                  },
+                  {
+                    "at": 0.5,
+                    "h": 275.0,
+                    "s": 0.4,
+                    "v": 1.0
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 160.0,
+                    "s": 0.45,
+                    "v": 1.0
+                  }
+                ]
+              },
+              "label": "candy"
+            },
+            {
+              "value": {
+                "label": "mono",
+                "stops": [
+                  {
+                    "at": 0.0,
+                    "h": 0.0,
+                    "s": 0.0,
+                    "v": 0.0
+                  },
+                  {
+                    "at": 1.0,
+                    "h": 0.0,
+                    "s": 0.0,
+                    "v": 1.0
+                  }
+                ]
+              },
+              "label": "mono"
+            }
+          ],
+          "layer": "base",
+          "node": "zoo"
+        },
+        {
+          "name": "layers.base.opacity",
+          "kind": "float",
+          "label": "Opacity",
+          "help": "How much of the layer shows; the master dims the room after this",
+          "group": "Layer",
+          "widget": "",
+          "default": 1.0,
+          "unit": "",
+          "lo": 0.0,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.0,
+            1.0
+          ],
+          "flash_sensitive": true,
+          "layer": "base",
+          "node": ""
+        },
+        {
+          "name": "layers.base.blend",
+          "kind": "choice",
+          "label": "Blend",
+          "help": "How the layer combines with the layers below it",
+          "group": "Layer",
+          "widget": "",
+          "default": "normal",
+          "options": [
+            {
+              "value": "normal",
+              "label": "Normal"
+            },
+            {
+              "value": "add",
+              "label": "Add"
+            },
+            {
+              "value": "screen",
+              "label": "Screen"
+            },
+            {
+              "value": "multiply",
+              "label": "Multiply"
+            },
+            {
+              "value": "max",
+              "label": "Lighter"
+            },
+            {
+              "value": "min",
+              "label": "Darker"
+            },
+            {
+              "value": "difference",
+              "label": "Difference"
+            },
+            {
+              "value": "subtract",
+              "label": "Subtract"
+            },
+            {
+              "value": "stencil",
+              "label": "Stencil"
+            },
+            {
+              "value": "highlight",
+              "label": "Highlight"
+            }
+          ],
+          "layer": "base",
+          "node": ""
+        },
+        {
+          "name": "layers.base.enabled",
+          "kind": "bool",
+          "label": "Enabled",
+          "help": "Whether the layer runs and shows",
+          "group": "Layer",
+          "widget": "",
+          "default": true,
+          "layer": "base",
+          "node": ""
+        },
+        {
+          "name": "signals.breath.rate",
+          "kind": "float",
+          "label": "Rate",
+          "help": "Higher: what it moves swings faster",
+          "group": "",
+          "widget": "",
+          "default": 0.25,
+          "unit": "Hz",
+          "lo": 0.0,
+          "hi": 10.0,
+          "step": 0.05,
+          "decimals": 2,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.02,
+            1.0
+          ],
+          "flash_sensitive": true,
+          "layer": "",
+          "node": "breath"
+        },
+        {
+          "name": "signals.breath.shape",
+          "kind": "choice",
+          "label": "Shape",
+          "help": "Sine glides; square jumps; saw and ramp climb or fall, then jump back",
+          "group": "",
+          "widget": "",
+          "default": "sine",
+          "options": [
+            {
+              "value": "sine",
+              "label": "Sine"
+            },
+            {
+              "value": "triangle",
+              "label": "Triangle"
+            },
+            {
+              "value": "square",
+              "label": "Square"
+            },
+            {
+              "value": "saw",
+              "label": "Saw down"
+            },
+            {
+              "value": "ramp",
+              "label": "Ramp up"
+            }
+          ],
+          "layer": "",
+          "node": "breath"
+        },
+        {
+          "name": "signals.breath.offset",
+          "kind": "float",
+          "label": "Offset",
+          "help": "Moves the wave along by part of a cycle",
+          "group": "",
+          "widget": "",
+          "default": 0.0,
+          "unit": "",
+          "lo": 0.0,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": true,
+          "text": [],
+          "sweet": [
+            0.0,
+            1.0
+          ],
+          "flash_sensitive": false,
+          "layer": "",
+          "node": "breath"
+        },
+        {
+          "name": "signals.macro.value",
+          "kind": "float",
+          "label": "Value",
+          "help": "A knob of the look's own: turn it to move what it drives",
+          "group": "",
+          "widget": "",
+          "default": 0.0,
+          "unit": "",
+          "lo": 0.0,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.0,
+            1.0
+          ],
+          "flash_sensitive": false,
+          "layer": "",
+          "node": "macro"
+        }
+      ]
+    },
+    {
+      "type": "params",
+      "values": {
+        "layers.base.zoo.level": 0.5,
+        "layers.base.zoo.bands": 2,
+        "layers.base.zoo.invert": false,
+        "layers.base.zoo.shape": "ramp",
+        "layers.base.zoo.color": {
+          "h": 120.0,
+          "s": 1.0,
+          "v": 1.0
+        },
+        "layers.base.zoo.palette": {
+          "label": "ember",
+          "stops": [
+            {
+              "at": 0.0,
+              "h": 0.0,
+              "s": 1.0,
+              "v": 0.0
+            },
+            {
+              "at": 0.35,
+              "h": 5.0,
+              "s": 1.0,
+              "v": 0.35
+            },
+            {
+              "at": 0.7,
+              "h": 22.0,
+              "s": 1.0,
+              "v": 0.9
+            },
+            {
+              "at": 1.0,
+              "h": 42.0,
+              "s": 0.7,
+              "v": 1.0
+            }
+          ]
+        },
+        "layers.base.opacity": 1.0,
+        "layers.base.blend": "normal",
+        "layers.base.enabled": true,
+        "signals.breath.rate": 0.5,
+        "signals.breath.shape": "sine",
+        "signals.breath.offset": 0.0,
+        "signals.macro.value": 0.5
+      }
+    },
+    {
+      "type": "mod",
+      "values": {
+        "layers.base.zoo.level": 0.51,
+        "layers.base.zoo.color.h": 150.0
+      }
+    },
+    {
+      "type": "aura",
+      "pattern": "zoo",
+      "patterns": [
+        "colorplasma",
+        "wave",
+        "zoo"
+      ],
+      "stack": {
+        "layers": [
+          {
+            "id": "base",
+            "nodes": [
+              {
+                "id": "zoo",
+                "op": "pattern",
+                "label": "zoo",
+                "in": []
+              }
+            ]
+          }
+        ],
+        "signals": [
+          {
+            "id": "breath",
+            "op": "lfo",
+            "label": "LFO",
+            "in": [],
+            "range": [
+              -1.0,
+              1.0
+            ]
+          },
+          {
+            "id": "macro",
+            "op": "knob",
+            "label": "Macro",
+            "in": [],
+            "range": [
+              0.0,
+              1.0
+            ]
+          }
+        ],
+        "routes": [
+          {
+            "source": "breath",
+            "path": "layers.base.zoo.level",
+            "depth": 0.2
+          },
+          {
+            "source": "macro",
+            "path": "layers.base.zoo.color.h",
+            "depth": 60.0
+          }
+        ],
+        "front": [
+          "signals.macro.value",
+          "layers.base.zoo.level"
+        ],
+        "dims": 1
+      },
+      "fading": false,
+      "progress": null,
+      "master": 0.8,
+      "cap": 1.0,
+      "blackout": false,
+      "looks": {
+        "items": [
+          {
+            "name": "warm",
+            "cycle": true,
+            "fade": 0.0
+          },
+          {
+            "name": "cool",
+            "cycle": false,
+            "fade": 0.0
+          }
+        ],
+        "current": "warm",
+        "changed": false,
+        "fading": null,
+        "progress": null,
+        "pending": null,
+        "cycling": false,
+        "idle": 300.0,
+        "dwell": [
+          60.0,
+          60.0
+        ],
+        "made": null,
+        "offered": "warm 2",
+        "saved": {
+          "layers.base.zoo.level": 0.5,
+          "layers.base.zoo.bands": 2,
+          "layers.base.zoo.invert": false,
+          "layers.base.zoo.shape": "ramp",
+          "layers.base.zoo.color": {
+            "h": 120.0,
+            "s": 1.0,
+            "v": 1.0
+          },
+          "layers.base.zoo.palette": {
+            "label": "ember",
+            "stops": [
+              {
+                "at": 0.0,
+                "h": 0.0,
+                "s": 1.0,
+                "v": 0.0
+              },
+              {
+                "at": 0.35,
+                "h": 5.0,
+                "s": 1.0,
+                "v": 0.35
+              },
+              {
+                "at": 0.7,
+                "h": 22.0,
+                "s": 1.0,
+                "v": 0.9
+              },
+              {
+                "at": 1.0,
+                "h": 42.0,
+                "s": 0.7,
+                "v": 1.0
+              }
+            ]
+          },
+          "layers.base.opacity": 1.0,
+          "layers.base.blend": "normal",
+          "layers.base.enabled": true,
+          "signals.breath.rate": 0.5,
+          "signals.breath.shape": "sine",
+          "signals.breath.offset": 0.0,
+          "signals.macro.value": 0.5
+        }
+      },
+      "triggers": {
+        "armed": false,
+        "names": [
+          "door",
+          "bell"
+        ],
+        "cues": {
+          "door": {
+            "look": "cool",
+            "hold": 8.0
+          },
+          "bell": {
+            "look": null,
+            "hold": 10.0
+          }
+        },
+        "held": null,
+        "last": null
+      }
+    },
+    {
+      "type": "health",
+      "level": "ok",
+      "boards": [
+        {
+          "host": "192.168.1.50",
+          "board": "A",
+          "address": "192.168.1.50",
+          "mac": "aabbccddeeff",
+          "lost": false,
+          "fix": null,
+          "level": "ok",
+          "reasons": [],
+          "live": true,
+          "lip": "192.168.1.2",
+          "from_us": true,
+          "fps": 40,
+          "count": 320,
+          "expected": 320,
+          "rssi": -55,
+          "channel": 6,
+          "uptime": 3700,
+          "freeheap": 120000,
+          "ver": "16.0.1",
+          "reboots": 0,
+          "reset_reason": null
+        }
+      ],
+      "sent_fps": 40.0,
+      "loop": {
+        "fps": 60.0,
+        "target": 60.0,
+        "skips": 0,
+        "watchdog": null,
+        "level": "ok",
+        "fix": null
+      },
+      "awake": {
+        "requested": false,
+        "held": false,
+        "detail": null,
+        "level": "ok",
+        "fix": null
+      },
+      "scan": null
+    },
+    {
+      "type": "catalog",
+      "cards": [
+        {
+          "kind": "pattern",
+          "name": "wave",
+          "label": "Wave",
+          "summary": "Bands of light cross the room in one direction.",
+          "sig": null,
+          "dims": null,
+          "fix": "",
+          "examples": [
+            {
+              "py": "pattern(\"wave\")",
+              "json": {
+                "out": "wave",
+                "nodes": {
+                  "wave": {
+                    "op": "pattern",
+                    "args": {
+                      "pattern": "wave"
+                    }
+                  }
+                }
+              },
+              "dims": [
+                1,
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "op",
+          "name": "kaleid",
+          "label": "Kaleidoscope",
+          "summary": "Folds a pattern into mirrored wedges about the center, as a kaleidoscope does.",
+          "sig": "coord",
+          "dims": [
+            2,
+            3
+          ],
+          "fix": "a strip has no plane to fold; use mirror along the strip",
+          "examples": [
+            {
+              "py": "osc(8).kaleid(5)",
+              "json": {
+                "out": "kaleid",
+                "nodes": {
+                  "osc": {
+                    "op": "osc",
+                    "args": {
+                      "freq": 8.0
+                    }
+                  },
+                  "kaleid": {
+                    "op": "kaleid",
+                    "in": [
+                      "osc"
+                    ],
+                    "args": {
+                      "sides": 5
+                    }
+                  }
+                }
+              },
+              "dims": [
+                2,
+                3
+              ]
+            },
+            {
+              "py": "voronoi(4, edge=0.8).kaleid(6).palette(\"synthwave\")",
+              "json": {
+                "out": "palette",
+                "nodes": {
+                  "voronoi": {
+                    "op": "voronoi",
+                    "args": {
+                      "scale": 4.0,
+                      "edge": 0.8
+                    }
+                  },
+                  "kaleid": {
+                    "op": "kaleid",
+                    "in": [
+                      "voronoi"
+                    ],
+                    "args": {
+                      "sides": 6
+                    }
+                  },
+                  "palette": {
+                    "op": "palette",
+                    "in": [
+                      "kaleid"
+                    ],
+                    "args": {
+                      "palette": {
+                        "label": "synthwave",
+                        "stops": [
+                          {
+                            "at": 0.0,
+                            "h": 275.0,
+                            "s": 1.0,
+                            "v": 0.25
+                          },
+                          {
+                            "at": 0.5,
+                            "h": 315.0,
+                            "s": 0.9,
+                            "v": 0.9
+                          },
+                          {
+                            "at": 1.0,
+                            "h": 190.0,
+                            "s": 0.85,
+                            "v": 1.0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "dims": [
+                2,
+                3
+              ]
+            }
+          ]
+        }
+      ],
+      "blends": [
+        {
+          "name": "normal",
+          "label": "Normal",
+          "doc": "Shows the layer over what is below",
+          "black": false
+        },
+        {
+          "name": "add",
+          "label": "Add",
+          "doc": "Adds the layer's light to what is below",
+          "black": false
+        },
+        {
+          "name": "screen",
+          "label": "Screen",
+          "doc": "Adds light without washing out to white",
+          "black": false
+        },
+        {
+          "name": "multiply",
+          "label": "Multiply",
+          "doc": "Darkens what is below where the layer is dark",
+          "black": true
+        },
+        {
+          "name": "max",
+          "label": "Lighter",
+          "doc": "The brighter of the two, for red, green and blue separately",
+          "black": false
+        },
+        {
+          "name": "min",
+          "label": "Darker",
+          "doc": "The darker of the two, for red, green and blue separately",
+          "black": true
+        },
+        {
+          "name": "difference",
+          "label": "Difference",
+          "doc": "Bright where the two differ",
+          "black": false
+        },
+        {
+          "name": "subtract",
+          "label": "Subtract",
+          "doc": "Takes the layer's light away from what is below",
+          "black": true
+        },
+        {
+          "name": "stencil",
+          "label": "Stencil",
+          "doc": "Shows the layer where it has any color, what is below where it is black",
+          "black": false
+        },
+        {
+          "name": "highlight",
+          "label": "Highlight",
+          "doc": "Lights only where what is below is already lit",
+          "black": true
+        }
+      ]
+    }
+  ],
+  "later": [
+    {
+      "type": "aura",
+      "pattern": "zoo",
+      "patterns": [
+        "colorplasma",
+        "wave",
+        "zoo"
+      ],
+      "stack": {
+        "layers": [
+          {
+            "id": "base",
+            "nodes": [
+              {
+                "id": "zoo",
+                "op": "pattern",
+                "label": "zoo",
+                "in": []
+              }
+            ]
+          }
+        ],
+        "signals": [],
+        "routes": [],
+        "front": [],
+        "dims": 1
+      },
+      "fading": false,
+      "progress": null,
+      "master": 0.8,
+      "cap": 1.0,
+      "blackout": false,
+      "looks": {
+        "items": [
+          {
+            "name": "warm",
+            "cycle": true,
+            "fade": 0.0
+          },
+          {
+            "name": "cool",
+            "cycle": false,
+            "fade": 0.0
+          }
+        ],
+        "current": "warm",
+        "changed": false,
+        "fading": null,
+        "progress": null,
+        "pending": null,
+        "cycling": false,
+        "idle": 300.0,
+        "dwell": [
+          60.0,
+          60.0
+        ],
+        "made": null,
+        "offered": null,
+        "saved": null
+      },
+      "triggers": {
+        "armed": true,
+        "names": [
+          "door",
+          "bell"
+        ],
+        "cues": {
+          "door": {
+            "look": "cool",
+            "hold": 8.0
+          },
+          "bell": {
+            "look": null,
+            "hold": 10.0
+          }
+        },
+        "held": {
+          "trigger": "door",
+          "look": "cool",
+          "until": 8.033333333333333
+        },
+        "last": {
+          "name": "door",
+          "fired": true,
+          "reason": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "type": "refused",
+      "control": "set",
+      "name": "layers.base.zoo.level",
+      "id": null,
+      "reason": "layers.base.zoo.level must be within 0.0..1.0, got 3.0"
+    },
+    {
+      "type": "refused",
+      "control": "look",
+      "name": "layers.base.x.pattern",
+      "id": 7,
+      "reason": "layers.base.x: pattern '…' does not load: a look sent to an engine names its pattern by name, never by file"
+    },
+    {
+      "type": "refused",
+      "control": "add_layer",
+      "name": "layers.x.x.pattern",
+      "id": 8,
+      "reason": "layers.x.x: pattern '…' does not load: a look sent to an engine names its pattern by name, never by file"
+    },
+    {
+      "type": "ack",
+      "id": "b1",
+      "control": "blackout"
+    },
+    {
+      "type": "status",
+      "error": "layers.base.zoo.render raised: RuntimeError: boom",
+      "source": "render",
+      "path": "layers.base.zoo"
+    },
+    {
+      "type": "health",
+      "level": "ok",
+      "boards": [
+        {
+          "host": "192.168.1.50",
+          "board": "A",
+          "address": "192.168.1.50",
+          "mac": "aabbccddeeff",
+          "lost": false,
+          "fix": null,
+          "level": "ok",
+          "reasons": [],
+          "live": true,
+          "lip": "192.168.1.2",
+          "from_us": true,
+          "fps": 40,
+          "count": 320,
+          "expected": 320,
+          "rssi": -55,
+          "channel": 6,
+          "uptime": 3700,
+          "freeheap": 120000,
+          "ver": "16.0.1",
+          "reboots": 0,
+          "reset_reason": null
+        }
+      ],
+      "sent_fps": 40.0,
+      "loop": {
+        "fps": 60.0,
+        "target": 60.0,
+        "skips": 0,
+        "watchdog": null,
+        "level": "ok",
+        "fix": null
+      },
+      "awake": {
+        "requested": false,
+        "held": false,
+        "detail": null,
+        "level": "ok",
+        "fix": null
+      },
+      "scan": {
+        "running": false,
+        "subnet": "192.168.1.0/24",
+        "found": [
+          {
+            "address": "192.168.1.50",
+            "mac": "aabbccddeeff",
+            "name": null,
+            "ver": "16.0.1",
+            "live": true,
+            "lm": null,
+            "lip": "192.168.1.2",
+            "board": "A",
+            "at": "A"
+          },
+          {
+            "address": "192.168.1.77",
+            "mac": "001122334455",
+            "name": "WLED",
+            "ver": "16.0.1",
+            "live": false,
+            "lm": null,
+            "lip": "192.168.1.2",
+            "board": null,
+            "at": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "type": "layout",
+      "n": 4,
+      "total": 4,
+      "positions": [
+        [
+          0.25,
+          0.0,
+          0.0
+        ],
+        [
+          0.75,
+          0.0,
+          0.0
+        ],
+        [
+          0.75,
+          1.0,
+          0.0
+        ],
+        [
+          0.25,
+          1.0,
+          0.0
+        ]
+      ],
+      "is3d": false,
+      "room": {
+        "scale": 1.0,
+        "fixtures": [
+          {
+            "id": "a",
+            "pitch": 0.5,
+            "start": [
+              0.0,
+              0.0
+            ],
+            "end": [
+              1.0,
+              0.0
+            ],
+            "input": "start"
+          },
+          {
+            "id": "b",
+            "pitch": 0.5,
+            "start": [
+              0.0,
+              1.0
+            ],
+            "end": [
+              1.0,
+              1.0
+            ],
+            "input": "end"
+          }
+        ],
+        "fixture_of": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "plan": {
+          "corner": [
+            0.0,
+            0.0
+          ],
+          "unit": 0.01,
+          "url": "/plan?v=1"
+        }
+      }
+    }
+  ],
+  "controls": {
+    "set": [
+      "name",
+      "value"
+    ],
+    "pick": [
+      "name",
+      "layer"
+    ],
+    "add_layer": [
+      "layer",
+      "below"
+    ],
+    "remove_layer": [
+      "lid"
+    ],
+    "move_layer": [
+      "lid",
+      "to"
+    ],
+    "front": [
+      "paths"
+    ],
+    "master": [
+      "value"
+    ],
+    "blackout": [
+      "on"
+    ],
+    "recall": [
+      "name",
+      "fade"
+    ],
+    "look": [
+      "look",
+      "fade"
+    ],
+    "surprise": [
+      "seed"
+    ],
+    "vary": [
+      "strength",
+      "seed"
+    ],
+    "keep": [],
+    "save": [
+      "name",
+      "fade",
+      "master"
+    ],
+    "delete": [
+      "name"
+    ],
+    "cycle": [
+      "name",
+      "on"
+    ],
+    "fade": [
+      "name",
+      "fade"
+    ],
+    "arm": [
+      "on"
+    ],
+    "fire": [
+      "name",
+      "value"
+    ],
+    "scan": [],
+    "rebind": [
+      "board",
+      "address"
+    ],
+    "blink": [
+      "fixture"
+    ]
+  }
+}

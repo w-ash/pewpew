@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent template for an unattended pewpew run (docs/unattended-checklist.md
+  installs it). Replace each placeholder in double underscores with an
+  absolute path or an address; launchd expands no ~ and no variables.
+
+  KeepAlive/SuccessfulExit=false: launchd starts pewpew again whenever it
+  exits non-zero (a crash, or the render-loop watchdog's exit 70), and
+  leaves it stopped after a clean exit (Ctrl-C, launchctl bootout).
+  ProcessType=Interactive: without it launchd throttles the job's CPU and
+  I/O. The restart comes back in the look the looks file names as current,
+  armed: an operator's disarm on the page does not survive a restart.
+  __FPS__ is the DDP frame rate the Wi-Fi ingest test chose (unattended checklist
+  section 9); the trigger log goes beside the run's log.
+  To react to the room's sound, add two strings after armed: the audio
+  flag and the input's exact name as `audio list` prints it (docs/audio.md
+  section 6, which also has the attended microphone-permission check).
+  Never add a feature log here: a microphone's log is close to a recording
+  of speech.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>local.pewpew.aura</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__REPO__/.venv/bin/python</string>
+    <string>-m</string>
+    <string>pewpew</string>
+    <string>run</string>
+    <string>__PATTERN__</string>
+    <string>--room</string>
+    <string>__ROOM__</string>
+    <string>--looks</string>
+    <string>__LOOKS__</string>
+    <string>--preview</string>
+    <string>--host</string>
+    <string>__HOST__</string>
+    <string>--unattended</string>
+    <string>--armed</string>
+    <string>--ddp-fps</string>
+    <string>__FPS__</string>
+    <string>--trigger-log</string>
+    <string>__LOGS__/triggers.jsonl</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>__LOGS__/pewpew-aura.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOGS__/pewpew-aura.log</string>
+</dict>
+</plist>

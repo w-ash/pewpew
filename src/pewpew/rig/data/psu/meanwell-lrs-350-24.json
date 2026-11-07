@@ -1,0 +1,7 @@
+{
+  "kind": "psu",
+  "id": "meanwell-lrs-350-24",
+  "name": "Mean Well LRS-350-24",
+  "v_out": {"v": 24, "status": "stated", "src": "https://www.meanwell.com/Upload/PDF/LRS-350/LRS-350-SPEC.PDF"},
+  "i_max_a": {"v": 14.6, "status": "stated", "src": "https://www.meanwell.com/Upload/PDF/LRS-350/LRS-350-SPEC.PDF"}
+}

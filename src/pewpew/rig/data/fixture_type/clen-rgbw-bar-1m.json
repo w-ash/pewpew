@@ -1,0 +1,75 @@
+{
+  "kind": "fixture_type",
+  "id": "clen-rgbw-bar-1m",
+  "rev": 1,
+  "name": "1M LED Pixel Bar",
+  "inventory": "INV-001",
+  "notes": "Clen's RGBW LED pixel bar with the round diffuser (RES-039, the maintainer's private notes). Cross-section from Clen's bar drawing: an 18 x 18.5 mm housing under a 30.2 mm diffuser cut flat; the flat's chord, 2*sqrt(15.1^2 - 11.9^2) = 18.6 mm, agrees with the 18 mm housing (docs/studio/domain-model.md:58).",
+  "dims": {
+    "length": {"v": 1.0, "status": "stated", "src": "RES-038, the maintainer's private notes"},
+    "housing_w": {"v": 0.018, "status": "stated", "src": "IMG-dims, Clen's bar dimension drawing (not public)"},
+    "housing_h": {"v": 0.0185, "status": "stated", "src": "IMG-dims, Clen's bar dimension drawing (not public); the maintainer's rough figure is about 0.025 m (RES-011, Q-011, the maintainer's private notes)"},
+    "overall_h": {"v": 0.0455, "status": "stated", "src": "IMG-dims, Clen's bar dimension drawing (not public)"},
+    "diffuser_d": {"v": 0.0302, "status": "stated", "src": "IMG-dims, Clen's bar dimension drawing (not public); the maintainer's rough 1 3/16 in fits (RES-011, the maintainer's private notes)"},
+    "axis_z": {"v": "overall_h - diffuser_d/2", "status": "derived"},
+    "flat_z": {"v": "axis_z - housing_h", "status": "derived"},
+    "wall": {"v": 0.0015, "status": "assumed", "src": "not measured; Q-011, the maintainer's private notes"},
+    "slot_open_w": {"v": 0.008, "status": "assumed", "src": "scaled by eye from IMG-dims, Clen's bar dimension drawing (not public)"},
+    "slot_w": {"v": 0.013, "status": "assumed", "src": "scaled by eye from IMG-dims, Clen's bar dimension drawing (not public)"},
+    "slot_h": {"v": 0.003, "status": "assumed", "src": "scaled by eye from IMG-dims, Clen's bar dimension drawing (not public)"},
+    "lip_t": {"v": 0.0015, "status": "assumed", "src": "scaled by eye from IMG-dims, Clen's bar dimension drawing (not public)"},
+    "cap_t": {"v": 0.004, "status": "assumed", "src": "not found; Q-012, the maintainer's private notes"},
+    "pigtail": {"v": 0.2, "status": "measured", "src": "measured by the maintainer, 2026-11-05: about 20 cm long"},
+    "pigtail_inset": {"v": 0.15, "status": "measured", "src": "measured by the maintainer, 2026-11-05: each pigtail leaves the underside about 15 cm in from its end"},
+    "led_w": {"v": 0.005, "status": "assumed", "src": "the CL05 package is not found (RES-008, the maintainer's private notes)"},
+    "led_h": {"v": 0.0016, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:90)"},
+    "strip_w": {"v": 0.01, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:89)"},
+    "strip_t": {"v": 0.001, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:89)"}
+  },
+  "profiles": {
+    "housing": {
+      "rect": ["housing_w", "housing_h"],
+      "at": [0, "housing_h/2 - axis_z"],
+      "minus": [
+        {"rect": ["slot_open_w", "lip_t"], "at": [0, "lip_t/2 - axis_z"]},
+        {"rect": ["slot_w", "slot_h"], "at": [0, "lip_t + slot_h/2 - axis_z"]}
+      ]
+    },
+    "flat_cut": {"rect": ["diffuser_d", "diffuser_d"], "at": [0, "-flat_z - diffuser_d/2"]},
+    "diffuser_outer": {"circle": "diffuser_d", "minus": [{"ref": "flat_cut"}]},
+    "diffuser_inner": {"circle": "diffuser_d - 2*wall", "minus": [{"ref": "flat_cut"}]},
+    "diffuser": {"ref": "diffuser_outer", "minus": [{"ref": "diffuser_inner"}]}
+  },
+  "parts": [
+    {"id": "housing", "profile": "housing", "range_m": ["cap_t - length/2", "length/2 - cap_t"], "glow": "none", "finish": "black-anodized"},
+    {"id": "cap_a", "profile": "housing", "range_m": ["-length/2", "cap_t - length/2"], "glow": "none", "finish": "black"},
+    {"id": "cap_b", "profile": "housing", "range_m": ["length/2 - cap_t", "length/2"], "glow": "none", "finish": "black"},
+    {"id": "strip", "box": ["strip_w", "length", "strip_t"], "at": [0, 0, "-flat_z - strip_t/2"], "glow": "none"},
+    {"id": "leds", "box": ["led_w", "led_w", "led_h"], "at_pixels": true, "glow": "pixel_nearest"},
+    {"id": "diffuser", "profile": "diffuser", "range_m": ["-length/2", "length/2"], "glow": "pixels", "gain": 1.0, "finish": "opal"}
+  ],
+  "anchors": {
+    "end_a": {"at": [0, "-length/2", 0], "dir": [0, -1, 0], "accepts": "diffuser_outer"},
+    "end_b": {"at": [0, "length/2", 0], "dir": [0, 1, 0], "accepts": "diffuser_outer"},
+    "in": {"at": [0, "pigtail_inset - length/2", "-axis_z"], "dir": [0, 0, -1], "connector": "clen-4pin", "gender": {"v": "male", "status": "inferred", "src": "RES-010, the maintainer's private notes"}, "pigtail_m": "pigtail"},
+    "out": {"at": [0, "length/2 - pigtail_inset", "-axis_z"], "dir": [0, 0, -1], "connector": "clen-4pin", "gender": {"v": "female", "status": "inferred", "src": "RES-010, the maintainer's private notes"}, "pigtail_m": "pigtail"},
+    "tslot": {"at": [0, 0, "-axis_z"], "dir": [0, 0, -1], "src": "IMG-join, Clen's picture of bars joined end to end (not public)"}
+  },
+  "pixels": {
+    "count": {"v": 64, "status": "stated", "src": "RES-038, the maintainer's private notes"},
+    "span_m": {"v": "length", "status": "assumed", "src": "64 px over the full length at (i+0.5)/n; the end offsets are not measured (docs/studio/domain-model.md:373)"},
+    "z_m": {"v": "-flat_z", "status": "inferred", "src": "LEDs on the housing's top face, from IMG-beam, Clen's beam-angle picture by diffuser (not public)"},
+    "leds_per_pixel": {"v": 1, "status": "stated", "src": "RES-038, the maintainer's private notes"},
+    "facing": {"v": [0, 0, 1], "status": "inferred", "src": "IMG-beam, Clen's beam-angle picture by diffuser (not public)"},
+    "beam_deg": {"v": 330, "status": "stated", "src": "IMG-beam, Clen's beam-angle picture by diffuser (not public)"},
+    "chipset": {"v": "sk6812", "status": "inferred", "src": "RES-003, RES-036, the maintainer's private notes"},
+    "channels": {"v": "RGBW", "status": "measured", "src": "RES-036 (bench: RGBW data lights the bar and RGB data does not), the maintainer's private notes"},
+    "color_order": {"v": "GRBW", "status": "assumed", "src": "not measured; the RES-034 bench test settles it, the maintainer's private notes"}
+  },
+  "power": {
+    "v_nominal": {"v": 24, "status": "stated", "src": "RES-038; the bar also lights at 5 V (RES-036); Q-004; the maintainer's private notes"},
+    "max_w": {"v": 25.6, "status": "stated", "src": "RES-038, the maintainer's private notes"},
+    "measured_w": null,
+    "passthrough_ohm": null
+  }
+}

@@ -1,0 +1,44 @@
+version: 2
+
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Wait out a fresh release before adopting it.
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Keeps the exact action tags in ci.yml current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  # The page's exact pins in web/package.json. A bump changes the build hash,
+  # so its PR needs `just web` and the rebuilt page committed before CI passes.
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      web-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # The studio's pins in studio-web/package.json (built by `just studio`).
+  - package-ecosystem: "npm"
+    directory: "/studio-web"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      studio-web-minor-patch:
+        update-types: ["minor", "patch"]

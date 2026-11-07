@@ -1,0 +1,18 @@
+{
+  "version": 4,
+  "current": "turing-garden",
+  "looks": {
+    "turing-garden": {
+      "seed": 42, "master": 0.7, "fade": 8.0, "cycle": true,
+      "layers": [
+        {"id": "garden", "out": "tint", "nodes": {
+            "rd": {"op": "reaction", "args": {"kind": "coral", "size": 0.25, "speed": 90.0, "seeds": 0.3}},
+            "edge": {"op": "contrast", "in": ["rd"], "args": {"amount": 1.4}},
+            "tint": {"op": "palette", "in": ["edge"], "args": {"palette": {"stops": [{"at": 0, "h": 230, "s": 1, "v": 0}, {"at": 0.5, "h": 195, "s": 0.9, "v": 0.3}, {"at": 0.85, "h": 12, "s": 0.7, "v": 0.75}, {"at": 1, "h": 32, "s": 0.3, "v": 1}]}, "shift": 0.0}}}}],
+      "signals": {
+          "grow": {"op": "walk", "args": {"rate": 0.01}},
+          "hue": {"op": "lfo", "args": {"rate": 0.013, "offset": 0.375}}},
+      "routes": [
+          {"source": "grow", "path": "layers.garden.rd.size", "depth": 0.1},
+          {"source": "hue", "path": "layers.garden.tint.shift", "depth": 40.0}],
+      "front": ["layers.garden.rd.kind", "layers.garden.rd.size", "layers.garden.tint.shift"]}}}

@@ -1,0 +1,30 @@
+{
+  "format": "pewpew.arrangement",
+  "version": 1,
+  "name": "golden rings",
+  "groups": [
+    {
+      "id": "inner",
+      "preset": "ring",
+      "type": "clen-rgbw-bar-1m",
+      "count": 24,
+      "start_radius_m": 0.618034,
+      "angle_offset_deg": 0,
+      "tilt_deg": 30,
+      "attach": {"inner": "point-v0", "outer": "eye-v0"}
+    },
+    {
+      "id": "outer",
+      "preset": "ring",
+      "type": "clen-rgbw-bar-1m",
+      "count": 24,
+      "start_radius_m": 1.0,
+      "angle_offset_deg": 7.5,
+      "tilt_deg": 30,
+      "attach": {"inner": "point-v0", "outer": "eye-v0"}
+    }
+  ],
+  "controllers": [{"id": "c1", "profile": "esp32s3-devkitc1-ahct125"}],
+  "psus": [{"id": "p1", "type": "meanwell-lrs-350-24"}],
+  "wiring": {"auto": {"target_fps": 40}}
+}

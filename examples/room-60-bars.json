@@ -1,0 +1,19 @@
+{
+  "label": "Example room: 60-bar ceiling canopy",
+  "notes": "An 8 x 6 m room, plan view, meters. 12 rows of 5 bars (1 m, 64 px), one row per output; boards A and C feed rows from the west end, board B from the east end. Example layout, not a confirmed install.",
+  "boards": {"A": "10.0.0.11", "B": "10.0.0.12", "C": "10.0.0.13"},
+  "fixtures": [
+    {"id": "row01", "pixels": 64, "length": 1.0, "start": [1.1, 0.8], "angle": 0, "input": "start", "board": "A", "output": 1, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row02", "pixels": 64, "length": 1.0, "start": [1.1, 1.2], "angle": 0, "input": "start", "board": "A", "output": 2, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row03", "pixels": 64, "length": 1.0, "start": [1.1, 1.6], "angle": 0, "input": "start", "board": "A", "output": 3, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row04", "pixels": 64, "length": 1.0, "start": [1.1, 2.0], "angle": 0, "input": "start", "board": "A", "output": 4, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row05", "pixels": 64, "length": 1.0, "start": [1.1, 2.4], "angle": 0, "input": "end", "board": "B", "output": 1, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row06", "pixels": 64, "length": 1.0, "start": [1.1, 2.8], "angle": 0, "input": "end", "board": "B", "output": 2, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row07", "pixels": 64, "length": 1.0, "start": [1.1, 3.2], "angle": 0, "input": "end", "board": "B", "output": 3, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row08", "pixels": 64, "length": 1.0, "start": [1.1, 3.6], "angle": 0, "input": "end", "board": "B", "output": 4, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row09", "pixels": 64, "length": 1.0, "start": [1.1, 4.0], "angle": 0, "input": "start", "board": "C", "output": 1, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row10", "pixels": 64, "length": 1.0, "start": [1.1, 4.4], "angle": 0, "input": "start", "board": "C", "output": 2, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row11", "pixels": 64, "length": 1.0, "start": [1.1, 4.8], "angle": 0, "input": "start", "board": "C", "output": 3, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]},
+    {"id": "row12", "pixels": 64, "length": 1.0, "start": [1.1, 5.2], "angle": 0, "input": "start", "board": "C", "output": 4, "chain": 1, "instances": 5, "step": [1.2, 0.0], "tags": ["canopy"]}
+  ]
+}

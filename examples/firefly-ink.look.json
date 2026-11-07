@@ -1,0 +1,16 @@
+{
+  "version": 4,
+  "current": "firefly-ink",
+  "looks": {
+    "firefly-ink": {
+      "seed": 29, "master": 0.6, "fade": 5.0, "cycle": true,
+      "layers": [
+        {"id": "ink", "out": "tint", "nodes": {
+            "flies": {"op": "particles", "args": {"rate": 10.0, "life": 1.5, "speed": 0.0, "swirl": 0.3, "emit": "anywhere", "size": 0.08}},
+            "bleed": {"op": "diffuse", "in": ["flies"], "args": {"bleed": 10.0, "decay": 1.5}},
+            "tint": {"op": "palette", "in": ["bleed"], "args": {"palette": {"stops": [{"at": 0, "h": 215, "s": 0.6, "v": 0.03}, {"at": 0.5, "h": 40, "s": 0.7, "v": 0.5}, {"at": 1, "h": 55, "s": 0.2, "v": 1}]}, "shift": 0.0}}}}],
+      "signals": {
+          "hue": {"op": "lfo", "args": {"rate": 0.0236, "shape": "saw", "offset": 0.375}}},
+      "routes": [
+          {"source": "hue", "path": "layers.ink.tint.shift", "depth": 180.0}],
+      "front": ["layers.ink.flies.swirl", "layers.ink.bleed.bleed", "layers.ink.bleed.decay"]}}}

@@ -1,0 +1,25 @@
+{
+  "version": 4,
+  "current": "warp-lane",
+  "looks": {
+    "warp-lane": {
+      "seed": 3, "master": 0.8, "fade": 3.0, "cycle": true,
+      "layers": [
+        {"id": "lane", "out": "tint", "nodes": {
+            "stars": {"op": "voronoi", "args": {"scale": 16.0, "speed": 0.6}},
+            "spark": {"op": "contrast", "in": ["stars"], "args": {"amount": 4.0}},
+            "core": {"op": "shape", "args": {"sides": 4, "radius": 0.15, "smooth": 0.08}},
+            "mouth": {"op": "mult", "in": ["spark", "core"], "args": {}},
+            "fb": {"op": "feedback", "in": ["mouth"], "args": {"decay": 0.6, "zoom": 3.5, "warp": 0.05}},
+            "tint": {"op": "palette", "in": ["fb"], "args": {"palette": {"stops": [{"at": 0, "h": 0, "s": 1, "v": 0}, {"at": 0.4, "h": 8, "s": 0.95, "v": 0.3}, {"at": 0.75, "h": 28, "s": 0.9, "v": 0.8}, {"at": 1, "h": 48, "s": 0.35, "v": 1}]}}}}}],
+      "signals": {
+          "pulse": {"op": "band", "args": {"band": "mid"}},
+          "kick": {"op": "beat", "args": {}},
+          "thump": {"op": "env", "in": ["kick"], "args": {"attack": 0.03, "decay": 0.35, "release": 0.6}},
+          "hue": {"op": "walk", "args": {"rate": 0.03}}},
+      "routes": [
+          {"source": "pulse", "path": "layers.lane.fb.zoom", "depth": 0.5},
+          {"source": "pulse", "path": "layers.lane.core.radius", "depth": 0.03},
+          {"source": "thump", "path": "layers.lane.core.radius", "depth": 0.04},
+          {"source": "hue", "path": "layers.lane.stars.scale", "depth": 6.0}],
+      "front": ["layers.lane.fb.zoom", "layers.lane.fb.decay", "layers.lane.stars.scale"]}}}

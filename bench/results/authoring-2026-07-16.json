@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "date": "2026-07-16",
+    "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.3",
+    "numpy": "2.4.6",
+    "git_sha": "1c5b4ac",
+    "seed": 42,
+    "frames": 120,
+    "fps": 60.0
+  },
+  "patterns": [
+    {
+      "pattern": "plasma",
+      "fixture": "line(300)",
+      "n": 300,
+      "deterministic": true,
+      "sequence_sha256": "bad5b161ae033f2c9183121c117ed94863af3dbe0822e3d87fd4753e5ebb890c",
+      "seed_load_bearing": false,
+      "violations": [],
+      "np_where": 0,
+      "np_select": 0,
+      "stumble_tags": [
+        1
+      ],
+      "code_lines": 23
+    },
+    {
+      "pattern": "comet",
+      "fixture": "line(300)",
+      "n": 300,
+      "deterministic": true,
+      "sequence_sha256": "19b2455ddd076730b633c910fdaa8e9b9797241b24c1c2341062a886f4e47f5e",
+      "seed_load_bearing": true,
+      "violations": [],
+      "np_where": 2,
+      "np_select": 0,
+      "stumble_tags": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        17
+      ],
+      "code_lines": 30
+    },
+    {
+      "pattern": "geq",
+      "fixture": "grid(16x16)",
+      "n": 256,
+      "deterministic": true,
+      "sequence_sha256": "52369cd8d8f819d75fa6235da36b633656f3cb7d8f07b30aae6e85a004e63c0a",
+      "seed_load_bearing": true,
+      "violations": [],
+      "np_where": 1,
+      "np_select": 0,
+      "stumble_tags": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "code_lines": 20
+    },
+    {
+      "pattern": "fire",
+      "fixture": "grid(16x32)",
+      "n": 512,
+      "deterministic": true,
+      "sequence_sha256": "d5337c2312c550b2d506c93b528626de623e36d674a89e888431343f36f63d41",
+      "seed_load_bearing": true,
+      "violations": [],
+      "np_where": 1,
+      "np_select": 0,
+      "stumble_tags": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "code_lines": 33
+    },
+    {
+      "pattern": "sdf3d",
+      "fixture": "lattice(10^3)",
+      "n": 1000,
+      "deterministic": true,
+      "sequence_sha256": "8a7e0741a23d6d1b4d6953f57b021cd77d55210cefabca4244d7a40deadfe370",
+      "seed_load_bearing": false,
+      "violations": [],
+      "np_where": 1,
+      "np_select": 0,
+      "stumble_tags": [
+        16
+      ],
+      "code_lines": 26
+    }
+  ]
+}

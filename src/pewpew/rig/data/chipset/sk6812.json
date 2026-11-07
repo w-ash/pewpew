@@ -1,0 +1,8 @@
+{
+  "kind": "chipset",
+  "id": "sk6812",
+  "name": "SK6812 RGBW",
+  "bit_s": {"v": 1.25e-6, "status": "stated", "src": "DS-SK6812 p. 5, TH+TL = 1.25 µs ± 600 ns, Superlighting's SK6812RGBW datasheet"},
+  "bits_per_channel": {"v": 8, "status": "stated", "src": "32 bits per RGBW pixel (RES-031, the maintainer's private notes)"},
+  "reset_s": {"v": 8e-5, "status": "stated", "src": "DS-SK6812 p. 5, Trst 80 µs, Superlighting's SK6812RGBW datasheet"}
+}

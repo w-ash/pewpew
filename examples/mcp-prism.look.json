@@ -1,0 +1,13 @@
+{
+  "version": 4,
+  "current": "prism",
+  "looks": {
+    "prism": {"fade": 2, "layers": [
+      {"id": "base", "out": "tint", "nodes": {
+        "rings": {"op": "osc", "args": {"freq": 5.0, "sync": 0.1, "axis": "y"}},
+        "swirl": {"op": "polar", "in": ["rings"], "args": {}},
+        "fold": {"op": "kaleid", "in": ["swirl"], "args": {"sides": 5}},
+        "tint": {"op": "palette", "in": ["fold"], "args": {"palette": "synthwave", "cycle": 0.03}}}}
+    ]}
+  }
+}

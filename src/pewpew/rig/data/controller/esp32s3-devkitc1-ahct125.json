@@ -1,0 +1,21 @@
+{
+  "kind": "controller",
+  "id": "esp32s3-devkitc1-ahct125",
+  "name": "ESP32-S3 DevKitC-1 + 74AHCT125",
+  "notes": "Four outputs: one quad 74AHCT125 per board (RES-031, PRT-006, the maintainer's private notes). WLED builds the S3 with 4 RMT and 8 LCD-parallel channels (https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L86-L89); the parallel ones would come in as a same_led_type group once a second shifter is fitted.",
+  "firmware": "wled-16.0.1",
+  "outputs": [
+    {"id": "rmt0", "group": "rmt"},
+    {"id": "rmt1", "group": "rmt"},
+    {"id": "rmt2", "group": "rmt"},
+    {"id": "rmt3", "group": "rmt"}
+  ],
+  "groups": {"rmt": {"same_led_type": false}},
+  "data_out_v": {"v": 3.94, "status": "stated", "src": "RES-030, the maintainer's private notes"},
+  "lead_max_m": {"v": 10, "status": "inferred", "src": "QuinLED's figure with a level shifter, a 249 ohm resistor and a separate AWG26 or thicker data wire: https://quinled.info/2021/03/10/maximum-length-data-wire-leds-ws2812b-sk6812-ws2815"},
+  "network": ["wifi"],
+  "power_w": {"v": 0.6, "status": "inferred", "src": "WLED reserves 120 mA for an ESP32 in its power estimate (\"ESP32 about 120mA\", MA_FOR_ESP, https://github.com/wled/WLED/blob/v16.0.1/wled00/bus_manager.h#L518-L526); 0.12 A x 5 V at the board's 5V pin. The 74AHCT125's own draw is not counted"},
+  "components": {
+    "74AHCT125 quad level shifter": {"v": 1, "status": "stated", "src": "one quad 74AHCT125 per board for its four outputs (RES-031, PRT-006, the maintainer's private notes); the S3's 2.64 V high is below the SK6812's 3.4 V input threshold (RES-030, https://www.ti.com/lit/ds/symlink/sn74ahct125.pdf)"}
+  }
+}

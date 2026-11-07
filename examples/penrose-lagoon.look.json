@@ -1,0 +1,22 @@
+{
+  "version": 4,
+  "current": "penrose-lagoon",
+  "looks": {
+    "penrose-lagoon": {
+      "seed": 5, "master": 0.6, "fade": 6.0, "cycle": true,
+      "layers": [
+        {"id": "deep", "out": "tint", "nodes": {
+            "qc": {"op": "quasicrystal", "args": {"waves": 7, "scale": 3.0, "speed": 0.12}},
+            "turn": {"op": "rotate", "in": ["qc"], "args": {"angle": 0.0, "speed": 2.0}},
+            "drift": {"op": "noise", "args": {"scale": 1.5, "speed": 0.05, "octaves": 2}},
+            "warp": {"op": "modulate", "in": ["turn", "drift"], "args": {"amount": 0.06}},
+            "tint": {"op": "palette", "in": ["warp"], "args": {"palette": {"stops": [{"at": 0, "h": 225, "s": 0.9, "v": 0.03}, {"at": 0.4, "h": 185, "s": 0.8, "v": 0.4}, {"at": 0.65, "h": 145, "s": 0.35, "v": 0.9}, {"at": 1, "h": 225, "s": 0.9, "v": 0.03}]}, "cycle": 0.02}}}},
+        {"id": "glint", "opacity": 0.45, "blend": "screen", "out": "tint", "nodes": {
+            "qc": {"op": "quasicrystal", "args": {"waves": 5, "scale": 2.0, "speed": -0.074}},
+            "turn": {"op": "rotate", "in": ["qc"], "args": {"angle": 30.0, "speed": -1.236}},
+            "tint": {"op": "palette", "in": ["turn"], "args": {"palette": {"stops": [{"at": 0, "h": 290, "s": 0.7, "v": 0.02}, {"at": 0.5, "h": 15, "s": 0.75, "v": 0.45}, {"at": 0.7, "h": 40, "s": 0.5, "v": 0.85}, {"at": 1, "h": 290, "s": 0.7, "v": 0.02}]}, "cycle": 0.0324}}}}],
+      "signals": {
+          "shimmer": {"op": "lfo", "args": {"rate": 0.0191, "offset": 0.375}}},
+      "routes": [
+          {"source": "shimmer", "path": "layers.glint.opacity", "depth": 0.3}],
+      "front": ["layers.deep.qc.scale", "layers.deep.tint.cycle", "layers.glint.opacity"]}}}

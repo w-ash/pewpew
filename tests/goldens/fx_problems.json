@@ -1,0 +1,111 @@
+{
+  "unknown op": [
+    "layers.base.fold: unknown op 'kaleidd' (did you mean 'kaleid'?); ops: add, attractor, below, blend, contrast, diff, diffuse, feedback, hue, kaleid, life, lissajous, metaballs, mirror, modulate, mult, noise, osc, palette, particles, pattern, polar, posterize, prev, quasicrystal, reaction, repeat, ripple, rotate, scale, shape, trails, tunnel, twist, voronoi"
+  ],
+  "unknown param": [
+    "layers.base.waves: unknown param 'freqq' (did you mean 'freq'?); params: freq, sync, offset, axis"
+  ],
+  "out of range": [
+    "layers.base.fold.sides must be within 1..24, got 40"
+  ],
+  "a value of the wrong kind": [
+    "layers.base.waves.axis takes one of 'u', 'x', 'y', 'z', got 'w'",
+    "layers.base.waves.freq takes a number, got 'fast'"
+  ],
+  "reads too few": [
+    "layers.base.fold: kaleid reads 1 node(s) ('in'), got 0"
+  ],
+  "reads a node that is not there": [
+    "layers.base: node 'fold' reads 'waves', which is not a node"
+  ],
+  "a cycle": [
+    "layers.base: nodes 'a', 'b' read each other in a cycle; a layer's last frame comes from prev(), never a cycle"
+  ],
+  "hue on a scalar": [
+    "layers.base.tint: hue takes rgb on 'in'; 'waves' is scalar — color the field first, with palette"
+  ],
+  "palette on rgb": [
+    "layers.base.b: palette takes scalar on 'in'; 'a' is rgb — it colors a scalar field; read a source such as osc or noise, not a color"
+  ],
+  "nothing reads a node": [
+    "layers.base.drift: nothing reads node 'drift'; read it from another node, or remove it"
+  ],
+  "a bad node id": [
+    "layers.base: bad node id 'Fold': a lowercase letter, then up to 23 lowercase letters, digits or '_'"
+  ],
+  "a reserved node id": [
+    "layers.base: bad node id 'blend': alpha, blend, enabled, nodes, opacity, out are reserved for a layer's own keys; name the node for its role, such as 'mix'"
+  ],
+  "an unknown key": [
+    "layers.base.waves: unknown key 'arg' (did you mean 'args'?); expected args, in, op"
+  ],
+  "a mask of rgb": [
+    "layers.base: 'alpha' takes a scalar field, and 'tint' gives rgb; mask with a source such as shape or noise, before any palette"
+  ],
+  "kaleid on a strip": [
+    "layers.base.kaleid: kaleid needs a map of 2 or 3 dimensions, and this map has 1; a strip has no plane to fold; use mirror along the strip"
+  ],
+  "twist on a panel": [
+    "layers.base.twist: twist needs a map of 3 dimensions, and this map has 2; twist turns the slices of a volume; on a panel use rotate, on a strip scale"
+  ],
+  "a fixture pattern in a program": [
+    "layers.base.p: pattern 'sparkle' renders once per fixture, not at the program's points; run it on a layer of its own"
+  ],
+  "a coord op over a pattern that is not warpable": [
+    "layers.base.fold: mirror warps what 'p' reads, and pattern 'solid' is not warpable; apply mirror to another source, or run 'p' on a layer of its own"
+  ],
+  "a coord op over below": [
+    "layers.base.fold: mirror warps what 'b' reads, and below has a value only at the map's own points; apply mirror to a source instead"
+  ],
+  "a coord op over state per point": [
+    "layers.base.turn: rotate warps what 'pond' reads, and ripple has a value only at the map's own points; apply rotate to a source instead"
+  ],
+  "an attractor on a strip": [
+    "layers.base.moth: attractor needs a map of 2 or 3 dimensions, and this map has 1; a strip shows only a line through it; use lissajous or particles"
+  ],
+  "a program in a program": [
+    "layers.base.p: pattern 'nested' is a program; run it on a layer of its own"
+  ],
+  "an unknown pattern": [
+    "layers.base.p: unknown pattern 'plasmo'"
+  ],
+  "a pattern's param": [
+    "layers.base.p: unknown param 'rde'; params: red, green, blue"
+  ],
+  "a signal op in a layer": [
+    "layers.base.w: lfo is a signal, one number a frame, not a field; put it in the look's signals and route it to a knob"
+  ],
+  "a field op in the signals": [
+    "look: signals.w: osc is not a signal op; a look's signals run band, beat, env, knob, lfo, smooth, walk, and osc goes in a layer's program"
+  ],
+  "an unknown signal op": [
+    "look: signals.b: unknown op 'lfoo' (did you mean 'lfo'?); ops: band, beat, env, knob, lfo, smooth, walk"
+  ],
+  "a signal's arg": [
+    "look: signals.breath.rate must be within 0.0..10.0, got 99.0"
+  ],
+  "signals that drive each other": [
+    "look: signals: 'a', 'b' read or drive each other in a cycle; a signal cannot depend on itself"
+  ],
+  "a signal nothing reads": [
+    "look: signals.breath: nothing reads signal 'breath'; route it to a knob, or remove it"
+  ],
+  "a route from no signal": [
+    "look: routes[0]: unknown signal 'breth' (did you mean 'breath'?); signals: breath"
+  ],
+  "a route with no path": [
+    "look: routes[0]: 'path' is missing"
+  ],
+  "a route to no knob": [
+    "routes[0]: unknown knob 'layers.base.waves.fre' (did you mean 'layers.base.waves.freq'?); knobs: layers.base.waves.freq, layers.base.waves.sync, layers.base.waves.offset, layers.base.tint.shift, layers.base.tint.cycle, layers.base.opacity, signals.breath.rate, signals.breath.offset"
+  ],
+  "a route to a knob that cannot move": [
+    "routes[0]: layers.base.waves.axis cannot be modulated: it is a choice; only a float, an int or a color's part can be"
+  ],
+  "a route past its knob's span": [
+    "routes[0]: depth must be within -31.5..31.5, got 40.0; a route moves layers.base.waves.freq by at most its span, 31.5"
+  ],
+  "a front knob that is not there": [
+    "front[0]: unknown knob 'layers.base.waves.fre' (did you mean 'layers.base.waves.freq'?); knobs: layers.base.waves.freq, layers.base.waves.sync, layers.base.waves.offset, layers.base.waves.axis, layers.base.tint.palette, layers.base.tint.shift, layers.base.tint.cycle, layers.base.opacity, layers.base.blend, layers.base.enabled, signals.breath.rate, signals.breath.shape, signals.breath.offset"
+  ]
+}

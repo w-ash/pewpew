@@ -1,0 +1,10570 @@
+{
+ "meta": {
+  "label": "loopback-mac-m5pro",
+  "date": "2026-11-04",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "cpu": "Apple M5 Pro",
+  "cpu_count": 15,
+  "python": "3.14.7",
+  "numpy": "2.4.6",
+  "git_sha": "4575cf4",
+  "note": "loopback on the dev laptop, mains power; other agent sessions may have been running",
+  "mode": "loopback",
+  "gc_enabled": true,
+  "gc_thresholds": [
+   2000,
+   10,
+   10
+  ],
+  "switch_interval_s": 0.005
+ },
+ "config": {
+  "mode": "loopback",
+  "room": "examples/room-60-bars.json",
+  "boards": [
+   "A",
+   "B",
+   "C"
+  ],
+  "fps": 60.0,
+  "ddp_fps": 40.0,
+  "duration_s": 1200.0,
+  "sample_s": 10.0,
+  "seed": 1,
+  "preview_port": 58560,
+  "max_brightness": 1.0,
+  "looks": {
+   "version": 1,
+   "current": "soak-a",
+   "looks": {
+    "soak-a": {
+     "pattern": "soakwave",
+     "params": {
+      "hue": 200.0,
+      "speed": 0.25
+     },
+     "fade": 2.0
+    },
+    "soak-b": {
+     "pattern": "plasma",
+     "params": {
+      "speed": 0.5,
+      "scale": 4.0
+     },
+     "fade": 3.0
+    },
+    "soak-c": {
+     "pattern": "soakwave",
+     "params": {
+      "hue": 30.0,
+      "direction": 90.0
+     },
+     "fade": 1.5
+    },
+    "soak-d": {
+     "pattern": "pulse",
+     "params": {
+      "hue": 120.0
+     },
+     "fade": 2.0
+    },
+    "soak-cue": {
+     "pattern": "sparkle",
+     "params": {},
+     "fade": 0.5
+    }
+   },
+   "attract": {
+    "idle": null
+   },
+   "triggers": {
+    "cue1": {
+     "look": "soak-cue",
+     "hold": 8.0,
+     "priority": "button",
+     "cooldown": 1.0
+    },
+    "door": {
+     "look": null,
+     "priority": "sensor"
+    }
+   }
+  },
+  "churn": {
+   "every_s": [
+    30.0,
+    50.0
+   ],
+   "stay_s": [
+    12.0,
+    20.0
+   ],
+   "drag_s": 5.0,
+   "drag_hz": 20.0
+  },
+  "recall_every_s": [
+   60.0,
+   90.0
+  ],
+  "fire_every_s": [
+   80.0,
+   120.0
+  ],
+  "reload_every_s": 240.0,
+  "rig_argv": [
+   "run",
+   "soakwave",
+   "--patterns",
+   "/var/folders/7m/hk3_xjvj07xbnc25l_rw78dh0000gn/T/pewpew-soak-82u_26q3/patterns",
+   "--room",
+   "/var/folders/7m/hk3_xjvj07xbnc25l_rw78dh0000gn/T/pewpew-soak-82u_26q3/room/room.json",
+   "--fps",
+   "60",
+   "--ddp-fps",
+   "40",
+   "--preview",
+   "58560",
+   "--looks",
+   "/var/folders/7m/hk3_xjvj07xbnc25l_rw78dh0000gn/T/pewpew-soak-82u_26q3/looks/looks.json",
+   "--trigger-log",
+   "/var/folders/7m/hk3_xjvj07xbnc25l_rw78dh0000gn/T/pewpew-soak-82u_26q3/triggers.jsonl",
+   "--armed",
+   "--keep-awake",
+   "--max-brightness",
+   "1"
+  ]
+ },
+ "partial": false,
+ "summary": {
+  "pacing": {
+   "frames": 71700,
+   "span_s": 1194.9828888750635,
+   "fps": 60.00002231621594,
+   "interval_ms": {
+    "n": 71699,
+    "min": 0.15604193322360516,
+    "p50": 16.487083863466978,
+    "p90": 21.25821583904326,
+    "p99": 24.19293435290456,
+    "max": 34.06529198400676,
+    "mean": 16.6666604677201
+   },
+   "abs_error_ms": {
+    "n": 71699,
+    "min": 1.7074247082859983e-07,
+    "p50": 2.2057503772278615,
+    "p90": 5.379233307515581,
+    "p99": 7.609051350504161,
+    "max": 17.398625317340095,
+    "mean": 2.576599578468359
+   },
+   "over_5ms": 9347,
+   "over_one_frame": 2,
+   "over_one_frame_with_gc": 0,
+   "from_s": 5.0,
+   "startup": {
+    "intervals": 300,
+    "max_ms": 24.805833818390965
+   }
+  },
+  "gc": {
+   "collections": 5,
+   "total_ms": 3.954790998250246,
+   "pause_ms": {
+    "n": 5,
+    "min": 0.14604092575609684,
+    "p50": 0.2655000425875187,
+    "p90": 1.7321583814918995,
+    "p99": 1.8569285422563553,
+    "max": 1.870791893452406,
+    "mean": 0.7909581996500492
+   },
+   "over_period": 0,
+   "by_gen": {
+    "0": {
+     "collections": 5,
+     "total_ms": 3.954790998250246,
+     "pause_ms": {
+      "n": 5,
+      "min": 0.14604092575609684,
+      "p50": 0.2655000425875187,
+      "p90": 1.7321583814918995,
+      "p99": 1.8569285422563553,
+      "max": 1.870791893452406,
+      "mean": 0.7909581996500492
+     }
+    }
+   }
+  },
+  "outliers": [
+   {
+    "t_s": 689.451,
+    "interval_ms": 34.065,
+    "gc_ms": 0.0,
+    "gc_gens": [],
+    "near": null
+   },
+   {
+    "t_s": 674.384,
+    "interval_ms": 33.64,
+    "gc_ms": 0.0,
+    "gc_gens": [],
+    "near": "recalled look soak-b"
+   }
+  ],
+  "stopped_early": false,
+  "skips": {
+   "events": 4,
+   "missed_frames": 0
+  },
+  "gc_counts_by_gen": [
+   5,
+   0,
+   0
+  ],
+  "gc_events_not_stored": 0,
+  "gc_stats_end": [
+   {
+    "collections": 36,
+    "collected": 4082,
+    "uncollectable": 0
+   },
+   {
+    "collections": 2,
+    "collected": 5,
+    "uncollectable": 0
+   },
+   {
+    "collections": 1,
+    "collected": 0,
+    "uncollectable": 0
+   }
+  ],
+  "watchdog_5s_would_fire": 0,
+  "gc_stats_start": [
+   {
+    "collections": 30,
+    "collected": 391,
+    "uncollectable": 0
+   },
+   {
+    "collections": 2,
+    "collected": 5,
+    "uncollectable": 0
+   },
+   {
+    "collections": 1,
+    "collected": 0,
+    "uncollectable": 0
+   }
+  ],
+  "rss_kb": {
+   "first": 48000.0,
+   "last": 37744.0,
+   "min": 34864.0,
+   "max": 48000.0,
+   "per_hour_after_warmup": 3623.655015287749
+  },
+  "threads": {
+   "first": 12.0,
+   "last": 12.0,
+   "min": 12.0,
+   "max": 16.0,
+   "per_hour_after_warmup": 0.10675729683371506
+  },
+  "modules": {
+   "first": 442.0,
+   "last": 442.0,
+   "min": 442.0,
+   "max": 442.0,
+   "per_hour_after_warmup": 4.2891546220859186e-13
+  },
+  "thread_groups_first_last": [
+   {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1
+   },
+   {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   }
+  ],
+  "cpu_s": 50.375,
+  "drivers_end": {
+   "PreviewSink": {
+    "dropped": 35998,
+    "errors": 0,
+    "frames_sent": null
+   },
+   "DdpSink": {
+    "dropped": 23998,
+    "errors": 0,
+    "frames_sent": 48000
+   }
+  },
+  "boards": [
+   {
+    "board": "A",
+    "fps": {
+     "n": 119,
+     "min": 39.895,
+     "p50": 40.0,
+     "p90": 40.023,
+     "p99": 40.087199999999996,
+     "max": 40.092,
+     "mean": 40.00019327731092
+    },
+    "frames": 48001,
+    "packets": 144003,
+    "incomplete_frames": 0
+   },
+   {
+    "board": "B",
+    "fps": {
+     "n": 119,
+     "min": 39.895,
+     "p50": 40.0,
+     "p90": 40.023,
+     "p99": 40.087199999999996,
+     "max": 40.092,
+     "mean": 40.00019327731092
+    },
+    "frames": 48001,
+    "packets": 144003,
+    "incomplete_frames": 0
+   },
+   {
+    "board": "C",
+    "fps": {
+     "n": 119,
+     "min": 39.895,
+     "p50": 40.0,
+     "p90": 40.023,
+     "p99": 40.087199999999996,
+     "max": 40.092,
+     "mean": 40.00019327731092
+    },
+    "frames": 48001,
+    "packets": 144003,
+    "incomplete_frames": 0
+   }
+  ],
+  "health": [
+   {
+    "board": "127.0.0.1",
+    "fps": null,
+    "fps_first_tenth_median": null,
+    "fps_last_tenth_median": null,
+    "reboots": 0,
+    "uptime_first_last": null,
+    "rssi_range": null,
+    "samples": 2
+   }
+  ],
+  "log_counts": {
+   "recalled look soak-a": 8,
+   "trigger cue# holds look soak-cue for #s": 6,
+   "trigger cue# hold ended; returning": 5,
+   "reloaded Wave #": 5,
+   "recalled look soak-b": 4,
+   "recalled look soak-c": 4,
+   "recalled look soak-d": 4,
+   "triggers armed": 1,
+   "board # pending -> warn: no answer: URLError: <urlopen error": 1,
+   "board # warn -> bad: unreachable: URLError: <urlopen error [": 1
+  },
+  "client": {
+   "control": {
+    "counts": {
+     "hello": 1,
+     "frame": 36001,
+     "health": 1173,
+     "params": 2933,
+     "show": 578,
+     "declare": 32
+    },
+    "refused": [],
+    "trigger_last": [
+     {
+      "t": 89.178,
+      "name": "cue1",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 207.005,
+      "name": "door",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 323.044,
+      "name": "cue1",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 404.271,
+      "name": "door",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 485.283,
+      "name": "cue1",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 586.944,
+      "name": "door",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 704.51,
+      "name": "cue1",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 799.772,
+      "name": "door",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 888.408,
+      "name": "cue1",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 985.31,
+      "name": "door",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 1066.471,
+      "name": "cue1",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     },
+     {
+      "t": 1155.344,
+      "name": "door",
+      "source": "page",
+      "fired": true,
+      "reason": null
+     }
+    ],
+    "patterns_seen": {
+     "soakwave": 12,
+     "plasma": 6,
+     "sparkle": 6,
+     "pulse": 4
+    }
+   },
+   "churn": {
+    "connects": 29,
+    "sets": 2900,
+    "refused": 0,
+    "frames": 13878,
+    "disconnects": 29
+   }
+  },
+  "actions": {
+   "recall": 15,
+   "fire": 12,
+   "reload": 5
+  },
+  "temp_dir": "/var/folders/7m/hk3_xjvj07xbnc25l_rw78dh0000gn/T/pewpew-soak-82u_26q3"
+ },
+ "schedule": [
+  {
+   "t": 39.916,
+   "kind": "churn",
+   "stay": 13.865,
+   "drag_at": 2.585
+  },
+  {
+   "t": 64.031,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 74.292,
+   "kind": "churn",
+   "stay": 15.677,
+   "drag_at": 3.514
+  },
+  {
+   "t": 89.15,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 104.722,
+   "kind": "churn",
+   "stay": 18.701,
+   "drag_at": 7.511
+  },
+  {
+   "t": 120.0,
+   "kind": "reload",
+   "edit": 1
+  },
+  {
+   "t": 147.568,
+   "kind": "churn",
+   "stay": 13.487,
+   "drag_at": 7.439
+  },
+  {
+   "t": 149.454,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 194.766,
+   "kind": "churn",
+   "stay": 12.967,
+   "drag_at": 2.985
+  },
+  {
+   "t": 206.961,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 232.367,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 239.196,
+   "kind": "churn",
+   "stay": 17.69,
+   "drag_at": 11.01
+  },
+  {
+   "t": 277.638,
+   "kind": "churn",
+   "stay": 18.64,
+   "drag_at": 8.803
+  },
+  {
+   "t": 300.019,
+   "kind": "recall",
+   "look": "soak-a"
+  },
+  {
+   "t": 313.706,
+   "kind": "churn",
+   "stay": 16.701,
+   "drag_at": 9.561
+  },
+  {
+   "t": 323.018,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 360.0,
+   "kind": "reload",
+   "edit": 2
+  },
+  {
+   "t": 360.63,
+   "kind": "churn",
+   "stay": 16.042,
+   "drag_at": 6.326
+  },
+  {
+   "t": 374.882,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 391.32,
+   "kind": "churn",
+   "stay": 13.942,
+   "drag_at": 6.536
+  },
+  {
+   "t": 404.242,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 429.606,
+   "kind": "churn",
+   "stay": 13.384,
+   "drag_at": 4.504
+  },
+  {
+   "t": 448.367,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 473.667,
+   "kind": "churn",
+   "stay": 17.396,
+   "drag_at": 4.895
+  },
+  {
+   "t": 485.26,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 512.446,
+   "kind": "churn",
+   "stay": 16.067,
+   "drag_at": 8.058
+  },
+  {
+   "t": 527.915,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 552.865,
+   "kind": "churn",
+   "stay": 15.146,
+   "drag_at": 4.989
+  },
+  {
+   "t": 583.457,
+   "kind": "churn",
+   "stay": 12.348,
+   "drag_at": 4.762
+  },
+  {
+   "t": 586.916,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 600.0,
+   "kind": "reload",
+   "edit": 3
+  },
+  {
+   "t": 611.577,
+   "kind": "recall",
+   "look": "soak-a"
+  },
+  {
+   "t": 633.12,
+   "kind": "churn",
+   "stay": 16.745,
+   "drag_at": 4.836
+  },
+  {
+   "t": 666.527,
+   "kind": "churn",
+   "stay": 16.018,
+   "drag_at": 9.856
+  },
+  {
+   "t": 674.392,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 704.482,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 711.938,
+   "kind": "churn",
+   "stay": 16.317,
+   "drag_at": 9.015
+  },
+  {
+   "t": 735.243,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 746.581,
+   "kind": "churn",
+   "stay": 16.11,
+   "drag_at": 9.677
+  },
+  {
+   "t": 788.137,
+   "kind": "churn",
+   "stay": 15.673,
+   "drag_at": 3.335
+  },
+  {
+   "t": 799.73,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 820.316,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 829.097,
+   "kind": "churn",
+   "stay": 19.657,
+   "drag_at": 1.072
+  },
+  {
+   "t": 840.0,
+   "kind": "reload",
+   "edit": 4
+  },
+  {
+   "t": 874.77,
+   "kind": "churn",
+   "stay": 18.564,
+   "drag_at": 11.248
+  },
+  {
+   "t": 888.394,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 893.299,
+   "kind": "recall",
+   "look": "soak-a"
+  },
+  {
+   "t": 919.58,
+   "kind": "churn",
+   "stay": 18.473,
+   "drag_at": 6.951
+  },
+  {
+   "t": 960.808,
+   "kind": "churn",
+   "stay": 15.409,
+   "drag_at": 1.472
+  },
+  {
+   "t": 976.167,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 985.279,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 1008.208,
+   "kind": "churn",
+   "stay": 16.56,
+   "drag_at": 2.91
+  },
+  {
+   "t": 1036.23,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 1048.302,
+   "kind": "churn",
+   "stay": 15.879,
+   "drag_at": 4.168
+  },
+  {
+   "t": 1066.441,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 1080.0,
+   "kind": "reload",
+   "edit": 5
+  },
+  {
+   "t": 1085.224,
+   "kind": "churn",
+   "stay": 16.308,
+   "drag_at": 6.803
+  },
+  {
+   "t": 1109.592,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 1127.473,
+   "kind": "churn",
+   "stay": 15.665,
+   "drag_at": 1.242
+  },
+  {
+   "t": 1155.308,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 1162.065,
+   "kind": "churn",
+   "stay": 13.418,
+   "drag_at": 4.751
+  }
+ ],
+ "rig_samples": [
+  {
+   "t": 10.009,
+   "ticks": 601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.547,
+    "p99": 24.345,
+    "max": 24.806
+   },
+   "gc": [
+    2,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.148,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1
+   },
+   "modules": 442,
+   "cpu_s": 0.522,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 298,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 199,
+     "errors": 0,
+     "frames_sent": 401
+    }
+   }
+  },
+  {
+   "t": 20.006,
+   "ticks": 1201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.531,
+    "p99": 23.248,
+    "max": 24.696
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1
+   },
+   "modules": 442,
+   "cpu_s": 0.938,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 399,
+     "errors": 0,
+     "frames_sent": 800
+    }
+   }
+  },
+  {
+   "t": 30.007,
+   "ticks": 1801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.411,
+    "p99": 23.877,
+    "max": 24.609
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1
+   },
+   "modules": 442,
+   "cpu_s": 1.325,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 898,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 599,
+     "errors": 0,
+     "frames_sent": 1201
+    }
+   }
+  },
+  {
+   "t": 40.002,
+   "ticks": 2400,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.325,
+    "p99": 23.782,
+    "max": 24.963
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-fe#abd#": 1
+   },
+   "modules": 442,
+   "cpu_s": 1.757,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 1198,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 798,
+     "errors": 0,
+     "frames_sent": 1600
+    }
+   }
+  },
+  {
+   "t": 50.003,
+   "ticks": 3000,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.404,
+    "p99": 24.168,
+    "max": 24.889
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-fe#abd#": 1
+   },
+   "modules": 442,
+   "cpu_s": 2.151,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 1498,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 999,
+     "errors": 0,
+     "frames_sent": 2001
+    }
+   }
+  },
+  {
+   "t": 60.01,
+   "ticks": 3601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.44,
+    "p99": 24.462,
+    "max": 25.083
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1
+   },
+   "modules": 442,
+   "cpu_s": 2.552,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 1799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 1199,
+     "errors": 0,
+     "frames_sent": 2401
+    }
+   }
+  },
+  {
+   "t": 70.009,
+   "ticks": 4201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.259,
+    "p99": 24.123,
+    "max": 24.846
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 2.994,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 2099,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 1399,
+     "errors": 0,
+     "frames_sent": 2801
+    }
+   }
+  },
+  {
+   "t": 80.009,
+   "ticks": 4801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.509,
+    "p99": 24.131,
+    "max": 24.785
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#c#c": 1
+   },
+   "modules": 442,
+   "cpu_s": 3.482,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 2399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 1599,
+     "errors": 0,
+     "frames_sent": 3201
+    }
+   }
+  },
+  {
+   "t": 90.004,
+   "ticks": 5400,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.518,
+    "p99": 24.355,
+    "max": 24.925
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 4.031,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 2698,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 1798,
+     "errors": 0,
+     "frames_sent": 3601
+    }
+   }
+  },
+  {
+   "t": 100.009,
+   "ticks": 6001,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.342,
+    "p99": 24.39,
+    "max": 24.736
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 4.495,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 2998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 1999,
+     "errors": 0,
+     "frames_sent": 4001
+    }
+   }
+  },
+  {
+   "t": 110.006,
+   "ticks": 6601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.476,
+    "p99": 24.025,
+    "max": 24.762
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-ad#": 1
+   },
+   "modules": 442,
+   "cpu_s": 5.013,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 3299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 2199,
+     "errors": 0,
+     "frames_sent": 4400
+    }
+   }
+  },
+  {
+   "t": 120.011,
+   "ticks": 7201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.483,
+    "p99": 23.992,
+    "max": 24.212
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-ad#": 1
+   },
+   "modules": 442,
+   "cpu_s": 5.563,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 3599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 2399,
+     "errors": 0,
+     "frames_sent": 4801
+    }
+   }
+  },
+  {
+   "t": 130.007,
+   "ticks": 7801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.537,
+    "p99": 24.167,
+    "max": 25.678
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 5.984,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 3899,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 2598,
+     "errors": 0,
+     "frames_sent": 5201
+    }
+   }
+  },
+  {
+   "t": 140.005,
+   "ticks": 8401,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.523,
+    "p99": 24.364,
+    "max": 25.186
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 6.377,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 4199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 2799,
+     "errors": 0,
+     "frames_sent": 5601
+    }
+   }
+  },
+  {
+   "t": 150.007,
+   "ticks": 9001,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.577,
+    "p99": 23.871,
+    "max": 24.793
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ae#c#": 1
+   },
+   "modules": 442,
+   "cpu_s": 6.801,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 4499,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 2999,
+     "errors": 0,
+     "frames_sent": 6000
+    }
+   }
+  },
+  {
+   "t": 160.004,
+   "ticks": 9600,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.528,
+    "p99": 24.369,
+    "max": 24.943
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ae#c#": 1
+   },
+   "modules": 442,
+   "cpu_s": 7.236,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 4798,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 3198,
+     "errors": 0,
+     "frames_sent": 6401
+    }
+   }
+  },
+  {
+   "t": 170.006,
+   "ticks": 10201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.52,
+    "p99": 24.114,
+    "max": 24.98
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 7.627,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 5099,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 3399,
+     "errors": 0,
+     "frames_sent": 6801
+    }
+   }
+  },
+  {
+   "t": 180.008,
+   "ticks": 10801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.485,
+    "p99": 24.085,
+    "max": 24.976
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 8.018,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 5399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 3599,
+     "errors": 0,
+     "frames_sent": 7201
+    }
+   }
+  },
+  {
+   "t": 190.01,
+   "ticks": 11401,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.399,
+    "p99": 24.364,
+    "max": 24.91
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 8.392,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 5699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 3798,
+     "errors": 0,
+     "frames_sent": 7601
+    }
+   }
+  },
+  {
+   "t": 200.003,
+   "ticks": 12000,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.438,
+    "p99": 24.452,
+    "max": 24.882
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-d#a#bf": 1
+   },
+   "modules": 442,
+   "cpu_s": 8.778,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 5998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 3998,
+     "errors": 0,
+     "frames_sent": 8000
+    }
+   }
+  },
+  {
+   "t": 210.006,
+   "ticks": 12601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.498,
+    "p99": 24.347,
+    "max": 24.655
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 9.191,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 6299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 4199,
+     "errors": 0,
+     "frames_sent": 8401
+    }
+   }
+  },
+  {
+   "t": 220.007,
+   "ticks": 13201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.417,
+    "p99": 23.155,
+    "max": 24.817
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 9.602,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 6599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 4399,
+     "errors": 0,
+     "frames_sent": 8801
+    }
+   }
+  },
+  {
+   "t": 230.004,
+   "ticks": 13800,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.521,
+    "p99": 24.327,
+    "max": 24.907
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 9.997,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 6898,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 4598,
+     "errors": 0,
+     "frames_sent": 9201
+    }
+   }
+  },
+  {
+   "t": 240.009,
+   "ticks": 14401,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.468,
+    "p99": 24.129,
+    "max": 24.566
+   },
+   "gc": [
+    1,
+    0,
+    0
+   ],
+   "gc_max_ms": 1.871,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-e#cc": 1
+   },
+   "modules": 442,
+   "cpu_s": 10.409,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 7199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 4799,
+     "errors": 0,
+     "frames_sent": 9601
+    }
+   }
+  },
+  {
+   "t": 250.007,
+   "ticks": 15001,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.482,
+    "p99": 24.189,
+    "max": 24.942
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-e#cc": 1
+   },
+   "modules": 442,
+   "cpu_s": 10.797,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 7499,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 4999,
+     "errors": 0,
+     "frames_sent": 10001
+    }
+   }
+  },
+  {
+   "t": 260.01,
+   "ticks": 15601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.488,
+    "p99": 24.009,
+    "max": 24.92
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 11.174,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 7799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 5199,
+     "errors": 0,
+     "frames_sent": 10400
+    }
+   }
+  },
+  {
+   "t": 270.004,
+   "ticks": 16200,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.481,
+    "p99": 24.143,
+    "max": 24.894
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 11.442,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 8098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 5398,
+     "errors": 0,
+     "frames_sent": 10800
+    }
+   }
+  },
+  {
+   "t": 280.006,
+   "ticks": 16801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.565,
+    "p99": 23.632,
+    "max": 24.471
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-e#e#c": 1
+   },
+   "modules": 442,
+   "cpu_s": 11.751,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 8399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 5599,
+     "errors": 0,
+     "frames_sent": 11200
+    }
+   }
+  },
+  {
+   "t": 290.0,
+   "ticks": 17400,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.494,
+    "p99": 24.125,
+    "max": 24.681
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-e#e#c": 1
+   },
+   "modules": 442,
+   "cpu_s": 12.059,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 8698,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 5799,
+     "errors": 0,
+     "frames_sent": 11600
+    }
+   }
+  },
+  {
+   "t": 300.007,
+   "ticks": 18001,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.333,
+    "p99": 23.836,
+    "max": 25.49
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 12.391,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 8999,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 5999,
+     "errors": 0,
+     "frames_sent": 12001
+    }
+   }
+  },
+  {
+   "t": 310.006,
+   "ticks": 18601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.535,
+    "p99": 24.418,
+    "max": 24.957
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 12.717,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 9298,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 6199,
+     "errors": 0,
+     "frames_sent": 12401
+    }
+   }
+  },
+  {
+   "t": 320.006,
+   "ticks": 19201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.48,
+    "p99": 23.761,
+    "max": 24.759
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#f#a": 1
+   },
+   "modules": 442,
+   "cpu_s": 13.011,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 9599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 6399,
+     "errors": 0,
+     "frames_sent": 12800
+    }
+   }
+  },
+  {
+   "t": 330.007,
+   "ticks": 19801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.383,
+    "p99": 24.292,
+    "max": 24.937
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-#f#a": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 13.425,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 9899,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 6599,
+     "errors": 0,
+     "frames_sent": 13201
+    }
+   }
+  },
+  {
+   "t": 340.001,
+   "ticks": 20400,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.534,
+    "p99": 23.289,
+    "max": 24.441
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 13.809,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 10198,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 6798,
+     "errors": 0,
+     "frames_sent": 13600
+    }
+   }
+  },
+  {
+   "t": 350.004,
+   "ticks": 21001,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.5,
+    "p99": 24.013,
+    "max": 24.68
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 14.154,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 10499,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 6999,
+     "errors": 0,
+     "frames_sent": 14000
+    }
+   }
+  },
+  {
+   "t": 360.004,
+   "ticks": 21601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.465,
+    "p99": 24.166,
+    "max": 24.851
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 14.468,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 10799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 7199,
+     "errors": 0,
+     "frames_sent": 14401
+    }
+   }
+  },
+  {
+   "t": 370.01,
+   "ticks": 22201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.408,
+    "p99": 24.539,
+    "max": 24.863
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-e#e#d#e": 1
+   },
+   "modules": 442,
+   "cpu_s": 14.833,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 11099,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 7399,
+     "errors": 0,
+     "frames_sent": 14800
+    }
+   }
+  },
+  {
+   "t": 380.008,
+   "ticks": 22801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.433,
+    "p99": 24.42,
+    "max": 24.93
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 15.22,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 11398,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 7599,
+     "errors": 0,
+     "frames_sent": 15200
+    }
+   }
+  },
+  {
+   "t": 390.002,
+   "ticks": 23400,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.374,
+    "p99": 24.561,
+    "max": 24.934
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 15.654,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 11698,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 7798,
+     "errors": 0,
+     "frames_sent": 15600
+    }
+   }
+  },
+  {
+   "t": 400.003,
+   "ticks": 24000,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.536,
+    "p99": 24.556,
+    "max": 24.931
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ccab": 1
+   },
+   "modules": 442,
+   "cpu_s": 16.09,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 11998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 7998,
+     "errors": 0,
+     "frames_sent": 16000
+    }
+   }
+  },
+  {
+   "t": 410.008,
+   "ticks": 24601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.493,
+    "p99": 24.019,
+    "max": 25.151
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 16.476,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 12299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 8199,
+     "errors": 0,
+     "frames_sent": 16400
+    }
+   }
+  },
+  {
+   "t": 420.01,
+   "ticks": 25201,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.38,
+    "p99": 23.784,
+    "max": 24.697
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 16.831,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 12599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 8398,
+     "errors": 0,
+     "frames_sent": 16801
+    }
+   }
+  },
+  {
+   "t": 430.01,
+   "ticks": 25801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.35,
+    "p99": 23.988,
+    "max": 24.688
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#eb#": 1
+   },
+   "modules": 442,
+   "cpu_s": 17.242,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 12898,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 8598,
+     "errors": 0,
+     "frames_sent": 17201
+    }
+   }
+  },
+  {
+   "t": 440.01,
+   "ticks": 26401,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.509,
+    "p99": 24.276,
+    "max": 24.822
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#eb#": 1
+   },
+   "modules": 442,
+   "cpu_s": 17.633,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 13199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 8799,
+     "errors": 0,
+     "frames_sent": 17601
+    }
+   }
+  },
+  {
+   "t": 450.01,
+   "ticks": 27001,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.418,
+    "p99": 23.959,
+    "max": 24.615
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 17.991,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 13499,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 8999,
+     "errors": 0,
+     "frames_sent": 18000
+    }
+   }
+  },
+  {
+   "t": 460.01,
+   "ticks": 27601,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.49,
+    "p99": 24.159,
+    "max": 24.79
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 18.309,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 13799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 9199,
+     "errors": 0,
+     "frames_sent": 18401
+    }
+   }
+  },
+  {
+   "t": 470.004,
+   "ticks": 28200,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.457,
+    "p99": 23.911,
+    "max": 24.732
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 18.627,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 14098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 9398,
+     "errors": 0,
+     "frames_sent": 18800
+    }
+   }
+  },
+  {
+   "t": 480.009,
+   "ticks": 28801,
+   "skips": 0,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.447,
+    "p99": 24.105,
+    "max": 24.927
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#af#": 1
+   },
+   "modules": 442,
+   "cpu_s": 19.003,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 14399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 9599,
+     "errors": 0,
+     "frames_sent": 19201
+    }
+   }
+  },
+  {
+   "t": 490.009,
+   "ticks": 29401,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.545,
+    "p99": 24.312,
+    "max": 31.821
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-#af#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 19.393,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 14699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 9799,
+     "errors": 0,
+     "frames_sent": 19601
+    }
+   }
+  },
+  {
+   "t": 500.003,
+   "ticks": 30000,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.392,
+    "p99": 23.693,
+    "max": 24.581
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 19.795,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 14998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 9998,
+     "errors": 0,
+     "frames_sent": 20000
+    }
+   }
+  },
+  {
+   "t": 510.006,
+   "ticks": 30600,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.346,
+    "p99": 24.176,
+    "max": 24.833
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 20.147,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 15298,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 10198,
+     "errors": 0,
+     "frames_sent": 20401
+    }
+   }
+  },
+  {
+   "t": 520.005,
+   "ticks": 31201,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.456,
+    "p99": 24.176,
+    "max": 24.629
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-ff#ceb": 1
+   },
+   "modules": 442,
+   "cpu_s": 20.563,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 15599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 10399,
+     "errors": 0,
+     "frames_sent": 20800
+    }
+   }
+  },
+  {
+   "t": 530.003,
+   "ticks": 31800,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.426,
+    "p99": 23.827,
+    "max": 26.266
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 21.041,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 15898,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 10598,
+     "errors": 0,
+     "frames_sent": 21200
+    }
+   }
+  },
+  {
+   "t": 540.006,
+   "ticks": 32401,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.482,
+    "p99": 24.136,
+    "max": 24.702
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 21.418,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 16198,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 10799,
+     "errors": 0,
+     "frames_sent": 21600
+    }
+   }
+  },
+  {
+   "t": 550.006,
+   "ticks": 33001,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.617,
+    "p99": 24.065,
+    "max": 24.719
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 21.816,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 16499,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 10999,
+     "errors": 0,
+     "frames_sent": 22000
+    }
+   }
+  },
+  {
+   "t": 560.006,
+   "ticks": 33601,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.572,
+    "p99": 23.599,
+    "max": 24.46
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-bc#fbcf#": 1
+   },
+   "modules": 442,
+   "cpu_s": 22.241,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 16799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 11199,
+     "errors": 0,
+     "frames_sent": 22400
+    }
+   }
+  },
+  {
+   "t": 570.008,
+   "ticks": 34201,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.366,
+    "p99": 24.319,
+    "max": 24.942
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 22.657,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 17098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 11399,
+     "errors": 0,
+     "frames_sent": 22801
+    }
+   }
+  },
+  {
+   "t": 580.008,
+   "ticks": 34801,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.502,
+    "p99": 23.713,
+    "max": 24.774
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 23.041,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 17399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 11599,
+     "errors": 0,
+     "frames_sent": 23200
+    }
+   }
+  },
+  {
+   "t": 590.005,
+   "ticks": 35400,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.471,
+    "p99": 24.357,
+    "max": 24.779
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#f#": 1
+   },
+   "modules": 442,
+   "cpu_s": 23.448,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 17698,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 11799,
+     "errors": 0,
+     "frames_sent": 23600
+    }
+   }
+  },
+  {
+   "t": 600.009,
+   "ticks": 36001,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.568,
+    "p99": 23.86,
+    "max": 24.703
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 23.861,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 17999,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 11999,
+     "errors": 0,
+     "frames_sent": 24001
+    }
+   }
+  },
+  {
+   "t": 610.009,
+   "ticks": 36601,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.328,
+    "p99": 24.436,
+    "max": 26.556
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 24.265,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 18299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 12199,
+     "errors": 0,
+     "frames_sent": 24401
+    }
+   }
+  },
+  {
+   "t": 620.009,
+   "ticks": 37201,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.541,
+    "p99": 24.16,
+    "max": 25.046
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 24.685,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 18599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 12399,
+     "errors": 0,
+     "frames_sent": 24800
+    }
+   }
+  },
+  {
+   "t": 630.003,
+   "ticks": 37800,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.514,
+    "p99": 24.524,
+    "max": 24.711
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 25.098,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 18898,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 12598,
+     "errors": 0,
+     "frames_sent": 25200
+    }
+   }
+  },
+  {
+   "t": 640.003,
+   "ticks": 38400,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.412,
+    "p99": 24.497,
+    "max": 25.125
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ec#": 1
+   },
+   "modules": 442,
+   "cpu_s": 25.544,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 19198,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 12798,
+     "errors": 0,
+     "frames_sent": 25600
+    }
+   }
+  },
+  {
+   "t": 650.003,
+   "ticks": 39000,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.587,
+    "p99": 24.067,
+    "max": 25.416
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 25.982,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 19498,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 12998,
+     "errors": 0,
+     "frames_sent": 26000
+    }
+   }
+  },
+  {
+   "t": 660.009,
+   "ticks": 39601,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.528,
+    "p99": 24.116,
+    "max": 24.906
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 26.379,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 19799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 13198,
+     "errors": 0,
+     "frames_sent": 26401
+    }
+   }
+  },
+  {
+   "t": 670.005,
+   "ticks": 40200,
+   "skips": 1,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.519,
+    "p99": 23.953,
+    "max": 24.387
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-a#": 1
+   },
+   "modules": 442,
+   "cpu_s": 26.803,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 20098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 13398,
+     "errors": 0,
+     "frames_sent": 26801
+    }
+   }
+  },
+  {
+   "t": 680.003,
+   "ticks": 40800,
+   "skips": 3,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.496,
+    "p99": 24.33,
+    "max": 33.64
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-a#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 27.289,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 20398,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 13598,
+     "errors": 0,
+     "frames_sent": 27200
+    }
+   }
+  },
+  {
+   "t": 690.005,
+   "ticks": 41401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.426,
+    "p99": 24.102,
+    "max": 34.065
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 27.826,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 20698,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 13799,
+     "errors": 0,
+     "frames_sent": 27601
+    }
+   }
+  },
+  {
+   "t": 700.0,
+   "ticks": 42000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.453,
+    "p99": 24.202,
+    "max": 24.895
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 28.36,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 20998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 13998,
+     "errors": 0,
+     "frames_sent": 28000
+    }
+   }
+  },
+  {
+   "t": 710.009,
+   "ticks": 42601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.416,
+    "p99": 24.136,
+    "max": 28.257
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 28.815,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 21298,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 14199,
+     "errors": 0,
+     "frames_sent": 28401
+    }
+   }
+  },
+  {
+   "t": 720.003,
+   "ticks": 43200,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.418,
+    "p99": 24.144,
+    "max": 25.066
+   },
+   "gc": [
+    1,
+    0,
+    0
+   ],
+   "gc_max_ms": 1.524,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-#fb#f": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 29.357,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 21598,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 14398,
+     "errors": 0,
+     "frames_sent": 28800
+    }
+   }
+  },
+  {
+   "t": 730.01,
+   "ticks": 43801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.507,
+    "p99": 24.035,
+    "max": 24.828
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 29.899,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 21898,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 14599,
+     "errors": 0,
+     "frames_sent": 29201
+    }
+   }
+  },
+  {
+   "t": 740.008,
+   "ticks": 44401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.579,
+    "p99": 23.914,
+    "max": 24.761
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 30.386,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 22199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 14799,
+     "errors": 0,
+     "frames_sent": 29601
+    }
+   }
+  },
+  {
+   "t": 750.005,
+   "ticks": 45000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.415,
+    "p99": 24.328,
+    "max": 24.917
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ed#e#e#": 1
+   },
+   "modules": 442,
+   "cpu_s": 30.819,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 22498,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 14999,
+     "errors": 0,
+     "frames_sent": 30000
+    }
+   }
+  },
+  {
+   "t": 760.007,
+   "ticks": 45601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.607,
+    "p99": 24.219,
+    "max": 26.222
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ed#e#e#": 1
+   },
+   "modules": 442,
+   "cpu_s": 31.266,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 22799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 15199,
+     "errors": 0,
+     "frames_sent": 30400
+    }
+   }
+  },
+  {
+   "t": 770.009,
+   "ticks": 46201,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.594,
+    "p99": 24.138,
+    "max": 25.118
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 31.689,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 23099,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 15398,
+     "errors": 0,
+     "frames_sent": 30801
+    }
+   }
+  },
+  {
+   "t": 780.006,
+   "ticks": 46801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.483,
+    "p99": 24.118,
+    "max": 24.864
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 32.096,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 23399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 15599,
+     "errors": 0,
+     "frames_sent": 31200
+    }
+   }
+  },
+  {
+   "t": 790.005,
+   "ticks": 47401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.398,
+    "p99": 24.381,
+    "max": 25.12
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#": 1
+   },
+   "modules": 442,
+   "cpu_s": 32.527,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 23699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 15799,
+     "errors": 0,
+     "frames_sent": 31600
+    }
+   }
+  },
+  {
+   "t": 800.006,
+   "ticks": 48001,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.526,
+    "p99": 24.186,
+    "max": 24.979
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#": 1
+   },
+   "modules": 442,
+   "cpu_s": 32.951,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 23999,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 15999,
+     "errors": 0,
+     "frames_sent": 32000
+    }
+   }
+  },
+  {
+   "t": 810.008,
+   "ticks": 48601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.296,
+    "p99": 24.229,
+    "max": 24.682
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 33.367,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 24299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 16199,
+     "errors": 0,
+     "frames_sent": 32401
+    }
+   }
+  },
+  {
+   "t": 820.009,
+   "ticks": 49201,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.565,
+    "p99": 23.825,
+    "max": 25.056
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 33.782,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 24599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 16399,
+     "errors": 0,
+     "frames_sent": 32801
+    }
+   }
+  },
+  {
+   "t": 830.01,
+   "ticks": 49801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.563,
+    "p99": 24.458,
+    "max": 24.781
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#a#f": 1
+   },
+   "modules": 442,
+   "cpu_s": 34.208,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 24899,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 16599,
+     "errors": 0,
+     "frames_sent": 33201
+    }
+   }
+  },
+  {
+   "t": 840.007,
+   "ticks": 50401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.444,
+    "p99": 23.512,
+    "max": 24.404
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#a#f": 1
+   },
+   "modules": 442,
+   "cpu_s": 34.648,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 25199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 16799,
+     "errors": 0,
+     "frames_sent": 33600
+    }
+   }
+  },
+  {
+   "t": 850.006,
+   "ticks": 51001,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.471,
+    "p99": 24.57,
+    "max": 26.987
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 35.104,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 25498,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 16998,
+     "errors": 0,
+     "frames_sent": 34001
+    }
+   }
+  },
+  {
+   "t": 860.001,
+   "ticks": 51600,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.381,
+    "p99": 24.415,
+    "max": 25.067
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 35.491,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 25798,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 17199,
+     "errors": 0,
+     "frames_sent": 34400
+    }
+   }
+  },
+  {
+   "t": 870.009,
+   "ticks": 52201,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.466,
+    "p99": 24.055,
+    "max": 24.828
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 35.905,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 26099,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 17398,
+     "errors": 0,
+     "frames_sent": 34801
+    }
+   }
+  },
+  {
+   "t": 880.007,
+   "ticks": 52801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.5,
+    "p99": 24.165,
+    "max": 24.903
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#fd#b#": 1
+   },
+   "modules": 442,
+   "cpu_s": 36.344,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 26398,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 17599,
+     "errors": 0,
+     "frames_sent": 35201
+    }
+   }
+  },
+  {
+   "t": 890.01,
+   "ticks": 53401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.582,
+    "p99": 24.032,
+    "max": 24.583
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-sink-preview-#fd#b#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 36.792,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 26699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 17799,
+     "errors": 0,
+     "frames_sent": 35601
+    }
+   }
+  },
+  {
+   "t": 900.006,
+   "ticks": 54001,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.42,
+    "p99": 24.231,
+    "max": 31.187
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 37.252,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 26999,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 17999,
+     "errors": 0,
+     "frames_sent": 36000
+    }
+   }
+  },
+  {
+   "t": 910.008,
+   "ticks": 54601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.447,
+    "p99": 24.004,
+    "max": 24.788
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 37.672,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 27299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 18198,
+     "errors": 0,
+     "frames_sent": 36401
+    }
+   }
+  },
+  {
+   "t": 920.006,
+   "ticks": 55200,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.561,
+    "p99": 24.222,
+    "max": 24.911
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ded#": 1
+   },
+   "modules": 442,
+   "cpu_s": 38.083,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 27598,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 18398,
+     "errors": 0,
+     "frames_sent": 36801
+    }
+   }
+  },
+  {
+   "t": 930.008,
+   "ticks": 55801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.516,
+    "p99": 23.968,
+    "max": 25.377
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#ded#": 1
+   },
+   "modules": 442,
+   "cpu_s": 38.53,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 27899,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 18599,
+     "errors": 0,
+     "frames_sent": 37200
+    }
+   }
+  },
+  {
+   "t": 940.01,
+   "ticks": 56401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.376,
+    "p99": 24.253,
+    "max": 25.092
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 38.968,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 28199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 18799,
+     "errors": 0,
+     "frames_sent": 37601
+    }
+   }
+  },
+  {
+   "t": 950.0,
+   "ticks": 57000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.565,
+    "p99": 23.99,
+    "max": 24.907
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 39.364,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 28498,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 18998,
+     "errors": 0,
+     "frames_sent": 38000
+    }
+   }
+  },
+  {
+   "t": 960.008,
+   "ticks": 57601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.488,
+    "p99": 23.512,
+    "max": 24.197
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 39.778,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 28799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 19199,
+     "errors": 0,
+     "frames_sent": 38401
+    }
+   }
+  },
+  {
+   "t": 970.005,
+   "ticks": 58200,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.57,
+    "p99": 23.721,
+    "max": 25.463
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-fd#a#cdd": 1
+   },
+   "modules": 442,
+   "cpu_s": 40.251,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 29098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 19398,
+     "errors": 0,
+     "frames_sent": 38800
+    }
+   }
+  },
+  {
+   "t": 980.001,
+   "ticks": 58800,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.526,
+    "p99": 24.194,
+    "max": 24.86
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 40.73,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 29398,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 19598,
+     "errors": 0,
+     "frames_sent": 39200
+    }
+   }
+  },
+  {
+   "t": 990.01,
+   "ticks": 59401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.535,
+    "p99": 23.895,
+    "max": 24.759
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 41.219,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 29699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 19799,
+     "errors": 0,
+     "frames_sent": 39600
+    }
+   }
+  },
+  {
+   "t": 1000.001,
+   "ticks": 60000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.587,
+    "p99": 24.066,
+    "max": 24.65
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 41.71,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 29998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 19999,
+     "errors": 0,
+     "frames_sent": 40000
+    }
+   }
+  },
+  {
+   "t": 1010.005,
+   "ticks": 60601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.505,
+    "p99": 23.733,
+    "max": 24.778
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#d#a#b": 1
+   },
+   "modules": 442,
+   "cpu_s": 42.212,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 30299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 20199,
+     "errors": 0,
+     "frames_sent": 40401
+    }
+   }
+  },
+  {
+   "t": 1020.005,
+   "ticks": 61201,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.355,
+    "p99": 23.757,
+    "max": 24.608
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#d#a#b": 1
+   },
+   "modules": 442,
+   "cpu_s": 42.749,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 30599,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 20399,
+     "errors": 0,
+     "frames_sent": 40800
+    }
+   }
+  },
+  {
+   "t": 1030.007,
+   "ticks": 61801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.468,
+    "p99": 24.216,
+    "max": 25.027
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 43.27,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 30899,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 20598,
+     "errors": 0,
+     "frames_sent": 41201
+    }
+   }
+  },
+  {
+   "t": 1040.004,
+   "ticks": 62401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.423,
+    "p99": 24.152,
+    "max": 24.745
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 43.749,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 31199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 20799,
+     "errors": 0,
+     "frames_sent": 41600
+    }
+   }
+  },
+  {
+   "t": 1050.005,
+   "ticks": 63000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.483,
+    "p99": 24.266,
+    "max": 24.929
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#f#b#ce#": 1
+   },
+   "modules": 442,
+   "cpu_s": 44.156,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 31498,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 20998,
+     "errors": 0,
+     "frames_sent": 42000
+    }
+   }
+  },
+  {
+   "t": 1060.009,
+   "ticks": 63601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.533,
+    "p99": 23.847,
+    "max": 24.491
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#f#b#ce#": 1
+   },
+   "modules": 442,
+   "cpu_s": 44.607,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 31799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 21199,
+     "errors": 0,
+     "frames_sent": 42401
+    }
+   }
+  },
+  {
+   "t": 1070.001,
+   "ticks": 64200,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.647,
+    "p99": 23.755,
+    "max": 28.14
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 44.992,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 32098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 21398,
+     "errors": 0,
+     "frames_sent": 42800
+    }
+   }
+  },
+  {
+   "t": 1080.004,
+   "ticks": 64801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.575,
+    "p99": 24.082,
+    "max": 24.843
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 45.412,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 32399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 21599,
+     "errors": 0,
+     "frames_sent": 43200
+    }
+   }
+  },
+  {
+   "t": 1090.008,
+   "ticks": 65401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.544,
+    "p99": 23.99,
+    "max": 24.929
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-d#a#a#c#": 1
+   },
+   "modules": 442,
+   "cpu_s": 45.858,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 32699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 21799,
+     "errors": 0,
+     "frames_sent": 43601
+    }
+   }
+  },
+  {
+   "t": 1100.005,
+   "ticks": 66000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.511,
+    "p99": 24.016,
+    "max": 25.008
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-d#a#a#c#": 1
+   },
+   "modules": 442,
+   "cpu_s": 46.309,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 32998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 21998,
+     "errors": 0,
+     "frames_sent": 44001
+    }
+   }
+  },
+  {
+   "t": 1110.008,
+   "ticks": 66601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.55,
+    "p99": 24.486,
+    "max": 26.974
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 46.725,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 33299,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 22199,
+     "errors": 0,
+     "frames_sent": 44400
+    }
+   }
+  },
+  {
+   "t": 1120.004,
+   "ticks": 67200,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.437,
+    "p99": 24.244,
+    "max": 24.81
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 47.119,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 33598,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 22398,
+     "errors": 0,
+     "frames_sent": 44801
+    }
+   }
+  },
+  {
+   "t": 1130.01,
+   "ticks": 67801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.57,
+    "p99": 23.483,
+    "max": 24.749
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-b#e#": 1
+   },
+   "modules": 442,
+   "cpu_s": 47.51,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 33899,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 22599,
+     "errors": 0,
+     "frames_sent": 45201
+    }
+   }
+  },
+  {
+   "t": 1140.002,
+   "ticks": 68401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.557,
+    "p99": 24.114,
+    "max": 24.88
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-b#e#": 1
+   },
+   "modules": 442,
+   "cpu_s": 47.938,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 34199,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 22799,
+     "errors": 0,
+     "frames_sent": 45601
+    }
+   }
+  },
+  {
+   "t": 1150.007,
+   "ticks": 69001,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.46,
+    "p99": 24.15,
+    "max": 24.861
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 48.341,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 34499,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 22998,
+     "errors": 0,
+     "frames_sent": 46001
+    }
+   }
+  },
+  {
+   "t": 1160.008,
+   "ticks": 69601,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.378,
+    "p99": 24.338,
+    "max": 24.77
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 48.727,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 34799,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 23199,
+     "errors": 0,
+     "frames_sent": 46401
+    }
+   }
+  },
+  {
+   "t": 1170.001,
+   "ticks": 70200,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.571,
+    "p99": 24.18,
+    "max": 24.86
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 16,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 2,
+    "Thread-# (recv_events)": 2,
+    "Thread-# (keepalive)": 2,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1,
+    "pewpew-sink-preview-#df#": 1
+   },
+   "modules": 442,
+   "cpu_s": 49.15,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 35098,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 23398,
+     "errors": 0,
+     "frames_sent": 46800
+    }
+   }
+  },
+  {
+   "t": 1180.008,
+   "ticks": 70801,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.514,
+    "p99": 24.237,
+    "max": 24.745
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 49.579,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 35399,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 23599,
+     "errors": 0,
+     "frames_sent": 47201
+    }
+   }
+  },
+  {
+   "t": 1190.005,
+   "ticks": 71401,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.517,
+    "p99": 24.052,
+    "max": 24.801
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 49.978,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 35699,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 23799,
+     "errors": 0,
+     "frames_sent": 47600
+    }
+   }
+  },
+  {
+   "t": 1200.004,
+   "ticks": 72000,
+   "skips": 4,
+   "missed_frames": 0,
+   "interval_ms": {
+    "p50": 16.503,
+    "p99": 24.381,
+    "max": 24.884
+   },
+   "gc": [
+    0,
+    0,
+    0
+   ],
+   "gc_max_ms": 0.0,
+   "threads": 12,
+   "thread_groups": {
+    "MainThread": 1,
+    "bench-sampler": 1,
+    "pewpew-preview-server": 1,
+    "pewpew-sink-PreviewSink": 1,
+    "pewpew-sink-DdpSink": 1,
+    "pewpew-reload-map": 1,
+    "pewpew-health": 1,
+    "Thread-# (sock_handler)": 1,
+    "Thread-# (recv_events)": 1,
+    "Thread-# (keepalive)": 1,
+    "pewpew-sink-preview-#f#d#": 1,
+    "pewpew-reload-pattern": 1
+   },
+   "modules": 442,
+   "cpu_s": 50.375,
+   "drivers": {
+    "PreviewSink": {
+     "dropped": 35998,
+     "errors": 0,
+     "frames_sent": null
+    },
+    "DdpSink": {
+     "dropped": 23998,
+     "errors": 0,
+     "frames_sent": 48000
+    }
+   }
+  }
+ ],
+ "driver_samples": [
+  {
+   "t": 10.009,
+   "rss_kb": 48000,
+   "control_frames": 300,
+   "boards": [
+    {
+     "packets": 1203,
+     "bytes": 1551870,
+     "frames": 401,
+     "incomplete": 0,
+     "fps": 40.099
+    },
+    {
+     "packets": 1203,
+     "bytes": 1551870,
+     "frames": 401,
+     "incomplete": 0,
+     "fps": 40.099
+    },
+    {
+     "packets": 1203,
+     "bytes": 1551870,
+     "frames": 401,
+     "incomplete": 0,
+     "fps": 40.099
+    }
+   ]
+  },
+  {
+   "t": 20.006,
+   "rss_kb": 45920,
+   "control_frames": 600,
+   "boards": [
+    {
+     "packets": 2403,
+     "bytes": 3099870,
+     "frames": 801,
+     "incomplete": 0,
+     "fps": 40.015
+    },
+    {
+     "packets": 2403,
+     "bytes": 3099870,
+     "frames": 801,
+     "incomplete": 0,
+     "fps": 40.015
+    },
+    {
+     "packets": 2403,
+     "bytes": 3099870,
+     "frames": 801,
+     "incomplete": 0,
+     "fps": 40.015
+    }
+   ]
+  },
+  {
+   "t": 30.007,
+   "rss_kb": 35600,
+   "control_frames": 900,
+   "boards": [
+    {
+     "packets": 3603,
+     "bytes": 4647870,
+     "frames": 1201,
+     "incomplete": 0,
+     "fps": 39.995
+    },
+    {
+     "packets": 3603,
+     "bytes": 4647870,
+     "frames": 1201,
+     "incomplete": 0,
+     "fps": 39.995
+    },
+    {
+     "packets": 3603,
+     "bytes": 4647870,
+     "frames": 1201,
+     "incomplete": 0,
+     "fps": 39.995
+    }
+   ]
+  },
+  {
+   "t": 40.002,
+   "rss_kb": 40176,
+   "control_frames": 1200,
+   "boards": [
+    {
+     "packets": 4803,
+     "bytes": 6195870,
+     "frames": 1601,
+     "incomplete": 0,
+     "fps": 40.02
+    },
+    {
+     "packets": 4803,
+     "bytes": 6195870,
+     "frames": 1601,
+     "incomplete": 0,
+     "fps": 40.02
+    },
+    {
+     "packets": 4803,
+     "bytes": 6195870,
+     "frames": 1601,
+     "incomplete": 0,
+     "fps": 40.02
+    }
+   ]
+  },
+  {
+   "t": 50.003,
+   "rss_kb": 36816,
+   "control_frames": 1500,
+   "boards": [
+    {
+     "packets": 6003,
+     "bytes": 7743870,
+     "frames": 2001,
+     "incomplete": 0,
+     "fps": 39.997
+    },
+    {
+     "packets": 6003,
+     "bytes": 7743870,
+     "frames": 2001,
+     "incomplete": 0,
+     "fps": 39.997
+    },
+    {
+     "packets": 6003,
+     "bytes": 7743870,
+     "frames": 2001,
+     "incomplete": 0,
+     "fps": 39.997
+    }
+   ]
+  },
+  {
+   "t": 60.01,
+   "rss_kb": 35664,
+   "control_frames": 1800,
+   "boards": [
+    {
+     "packets": 7203,
+     "bytes": 9291870,
+     "frames": 2401,
+     "incomplete": 0,
+     "fps": 39.971
+    },
+    {
+     "packets": 7203,
+     "bytes": 9291870,
+     "frames": 2401,
+     "incomplete": 0,
+     "fps": 39.971
+    },
+    {
+     "packets": 7203,
+     "bytes": 9291870,
+     "frames": 2401,
+     "incomplete": 0,
+     "fps": 39.971
+    }
+   ]
+  },
+  {
+   "t": 70.009,
+   "rss_kb": 36864,
+   "control_frames": 2100,
+   "boards": [
+    {
+     "packets": 8403,
+     "bytes": 10839870,
+     "frames": 2801,
+     "incomplete": 0,
+     "fps": 40.004
+    },
+    {
+     "packets": 8403,
+     "bytes": 10839870,
+     "frames": 2801,
+     "incomplete": 0,
+     "fps": 40.004
+    },
+    {
+     "packets": 8403,
+     "bytes": 10839870,
+     "frames": 2801,
+     "incomplete": 0,
+     "fps": 40.004
+    }
+   ]
+  },
+  {
+   "t": 80.009,
+   "rss_kb": 37216,
+   "control_frames": 2400,
+   "boards": [
+    {
+     "packets": 9603,
+     "bytes": 12387870,
+     "frames": 3201,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 9603,
+     "bytes": 12387870,
+     "frames": 3201,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 9603,
+     "bytes": 12387870,
+     "frames": 3201,
+     "incomplete": 0,
+     "fps": 40.002
+    }
+   ]
+  },
+  {
+   "t": 90.005,
+   "rss_kb": 41984,
+   "control_frames": 2700,
+   "boards": [
+    {
+     "packets": 10803,
+     "bytes": 13935870,
+     "frames": 3601,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 10803,
+     "bytes": 13935870,
+     "frames": 3601,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 10803,
+     "bytes": 13935870,
+     "frames": 3601,
+     "incomplete": 0,
+     "fps": 40.017
+    }
+   ]
+  },
+  {
+   "t": 100.009,
+   "rss_kb": 37024,
+   "control_frames": 3000,
+   "boards": [
+    {
+     "packets": 12003,
+     "bytes": 15483870,
+     "frames": 4001,
+     "incomplete": 0,
+     "fps": 39.982
+    },
+    {
+     "packets": 12003,
+     "bytes": 15483870,
+     "frames": 4001,
+     "incomplete": 0,
+     "fps": 39.982
+    },
+    {
+     "packets": 12003,
+     "bytes": 15483870,
+     "frames": 4001,
+     "incomplete": 0,
+     "fps": 39.982
+    }
+   ]
+  },
+  {
+   "t": 110.005,
+   "rss_kb": 37392,
+   "control_frames": 3300,
+   "boards": [
+    {
+     "packets": 13203,
+     "bytes": 17031870,
+     "frames": 4401,
+     "incomplete": 0,
+     "fps": 40.014
+    },
+    {
+     "packets": 13203,
+     "bytes": 17031870,
+     "frames": 4401,
+     "incomplete": 0,
+     "fps": 40.014
+    },
+    {
+     "packets": 13203,
+     "bytes": 17031870,
+     "frames": 4401,
+     "incomplete": 0,
+     "fps": 40.014
+    }
+   ]
+  },
+  {
+   "t": 120.01,
+   "rss_kb": 37392,
+   "control_frames": 3600,
+   "boards": [
+    {
+     "packets": 14403,
+     "bytes": 18579870,
+     "frames": 4801,
+     "incomplete": 0,
+     "fps": 39.981
+    },
+    {
+     "packets": 14403,
+     "bytes": 18579870,
+     "frames": 4801,
+     "incomplete": 0,
+     "fps": 39.981
+    },
+    {
+     "packets": 14403,
+     "bytes": 18579870,
+     "frames": 4801,
+     "incomplete": 0,
+     "fps": 39.981
+    }
+   ]
+  },
+  {
+   "t": 130.005,
+   "rss_kb": 39792,
+   "control_frames": 3900,
+   "boards": [
+    {
+     "packets": 15603,
+     "bytes": 20127870,
+     "frames": 5201,
+     "incomplete": 0,
+     "fps": 40.021
+    },
+    {
+     "packets": 15603,
+     "bytes": 20127870,
+     "frames": 5201,
+     "incomplete": 0,
+     "fps": 40.021
+    },
+    {
+     "packets": 15603,
+     "bytes": 20127870,
+     "frames": 5201,
+     "incomplete": 0,
+     "fps": 40.021
+    }
+   ]
+  },
+  {
+   "t": 140.005,
+   "rss_kb": 39840,
+   "control_frames": 4200,
+   "boards": [
+    {
+     "packets": 16803,
+     "bytes": 21675870,
+     "frames": 5601,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 16803,
+     "bytes": 21675870,
+     "frames": 5601,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 16803,
+     "bytes": 21675870,
+     "frames": 5601,
+     "incomplete": 0,
+     "fps": 39.998
+    }
+   ]
+  },
+  {
+   "t": 150.008,
+   "rss_kb": 43024,
+   "control_frames": 4500,
+   "boards": [
+    {
+     "packets": 18003,
+     "bytes": 23223870,
+     "frames": 6001,
+     "incomplete": 0,
+     "fps": 39.988
+    },
+    {
+     "packets": 18003,
+     "bytes": 23223870,
+     "frames": 6001,
+     "incomplete": 0,
+     "fps": 39.988
+    },
+    {
+     "packets": 18003,
+     "bytes": 23223870,
+     "frames": 6001,
+     "incomplete": 0,
+     "fps": 39.988
+    }
+   ]
+  },
+  {
+   "t": 160.004,
+   "rss_kb": 39744,
+   "control_frames": 4800,
+   "boards": [
+    {
+     "packets": 19203,
+     "bytes": 24771870,
+     "frames": 6401,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 19203,
+     "bytes": 24771870,
+     "frames": 6401,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 19203,
+     "bytes": 24771870,
+     "frames": 6401,
+     "incomplete": 0,
+     "fps": 40.017
+    }
+   ]
+  },
+  {
+   "t": 170.006,
+   "rss_kb": 39712,
+   "control_frames": 5100,
+   "boards": [
+    {
+     "packets": 20403,
+     "bytes": 26319870,
+     "frames": 6801,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 20403,
+     "bytes": 26319870,
+     "frames": 6801,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 20403,
+     "bytes": 26319870,
+     "frames": 6801,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 180.008,
+   "rss_kb": 35856,
+   "control_frames": 5400,
+   "boards": [
+    {
+     "packets": 21603,
+     "bytes": 27867870,
+     "frames": 7201,
+     "incomplete": 0,
+     "fps": 39.991
+    },
+    {
+     "packets": 21603,
+     "bytes": 27867870,
+     "frames": 7201,
+     "incomplete": 0,
+     "fps": 39.991
+    },
+    {
+     "packets": 21603,
+     "bytes": 27867870,
+     "frames": 7201,
+     "incomplete": 0,
+     "fps": 39.991
+    }
+   ]
+  },
+  {
+   "t": 190.01,
+   "rss_kb": 35440,
+   "control_frames": 5700,
+   "boards": [
+    {
+     "packets": 22803,
+     "bytes": 29415870,
+     "frames": 7601,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 22803,
+     "bytes": 29415870,
+     "frames": 7601,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 22803,
+     "bytes": 29415870,
+     "frames": 7601,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 200.008,
+   "rss_kb": 36448,
+   "control_frames": 6000,
+   "boards": [
+    {
+     "packets": 24003,
+     "bytes": 30963870,
+     "frames": 8001,
+     "incomplete": 0,
+     "fps": 40.006
+    },
+    {
+     "packets": 24003,
+     "bytes": 30963870,
+     "frames": 8001,
+     "incomplete": 0,
+     "fps": 40.006
+    },
+    {
+     "packets": 24003,
+     "bytes": 30963870,
+     "frames": 8001,
+     "incomplete": 0,
+     "fps": 40.006
+    }
+   ]
+  },
+  {
+   "t": 210.01,
+   "rss_kb": 37312,
+   "control_frames": 6300,
+   "boards": [
+    {
+     "packets": 25203,
+     "bytes": 32511870,
+     "frames": 8401,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 25203,
+     "bytes": 32511870,
+     "frames": 8401,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 25203,
+     "bytes": 32511870,
+     "frames": 8401,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 220.007,
+   "rss_kb": 36528,
+   "control_frames": 6600,
+   "boards": [
+    {
+     "packets": 26403,
+     "bytes": 34059870,
+     "frames": 8801,
+     "incomplete": 0,
+     "fps": 40.012
+    },
+    {
+     "packets": 26403,
+     "bytes": 34059870,
+     "frames": 8801,
+     "incomplete": 0,
+     "fps": 40.012
+    },
+    {
+     "packets": 26403,
+     "bytes": 34059870,
+     "frames": 8801,
+     "incomplete": 0,
+     "fps": 40.012
+    }
+   ]
+  },
+  {
+   "t": 230.004,
+   "rss_kb": 34864,
+   "control_frames": 6900,
+   "boards": [
+    {
+     "packets": 27603,
+     "bytes": 35607870,
+     "frames": 9201,
+     "incomplete": 0,
+     "fps": 40.013
+    },
+    {
+     "packets": 27603,
+     "bytes": 35607870,
+     "frames": 9201,
+     "incomplete": 0,
+     "fps": 40.013
+    },
+    {
+     "packets": 27603,
+     "bytes": 35607870,
+     "frames": 9201,
+     "incomplete": 0,
+     "fps": 40.013
+    }
+   ]
+  },
+  {
+   "t": 240.009,
+   "rss_kb": 43120,
+   "control_frames": 7200,
+   "boards": [
+    {
+     "packets": 28803,
+     "bytes": 37155870,
+     "frames": 9601,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 28803,
+     "bytes": 37155870,
+     "frames": 9601,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 28803,
+     "bytes": 37155870,
+     "frames": 9601,
+     "incomplete": 0,
+     "fps": 39.977
+    }
+   ]
+  },
+  {
+   "t": 250.01,
+   "rss_kb": 37120,
+   "control_frames": 7500,
+   "boards": [
+    {
+     "packets": 30003,
+     "bytes": 38703870,
+     "frames": 10001,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 30003,
+     "bytes": 38703870,
+     "frames": 10001,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 30003,
+     "bytes": 38703870,
+     "frames": 10001,
+     "incomplete": 0,
+     "fps": 40.0
+    }
+   ]
+  },
+  {
+   "t": 260.01,
+   "rss_kb": 37520,
+   "control_frames": 7800,
+   "boards": [
+    {
+     "packets": 31203,
+     "bytes": 40251870,
+     "frames": 10401,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 31203,
+     "bytes": 40251870,
+     "frames": 10401,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 31203,
+     "bytes": 40251870,
+     "frames": 10401,
+     "incomplete": 0,
+     "fps": 39.999
+    }
+   ]
+  },
+  {
+   "t": 270.01,
+   "rss_kb": 36384,
+   "control_frames": 8100,
+   "boards": [
+    {
+     "packets": 32403,
+     "bytes": 41799870,
+     "frames": 10801,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 32403,
+     "bytes": 41799870,
+     "frames": 10801,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 32403,
+     "bytes": 41799870,
+     "frames": 10801,
+     "incomplete": 0,
+     "fps": 39.999
+    }
+   ]
+  },
+  {
+   "t": 280.006,
+   "rss_kb": 35840,
+   "control_frames": 8400,
+   "boards": [
+    {
+     "packets": 33603,
+     "bytes": 43347870,
+     "frames": 11201,
+     "incomplete": 0,
+     "fps": 40.016
+    },
+    {
+     "packets": 33603,
+     "bytes": 43347870,
+     "frames": 11201,
+     "incomplete": 0,
+     "fps": 40.016
+    },
+    {
+     "packets": 33603,
+     "bytes": 43347870,
+     "frames": 11201,
+     "incomplete": 0,
+     "fps": 40.016
+    }
+   ]
+  },
+  {
+   "t": 290.0,
+   "rss_kb": 35840,
+   "control_frames": 8700,
+   "boards": [
+    {
+     "packets": 34803,
+     "bytes": 44895870,
+     "frames": 11601,
+     "incomplete": 0,
+     "fps": 40.022
+    },
+    {
+     "packets": 34803,
+     "bytes": 44895870,
+     "frames": 11601,
+     "incomplete": 0,
+     "fps": 40.022
+    },
+    {
+     "packets": 34803,
+     "bytes": 44895870,
+     "frames": 11601,
+     "incomplete": 0,
+     "fps": 40.022
+    }
+   ]
+  },
+  {
+   "t": 300.007,
+   "rss_kb": 36688,
+   "control_frames": 9000,
+   "boards": [
+    {
+     "packets": 36003,
+     "bytes": 46443870,
+     "frames": 12001,
+     "incomplete": 0,
+     "fps": 39.972
+    },
+    {
+     "packets": 36003,
+     "bytes": 46443870,
+     "frames": 12001,
+     "incomplete": 0,
+     "fps": 39.972
+    },
+    {
+     "packets": 36003,
+     "bytes": 46443870,
+     "frames": 12001,
+     "incomplete": 0,
+     "fps": 39.972
+    }
+   ]
+  },
+  {
+   "t": 310.001,
+   "rss_kb": 34944,
+   "control_frames": 9300,
+   "boards": [
+    {
+     "packets": 37203,
+     "bytes": 47991870,
+     "frames": 12401,
+     "incomplete": 0,
+     "fps": 40.023
+    },
+    {
+     "packets": 37203,
+     "bytes": 47991870,
+     "frames": 12401,
+     "incomplete": 0,
+     "fps": 40.023
+    },
+    {
+     "packets": 37203,
+     "bytes": 47991870,
+     "frames": 12401,
+     "incomplete": 0,
+     "fps": 40.023
+    }
+   ]
+  },
+  {
+   "t": 320.006,
+   "rss_kb": 35520,
+   "control_frames": 9600,
+   "boards": [
+    {
+     "packets": 38403,
+     "bytes": 49539870,
+     "frames": 12801,
+     "incomplete": 0,
+     "fps": 39.98
+    },
+    {
+     "packets": 38403,
+     "bytes": 49539870,
+     "frames": 12801,
+     "incomplete": 0,
+     "fps": 39.98
+    },
+    {
+     "packets": 38403,
+     "bytes": 49539870,
+     "frames": 12801,
+     "incomplete": 0,
+     "fps": 39.98
+    }
+   ]
+  },
+  {
+   "t": 330.007,
+   "rss_kb": 37376,
+   "control_frames": 9900,
+   "boards": [
+    {
+     "packets": 39603,
+     "bytes": 51087870,
+     "frames": 13201,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 39603,
+     "bytes": 51087870,
+     "frames": 13201,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 39603,
+     "bytes": 51087870,
+     "frames": 13201,
+     "incomplete": 0,
+     "fps": 39.998
+    }
+   ]
+  },
+  {
+   "t": 340.007,
+   "rss_kb": 37120,
+   "control_frames": 10200,
+   "boards": [
+    {
+     "packets": 40803,
+     "bytes": 52635870,
+     "frames": 13601,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 40803,
+     "bytes": 52635870,
+     "frames": 13601,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 40803,
+     "bytes": 52635870,
+     "frames": 13601,
+     "incomplete": 0,
+     "fps": 40.002
+    }
+   ]
+  },
+  {
+   "t": 350.004,
+   "rss_kb": 36320,
+   "control_frames": 10500,
+   "boards": [
+    {
+     "packets": 42003,
+     "bytes": 54183870,
+     "frames": 14001,
+     "incomplete": 0,
+     "fps": 40.011
+    },
+    {
+     "packets": 42003,
+     "bytes": 54183870,
+     "frames": 14001,
+     "incomplete": 0,
+     "fps": 40.011
+    },
+    {
+     "packets": 42003,
+     "bytes": 54183870,
+     "frames": 14001,
+     "incomplete": 0,
+     "fps": 40.011
+    }
+   ]
+  },
+  {
+   "t": 360.004,
+   "rss_kb": 36096,
+   "control_frames": 10799,
+   "boards": [
+    {
+     "packets": 43203,
+     "bytes": 55731870,
+     "frames": 14401,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 43203,
+     "bytes": 55731870,
+     "frames": 14401,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 43203,
+     "bytes": 55731870,
+     "frames": 14401,
+     "incomplete": 0,
+     "fps": 39.998
+    }
+   ]
+  },
+  {
+   "t": 370.01,
+   "rss_kb": 38112,
+   "control_frames": 11100,
+   "boards": [
+    {
+     "packets": 44403,
+     "bytes": 57279870,
+     "frames": 14801,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 44403,
+     "bytes": 57279870,
+     "frames": 14801,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 44403,
+     "bytes": 57279870,
+     "frames": 14801,
+     "incomplete": 0,
+     "fps": 39.977
+    }
+   ]
+  },
+  {
+   "t": 380.008,
+   "rss_kb": 39216,
+   "control_frames": 11400,
+   "boards": [
+    {
+     "packets": 45603,
+     "bytes": 58827870,
+     "frames": 15201,
+     "incomplete": 0,
+     "fps": 40.007
+    },
+    {
+     "packets": 45603,
+     "bytes": 58827870,
+     "frames": 15201,
+     "incomplete": 0,
+     "fps": 40.007
+    },
+    {
+     "packets": 45603,
+     "bytes": 58827870,
+     "frames": 15201,
+     "incomplete": 0,
+     "fps": 40.007
+    }
+   ]
+  },
+  {
+   "t": 390.002,
+   "rss_kb": 38608,
+   "control_frames": 11700,
+   "boards": [
+    {
+     "packets": 46803,
+     "bytes": 60375870,
+     "frames": 15601,
+     "incomplete": 0,
+     "fps": 40.025
+    },
+    {
+     "packets": 46803,
+     "bytes": 60375870,
+     "frames": 15601,
+     "incomplete": 0,
+     "fps": 40.025
+    },
+    {
+     "packets": 46803,
+     "bytes": 60375870,
+     "frames": 15601,
+     "incomplete": 0,
+     "fps": 40.025
+    }
+   ]
+  },
+  {
+   "t": 400.003,
+   "rss_kb": 37024,
+   "control_frames": 11999,
+   "boards": [
+    {
+     "packets": 48000,
+     "bytes": 61920000,
+     "frames": 16000,
+     "incomplete": 0,
+     "fps": 39.895
+    },
+    {
+     "packets": 48000,
+     "bytes": 61920000,
+     "frames": 16000,
+     "incomplete": 0,
+     "fps": 39.895
+    },
+    {
+     "packets": 48000,
+     "bytes": 61920000,
+     "frames": 16000,
+     "incomplete": 0,
+     "fps": 39.895
+    }
+   ]
+  },
+  {
+   "t": 410.009,
+   "rss_kb": 36576,
+   "control_frames": 12300,
+   "boards": [
+    {
+     "packets": 49203,
+     "bytes": 63471870,
+     "frames": 16401,
+     "incomplete": 0,
+     "fps": 40.079
+    },
+    {
+     "packets": 49203,
+     "bytes": 63471870,
+     "frames": 16401,
+     "incomplete": 0,
+     "fps": 40.079
+    },
+    {
+     "packets": 49203,
+     "bytes": 63471870,
+     "frames": 16401,
+     "incomplete": 0,
+     "fps": 40.079
+    }
+   ]
+  },
+  {
+   "t": 420.01,
+   "rss_kb": 36384,
+   "control_frames": 12600,
+   "boards": [
+    {
+     "packets": 50403,
+     "bytes": 65019870,
+     "frames": 16801,
+     "incomplete": 0,
+     "fps": 39.995
+    },
+    {
+     "packets": 50403,
+     "bytes": 65019870,
+     "frames": 16801,
+     "incomplete": 0,
+     "fps": 39.995
+    },
+    {
+     "packets": 50403,
+     "bytes": 65019870,
+     "frames": 16801,
+     "incomplete": 0,
+     "fps": 39.995
+    }
+   ]
+  },
+  {
+   "t": 430.01,
+   "rss_kb": 40768,
+   "control_frames": 12900,
+   "boards": [
+    {
+     "packets": 51603,
+     "bytes": 66567870,
+     "frames": 17201,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 51603,
+     "bytes": 66567870,
+     "frames": 17201,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 51603,
+     "bytes": 66567870,
+     "frames": 17201,
+     "incomplete": 0,
+     "fps": 40.0
+    }
+   ]
+  },
+  {
+   "t": 440.01,
+   "rss_kb": 36784,
+   "control_frames": 13200,
+   "boards": [
+    {
+     "packets": 52803,
+     "bytes": 68115870,
+     "frames": 17601,
+     "incomplete": 0,
+     "fps": 40.001
+    },
+    {
+     "packets": 52803,
+     "bytes": 68115870,
+     "frames": 17601,
+     "incomplete": 0,
+     "fps": 40.001
+    },
+    {
+     "packets": 52803,
+     "bytes": 68115870,
+     "frames": 17601,
+     "incomplete": 0,
+     "fps": 40.001
+    }
+   ]
+  },
+  {
+   "t": 450.01,
+   "rss_kb": 42224,
+   "control_frames": 13500,
+   "boards": [
+    {
+     "packets": 54003,
+     "bytes": 69663870,
+     "frames": 18001,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 54003,
+     "bytes": 69663870,
+     "frames": 18001,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 54003,
+     "bytes": 69663870,
+     "frames": 18001,
+     "incomplete": 0,
+     "fps": 39.999
+    }
+   ]
+  },
+  {
+   "t": 460.01,
+   "rss_kb": 36544,
+   "control_frames": 13800,
+   "boards": [
+    {
+     "packets": 55203,
+     "bytes": 71211870,
+     "frames": 18401,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 55203,
+     "bytes": 71211870,
+     "frames": 18401,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 55203,
+     "bytes": 71211870,
+     "frames": 18401,
+     "incomplete": 0,
+     "fps": 39.999
+    }
+   ]
+  },
+  {
+   "t": 470.004,
+   "rss_kb": 36304,
+   "control_frames": 14100,
+   "boards": [
+    {
+     "packets": 56403,
+     "bytes": 72759870,
+     "frames": 18801,
+     "incomplete": 0,
+     "fps": 40.023
+    },
+    {
+     "packets": 56403,
+     "bytes": 72759870,
+     "frames": 18801,
+     "incomplete": 0,
+     "fps": 40.023
+    },
+    {
+     "packets": 56403,
+     "bytes": 72759870,
+     "frames": 18801,
+     "incomplete": 0,
+     "fps": 40.023
+    }
+   ]
+  },
+  {
+   "t": 480.01,
+   "rss_kb": 36848,
+   "control_frames": 14400,
+   "boards": [
+    {
+     "packets": 57603,
+     "bytes": 74307870,
+     "frames": 19201,
+     "incomplete": 0,
+     "fps": 39.979
+    },
+    {
+     "packets": 57603,
+     "bytes": 74307870,
+     "frames": 19201,
+     "incomplete": 0,
+     "fps": 39.979
+    },
+    {
+     "packets": 57603,
+     "bytes": 74307870,
+     "frames": 19201,
+     "incomplete": 0,
+     "fps": 39.979
+    }
+   ]
+  },
+  {
+   "t": 490.01,
+   "rss_kb": 41408,
+   "control_frames": 14700,
+   "boards": [
+    {
+     "packets": 58803,
+     "bytes": 75855870,
+     "frames": 19601,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 58803,
+     "bytes": 75855870,
+     "frames": 19601,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 58803,
+     "bytes": 75855870,
+     "frames": 19601,
+     "incomplete": 0,
+     "fps": 40.0
+    }
+   ]
+  },
+  {
+   "t": 500.003,
+   "rss_kb": 37856,
+   "control_frames": 15000,
+   "boards": [
+    {
+     "packets": 60000,
+     "bytes": 77400000,
+     "frames": 20000,
+     "incomplete": 0,
+     "fps": 39.926
+    },
+    {
+     "packets": 60000,
+     "bytes": 77400000,
+     "frames": 20000,
+     "incomplete": 0,
+     "fps": 39.926
+    },
+    {
+     "packets": 60000,
+     "bytes": 77400000,
+     "frames": 20000,
+     "incomplete": 0,
+     "fps": 39.926
+    }
+   ]
+  },
+  {
+   "t": 510.006,
+   "rss_kb": 37632,
+   "control_frames": 15299,
+   "boards": [
+    {
+     "packets": 61203,
+     "bytes": 78951870,
+     "frames": 20401,
+     "incomplete": 0,
+     "fps": 40.089
+    },
+    {
+     "packets": 61203,
+     "bytes": 78951870,
+     "frames": 20401,
+     "incomplete": 0,
+     "fps": 40.089
+    },
+    {
+     "packets": 61203,
+     "bytes": 78951870,
+     "frames": 20401,
+     "incomplete": 0,
+     "fps": 40.089
+    }
+   ]
+  },
+  {
+   "t": 520.005,
+   "rss_kb": 37872,
+   "control_frames": 15600,
+   "boards": [
+    {
+     "packets": 62403,
+     "bytes": 80499870,
+     "frames": 20801,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 62403,
+     "bytes": 80499870,
+     "frames": 20801,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 62403,
+     "bytes": 80499870,
+     "frames": 20801,
+     "incomplete": 0,
+     "fps": 40.002
+    }
+   ]
+  },
+  {
+   "t": 530.008,
+   "rss_kb": 41616,
+   "control_frames": 15900,
+   "boards": [
+    {
+     "packets": 63603,
+     "bytes": 82047870,
+     "frames": 21201,
+     "incomplete": 0,
+     "fps": 39.991
+    },
+    {
+     "packets": 63603,
+     "bytes": 82047870,
+     "frames": 21201,
+     "incomplete": 0,
+     "fps": 39.991
+    },
+    {
+     "packets": 63603,
+     "bytes": 82047870,
+     "frames": 21201,
+     "incomplete": 0,
+     "fps": 39.991
+    }
+   ]
+  },
+  {
+   "t": 540.007,
+   "rss_kb": 37376,
+   "control_frames": 16200,
+   "boards": [
+    {
+     "packets": 64803,
+     "bytes": 83595870,
+     "frames": 21601,
+     "incomplete": 0,
+     "fps": 40.004
+    },
+    {
+     "packets": 64803,
+     "bytes": 83595870,
+     "frames": 21601,
+     "incomplete": 0,
+     "fps": 40.004
+    },
+    {
+     "packets": 64803,
+     "bytes": 83595870,
+     "frames": 21601,
+     "incomplete": 0,
+     "fps": 40.004
+    }
+   ]
+  },
+  {
+   "t": 550.006,
+   "rss_kb": 36976,
+   "control_frames": 16500,
+   "boards": [
+    {
+     "packets": 66003,
+     "bytes": 85143870,
+     "frames": 22001,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 66003,
+     "bytes": 85143870,
+     "frames": 22001,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 66003,
+     "bytes": 85143870,
+     "frames": 22001,
+     "incomplete": 0,
+     "fps": 40.002
+    }
+   ]
+  },
+  {
+   "t": 560.006,
+   "rss_kb": 37024,
+   "control_frames": 16800,
+   "boards": [
+    {
+     "packets": 67203,
+     "bytes": 86691870,
+     "frames": 22401,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 67203,
+     "bytes": 86691870,
+     "frames": 22401,
+     "incomplete": 0,
+     "fps": 39.999
+    },
+    {
+     "packets": 67203,
+     "bytes": 86691870,
+     "frames": 22401,
+     "incomplete": 0,
+     "fps": 39.999
+    }
+   ]
+  },
+  {
+   "t": 570.008,
+   "rss_kb": 37344,
+   "control_frames": 17100,
+   "boards": [
+    {
+     "packets": 68403,
+     "bytes": 88239870,
+     "frames": 22801,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 68403,
+     "bytes": 88239870,
+     "frames": 22801,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 68403,
+     "bytes": 88239870,
+     "frames": 22801,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 580.008,
+   "rss_kb": 36928,
+   "control_frames": 17400,
+   "boards": [
+    {
+     "packets": 69603,
+     "bytes": 89787870,
+     "frames": 23201,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 69603,
+     "bytes": 89787870,
+     "frames": 23201,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 69603,
+     "bytes": 89787870,
+     "frames": 23201,
+     "incomplete": 0,
+     "fps": 40.002
+    }
+   ]
+  },
+  {
+   "t": 590.001,
+   "rss_kb": 36768,
+   "control_frames": 17700,
+   "boards": [
+    {
+     "packets": 70803,
+     "bytes": 91335870,
+     "frames": 23601,
+     "incomplete": 0,
+     "fps": 40.027
+    },
+    {
+     "packets": 70803,
+     "bytes": 91335870,
+     "frames": 23601,
+     "incomplete": 0,
+     "fps": 40.027
+    },
+    {
+     "packets": 70803,
+     "bytes": 91335870,
+     "frames": 23601,
+     "incomplete": 0,
+     "fps": 40.027
+    }
+   ]
+  },
+  {
+   "t": 600.01,
+   "rss_kb": 38160,
+   "control_frames": 18000,
+   "boards": [
+    {
+     "packets": 72003,
+     "bytes": 92883870,
+     "frames": 24001,
+     "incomplete": 0,
+     "fps": 39.965
+    },
+    {
+     "packets": 72003,
+     "bytes": 92883870,
+     "frames": 24001,
+     "incomplete": 0,
+     "fps": 39.965
+    },
+    {
+     "packets": 72003,
+     "bytes": 92883870,
+     "frames": 24001,
+     "incomplete": 0,
+     "fps": 39.965
+    }
+   ]
+  },
+  {
+   "t": 610.009,
+   "rss_kb": 40144,
+   "control_frames": 18300,
+   "boards": [
+    {
+     "packets": 73203,
+     "bytes": 94431870,
+     "frames": 24401,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 73203,
+     "bytes": 94431870,
+     "frames": 24401,
+     "incomplete": 0,
+     "fps": 40.002
+    },
+    {
+     "packets": 73203,
+     "bytes": 94431870,
+     "frames": 24401,
+     "incomplete": 0,
+     "fps": 40.002
+    }
+   ]
+  },
+  {
+   "t": 620.009,
+   "rss_kb": 39696,
+   "control_frames": 18600,
+   "boards": [
+    {
+     "packets": 74403,
+     "bytes": 95979870,
+     "frames": 24801,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 74403,
+     "bytes": 95979870,
+     "frames": 24801,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 74403,
+     "bytes": 95979870,
+     "frames": 24801,
+     "incomplete": 0,
+     "fps": 40.0
+    }
+   ]
+  },
+  {
+   "t": 630.003,
+   "rss_kb": 35824,
+   "control_frames": 18900,
+   "boards": [
+    {
+     "packets": 75603,
+     "bytes": 97527870,
+     "frames": 25201,
+     "incomplete": 0,
+     "fps": 40.025
+    },
+    {
+     "packets": 75603,
+     "bytes": 97527870,
+     "frames": 25201,
+     "incomplete": 0,
+     "fps": 40.025
+    },
+    {
+     "packets": 75603,
+     "bytes": 97527870,
+     "frames": 25201,
+     "incomplete": 0,
+     "fps": 40.025
+    }
+   ]
+  },
+  {
+   "t": 640.005,
+   "rss_kb": 36432,
+   "control_frames": 19200,
+   "boards": [
+    {
+     "packets": 76803,
+     "bytes": 99075870,
+     "frames": 25601,
+     "incomplete": 0,
+     "fps": 39.99
+    },
+    {
+     "packets": 76803,
+     "bytes": 99075870,
+     "frames": 25601,
+     "incomplete": 0,
+     "fps": 39.99
+    },
+    {
+     "packets": 76803,
+     "bytes": 99075870,
+     "frames": 25601,
+     "incomplete": 0,
+     "fps": 39.99
+    }
+   ]
+  },
+  {
+   "t": 650.007,
+   "rss_kb": 37328,
+   "control_frames": 19500,
+   "boards": [
+    {
+     "packets": 78003,
+     "bytes": 100623870,
+     "frames": 26001,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 78003,
+     "bytes": 100623870,
+     "frames": 26001,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 78003,
+     "bytes": 100623870,
+     "frames": 26001,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 660.009,
+   "rss_kb": 36496,
+   "control_frames": 19800,
+   "boards": [
+    {
+     "packets": 79203,
+     "bytes": 102171870,
+     "frames": 26401,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 79203,
+     "bytes": 102171870,
+     "frames": 26401,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 79203,
+     "bytes": 102171870,
+     "frames": 26401,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 670.005,
+   "rss_kb": 40784,
+   "control_frames": 20100,
+   "boards": [
+    {
+     "packets": 80403,
+     "bytes": 103719870,
+     "frames": 26801,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 80403,
+     "bytes": 103719870,
+     "frames": 26801,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 80403,
+     "bytes": 103719870,
+     "frames": 26801,
+     "incomplete": 0,
+     "fps": 40.017
+    }
+   ]
+  },
+  {
+   "t": 680.003,
+   "rss_kb": 38304,
+   "control_frames": 20400,
+   "boards": [
+    {
+     "packets": 81603,
+     "bytes": 105267870,
+     "frames": 27201,
+     "incomplete": 0,
+     "fps": 40.007
+    },
+    {
+     "packets": 81603,
+     "bytes": 105267870,
+     "frames": 27201,
+     "incomplete": 0,
+     "fps": 40.007
+    },
+    {
+     "packets": 81603,
+     "bytes": 105267870,
+     "frames": 27201,
+     "incomplete": 0,
+     "fps": 40.007
+    }
+   ]
+  },
+  {
+   "t": 690.005,
+   "rss_kb": 38624,
+   "control_frames": 20700,
+   "boards": [
+    {
+     "packets": 82803,
+     "bytes": 106815870,
+     "frames": 27601,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 82803,
+     "bytes": 106815870,
+     "frames": 27601,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 82803,
+     "bytes": 106815870,
+     "frames": 27601,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 700.001,
+   "rss_kb": 37856,
+   "control_frames": 21000,
+   "boards": [
+    {
+     "packets": 84003,
+     "bytes": 108363870,
+     "frames": 28001,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 84003,
+     "bytes": 108363870,
+     "frames": 28001,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 84003,
+     "bytes": 108363870,
+     "frames": 28001,
+     "incomplete": 0,
+     "fps": 40.017
+    }
+   ]
+  },
+  {
+   "t": 710.009,
+   "rss_kb": 37744,
+   "control_frames": 21300,
+   "boards": [
+    {
+     "packets": 85203,
+     "bytes": 109911870,
+     "frames": 28401,
+     "incomplete": 0,
+     "fps": 39.967
+    },
+    {
+     "packets": 85203,
+     "bytes": 109911870,
+     "frames": 28401,
+     "incomplete": 0,
+     "fps": 39.967
+    },
+    {
+     "packets": 85203,
+     "bytes": 109911870,
+     "frames": 28401,
+     "incomplete": 0,
+     "fps": 39.967
+    }
+   ]
+  },
+  {
+   "t": 720.003,
+   "rss_kb": 39264,
+   "control_frames": 21600,
+   "boards": [
+    {
+     "packets": 86403,
+     "bytes": 111459870,
+     "frames": 28801,
+     "incomplete": 0,
+     "fps": 40.025
+    },
+    {
+     "packets": 86403,
+     "bytes": 111459870,
+     "frames": 28801,
+     "incomplete": 0,
+     "fps": 40.025
+    },
+    {
+     "packets": 86403,
+     "bytes": 111459870,
+     "frames": 28801,
+     "incomplete": 0,
+     "fps": 40.025
+    }
+   ]
+  },
+  {
+   "t": 730.01,
+   "rss_kb": 39600,
+   "control_frames": 21900,
+   "boards": [
+    {
+     "packets": 87603,
+     "bytes": 113007870,
+     "frames": 29201,
+     "incomplete": 0,
+     "fps": 39.971
+    },
+    {
+     "packets": 87603,
+     "bytes": 113007870,
+     "frames": 29201,
+     "incomplete": 0,
+     "fps": 39.971
+    },
+    {
+     "packets": 87603,
+     "bytes": 113007870,
+     "frames": 29201,
+     "incomplete": 0,
+     "fps": 39.971
+    }
+   ]
+  },
+  {
+   "t": 740.008,
+   "rss_kb": 39184,
+   "control_frames": 22200,
+   "boards": [
+    {
+     "packets": 88803,
+     "bytes": 114555870,
+     "frames": 29601,
+     "incomplete": 0,
+     "fps": 40.008
+    },
+    {
+     "packets": 88803,
+     "bytes": 114555870,
+     "frames": 29601,
+     "incomplete": 0,
+     "fps": 40.008
+    },
+    {
+     "packets": 88803,
+     "bytes": 114555870,
+     "frames": 29601,
+     "incomplete": 0,
+     "fps": 40.008
+    }
+   ]
+  },
+  {
+   "t": 750.009,
+   "rss_kb": 41568,
+   "control_frames": 22500,
+   "boards": [
+    {
+     "packets": 90003,
+     "bytes": 116103870,
+     "frames": 30001,
+     "incomplete": 0,
+     "fps": 39.997
+    },
+    {
+     "packets": 90003,
+     "bytes": 116103870,
+     "frames": 30001,
+     "incomplete": 0,
+     "fps": 39.997
+    },
+    {
+     "packets": 90003,
+     "bytes": 116103870,
+     "frames": 30001,
+     "incomplete": 0,
+     "fps": 39.997
+    }
+   ]
+  },
+  {
+   "t": 760.01,
+   "rss_kb": 39280,
+   "control_frames": 22800,
+   "boards": [
+    {
+     "packets": 91203,
+     "bytes": 117651870,
+     "frames": 30401,
+     "incomplete": 0,
+     "fps": 39.995
+    },
+    {
+     "packets": 91203,
+     "bytes": 117651870,
+     "frames": 30401,
+     "incomplete": 0,
+     "fps": 39.995
+    },
+    {
+     "packets": 91203,
+     "bytes": 117651870,
+     "frames": 30401,
+     "incomplete": 0,
+     "fps": 39.995
+    }
+   ]
+  },
+  {
+   "t": 770.009,
+   "rss_kb": 37056,
+   "control_frames": 23100,
+   "boards": [
+    {
+     "packets": 92403,
+     "bytes": 119199870,
+     "frames": 30801,
+     "incomplete": 0,
+     "fps": 40.005
+    },
+    {
+     "packets": 92403,
+     "bytes": 119199870,
+     "frames": 30801,
+     "incomplete": 0,
+     "fps": 40.005
+    },
+    {
+     "packets": 92403,
+     "bytes": 119199870,
+     "frames": 30801,
+     "incomplete": 0,
+     "fps": 40.005
+    }
+   ]
+  },
+  {
+   "t": 780.006,
+   "rss_kb": 37024,
+   "control_frames": 23400,
+   "boards": [
+    {
+     "packets": 93603,
+     "bytes": 120747870,
+     "frames": 31201,
+     "incomplete": 0,
+     "fps": 40.011
+    },
+    {
+     "packets": 93603,
+     "bytes": 120747870,
+     "frames": 31201,
+     "incomplete": 0,
+     "fps": 40.011
+    },
+    {
+     "packets": 93603,
+     "bytes": 120747870,
+     "frames": 31201,
+     "incomplete": 0,
+     "fps": 40.011
+    }
+   ]
+  },
+  {
+   "t": 790.005,
+   "rss_kb": 40976,
+   "control_frames": 23700,
+   "boards": [
+    {
+     "packets": 94803,
+     "bytes": 122295870,
+     "frames": 31601,
+     "incomplete": 0,
+     "fps": 40.003
+    },
+    {
+     "packets": 94803,
+     "bytes": 122295870,
+     "frames": 31601,
+     "incomplete": 0,
+     "fps": 40.003
+    },
+    {
+     "packets": 94803,
+     "bytes": 122295870,
+     "frames": 31601,
+     "incomplete": 0,
+     "fps": 40.003
+    }
+   ]
+  },
+  {
+   "t": 800.006,
+   "rss_kb": 37680,
+   "control_frames": 24000,
+   "boards": [
+    {
+     "packets": 96003,
+     "bytes": 123843870,
+     "frames": 32001,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 96003,
+     "bytes": 123843870,
+     "frames": 32001,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 96003,
+     "bytes": 123843870,
+     "frames": 32001,
+     "incomplete": 0,
+     "fps": 39.998
+    }
+   ]
+  },
+  {
+   "t": 810.008,
+   "rss_kb": 37584,
+   "control_frames": 24300,
+   "boards": [
+    {
+     "packets": 97203,
+     "bytes": 125391870,
+     "frames": 32401,
+     "incomplete": 0,
+     "fps": 39.992
+    },
+    {
+     "packets": 97203,
+     "bytes": 125391870,
+     "frames": 32401,
+     "incomplete": 0,
+     "fps": 39.992
+    },
+    {
+     "packets": 97203,
+     "bytes": 125391870,
+     "frames": 32401,
+     "incomplete": 0,
+     "fps": 39.992
+    }
+   ]
+  },
+  {
+   "t": 820.01,
+   "rss_kb": 36848,
+   "control_frames": 24600,
+   "boards": [
+    {
+     "packets": 98403,
+     "bytes": 126939870,
+     "frames": 32801,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 98403,
+     "bytes": 126939870,
+     "frames": 32801,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 98403,
+     "bytes": 126939870,
+     "frames": 32801,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 830.01,
+   "rss_kb": 40848,
+   "control_frames": 24900,
+   "boards": [
+    {
+     "packets": 99603,
+     "bytes": 128487870,
+     "frames": 33201,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 99603,
+     "bytes": 128487870,
+     "frames": 33201,
+     "incomplete": 0,
+     "fps": 40.0
+    },
+    {
+     "packets": 99603,
+     "bytes": 128487870,
+     "frames": 33201,
+     "incomplete": 0,
+     "fps": 40.0
+    }
+   ]
+  },
+  {
+   "t": 840.009,
+   "rss_kb": 37104,
+   "control_frames": 25200,
+   "boards": [
+    {
+     "packets": 100803,
+     "bytes": 130035870,
+     "frames": 33601,
+     "incomplete": 0,
+     "fps": 40.004
+    },
+    {
+     "packets": 100803,
+     "bytes": 130035870,
+     "frames": 33601,
+     "incomplete": 0,
+     "fps": 40.004
+    },
+    {
+     "packets": 100803,
+     "bytes": 130035870,
+     "frames": 33601,
+     "incomplete": 0,
+     "fps": 40.004
+    }
+   ]
+  },
+  {
+   "t": 850.006,
+   "rss_kb": 40720,
+   "control_frames": 25500,
+   "boards": [
+    {
+     "packets": 102003,
+     "bytes": 131583870,
+     "frames": 34001,
+     "incomplete": 0,
+     "fps": 40.01
+    },
+    {
+     "packets": 102003,
+     "bytes": 131583870,
+     "frames": 34001,
+     "incomplete": 0,
+     "fps": 40.01
+    },
+    {
+     "packets": 102003,
+     "bytes": 131583870,
+     "frames": 34001,
+     "incomplete": 0,
+     "fps": 40.01
+    }
+   ]
+  },
+  {
+   "t": 860.001,
+   "rss_kb": 39872,
+   "control_frames": 25800,
+   "boards": [
+    {
+     "packets": 103203,
+     "bytes": 133131870,
+     "frames": 34401,
+     "incomplete": 0,
+     "fps": 40.02
+    },
+    {
+     "packets": 103203,
+     "bytes": 133131870,
+     "frames": 34401,
+     "incomplete": 0,
+     "fps": 40.02
+    },
+    {
+     "packets": 103203,
+     "bytes": 133131870,
+     "frames": 34401,
+     "incomplete": 0,
+     "fps": 40.02
+    }
+   ]
+  },
+  {
+   "t": 870.009,
+   "rss_kb": 39536,
+   "control_frames": 26100,
+   "boards": [
+    {
+     "packets": 104403,
+     "bytes": 134679870,
+     "frames": 34801,
+     "incomplete": 0,
+     "fps": 39.968
+    },
+    {
+     "packets": 104403,
+     "bytes": 134679870,
+     "frames": 34801,
+     "incomplete": 0,
+     "fps": 39.968
+    },
+    {
+     "packets": 104403,
+     "bytes": 134679870,
+     "frames": 34801,
+     "incomplete": 0,
+     "fps": 39.968
+    }
+   ]
+  },
+  {
+   "t": 880.007,
+   "rss_kb": 39248,
+   "control_frames": 26400,
+   "boards": [
+    {
+     "packets": 105603,
+     "bytes": 136227870,
+     "frames": 35201,
+     "incomplete": 0,
+     "fps": 40.009
+    },
+    {
+     "packets": 105603,
+     "bytes": 136227870,
+     "frames": 35201,
+     "incomplete": 0,
+     "fps": 40.009
+    },
+    {
+     "packets": 105603,
+     "bytes": 136227870,
+     "frames": 35201,
+     "incomplete": 0,
+     "fps": 40.009
+    }
+   ]
+  },
+  {
+   "t": 890.01,
+   "rss_kb": 41760,
+   "control_frames": 26700,
+   "boards": [
+    {
+     "packets": 106803,
+     "bytes": 137775870,
+     "frames": 35601,
+     "incomplete": 0,
+     "fps": 39.988
+    },
+    {
+     "packets": 106803,
+     "bytes": 137775870,
+     "frames": 35601,
+     "incomplete": 0,
+     "fps": 39.988
+    },
+    {
+     "packets": 106803,
+     "bytes": 137775870,
+     "frames": 35601,
+     "incomplete": 0,
+     "fps": 39.988
+    }
+   ]
+  },
+  {
+   "t": 900.006,
+   "rss_kb": 38432,
+   "control_frames": 27000,
+   "boards": [
+    {
+     "packets": 108003,
+     "bytes": 139323870,
+     "frames": 36001,
+     "incomplete": 0,
+     "fps": 40.016
+    },
+    {
+     "packets": 108003,
+     "bytes": 139323870,
+     "frames": 36001,
+     "incomplete": 0,
+     "fps": 40.016
+    },
+    {
+     "packets": 108003,
+     "bytes": 139323870,
+     "frames": 36001,
+     "incomplete": 0,
+     "fps": 40.016
+    }
+   ]
+  },
+  {
+   "t": 910.008,
+   "rss_kb": 38352,
+   "control_frames": 27300,
+   "boards": [
+    {
+     "packets": 109203,
+     "bytes": 140871870,
+     "frames": 36401,
+     "incomplete": 0,
+     "fps": 39.992
+    },
+    {
+     "packets": 109203,
+     "bytes": 140871870,
+     "frames": 36401,
+     "incomplete": 0,
+     "fps": 39.992
+    },
+    {
+     "packets": 109203,
+     "bytes": 140871870,
+     "frames": 36401,
+     "incomplete": 0,
+     "fps": 39.992
+    }
+   ]
+  },
+  {
+   "t": 920.006,
+   "rss_kb": 41824,
+   "control_frames": 27600,
+   "boards": [
+    {
+     "packets": 110403,
+     "bytes": 142419870,
+     "frames": 36801,
+     "incomplete": 0,
+     "fps": 40.008
+    },
+    {
+     "packets": 110403,
+     "bytes": 142419870,
+     "frames": 36801,
+     "incomplete": 0,
+     "fps": 40.008
+    },
+    {
+     "packets": 110403,
+     "bytes": 142419870,
+     "frames": 36801,
+     "incomplete": 0,
+     "fps": 40.008
+    }
+   ]
+  },
+  {
+   "t": 930.008,
+   "rss_kb": 38720,
+   "control_frames": 27900,
+   "boards": [
+    {
+     "packets": 111603,
+     "bytes": 143967870,
+     "frames": 37201,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 111603,
+     "bytes": 143967870,
+     "frames": 37201,
+     "incomplete": 0,
+     "fps": 39.993
+    },
+    {
+     "packets": 111603,
+     "bytes": 143967870,
+     "frames": 37201,
+     "incomplete": 0,
+     "fps": 39.993
+    }
+   ]
+  },
+  {
+   "t": 940.006,
+   "rss_kb": 38560,
+   "control_frames": 28200,
+   "boards": [
+    {
+     "packets": 112803,
+     "bytes": 145515870,
+     "frames": 37601,
+     "incomplete": 0,
+     "fps": 40.007
+    },
+    {
+     "packets": 112803,
+     "bytes": 145515870,
+     "frames": 37601,
+     "incomplete": 0,
+     "fps": 40.007
+    },
+    {
+     "packets": 112803,
+     "bytes": 145515870,
+     "frames": 37601,
+     "incomplete": 0,
+     "fps": 40.007
+    }
+   ]
+  },
+  {
+   "t": 950.0,
+   "rss_kb": 36944,
+   "control_frames": 28499,
+   "boards": [
+    {
+     "packets": 114003,
+     "bytes": 147063870,
+     "frames": 38001,
+     "incomplete": 0,
+     "fps": 40.022
+    },
+    {
+     "packets": 114003,
+     "bytes": 147063870,
+     "frames": 38001,
+     "incomplete": 0,
+     "fps": 40.022
+    },
+    {
+     "packets": 114003,
+     "bytes": 147063870,
+     "frames": 38001,
+     "incomplete": 0,
+     "fps": 40.022
+    }
+   ]
+  },
+  {
+   "t": 960.008,
+   "rss_kb": 36832,
+   "control_frames": 28800,
+   "boards": [
+    {
+     "packets": 115203,
+     "bytes": 148611870,
+     "frames": 38401,
+     "incomplete": 0,
+     "fps": 39.971
+    },
+    {
+     "packets": 115203,
+     "bytes": 148611870,
+     "frames": 38401,
+     "incomplete": 0,
+     "fps": 39.971
+    },
+    {
+     "packets": 115203,
+     "bytes": 148611870,
+     "frames": 38401,
+     "incomplete": 0,
+     "fps": 39.971
+    }
+   ]
+  },
+  {
+   "t": 970.005,
+   "rss_kb": 36608,
+   "control_frames": 29100,
+   "boards": [
+    {
+     "packets": 116403,
+     "bytes": 150159870,
+     "frames": 38801,
+     "incomplete": 0,
+     "fps": 40.012
+    },
+    {
+     "packets": 116403,
+     "bytes": 150159870,
+     "frames": 38801,
+     "incomplete": 0,
+     "fps": 40.012
+    },
+    {
+     "packets": 116403,
+     "bytes": 150159870,
+     "frames": 38801,
+     "incomplete": 0,
+     "fps": 40.012
+    }
+   ]
+  },
+  {
+   "t": 980.0,
+   "rss_kb": 38112,
+   "control_frames": 29400,
+   "boards": [
+    {
+     "packets": 117603,
+     "bytes": 151707870,
+     "frames": 39201,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 117603,
+     "bytes": 151707870,
+     "frames": 39201,
+     "incomplete": 0,
+     "fps": 40.017
+    },
+    {
+     "packets": 117603,
+     "bytes": 151707870,
+     "frames": 39201,
+     "incomplete": 0,
+     "fps": 40.017
+    }
+   ]
+  },
+  {
+   "t": 990.01,
+   "rss_kb": 37136,
+   "control_frames": 29700,
+   "boards": [
+    {
+     "packets": 118803,
+     "bytes": 153255870,
+     "frames": 39601,
+     "incomplete": 0,
+     "fps": 39.963
+    },
+    {
+     "packets": 118803,
+     "bytes": 153255870,
+     "frames": 39601,
+     "incomplete": 0,
+     "fps": 39.963
+    },
+    {
+     "packets": 118803,
+     "bytes": 153255870,
+     "frames": 39601,
+     "incomplete": 0,
+     "fps": 39.963
+    }
+   ]
+  },
+  {
+   "t": 1000.002,
+   "rss_kb": 37088,
+   "control_frames": 30000,
+   "boards": [
+    {
+     "packets": 120003,
+     "bytes": 154803870,
+     "frames": 40001,
+     "incomplete": 0,
+     "fps": 40.032
+    },
+    {
+     "packets": 120003,
+     "bytes": 154803870,
+     "frames": 40001,
+     "incomplete": 0,
+     "fps": 40.032
+    },
+    {
+     "packets": 120003,
+     "bytes": 154803870,
+     "frames": 40001,
+     "incomplete": 0,
+     "fps": 40.032
+    }
+   ]
+  },
+  {
+   "t": 1010.005,
+   "rss_kb": 40928,
+   "control_frames": 30300,
+   "boards": [
+    {
+     "packets": 121203,
+     "bytes": 156351870,
+     "frames": 40401,
+     "incomplete": 0,
+     "fps": 39.987
+    },
+    {
+     "packets": 121203,
+     "bytes": 156351870,
+     "frames": 40401,
+     "incomplete": 0,
+     "fps": 39.987
+    },
+    {
+     "packets": 121203,
+     "bytes": 156351870,
+     "frames": 40401,
+     "incomplete": 0,
+     "fps": 39.987
+    }
+   ]
+  },
+  {
+   "t": 1020.005,
+   "rss_kb": 37040,
+   "control_frames": 30600,
+   "boards": [
+    {
+     "packets": 122400,
+     "bytes": 157896000,
+     "frames": 40800,
+     "incomplete": 0,
+     "fps": 39.9
+    },
+    {
+     "packets": 122400,
+     "bytes": 157896000,
+     "frames": 40800,
+     "incomplete": 0,
+     "fps": 39.9
+    },
+    {
+     "packets": 122400,
+     "bytes": 157896000,
+     "frames": 40800,
+     "incomplete": 0,
+     "fps": 39.9
+    }
+   ]
+  },
+  {
+   "t": 1030.007,
+   "rss_kb": 37024,
+   "control_frames": 30900,
+   "boards": [
+    {
+     "packets": 123603,
+     "bytes": 159447870,
+     "frames": 41201,
+     "incomplete": 0,
+     "fps": 40.092
+    },
+    {
+     "packets": 123603,
+     "bytes": 159447870,
+     "frames": 41201,
+     "incomplete": 0,
+     "fps": 40.092
+    },
+    {
+     "packets": 123603,
+     "bytes": 159447870,
+     "frames": 41201,
+     "incomplete": 0,
+     "fps": 40.092
+    }
+   ]
+  },
+  {
+   "t": 1040.004,
+   "rss_kb": 37344,
+   "control_frames": 31200,
+   "boards": [
+    {
+     "packets": 124803,
+     "bytes": 160995870,
+     "frames": 41601,
+     "incomplete": 0,
+     "fps": 40.011
+    },
+    {
+     "packets": 124803,
+     "bytes": 160995870,
+     "frames": 41601,
+     "incomplete": 0,
+     "fps": 40.011
+    },
+    {
+     "packets": 124803,
+     "bytes": 160995870,
+     "frames": 41601,
+     "incomplete": 0,
+     "fps": 40.011
+    }
+   ]
+  },
+  {
+   "t": 1050.005,
+   "rss_kb": 41104,
+   "control_frames": 31500,
+   "boards": [
+    {
+     "packets": 126003,
+     "bytes": 162543870,
+     "frames": 42001,
+     "incomplete": 0,
+     "fps": 39.996
+    },
+    {
+     "packets": 126003,
+     "bytes": 162543870,
+     "frames": 42001,
+     "incomplete": 0,
+     "fps": 39.996
+    },
+    {
+     "packets": 126003,
+     "bytes": 162543870,
+     "frames": 42001,
+     "incomplete": 0,
+     "fps": 39.996
+    }
+   ]
+  },
+  {
+   "t": 1060.009,
+   "rss_kb": 37136,
+   "control_frames": 31800,
+   "boards": [
+    {
+     "packets": 127203,
+     "bytes": 164091870,
+     "frames": 42401,
+     "incomplete": 0,
+     "fps": 39.984
+    },
+    {
+     "packets": 127203,
+     "bytes": 164091870,
+     "frames": 42401,
+     "incomplete": 0,
+     "fps": 39.984
+    },
+    {
+     "packets": 127203,
+     "bytes": 164091870,
+     "frames": 42401,
+     "incomplete": 0,
+     "fps": 39.984
+    }
+   ]
+  },
+  {
+   "t": 1070.001,
+   "rss_kb": 38544,
+   "control_frames": 32100,
+   "boards": [
+    {
+     "packets": 128403,
+     "bytes": 165639870,
+     "frames": 42801,
+     "incomplete": 0,
+     "fps": 40.03
+    },
+    {
+     "packets": 128403,
+     "bytes": 165639870,
+     "frames": 42801,
+     "incomplete": 0,
+     "fps": 40.03
+    },
+    {
+     "packets": 128403,
+     "bytes": 165639870,
+     "frames": 42801,
+     "incomplete": 0,
+     "fps": 40.03
+    }
+   ]
+  },
+  {
+   "t": 1080.004,
+   "rss_kb": 38992,
+   "control_frames": 32400,
+   "boards": [
+    {
+     "packets": 129603,
+     "bytes": 167187870,
+     "frames": 43201,
+     "incomplete": 0,
+     "fps": 39.988
+    },
+    {
+     "packets": 129603,
+     "bytes": 167187870,
+     "frames": 43201,
+     "incomplete": 0,
+     "fps": 39.988
+    },
+    {
+     "packets": 129603,
+     "bytes": 167187870,
+     "frames": 43201,
+     "incomplete": 0,
+     "fps": 39.988
+    }
+   ]
+  },
+  {
+   "t": 1090.008,
+   "rss_kb": 40992,
+   "control_frames": 32700,
+   "boards": [
+    {
+     "packets": 130803,
+     "bytes": 168735870,
+     "frames": 43601,
+     "incomplete": 0,
+     "fps": 39.984
+    },
+    {
+     "packets": 130803,
+     "bytes": 168735870,
+     "frames": 43601,
+     "incomplete": 0,
+     "fps": 39.984
+    },
+    {
+     "packets": 130803,
+     "bytes": 168735870,
+     "frames": 43601,
+     "incomplete": 0,
+     "fps": 39.984
+    }
+   ]
+  },
+  {
+   "t": 1100.005,
+   "rss_kb": 41296,
+   "control_frames": 33000,
+   "boards": [
+    {
+     "packets": 132003,
+     "bytes": 170283870,
+     "frames": 44001,
+     "incomplete": 0,
+     "fps": 40.014
+    },
+    {
+     "packets": 132003,
+     "bytes": 170283870,
+     "frames": 44001,
+     "incomplete": 0,
+     "fps": 40.014
+    },
+    {
+     "packets": 132003,
+     "bytes": 170283870,
+     "frames": 44001,
+     "incomplete": 0,
+     "fps": 40.014
+    }
+   ]
+  },
+  {
+   "t": 1110.008,
+   "rss_kb": 43008,
+   "control_frames": 33300,
+   "boards": [
+    {
+     "packets": 133203,
+     "bytes": 171831870,
+     "frames": 44401,
+     "incomplete": 0,
+     "fps": 39.986
+    },
+    {
+     "packets": 133203,
+     "bytes": 171831870,
+     "frames": 44401,
+     "incomplete": 0,
+     "fps": 39.986
+    },
+    {
+     "packets": 133203,
+     "bytes": 171831870,
+     "frames": 44401,
+     "incomplete": 0,
+     "fps": 39.986
+    }
+   ]
+  },
+  {
+   "t": 1120.004,
+   "rss_kb": 36544,
+   "control_frames": 33600,
+   "boards": [
+    {
+     "packets": 134403,
+     "bytes": 173379870,
+     "frames": 44801,
+     "incomplete": 0,
+     "fps": 40.016
+    },
+    {
+     "packets": 134403,
+     "bytes": 173379870,
+     "frames": 44801,
+     "incomplete": 0,
+     "fps": 40.016
+    },
+    {
+     "packets": 134403,
+     "bytes": 173379870,
+     "frames": 44801,
+     "incomplete": 0,
+     "fps": 40.016
+    }
+   ]
+  },
+  {
+   "t": 1130.01,
+   "rss_kb": 40960,
+   "control_frames": 33900,
+   "boards": [
+    {
+     "packets": 135603,
+     "bytes": 174927870,
+     "frames": 45201,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 135603,
+     "bytes": 174927870,
+     "frames": 45201,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 135603,
+     "bytes": 174927870,
+     "frames": 45201,
+     "incomplete": 0,
+     "fps": 39.977
+    }
+   ]
+  },
+  {
+   "t": 1140.002,
+   "rss_kb": 37120,
+   "control_frames": 34200,
+   "boards": [
+    {
+     "packets": 136803,
+     "bytes": 176475870,
+     "frames": 45601,
+     "incomplete": 0,
+     "fps": 40.034
+    },
+    {
+     "packets": 136803,
+     "bytes": 176475870,
+     "frames": 45601,
+     "incomplete": 0,
+     "fps": 40.034
+    },
+    {
+     "packets": 136803,
+     "bytes": 176475870,
+     "frames": 45601,
+     "incomplete": 0,
+     "fps": 40.034
+    }
+   ]
+  },
+  {
+   "t": 1150.007,
+   "rss_kb": 36976,
+   "control_frames": 34500,
+   "boards": [
+    {
+     "packets": 138003,
+     "bytes": 178023870,
+     "frames": 46001,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 138003,
+     "bytes": 178023870,
+     "frames": 46001,
+     "incomplete": 0,
+     "fps": 39.977
+    },
+    {
+     "packets": 138003,
+     "bytes": 178023870,
+     "frames": 46001,
+     "incomplete": 0,
+     "fps": 39.977
+    }
+   ]
+  },
+  {
+   "t": 1160.008,
+   "rss_kb": 36704,
+   "control_frames": 34800,
+   "boards": [
+    {
+     "packets": 139203,
+     "bytes": 179571870,
+     "frames": 46401,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 139203,
+     "bytes": 179571870,
+     "frames": 46401,
+     "incomplete": 0,
+     "fps": 39.998
+    },
+    {
+     "packets": 139203,
+     "bytes": 179571870,
+     "frames": 46401,
+     "incomplete": 0,
+     "fps": 39.998
+    }
+   ]
+  },
+  {
+   "t": 1170.001,
+   "rss_kb": 37088,
+   "control_frames": 35099,
+   "boards": [
+    {
+     "packets": 140400,
+     "bytes": 181116000,
+     "frames": 46800,
+     "incomplete": 0,
+     "fps": 39.929
+    },
+    {
+     "packets": 140400,
+     "bytes": 181116000,
+     "frames": 46800,
+     "incomplete": 0,
+     "fps": 39.929
+    },
+    {
+     "packets": 140400,
+     "bytes": 181116000,
+     "frames": 46800,
+     "incomplete": 0,
+     "fps": 39.929
+    }
+   ]
+  },
+  {
+   "t": 1180.008,
+   "rss_kb": 37472,
+   "control_frames": 35400,
+   "boards": [
+    {
+     "packets": 141603,
+     "bytes": 182667870,
+     "frames": 47201,
+     "incomplete": 0,
+     "fps": 40.072
+    },
+    {
+     "packets": 141603,
+     "bytes": 182667870,
+     "frames": 47201,
+     "incomplete": 0,
+     "fps": 40.072
+    },
+    {
+     "packets": 141603,
+     "bytes": 182667870,
+     "frames": 47201,
+     "incomplete": 0,
+     "fps": 40.072
+    }
+   ]
+  },
+  {
+   "t": 1190.005,
+   "rss_kb": 36672,
+   "control_frames": 35700,
+   "boards": [
+    {
+     "packets": 142803,
+     "bytes": 184215870,
+     "frames": 47601,
+     "incomplete": 0,
+     "fps": 40.012
+    },
+    {
+     "packets": 142803,
+     "bytes": 184215870,
+     "frames": 47601,
+     "incomplete": 0,
+     "fps": 40.012
+    },
+    {
+     "packets": 142803,
+     "bytes": 184215870,
+     "frames": 47601,
+     "incomplete": 0,
+     "fps": 40.012
+    }
+   ]
+  },
+  {
+   "t": 1200.004,
+   "rss_kb": 37744,
+   "control_frames": 36000,
+   "boards": [
+    {
+     "packets": 144003,
+     "bytes": 185763870,
+     "frames": 48001,
+     "incomplete": 0,
+     "fps": 40.003
+    },
+    {
+     "packets": 144003,
+     "bytes": 185763870,
+     "frames": 48001,
+     "incomplete": 0,
+     "fps": 40.003
+    },
+    {
+     "packets": 144003,
+     "bytes": 185763870,
+     "frames": 48001,
+     "incomplete": 0,
+     "fps": 40.003
+    }
+   ]
+  }
+ ],
+ "driver_events": [
+  {
+   "t": 39.927,
+   "kind": "connect"
+  },
+  {
+   "t": 48.12,
+   "kind": "drag",
+   "param": "hue",
+   "sets": 100
+  },
+  {
+   "t": 53.782,
+   "kind": "disconnect"
+  },
+  {
+   "t": 64.037,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 74.301,
+   "kind": "connect"
+  },
+  {
+   "t": 83.46,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 89.158,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 89.975,
+   "kind": "disconnect"
+  },
+  {
+   "t": 104.728,
+   "kind": "connect"
+  },
+  {
+   "t": 117.908,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 121.517,
+   "kind": "reload",
+   "edit": 1
+  },
+  {
+   "t": 123.433,
+   "kind": "disconnect"
+  },
+  {
+   "t": 147.575,
+   "kind": "connect"
+  },
+  {
+   "t": 149.463,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 160.679,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 161.066,
+   "kind": "disconnect"
+  },
+  {
+   "t": 194.775,
+   "kind": "connect"
+  },
+  {
+   "t": 203.444,
+   "kind": "drag",
+   "param": "saturation",
+   "sets": 100
+  },
+  {
+   "t": 206.971,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 207.738,
+   "kind": "disconnect"
+  },
+  {
+   "t": 232.368,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 239.204,
+   "kind": "connect"
+  },
+  {
+   "t": 255.815,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 256.891,
+   "kind": "disconnect"
+  },
+  {
+   "t": 277.652,
+   "kind": "connect"
+  },
+  {
+   "t": 292.122,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 296.286,
+   "kind": "disconnect"
+  },
+  {
+   "t": 300.023,
+   "kind": "recall",
+   "look": "soak-a"
+  },
+  {
+   "t": 313.716,
+   "kind": "connect"
+  },
+  {
+   "t": 323.028,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 328.958,
+   "kind": "drag",
+   "param": "saturation",
+   "sets": 100
+  },
+  {
+   "t": 330.417,
+   "kind": "disconnect"
+  },
+  {
+   "t": 360.638,
+   "kind": "connect"
+  },
+  {
+   "t": 361.507,
+   "kind": "reload",
+   "edit": 2
+  },
+  {
+   "t": 372.651,
+   "kind": "drag",
+   "param": "width",
+   "sets": 100
+  },
+  {
+   "t": 374.884,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 376.68,
+   "kind": "disconnect"
+  },
+  {
+   "t": 391.327,
+   "kind": "connect"
+  },
+  {
+   "t": 403.54,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 404.245,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 405.27,
+   "kind": "disconnect"
+  },
+  {
+   "t": 429.612,
+   "kind": "connect"
+  },
+  {
+   "t": 439.74,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 442.998,
+   "kind": "disconnect"
+  },
+  {
+   "t": 448.376,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 473.68,
+   "kind": "connect"
+  },
+  {
+   "t": 484.222,
+   "kind": "drag",
+   "param": "direction",
+   "sets": 100
+  },
+  {
+   "t": 485.269,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 491.07,
+   "kind": "disconnect"
+  },
+  {
+   "t": 512.455,
+   "kind": "connect"
+  },
+  {
+   "t": 526.196,
+   "kind": "drag",
+   "param": "direction",
+   "sets": 100
+  },
+  {
+   "t": 527.922,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 528.518,
+   "kind": "disconnect"
+  },
+  {
+   "t": 552.88,
+   "kind": "connect"
+  },
+  {
+   "t": 563.556,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 568.013,
+   "kind": "disconnect"
+  },
+  {
+   "t": 583.469,
+   "kind": "connect"
+  },
+  {
+   "t": 586.918,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 593.917,
+   "kind": "drag",
+   "param": "depth",
+   "sets": 100
+  },
+  {
+   "t": 595.809,
+   "kind": "disconnect"
+  },
+  {
+   "t": 601.52,
+   "kind": "reload",
+   "edit": 3
+  },
+  {
+   "t": 611.583,
+   "kind": "recall",
+   "look": "soak-a"
+  },
+  {
+   "t": 633.127,
+   "kind": "connect"
+  },
+  {
+   "t": 643.641,
+   "kind": "drag",
+   "param": "width",
+   "sets": 100
+  },
+  {
+   "t": 649.872,
+   "kind": "disconnect"
+  },
+  {
+   "t": 666.54,
+   "kind": "connect"
+  },
+  {
+   "t": 674.396,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 682.023,
+   "kind": "drag",
+   "param": "scale",
+   "sets": 100
+  },
+  {
+   "t": 682.548,
+   "kind": "disconnect"
+  },
+  {
+   "t": 704.486,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 711.949,
+   "kind": "connect"
+  },
+  {
+   "t": 726.638,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 728.257,
+   "kind": "disconnect"
+  },
+  {
+   "t": 735.252,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 746.591,
+   "kind": "connect"
+  },
+  {
+   "t": 761.916,
+   "kind": "drag",
+   "param": "hue",
+   "sets": 100
+  },
+  {
+   "t": 762.699,
+   "kind": "disconnect"
+  },
+  {
+   "t": 788.145,
+   "kind": "connect"
+  },
+  {
+   "t": 797.143,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 799.739,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 803.813,
+   "kind": "disconnect"
+  },
+  {
+   "t": 820.32,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 829.106,
+   "kind": "connect"
+  },
+  {
+   "t": 835.838,
+   "kind": "drag",
+   "param": "depth",
+   "sets": 100
+  },
+  {
+   "t": 841.519,
+   "kind": "reload",
+   "edit": 4
+  },
+  {
+   "t": 848.761,
+   "kind": "disconnect"
+  },
+  {
+   "t": 874.778,
+   "kind": "connect"
+  },
+  {
+   "t": 888.401,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 891.71,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 893.308,
+   "kind": "recall",
+   "look": "soak-a"
+  },
+  {
+   "t": 893.344,
+   "kind": "disconnect"
+  },
+  {
+   "t": 919.592,
+   "kind": "connect"
+  },
+  {
+   "t": 932.156,
+   "kind": "drag",
+   "param": "direction",
+   "sets": 100
+  },
+  {
+   "t": 938.06,
+   "kind": "disconnect"
+  },
+  {
+   "t": 960.811,
+   "kind": "connect"
+  },
+  {
+   "t": 967.959,
+   "kind": "drag",
+   "param": "direction",
+   "sets": 100
+  },
+  {
+   "t": 976.169,
+   "kind": "recall",
+   "look": "soak-b"
+  },
+  {
+   "t": 976.226,
+   "kind": "disconnect"
+  },
+  {
+   "t": 985.288,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 1008.219,
+   "kind": "connect"
+  },
+  {
+   "t": 1016.736,
+   "kind": "drag",
+   "param": "speed",
+   "sets": 100
+  },
+  {
+   "t": 1024.776,
+   "kind": "disconnect"
+  },
+  {
+   "t": 1036.232,
+   "kind": "recall",
+   "look": "soak-c"
+  },
+  {
+   "t": 1048.306,
+   "kind": "connect"
+  },
+  {
+   "t": 1058.135,
+   "kind": "drag",
+   "param": "width",
+   "sets": 100
+  },
+  {
+   "t": 1064.188,
+   "kind": "disconnect"
+  },
+  {
+   "t": 1066.447,
+   "kind": "fire",
+   "trigger": "cue1"
+  },
+  {
+   "t": 1081.514,
+   "kind": "reload",
+   "edit": 5
+  },
+  {
+   "t": 1085.234,
+   "kind": "connect"
+  },
+  {
+   "t": 1097.696,
+   "kind": "drag",
+   "param": "saturation",
+   "sets": 100
+  },
+  {
+   "t": 1101.536,
+   "kind": "disconnect"
+  },
+  {
+   "t": 1109.602,
+   "kind": "recall",
+   "look": "soak-d"
+  },
+  {
+   "t": 1127.486,
+   "kind": "connect"
+  },
+  {
+   "t": 1134.42,
+   "kind": "drag",
+   "param": "saturation",
+   "sets": 100
+  },
+  {
+   "t": 1143.145,
+   "kind": "disconnect"
+  },
+  {
+   "t": 1155.314,
+   "kind": "fire",
+   "trigger": "door"
+  },
+  {
+   "t": 1162.076,
+   "kind": "connect"
+  },
+  {
+   "t": 1172.494,
+   "kind": "drag",
+   "param": "saturation",
+   "sets": 100
+  },
+  {
+   "t": 1175.492,
+   "kind": "disconnect"
+  }
+ ],
+ "health_samples": [
+  {
+   "t": 0.038,
+   "host": "127.0.0.1",
+   "fps": null,
+   "uptime": null,
+   "rssi": null,
+   "live": null,
+   "level": "warn",
+   "reboots": 0
+  },
+  {
+   "t": 2.037,
+   "host": "127.0.0.1",
+   "fps": null,
+   "uptime": null,
+   "rssi": null,
+   "live": null,
+   "level": "bad",
+   "reboots": 0
+  }
+ ],
+ "log": [
+  [
+   -0.0,
+   "INFO",
+   "triggers armed"
+  ],
+  [
+   0.007,
+   "WARNING",
+   "board 127.0.0.1 pending -> warn: no answer: URLError: <urlopen error [Errno 61] Connection refused>"
+  ],
+  [
+   2.006,
+   "WARNING",
+   "board 127.0.0.1 warn -> bad: unreachable: URLError: <urlopen error [Errno 61] Connection refused>"
+  ],
+  [
+   64.057,
+   "INFO",
+   "recalled look soak-b"
+  ],
+  [
+   89.175,
+   "INFO",
+   "trigger cue1 holds look soak-cue for 8s"
+  ],
+  [
+   97.186,
+   "INFO",
+   "trigger cue1 hold ended; returning"
+  ],
+  [
+   120.026,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   121.619,
+   "INFO",
+   "reloaded Wave (t=121.617): kept buffers ['pixels'], scalars ['phase']; reset params []; fresh []"
+  ],
+  [
+   149.469,
+   "INFO",
+   "recalled look soak-c"
+  ],
+  [
+   232.37,
+   "INFO",
+   "recalled look soak-d"
+  ],
+  [
+   300.04,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   323.042,
+   "INFO",
+   "trigger cue1 holds look soak-cue for 8s"
+  ],
+  [
+   331.052,
+   "INFO",
+   "trigger cue1 hold ended; returning"
+  ],
+  [
+   360.025,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   361.641,
+   "INFO",
+   "reloaded Wave (t=361.633): kept buffers ['pixels'], scalars ['phase']; reset params []; fresh []"
+  ],
+  [
+   374.892,
+   "INFO",
+   "recalled look soak-b"
+  ],
+  [
+   448.389,
+   "INFO",
+   "recalled look soak-c"
+  ],
+  [
+   485.277,
+   "INFO",
+   "trigger cue1 holds look soak-cue for 8s"
+  ],
+  [
+   493.286,
+   "INFO",
+   "trigger cue1 hold ended; returning"
+  ],
+  [
+   527.94,
+   "INFO",
+   "recalled look soak-d"
+  ],
+  [
+   600.024,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   601.606,
+   "INFO",
+   "reloaded Wave (t=601.600): kept buffers ['pixels'], scalars ['phase']; reset params []; fresh []"
+  ],
+  [
+   611.59,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   674.412,
+   "INFO",
+   "recalled look soak-b"
+  ],
+  [
+   704.495,
+   "INFO",
+   "trigger cue1 holds look soak-cue for 8s"
+  ],
+  [
+   712.504,
+   "INFO",
+   "trigger cue1 hold ended; returning"
+  ],
+  [
+   735.258,
+   "INFO",
+   "recalled look soak-c"
+  ],
+  [
+   820.326,
+   "INFO",
+   "recalled look soak-d"
+  ],
+  [
+   840.025,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   841.605,
+   "INFO",
+   "reloaded Wave (t=841.600): kept buffers ['pixels'], scalars ['phase']; reset params []; fresh []"
+  ],
+  [
+   888.405,
+   "INFO",
+   "trigger cue1 holds look soak-cue for 8s"
+  ],
+  [
+   893.321,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   976.175,
+   "INFO",
+   "recalled look soak-b"
+  ],
+  [
+   1036.242,
+   "INFO",
+   "recalled look soak-c"
+  ],
+  [
+   1066.461,
+   "INFO",
+   "trigger cue1 holds look soak-cue for 8s"
+  ],
+  [
+   1074.467,
+   "INFO",
+   "trigger cue1 hold ended; returning"
+  ],
+  [
+   1080.021,
+   "INFO",
+   "recalled look soak-a"
+  ],
+  [
+   1081.618,
+   "INFO",
+   "reloaded Wave (t=1081.617): kept buffers ['pixels'], scalars ['phase']; reset params []; fresh []"
+  ],
+  [
+   1109.61,
+   "INFO",
+   "recalled look soak-d"
+  ]
+ ]
+}

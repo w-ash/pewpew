@@ -1,0 +1,106 @@
+def contour_brightness(image: np.ndarray, contour: np.ndarray) -> int:
+    """Calculate the sum of all pixels within a contour."""
+    mask = np.zeros(image.shape, dtype=np.uint8)
+    cv2.drawContours(mask, [contour], -1, 255, -1)
+    masked_image = cv2.bitwise_and(image, image, mask=mask)
+    return cv2.sumElems(masked_image)
+
+
+def find_led_in_image(image: np.ndarray, threshold: int = 128) -> Optional[Point2D]:
+
+    if len(image.shape) > 2:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    _, image_thresh = cv2.threshold(image, threshold, 255, cv2.THRESH_TOZERO)
+
+    contours, _ = cv2.findContours(image_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(contours) == 0:
+        return None
+
+    brightest_contour = sorted(
+        contours, key=lambda c: contour_brightness(image, c), reverse=True
+    )[0]
+
+    moments = cv2.moments(brightest_contour)
+
+    center_u = moments["m10"] / max(moments["m00"], 0.00001)
+    center_v = moments["m01"] / max(moments["m00"], 0.00001)
+
+    # I am not sure why this is the case but sometimes is
+    # Am I going to find out why, no, no I am not
+    if center_u == 0 or center_v == 0:
+        return None
+
+    img_height, img_width = image.shape
+
+    center_u = center_u / img_width
+    v_offset = (img_width - img_height) / 2.0
+    center_v = (center_v + v_offset) / img_width
+
+    return Point2D(center_u, center_v, contours)  # todo, normalise contours
+
+def find_led(
+    cam: Camera, threshold: int = 128, display: bool = True
+) -> Optional[Point2D]:
+
+    image = cam.read()
+    results = find_led_in_image(image, threshold)
+
+    if display:
+        rendered_image = draw_led_detections(image, results)
+        show_image(rendered_image)
+
+    return results
+
+
+def enable_and_find_led(
+    cam: Camera,
+    led_backend,
+    led_id: int,
+    view_id: int,
+    timeout_controller: TimeoutController,
+    threshold: int,
+    display: bool = False,
+) -> Optional[LED2D]:
+
+    darkness_timeout_seconds = 3.0
+
+    # First wait for no leds to be visible, this should always be false
+    start = time.time()
+    while find_led(cam, threshold, display) is not None:
+        if time.time() - start > darkness_timeout_seconds:
+            logging.warning(
+                f"Detector can't start detecting led {led_id} as an led is already visible"
+            )
+            return None
+
+    # Set the led to on and start the clock
+    response_time_start = time.time()
+
+    led_backend.set_led(led_id, True)
+
+    # Wait until either we have a result or we run out of time
+    point = None
+    while (
+        point is None and time.time() < response_time_start + timeout_controller.timeout
+    ):
+        point = find_led(cam, threshold, display)
+
+    led_backend.set_led(led_id, False)
+
+    if point is None:
+        return None
+
+    timeout_controller.add_response_time(time.time() - response_time_start)
+
+    start = time.time()
+    while find_led(cam, threshold, display) is not None:
+        if time.time() - start > darkness_timeout_seconds:
+            logging.warning(
+                f"Detector can't stop detecting led {led_id} as an led is already visible, retrying backend..."
+            )
+            led_backend.set_led(led_id, False)
+            start = time.time()
+
+    return LED2D(led_id, view_id, point)

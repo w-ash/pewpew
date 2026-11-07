@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run pytest:*)",
+      "Bash(uv sync:*)",
+      "Bash(just check)",
+      "Bash(just test:*)",
+      "Bash(just ready)",
+      "Bash(just branches)",
+      "Bash(just sources)",
+      "Bash(just web)",
+      "Bash(uv run just check)",
+      "Bash(uv run just test:*)",
+      "Bash(uv run just ready)",
+      "Bash(uv run just branches)",
+      "Bash(uv run just sources)",
+      "Bash(uv run just web)",
+      "Bash(python3 scripts/branches.py)",
+      "Bash(python3 research/tools/merge_sources.py --check)",
+      "Bash(python3 research/tools/merge_sources.py --merge)"
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/branches.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate_mask_check.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "version": 4,
+  "current": "depth-charge",
+  "looks": {
+    "depth-charge": {
+      "seed": 9, "master": 0.75, "fade": 3.0, "cycle": true,
+      "layers": [
+        {"id": "pond", "out": "tint", "nodes": {
+            "waves": {"op": "ripple", "args": {"speed": 0.2, "damping": 0.5, "drops": 1.0, "size": 0.12}},
+            "tint": {"op": "palette", "in": ["waves"], "args": {"palette": {"stops": [{"at": 0, "h": 185, "s": 0.7, "v": 0.8}, {"at": 0.5, "h": 220, "s": 1, "v": 0.12}, {"at": 1, "h": 200, "s": 0.25, "v": 1}]}}}}},
+        {"id": "haze", "opacity": 0.2, "blend": "add", "out": "tint", "nodes": {
+            "fog": {"op": "noise", "args": {"scale": 1.2, "speed": 0.04, "octaves": 3}},
+            "tint": {"op": "palette", "in": ["fog"], "args": {"palette": {"stops": [{"at": 0, "h": 230, "s": 1, "v": 0}, {"at": 0.5, "h": 195, "s": 0.9, "v": 0.3}, {"at": 0.85, "h": 12, "s": 0.7, "v": 0.75}, {"at": 1, "h": 32, "s": 0.3, "v": 1}]}}}}}],
+      "signals": {
+          "kick": {"op": "beat", "args": {}},
+          "splash": {"op": "env", "in": ["kick"], "args": {"attack": 0.02, "decay": 0.6}},
+          "hiss": {"op": "band", "args": {"band": "high", "release": 1.5}}},
+      "routes": [
+          {"source": "splash", "path": "layers.pond.waves.drops", "depth": 2.5},
+          {"source": "hiss", "path": "layers.pond.tint.shift", "depth": 50.0}],
+      "front": ["layers.pond.waves.drops", "layers.pond.waves.damping", "layers.pond.waves.speed"]}}}
