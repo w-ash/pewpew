@@ -1,8 +1,9 @@
 """Small numeric helpers the ops, colors and sinks share: `TWO_PI`, the
 0-1 sine `wave`, `hsv`, the frame-rate-independent `fade` and `bins`.
 
-The arithmetic is copied, not tidied, from `bench/authoring/surface.py`
-(the authoring study, ADR-005), so what it rendered stays bit-identical.
+The arithmetic is copied, not tidied, from the authoring study's prototype
+(ADR-005; bench/results/authoring-2026-07-16.md), so what it rendered
+stays bit-identical.
 """
 
 from __future__ import annotations
