@@ -5,13 +5,14 @@ description: Designs, checks, renders and refines pewpew looks (layered LED effe
 
 # Authoring looks
 
-A look is a stack of layers, bottom first. Each layer runs one gallery
-pattern or an effect program (a small graph of ops), mixes onto the
-layers below by `opacity`, `blend` and `enabled`, and every knob has an
-address such as `layers.base.comet.speed`. The format, with examples, is
-in `docs/authoring.md` §9 (layers) and §10 (effect programs); the MCP
-server serves each section alone, as `pewpew://docs/authoring/9` and
-`pewpew://docs/authoring/10`.
+A look is a stack of layers, bottom first. Each layer runs an effect
+program (a small graph of ops from the catalog), mixes onto the layers
+below by `opacity`, `blend` and `enabled`, and every knob has an address
+such as `layers.base.waves.freq`. The look is the only effect: a new
+effect is a new op in `src/pewpew/fx/ops/`, not a look. The format, with
+examples, is in `docs/authoring.md` §4 (layers) and §5 (effect programs);
+the MCP server serves each section alone, as `pewpew://docs/authoring/4`
+and `pewpew://docs/authoring/5`.
 
 Never write from memory what the catalog says. Op names, args, ranges,
 defaults, palettes and blend modes change as ops are added: ask
@@ -58,8 +59,7 @@ run first, and only when the person asked for it.
    and take the best as the start. Keep it small: one layer
    that works beats three that fight. Name layers and nodes for what they
    do (`swell`, `tint`), since ids appear in every knob address and never
-   change. Patterns go by name, never by file path.
-   Patterns that suit the shape are in `references/patterns.md`.
+   change. Looks that suit each shape are in `references/looks-by-shape.md`.
 
 3. **Check it.** `look_check(look)`. A refusal lists each problem with a
    code, the path, the aura's own words, a did-you-mean and a `fix:`
@@ -70,7 +70,7 @@ run first, and only when the person asked for it.
 4. **Render it and read the numbers first.** `look_render(look,
    map=...)`. Choose the map the look is for: `line:64` for a strip,
    `grid:16x16` for a panel, `lattice:8` for a volume, or a room map
-   file; `auto` picks the bottom pattern's own geometry. Render at least
+   file; `grid:16x16` is the default. Render at least
    1 s (flashing is counted per second); 2 to 4 s at 30 fps is the norm.
    Read `warnings` and `metrics` before the image (`references/metrics.md`):
    - `flash_rate_max` above 3 fails the WCAG gate. Fix it before anything else.

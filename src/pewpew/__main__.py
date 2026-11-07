@@ -201,7 +201,7 @@ def _parser() -> argparse.ArgumentParser:
                       help="cap on the master dimmer, above 0 and at most 1 (default 1); the page cannot exceed it")
     aura.add_argument("--looks", type=Path, default=None, metavar="PATH",
                       help="saved looks file: save and recall looks from the page; a start restores the current one. "
-                      "Version 4 holds layered looks (docs/authoring.md §9)")
+                      "Version 4 holds layered looks (docs/authoring.md §4)")
     aura.add_argument("--armed", action="store_true",
                       help="start with the room-event triggers armed (default: disarmed until the page arms them)")
     aura.add_argument("--trigger-log", type=Path, default=None, metavar="PATH",

@@ -12,7 +12,7 @@ needs to change a contract says so in its report rather than changing it on its 
 | `src/pewpew/rig/geometry.py` | ws1b |
 | `src/pewpew/rig/wiring.py`, `src/pewpew/rig/electrical.py` | ws2 |
 | `schemas/arrangement.v1.json`, `schemas/catalog.v1.json` (generated, committed) | ws1 |
-| `src/pewpew/patterns/rainbow.py` | ws5 |
+| `examples/*.look.json` (the studio's example looks) | ws5 |
 | `src/pewpew/studio/` (FastAPI app, sessions, store, limits) and `python -m pewpew studio` | ws3 |
 | `studio-web/` (Vite + React + R3F) | ws4 |
 | `Dockerfile`, `.dockerignore`, `fly.toml`, `.github/workflows/release.yml`, `docs/deployment.md` | ws6 |
@@ -55,10 +55,10 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
 
 - `RigError(ValueError)` carries `.issues`. It is raised for error-level issues; violations and
   warnings are returned on `rig.issues`.
-- The pattern contract is unchanged (ADR-005, `research/synthesis/decisions/ADR-005-pattern-authoring-model.md`):
-  `Renderer(pattern, rig.mapping, grouping=rig.grouping)` and
-  `renderer.rebind(rig.mapping, rig.grouping)`. A pattern with `units = "fixture"` renders one
-  colour per fixture. `index` follows data order because the pixels are compiled in that order.
+- A look renders per pixel (ADR-025, `research/synthesis/decisions/ADR-025-one-effect-system.md`):
+  the running look is rebound to `rig.mapping` and `rig.grouping` (`renderer.rebind(rig.mapping,
+  rig.grouping)` on each layer's renderer). `index` follows data order because the pixels are
+  compiled in that order.
 
 **Pinned 2026-10-22 after ws1 and ws3 landed.**
 - **`Catalog.to_json()`** (in `src/pewpew/rig/catalog.py`) returns
@@ -126,27 +126,36 @@ as a method or function that takes a linear-light float frame.
 | `GET /api/assembly/{digest}.glb` | the GLB, `Cache-Control: public, max-age=31536000, immutable` |
 | `POST /api/arrangements` (body: arrangement) | `{"id": "<22-char base64url>"}`; the id is the first 128 bits of SHA-256 over the canonical JSON |
 | `GET /api/arrangements/{id}` | the stored arrangement |
-| `GET /api/patterns` | `[{"name", "params", "values"}]` for the gallery patterns only: `params` is each param's `Param.spec()` in display order (`tests/goldens/describe.json` holds the same records), and `values` the defaults as `ParamSet.snapshot_json()` gives them |
+| `GET /api/looks` | `{name: look}`: the current look of each `examples/*.look.json`, by file name, in the looks file's form, ready to send as a `look` request (`PEWPEW_STUDIO_EXAMPLES` names another folder) |
 | `GET /`, `GET /a/{id}`, `/assets/*` | the SPA from `studio-web/dist` when it exists |
 
 ## WebSocket `/ws/session` (ws3 owns)
 
-The `status`, `declare`, `params` and `refused` messages are the preview's
-(`src/pewpew/sinks/preview.py`, typed in `web/src/wire/protocol.ts`); the session sends the
-text `pewpew.sinks.preview.message` builds.
+Each session runs the aura that `python -m pewpew run` runs (ADR-025,
+`pewpew.aura.pipeline.build_aura_pipeline`), with no looks file and no boards, taking whole
+looks. It starts in `examples/tide.look.json`'s look on a 16 x 16 grid until the first bind.
+Every message but `bind`, `pause` and `resume` is the preview's (`src/pewpew/sinks/preview.py`,
+typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends what
+`pewpew.sinks.preview.StateTexts` and `answer_request` give.
 
 - **Server to client, text:**
-  - `{"type":"hello","n","fps","patterns":[names],"pattern","params":[spec],"values":{name: value}}`,
-    sent on connect and after each successful bind or pattern change. `params` is each param's
-    `Param.spec()` in display order; `values` is `ParamSet.snapshot_json()`;
-  - `{"type":"status","error","source","path"}`: the render error, its source (`"render"`) and
-    the address of the part that raised it (the pattern's name), or three nulls;
-  - `{"type":"declare","params":[spec]}` and `{"type":"params","values":{...}}`, each sent when
-    its text changes;
-  - `{"type":"refused","control","name","id","reason"}`, to the client that asked only. `control`
-    is `set` (with the param's `name`), `pattern`, `bind` (with `issues` when the arrangement does
-    not compile), `session` or `message`; `name` and `id` are null when unset. The reason never
-    names a path;
+  - `{"type":"hello","n","fps","capabilities":["ack","look"]}`, sent on connect and after each
+    successful bind. Every per-frame message below goes again after it;
+  - the preview's per-frame messages, each sent with a frame when its text changes:
+    `{"type":"status","error","source","path"}` (a render error, `"render"`, and the address of
+    the part that raised it, or three nulls), `{"type":"declare","params":[spec]}` (every knob
+    of the running look by address, such as `layers.base.waves.freq`),
+    `{"type":"params","values":{address: value}}`, `{"type":"mod","values":{...}}` (the knobs a
+    route drives, at most 10 times a second of engine time), `{"type":"aura",...}` (the aura
+    state: the stack, the fade, the master) and `{"type":"catalog",...}` (the add-layer cards).
+    There is no `health`;
+  - `{"type":"ack","id","control"}`, to the client that asked, for an accepted request that
+    carries an `id`;
+  - `{"type":"refused","control","name","id","reason"}`, to the client that asked only.
+    `control` is the request's `type` (null when it is not text), `bind` (with `issues` when
+    the arrangement does not compile), `session` or `message`; `name` is the knob of a refused
+    `set`. A request with no `id` that names no control is passed over. The reason never names a
+    path;
   - `{"type":"bound","n","catalog_digest","issues"}`, always followed by a `hello`;
   - `{"type":"power","watts","uncapped_watts"}` at about 2 Hz: the effect power of the streamed
     frame under the arrangement's power cap, and of the same frame without it.
@@ -155,16 +164,18 @@ text `pewpew.sinks.preview.message` builds.
   capped one. The client drops
   any frame whose length is not `8 + 3n`.
 - **Client to server, text:**
-  - `{"type":"bind","arrangement":{...}}`, which compiles, rebinds with one unit per fixture and
-    keeps `t`;
-  - `{"type":"pattern","name":"rainbow"}`, gallery names only. The pattern starts fresh at its
-    defaults, and pending sets for the one it replaces are dropped;
-  - `{"type":"set","name","value"}`, with the value in its kind's JSON form: a number for a float
-    or an int, `true`/`false` for a bool, an option's value for a choice, `{"h","s","v"}` for a
-    color, and a preset's label or `{"label"?,"stops":[{"at","h","s","v"}]}` for a palette. The
-    param's kind parses it, as `ParamSet.parse` does;
+  - `{"type":"bind","arrangement":{...}}`, which compiles, rebinds the running look to the rig's
+    mapping and fixture grouping, and keeps `t`. A look that cannot run on it (a strip for a
+    look that folds a plane) is refused, and the old mapping stays;
+  - any request of `pewpew.aura.control.REQUESTS`, as the preview takes it, with an optional
+    `id` for its answer: `{"type":"set","name":<knob address>,"value"}` (the value in its kind's
+    JSON form), `{"type":"look","look":{...},"fade"?}` (one look in the looks file's form, such
+    as a `GET /api/looks` entry), `add_layer`, `remove_layer`, `move_layer`, `front`,
+    `master`, `blackout`, `surprise`, `vary`, `arm` and `fire`. A request that needs a looks file
+    (`recall`, `save`, `keep`, `delete`, `cycle`, `fade`), boards (`scan`, `rebind`) or a room
+    (`blink`) is refused;
   - `{"type":"pause"}` and `{"type":"resume"}`, which the page sends when its tab is hidden or
-    shown.
+    shown. A request that waits for the loop while it is paused is answered late.
 - A session renders at 30 fps on its own thread. Frames cross to asyncio through
   `loop.call_soon_threadsafe` into a one-slot mailbox that keeps only the newest frame. A
   session pauses after 10 minutes with no inbound message.
@@ -174,8 +185,8 @@ text `pewpew.sinks.preview.message` builds.
 - `python -m pewpew studio [--host 127.0.0.1] [--port 8000] [--db PATH]`. The store is
   `DATABASE_URL` when it is set (Neon Postgres, psycopg 3), and otherwise SQLite at `--db`
   (default: `PEWPEW_STUDIO_DB`, else `./studio.sqlite3`).
-- `python -m pewpew run <pattern> --map <arrangement>.json` runs a pattern on a compiled
-  arrangement, one unit per fixture. The arrangement's `power` block is the power limit, an
+- `python -m pewpew run LOOKS --map <arrangement>.json` plays a looks file on a compiled
+  arrangement. The arrangement's `power` block is the power limit, an
   `after` stage behind the master; `--max-watts W` and `--max-brightness B` replace its values.
   `--max-watts` needs an arrangement map, whose fixtures give the power model.
 - The app factory is `pewpew.studio.app:create_app`, run with `uvicorn --factory`.
@@ -188,4 +199,4 @@ text `pewpew.sinks.preview.message` builds.
 ## Sources
 
 - `src/pewpew/sinks/preview.py`, the module docstring and `message`
-- `research/synthesis/decisions/ADR-005-pattern-authoring-model.md`
+- `research/synthesis/decisions/ADR-025-one-effect-system.md`

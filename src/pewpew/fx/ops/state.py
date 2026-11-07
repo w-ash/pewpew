@@ -9,7 +9,7 @@ frame, before render, and shows that state (ADR-022).
 
 Both composite by the brighter of the two, never by adding, so a static
 input holds the field at the input and never ratchets to white
-(docs/authoring.md §7.2): the field is at most the brightest the input
+(docs/authoring.md §9.2): the field is at most the brightest the input
 has been.
 """
 
