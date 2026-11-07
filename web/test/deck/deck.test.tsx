@@ -10,7 +10,7 @@ import { looksAbout } from "../../src/deck/Looks";
 import { LookPanel } from "../../src/deck/LookPanel";
 import { barLines, failedText, StatusBar } from "../../src/status/StatusBar";
 import { greeting, hello, refused, AURA } from "../fixtures/messages";
-import { Layers, pastDoubleTap, renderWired } from "./harness";
+import { Layers, pastDoubleTap, renderWired } from "../harness";
 
 const aura = (patch: Partial<AuraState>) => ({ type: "aura" as const, ...AURA, ...patch });
 

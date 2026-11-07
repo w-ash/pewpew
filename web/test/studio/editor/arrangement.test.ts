@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Arrangement, RingGroup } from "../../../src/studio/api/types";
 import { mockCompile } from "../../../src/studio/mocks/compile";
-import { threeBarRig } from "../../../src/studio/mocks/rig";
+import { threeBarRig } from "../fixtures/rig";
 import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
 import {
   addFixture,

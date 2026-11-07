@@ -8,7 +8,7 @@ example of each message whose fields the greeting leaves empty (a held
 trigger, a refusal, a look and a layer refused with their ids, an ack, a
 render error, a scan, a room layout), and the controls a client may send.
 The page builds its test messages from it and checks every key against
-its types (web/test/infra/wire.test.ts), so a renamed key fails both
+its types (web/test/wire/wire.test.ts), so a renamed key fails both
 suites.
 `--regen-goldens` rewrites it; review the diff before committing."""
 

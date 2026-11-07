@@ -4,8 +4,7 @@ projections that give 3D points 2D texture coordinates.
 `sample` is linear interpolation in as many dimensions as the point has
 axes: bilinear for (x, y) on an (H, W) field, trilinear for (x, y, z) on a
 (D, H, W) field. Channel axes after the spatial ones (an (H, W, 3) colour
-field) come back per point. `pewpew.sample2d` stays the nearest-cell read
-for pattern authors.
+field) come back per point.
 
 Each axis has an edge mode:
 - "clamp": the field spans 0 to 1 with a node at each end (node j at

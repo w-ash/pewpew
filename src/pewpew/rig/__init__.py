@@ -3,7 +3,7 @@
     from pewpew.rig import load_arrangement, load_catalog, compile_rig
 
     rig = compile_rig(load_arrangement(Path("rings.json")), load_catalog())
-    renderer = Renderer(BoundProgram(program, "layers.base"), rig.mapping)
+    aura = build_aura_pipeline(look, rig.mapping)
 
 The design is docs/studio/domain-model.md and the API is
 docs/studio/contracts.md:25-67. Layout: `models` (file formats and compiled

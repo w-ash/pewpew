@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { App } from "../../src/app/App";
 import { AURA } from "../fixtures/messages";
-import { renderWired } from "./harness";
+import { renderWired } from "../harness";
 
 /** The style rules inside `@media (pointer: coarse)`, and, unless `only`, inside a query that adds to it. */
 function coarseRules(only = false): CSSStyleRule[] {

@@ -12,12 +12,6 @@ export class ApiError extends Error {
   }
 }
 
-export interface ApiResponse<T> {
-  data: T;
-  status: number;
-  headers: Headers;
-}
-
 /** The issues a refusal carries: the studio's `{"issues": [...]}`, else FastAPI's `detail`. */
 export function issuesOf(body: unknown): Issue[] {
   if (body && typeof body === "object") {

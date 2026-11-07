@@ -393,7 +393,8 @@ def test_a_render_is_what_run_looks_renders(tmp_path):
     rendered = draw(path, seed=5)
     run = build(["run", str(path), "--map", MAP, "--seed", "5"])
     clock = SlotClock(FPS)
-    shown = np.stack([run.master.apply(t, run.fader.advance_to(t)) for t in (clock.advance() for _ in range(60))])
+    aura = run.aura
+    shown = np.stack([aura.master.apply(t, aura.fader.advance_to(t)) for t in (clock.advance() for _ in range(60))])
     assert np.array_equal(take(rendered).frames, shown)
 
 

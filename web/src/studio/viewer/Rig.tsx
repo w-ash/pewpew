@@ -66,7 +66,7 @@ function layoutKey(layout: LedLayout): string {
   return `${layout.width}x${layout.height}:${layout.rows.map((r) => `${r.start}+${r.count}`).join(",")}`;
 }
 
-export interface RigProps {
+interface RigProps {
   rig: CompiledRig;
   catalog: Catalog;
   selected: ReadonlySet<number>;
@@ -104,12 +104,6 @@ export function Rig({ rig, catalog, selected, accent, onPick }: RigProps) {
     () => buildBatches(rig, assemblies),
     [rig, assemblies],
   );
-  // A new compile carries the dragged pose, so the preview has done its job.
-  // Runs on each new rig.
-  useEffect(() => {
-    dragPreview.clear();
-  }, [rig]);
-
   const seen = useRef(-1);
   useFrame(() => {
     if (frameBus.version === seen.current) return;

@@ -5,7 +5,7 @@ import type { LayerItem } from "../../src/stack/stack";
 import type { ClientMessage, ServerMessage } from "../../src/wire/protocol";
 import { App } from "../../src/app/App";
 import { first, refused, AURA } from "../fixtures/messages";
-import { pastDoubleTap, renderWired } from "./harness";
+import { pastDoubleTap, renderWired } from "../harness";
 
 const records = first("declare").params as Record<string, unknown>[];
 const values = first("params").values;

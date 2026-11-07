@@ -6,7 +6,7 @@ import { useShortcuts } from "../../src/design/shortcuts";
 import { ParamField } from "../../src/params/ParamField";
 import { ShortcutHelp } from "../../src/status/ShortcutHelp";
 import { param } from "../fixtures/describe";
-import { renderWired } from "./harness";
+import { renderWired } from "../harness";
 
 test("Esc runs its shortcut and still closes the open list, and focus goes back", async () => {
   const disarm = vi.fn();

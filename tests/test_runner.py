@@ -94,10 +94,10 @@ def test_a_run_starts_in_the_current_look_else_the_first(tmp_path, fake_ops):
     path = tmp_path / "looks.json"
     path.write_text(json.dumps(two))
     run = build(["run", str(path), "--map", "line:8"])
-    assert run.looks.book.current == "warm" and run.control.values()["layers.base.solid.red"] == 0.5
+    assert run.looks.book.current == "warm" and run.aura.control.values()["layers.base.solid.red"] == 0.5
     path.write_text(json.dumps({**two, "current": "cool"}))
     run = build(["run", str(path), "--map", "line:8"])
-    assert run.looks.book.current == "cool" and run.control.values()["layers.base.solid.red"] != 0.5
+    assert run.looks.book.current == "cool" and run.aura.control.values()["layers.base.solid.red"] != 0.5
     path.write_text(json.dumps({"version": 4, "looks": {}}))
     with pytest.raises(SystemExit, match=r"looks.json: the looks file holds no look$"):
         build(["run", str(path)])
@@ -374,8 +374,8 @@ def test_a_run_takes_looks_only_when_asked_and_never_an_unattended_run(capsys):
     only a run that asks offers `look`, and an unattended run refuses the flag
     (ADR-020 amendment "capabilities")."""
     argv = ["run", looks_file(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"]
-    assert build(argv).control.capabilities == ()
-    assert build([*argv, "--accept-looks"]).control.capabilities == ("look",)
+    assert build(argv).aura.control.capabilities == ()
+    assert build([*argv, "--accept-looks"]).aura.control.capabilities == ("look",)
     assert "--accept-looks lets any client of the preview change the look, which --unattended refuses" in (
         usage_error([*argv, "--accept-looks", "--unattended"], capsys))
 
@@ -603,10 +603,10 @@ def test_the_power_limit_runs_after_the_master():
     """Architecture §2 stage 3: the master dims, then the limit caps what is left."""
     run = build(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--max-watts", "50", "--frames", "1"])
     assert run.launch.limiter is not None
-    run.master.set(0.5)
+    run.aura.master.set(0.5)
     frame = np.ones((3072, 3), np.float32)
     stages = run.loop._after
-    assert stages[0] == run.master.apply and len(stages) == 2
+    assert stages[0] == run.aura.master.apply and len(stages) == 2
     out = stages[1](0.0, stages[0](0.0, frame))
     watts = run.launch.limiter.model.watts(out)  # type: ignore[union-attr]
     assert watts == pytest.approx(50.0, rel=1e-3) and (frame == 1.0).all()

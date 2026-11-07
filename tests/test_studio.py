@@ -36,16 +36,15 @@ from pewpew.sinks.preview import message, status_state
 from pewpew.sinks.sink import to_display_u8
 from pewpew.studio.app import create_app
 from pewpew.studio.limits import Limits, RateLimiter, address_key, client_ip
-from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, as_look, example_looks
+from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, example_looks, start_looks
 from pewpew.studio.store import SqliteStore, arrangement_id, canonical_json
 from pewpew.studio.transport import Outbox
 
 FPS = 120.0  # fast enough that a test waits milliseconds, not seconds
 ROOT = Path(__file__).resolve().parents[1]
 LOOKS = example_looks(ROOT / "examples")
-START_LOOK = as_look(LOOKS[START])
-# The looks a session starts in and falls back on, as the app gives them: the start look first.
-STARTS = {START: START_LOOK, **{name: as_look(doc) for name, doc in LOOKS.items() if name != START}}
+STARTS = start_looks(LOOKS)  # as the app gives them: the start look first
+START_LOOK = STARTS[START]
 STRIP = np.column_stack([np.linspace(0, 1, 8), np.zeros(8), np.zeros(8)]).astype(np.float32)
 
 
@@ -586,16 +585,24 @@ def test_a_bind_no_look_can_run_on_is_refused_and_the_old_map_stays():
     assert session.n == 256 and len(sink.frames[-1].data) == 8 + 3 * 256
 
 
-def test_a_session_makes_one_look_at_a_time():
+def test_a_session_makes_one_look_at_a_time(monkeypatch):
     session = stepped(RecordingSink())
+    made = threading.Event()
+
+    def surprise(seed=None):  # a make that lasts until the test lets it end
+        assert made.wait(5.0)
+        raise ValueError("nothing made")
+
+    monkeypatch.setattr(session._aura.variety, "surprise", surprise)
     try:
         first = session.control.request({"type": "surprise", "seed": 1})
         second = session.control.request({"type": "vary", "id": 2})
         assert isinstance(first, Future)
         assert second is not None and not isinstance(second, Future) and "still being made" in second.reason
     finally:
-        session.close()  # answers the made look's wait for the loop
-    assert first.result(timeout=30) is not None  # refused: the loop never ran
+        made.set()
+        session.close()
+    assert first.result(timeout=5.0) is not None  # refused: nothing was made
 
 
 def test_a_request_while_paused_is_refused_at_once(client):
@@ -604,6 +611,7 @@ def test_a_request_while_paused_is_refused_at_once(client):
         ws.send_text(json.dumps({"type": "pause"}))
         assert wait_for(lambda: session_of(client).paused)
         start = time.monotonic()
+        ws.send_text(json.dumps({"type": "set", "value": 1}))  # no id, no knob: passed over, as when running
         ws.send_text(json.dumps({"type": "look", "look": LOOKS["warp-lane"], "id": 4}))
         refused = read_until(ws, is_type("refused"))
         assert (refused["control"], refused["id"]) == ("look", 4) and "paused" in refused["reason"]

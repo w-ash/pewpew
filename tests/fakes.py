@@ -545,7 +545,7 @@ def rgb(r: float, g: float, b: float, n: int) -> np.ndarray:
 
 
 def layer_renderer(aura, lid: str = "base") -> Renderer:
-    """The renderer layer `lid` of a rig's or a run's running stack runs now."""
+    """The renderer layer `lid` of an aura's running stack runs now: a rig or a run's `aura`."""
     return aura.fader.current.layer(lid).renderer
 
 
@@ -553,7 +553,7 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
              looks: Mapping[str, Look] | None = None, current: str | None = None, cycle=None,
              triggers: Mapping | None = None, path=None, timeout: float = 5.0,
              log=None, blink=None, boards=None, health=None, accept_looks: bool = False,
-             variety=None, submit=None) -> SimpleNamespace:
+             max_making: int | None = None, variety=None, submit=None) -> SimpleNamespace:
     """An aura without a loop or sinks: a stack running `start` (default a
     red `solid`, which needs `fake_ops`), crossfader, deck, master, looks (when `looks` is given),
     triggers and the aura control, built as `pewpew.run.Run` builds them
@@ -570,7 +570,7 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
     aura = build_aura_pipeline(
         start or solid(1.0), line(4) if mapping is None else mapping, master_cap=cap, looks_path=path, book=r.book,
         trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
-        make_variety=variety, submit=submit or at_once,
+        max_making=max_making, make_variety=variety, submit=submit or at_once,
     )
     r.calls, r.features, r.fader, r.deck, r.master = aura.calls, aura.features, aura.fader, aura.deck, aura.master
     r.variety, r.looks, r.triggers, r.control = aura.variety, aura.looks, aura.triggers, aura.control
@@ -578,9 +578,7 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
     r.clock = SlotClock(60.0)
 
     def frame(t: float):
-        r.triggers.before_frame(t)
-        if r.looks is not None:
-            r.looks.before_frame(t)
+        aura.before_frame(t)
         return r.fader.advance_to(t)
 
     r.frame = frame

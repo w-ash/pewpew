@@ -27,8 +27,9 @@ from fakes import (
     wait_until,
 )
 from pewpew import wled
+from pewpew.aura import control
 from pewpew.aura.book import Trigger
-from pewpew.aura.control import NO_LOOKS, OVERTAKEN, REQUESTS
+from pewpew.aura.control import MAKING, NO_LOOKS, OVERTAKEN, REQUESTS
 from pewpew.awake import KeepAwake
 from pewpew.compose import DEFAULT_FADE, Look
 from pewpew.errors import Refusal, describe_exception
@@ -496,6 +497,21 @@ def test_a_look_that_cannot_be_made_for_a_bug_is_refused_naming_it():
         assert next_of(ws, "refused")["reason"] == "the look cannot be made: KeyError: 'nosuch'"
 
 
+def test_a_making_slot_comes_back_when_its_thread_cannot_start(monkeypatch):
+    rig = aura_rig(variety=Painter, max_making=1)
+
+    def no_thread(job):
+        raise RuntimeError("can't start new thread")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(control, "in_background", no_thread)
+        with pytest.raises(RuntimeError):
+            rig.control.request({"type": "surprise"})
+    answered = rig.control.request({"type": "surprise"})
+    assert not isinstance(answered, Refusal) or answered.reason != MAKING  # the slot was freed
+    rig.calls.close()  # answers the made look's wait for the loop
+
+
 def test_an_aura_without_a_looks_file_plays_a_surprise_but_cannot_keep_it():
     rig = aura_rig(variety=Painter)
     with serving(rig.control, rig.calls) as (_, ws, _):
@@ -514,7 +530,7 @@ def test_a_surprise_without_a_seed_takes_the_run_s_next_one_the_same_in_every_ru
 
 def test_a_run_varies_its_look_and_the_socket_answers_after(tmp_path):
     run = build(["run", looks_file(), "--map", "line:16"])
-    with serving(run.control, run.calls) as (_, ws, _):
+    with serving(run.aura.control, run.aura.calls) as (_, ws, _):
         ws.send(json.dumps({"type": "vary", "id": 1, "strength": 0.5, "seed": 3}))
         assert next_of(ws, "ack") == {"type": "ack", "id": 1, "control": "vary"}
         ws.send(json.dumps({"type": "master", "id": 3, "value": 0.5}))

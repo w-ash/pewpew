@@ -75,6 +75,7 @@ from pewpew import audit
 from pewpew.audio import AudioFeatures, AudioSource, FeatureLog, LiveSource, ReplayFeatures
 from pewpew.audio.inputs import read_input
 from pewpew.aura.book import LookBook, load_looks, route_reasons
+from pewpew.aura.looks import Looks
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.awake import KeepAwake
 from pewpew.compose import LayerError, Look
@@ -167,13 +168,6 @@ class Launch:
             check_log(args.feature_log, "feature log")
         return cls(args, argv, book, room, room_bytes, mapping, limiter, ddp, audio)
 
-    @property
-    def look(self) -> Look:
-        """The look the run starts in."""
-        current = self.book.current
-        assert current is not None, "a launch starts in the current look"
-        return self.book.looks[current]
-
     def plan(self) -> list[str]:
         """The per-board DDP plan and the input to open, as `--dry-run` prints them."""
         lines: list[str] = []
@@ -257,22 +251,20 @@ class Run:
             if self.watchdog is not None:
                 self.watchdog.stop()
             raise SystemExit(f"{args.looks}: cannot start look {start!r}: {exc}") from None
-        assert self.aura.looks is not None  # a run always has its looks file
         if start != book.current:
-            self.aura.looks.leave()  # runs as a sent look does: no look is current, and the file keeps its own
+            self.looks.leave()  # runs as a sent look does: no look is current, and the file keeps its own
         if stalled is not None:
             print(stalled, file=sys.stderr, flush=True)
-            self.aura.looks.error = stalled
-        self.calls, self.features, self.fader, self.deck = self.aura.calls, features, self.aura.fader, self.aura.deck
-        self.master, self.variety, self.looks = self.aura.master, self.aura.variety, self.aura.looks
-        self.triggers, self.control = self.aura.triggers, self.aura.control
+            self.looks.error = stalled
         if args.armed:
-            self.triggers.arm(True, "launch")  # applied and logged at the first tick
+            self.aura.triggers.arm(True, "launch")  # applied and logged at the first tick
         self.room = None if room is None else RoomLive(
-            args.room, room, launch.room_bytes, self.fader, self.calls.call_soon,
+            args.room, room, launch.room_bytes, self.aura.fader, self.aura.calls.call_soon,
             ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch,
         )
-        sources: list[tuple[Source, Any]] = [("reload", self.room), ("render", self.fader), ("looks", self.looks)]
+        sources: list[tuple[Source, Any]] = [
+            ("reload", self.room), ("render", self.aura.fader), ("looks", self.looks),
+        ]
         status = status_line(*(source for source in sources if source[1] is not None))
         # Each output and how it starts, in start order.
         self.outputs: list[tuple[Sink, Callable[[], None]]] = []
@@ -293,7 +285,7 @@ class Run:
         if args.preview:
             self.preview = PreviewSink(
                 launch.mapping, host=args.host or "127.0.0.1", port=args.port, status=status,
-                control=self.control,
+                control=self.aura.control,
                 room=room.describe() if room is not None else None,
                 plan_image=room.plan_file(args.room) if room is not None else None,
                 now=now, sleep=sleep,
@@ -312,6 +304,13 @@ class Run:
             after=[power_stage(launch.limiter)] if launch.limiter is not None else [],
             on_frame=[*self.drivers, *([self.watchdog.beat] if self.watchdog is not None else [])],
         )
+
+    @property
+    def looks(self) -> Looks:
+        """The aura's looks: a run always has its looks file."""
+        looks = self.aura.looks
+        assert looks is not None
+        return looks
 
     def serve(self) -> int:
         """Start every part, run the loop, then stop them in reverse.
@@ -340,7 +339,7 @@ class Run:
     def _start(self, services: list) -> None:
         if self.looks.book.current is not None:
             self.looks.begin()
-        self.triggers.begin_run(
+        self.aura.triggers.begin_run(
             seed=self.args.seed, fps=self.args.fps, look=self.looks.book.current,
             armed=self.args.armed,
         )
@@ -366,7 +365,7 @@ class Run:
             service.stop()
         if self.capture is not None:
             self.capture.stop()
-        self.calls.close()
+        self.aura.calls.close()
         if self.trigger_log is not None:
             # A flush that fails here must not skip the teardown.
             with contextlib.suppress(OSError):

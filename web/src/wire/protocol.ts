@@ -190,9 +190,9 @@ export interface Sender {
    * a newer master, replaces it. For what a drag sends. */
   sendLatest(msg: ClientMessage): void;
   /** Send at once with an `id`, for a request that takes the engine a while. Settles when the engine
-   * answers it, accepted or refused (a refusal reaches the store as any does), or when the connection
-   * closes, which leaves it unanswered. */
-  ask(msg: ClientMessage): Promise<void>;
+   * answers it, true for an ack and false for a refusal (which reaches the store as any does), or false
+   * when it was not sent or the connection closes first. */
+  ask(msg: ClientMessage): Promise<boolean>;
 }
 
 /** Request a param value, as a drag does. */
@@ -241,9 +241,4 @@ export function parseTyped(text: string): TypedMessage | null {
 /** `msg` as a server message, or null for a type this page does not read. */
 export function asServerMessage(msg: TypedMessage | null): ServerMessage | null {
   return msg && Object.hasOwn(TYPES, msg.type) ? (msg as unknown as ServerMessage) : null;
-}
-
-/** The message in `text`, or null for anything this page does not read. */
-export function parseMessage(text: string): ServerMessage | null {
-  return asServerMessage(parseTyped(text));
 }

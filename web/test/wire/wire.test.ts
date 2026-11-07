@@ -18,7 +18,7 @@ import { nowOf } from "../../src/aura/aura";
 import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/stack/catalog";
 import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/stack/stack";
 import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/stack/stack";
-import { parseMessage, type ClientMessage, type Control, type ServerMessage } from "../../src/wire/protocol";
+import { asServerMessage, parseTyped, type ClientMessage, type Control, type ServerMessage } from "../../src/wire/protocol";
 import { WireStore } from "../../src/wire/store";
 import { first, GREETING, LATER } from "../fixtures/messages";
 
@@ -186,7 +186,7 @@ test("every control the engine takes is a message the page can send, with the sa
 test("every message decodes through the wire and the store, and reads through the domain", () => {
   const store = new WireStore();
   for (const msg of [...GREETING, ...LATER]) {
-    const parsed = parseMessage(JSON.stringify(msg));
+    const parsed = asServerMessage(parseTyped(JSON.stringify(msg)));
     expect(parsed).toEqual(msg);
     store.receive(parsed!);
   }

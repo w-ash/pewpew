@@ -10,11 +10,10 @@ export default defineConfig({
       mode: "tags-split",
       target: "src/studio/api/generated",
       schemas: "src/studio/api/generated/model",
-      client: "react-query",
+      client: "fetch",
       mock: false,
       override: {
-        mutator: { path: "src/studio/api/client.ts", name: "customFetch" },
-        query: { useSuspenseQuery: false, version: 5 },
+        mutator: { path: "src/studio/api/fetch.ts", name: "customFetch" },
       },
     },
   },

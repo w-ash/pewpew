@@ -8,7 +8,7 @@ import { TopBar } from "../../src/status/TopBar";
 import { Variety } from "../../src/deck/Variety";
 import { useDisclosure } from "../../src/design/Disclosure";
 import { refused, AURA } from "../fixtures/messages";
-import { pastDoubleTap, renderWired } from "./harness";
+import { pastDoubleTap, renderWired } from "../harness";
 
 const looks = (patch: Partial<LooksState>) => ({ type: "aura" as const, ...AURA, looks: { ...AURA.looks!, ...patch } });
 

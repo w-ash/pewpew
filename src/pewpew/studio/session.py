@@ -44,10 +44,10 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from pewpew.aura.book import VERSION, parse_looks
 from pewpew.aura.control import AuraControl
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.compose import Look
+from pewpew.lab.check import ready
 from pewpew.mapping import grid
 from pewpew.power import PowerLimiter
 from pewpew.sinks.preview import FRAME_HEADER, StateTexts, refusal
@@ -70,10 +70,11 @@ def example_looks(folder: Path) -> dict[str, dict]:
     return looks
 
 
-def as_look(doc: dict) -> Look:
-    """`doc`, one look in the looks file's form, as a `Look`. Raises
-    LookError for a look the looks file's loader refuses."""
-    return parse_looks(json.dumps({"version": VERSION, "looks": {"look": doc}})).looks["look"]
+def start_looks(docs: Mapping[str, dict]) -> dict[str, Look]:
+    """The looks of `docs` (`example_looks`) a session starts in and
+    falls back on in a bind, in that order: `START`, then the others.
+    Raises Refused for a look that does not check."""
+    return {name: ready(docs[name]).look for name in [START, *(name for name in docs if name != START)]}
 
 
 @dataclass(frozen=True)
@@ -116,19 +117,14 @@ class SessionSink(Protocol):
 
 
 class Session:
-    def __init__(
-        self, sink: SessionSink, looks: Mapping[str, Look], *, fps: float = FPS, mapping: np.ndarray | None = None,
-        seed: int = 0,
-    ) -> None:
-        """A session that starts in the first of `looks` on `mapping`
-        (default a 16 x 16 grid, which every example look renders on), its
-        made looks seeded from `seed`; a bind falls back on `looks` in
-        order. Raises as `Compositor` does for a look it cannot start."""
+    def __init__(self, sink: SessionSink, looks: Mapping[str, Look], *, fps: float = FPS, seed: int = 0) -> None:
+        """A session that starts in the first of `looks` on a 16 x 16 grid,
+        which every example look renders on, its made looks seeded from
+        `seed`; a bind falls back on `looks` in order. Raises as
+        `Compositor` does for a look it cannot start."""
         self._looks = looks
         look = next(iter(looks.values()))
-        self._aura = build_aura_pipeline(
-            look, grid(16, 16) if mapping is None else mapping, seed=seed, accept_looks=True, max_making=1,
-        )
+        self._aura = build_aura_pipeline(look, grid(16, 16), seed=seed, accept_looks=True, max_making=1)
         # The stack a bind cut to, and why, while it runs: the `status` says so.
         self._fallback: tuple[object, str] | None = None
         self._sink = sink

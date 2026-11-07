@@ -79,7 +79,7 @@ export function missingAssemblies(
 }
 
 /** The host-local y of the pixel an attachment at `end` takes its color from. */
-export function endPixelY(axis: PixelAxis, end: string): number {
+function endPixelY(axis: PixelAxis, end: string): number {
   const j = end === "end_b" ? axis.count - 1 : 0;
   return axis.y0 + ((j + 0.5) * axis.span) / Math.max(axis.count, 1);
 }

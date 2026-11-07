@@ -53,6 +53,12 @@ class AuraPipeline:
     blink: Blink | None
     control: AuraControl
 
+    def before_frame(self, t: float) -> None:
+        """What runs before each frame renders: the triggers, then the looks."""
+        self.triggers.before_frame(t)
+        if self.looks is not None:
+            self.looks.before_frame(t)
+
     def loop(
         self,
         fps: float,
@@ -66,10 +72,9 @@ class AuraPipeline:
         (an audio analysis), the triggers, then the looks, before it
         renders; the blink, the master, then `after` (a power limit), after
         it, so `after` gets the frame at the master's level."""
-        looks = [self.looks.before_frame] if self.looks is not None else []
         blink = [self.blink.apply] if self.blink is not None else []
         return PacedLoop(
-            self.fader, fps=fps, calls=self.calls, stats=stats, before=[*before, self.triggers.before_frame, *looks],
+            self.fader, fps=fps, calls=self.calls, stats=stats, before=[*before, self.before_frame],
             after=[*blink, self.master.apply, *after], on_frame=on_frame,
         )
 

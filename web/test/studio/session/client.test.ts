@@ -4,44 +4,7 @@ import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
 import { initialSession, type SessionState } from "../../../src/studio/store/session";
 import { BIND_DEBOUNCE_MS, SessionClient, STALL_MS } from "../../../src/studio/session/client";
 import { encodeFrame } from "../../../src/studio/session/protocol";
-
-class FakeSocket {
-  static readonly OPEN = 1;
-  static all: FakeSocket[] = [];
-  readyState = 0;
-  binaryType: BinaryType = "blob";
-  sent: string[] = [];
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((ev: { data: unknown }) => void) | null = null;
-  url: string;
-  constructor(url: string) {
-    this.url = url;
-    FakeSocket.all.push(this);
-  }
-  send(data: string) {
-    this.sent.push(data);
-  }
-  close() {
-    this.readyState = 3;
-    this.onclose?.();
-  }
-  open() {
-    this.readyState = 1;
-    this.onopen?.();
-  }
-  receive(data: string | ArrayBuffer | object) {
-    this.onmessage?.({
-      data:
-        typeof data === "string" || data instanceof ArrayBuffer
-          ? data
-          : JSON.stringify(data),
-    });
-  }
-  types() {
-    return this.sent.map((s) => JSON.parse(s).type);
-  }
-}
+import { FakeWebSocket } from "../../fixtures/fakeWebSocket";
 
 function harness(hidden = false) {
   let state: SessionState = { ...initialSession };
@@ -62,7 +25,7 @@ function harness(hidden = false) {
   const activity = new EventTarget();
   const client = new SessionClient({
     url: "ws://test/ws/session",
-    WebSocket: FakeSocket as unknown as typeof WebSocket,
+    WebSocket: FakeWebSocket as unknown as typeof WebSocket,
     store,
     visibility,
     activity,
@@ -82,7 +45,7 @@ function harness(hidden = false) {
       for (const cb of held.splice(0)) cb();
     },
     press: () => activity.dispatchEvent(new Event("pointerdown")),
-    socket: () => FakeSocket.all.at(-1)!,
+    socket: () => FakeWebSocket.made.at(-1)!,
   };
 }
 
@@ -95,7 +58,7 @@ const bound = (n: number) => ({
 
 describe("SessionClient", () => {
   beforeEach(() => {
-    FakeSocket.all = [];
+    FakeWebSocket.made = [];
     vi.useFakeTimers();
   });
   afterEach(() => vi.useRealTimers());
@@ -106,7 +69,7 @@ describe("SessionClient", () => {
     h.client.start();
     h.socket().open();
     expect(h.socket().types()).toEqual(["bind"]);
-    expect(JSON.parse(h.socket().sent[0]!).arrangement).toEqual(
+    expect(h.socket().sent[0]!.arrangement).toEqual(
       DEFAULT_ARRANGEMENT,
     );
   });
@@ -120,7 +83,7 @@ describe("SessionClient", () => {
     vi.advanceTimersByTime(BIND_DEBOUNCE_MS - 1);
     expect(h.socket().sent).toEqual([]);
     vi.advanceTimersByTime(1);
-    expect(h.socket().sent.map((s) => JSON.parse(s).arrangement.name)).toEqual([
+    expect(h.socket().sent.map((s) => s.arrangement.name)).toEqual([
       "two",
     ]);
   });
@@ -239,7 +202,7 @@ describe("SessionClient", () => {
       value: 5,
     });
     h.flush();
-    expect(h.socket().sent.map((s) => JSON.parse(s))).toEqual([
+    expect(h.socket().sent).toEqual([
       { type: "set", name: "layers.base.waves.freq", value: 4 },
       { type: "surprise", seed: null },
       { type: "set", name: "layers.base.waves.freq", value: 5 },
@@ -272,15 +235,15 @@ describe("SessionClient", () => {
       uncappedWatts: null,
     });
     vi.advanceTimersByTime(999);
-    expect(FakeSocket.all).toHaveLength(1);
+    expect(FakeWebSocket.made).toHaveLength(1);
     vi.advanceTimersByTime(1);
-    expect(FakeSocket.all).toHaveLength(2);
+    expect(FakeWebSocket.made).toHaveLength(2);
     // A socket that never opens doubles the wait.
     h.socket().close();
     vi.advanceTimersByTime(1999);
-    expect(FakeSocket.all).toHaveLength(2);
+    expect(FakeWebSocket.made).toHaveLength(2);
     vi.advanceTimersByTime(1);
-    expect(FakeSocket.all).toHaveLength(3);
+    expect(FakeWebSocket.made).toHaveLength(3);
     h.socket().open();
     expect(h.socket().types()).toEqual(["bind"]);
   });
@@ -292,11 +255,11 @@ describe("SessionClient", () => {
     for (const wait of [1000, 2000, 4000, 8000, 10_000, 10_000]) {
       h.socket().open();
       h.socket().close();
-      const count = FakeSocket.all.length;
+      const count = FakeWebSocket.made.length;
       vi.advanceTimersByTime(wait - 1);
-      expect(FakeSocket.all).toHaveLength(count);
+      expect(FakeWebSocket.made).toHaveLength(count);
       vi.advanceTimersByTime(1);
-      expect(FakeSocket.all).toHaveLength(count + 1);
+      expect(FakeWebSocket.made).toHaveLength(count + 1);
     }
   });
 
@@ -306,6 +269,6 @@ describe("SessionClient", () => {
     h.socket().open();
     h.client.stop();
     vi.advanceTimersByTime(60_000);
-    expect(FakeSocket.all).toHaveLength(1);
+    expect(FakeWebSocket.made).toHaveLength(1);
   });
 });

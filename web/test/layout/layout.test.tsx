@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { App } from "../../src/app/App";
 import { board, health, hello } from "../fixtures/messages";
-import { pastDoubleTap, renderWired } from "./harness";
+import { pastDoubleTap, renderWired } from "../harness";
 
 const NO_ROOM = "layout tools need a room map (start the run with --room)";
 

@@ -50,18 +50,18 @@ class Tint:
 
 class FakeControl:
     """A Control that applies each request on the calling thread: a set to
-    a real ParamSet, a pick to a name list, the master and blackout to a
+    a real ParamSet, a recall to a list of look names, the master and blackout to a
     real Master; any other request is recorded and answered from `replies`.
     The real AuraControl, with its loop-thread discipline, is
     tests/test_aura_control.py's."""
 
     capabilities = ()
 
-    def __init__(self, pattern_cls=Knobs, cap: float = 1.0, health=None, replies=None) -> None:
-        self.params = ParamSet(pattern_cls)
+    def __init__(self, knobs=Knobs, cap: float = 1.0, health=None, replies=None) -> None:
+        self.params = ParamSet(knobs)
         self.master_ = Master(cap)
-        self.pattern = "plasma"
-        self.patterns = ["comet", "plasma"]
+        self.current = "calm"
+        self.looks = ["calm", "warm"]
         self.calls: list[dict] = []
         self.health_ = health
         self.replies = dict(replies or {})
@@ -81,7 +81,7 @@ class FakeControl:
 
     def state(self) -> dict:
         return {
-            "pattern": self.pattern, "patterns": list(self.patterns),
+            "looks": {"current": self.current, "items": [{"name": name} for name in self.looks]},
             "master": self.master_.level, "cap": self.master_.cap, "blackout": self.master_.blackout,
         }
 
@@ -105,11 +105,11 @@ class FakeControl:
         return None if reason is None else Refusal(reason)
 
     def _answer(self, kind, message: dict) -> str | None:
-        if kind == "pick":
+        if kind == "recall":
             name = message.get("name")
-            if name not in self.patterns:
-                return f"unknown pattern {name!r}"
-            self.pattern = name
+            if name not in self.looks:
+                return f"no look {name!r}"
+            self.current = name
             return None
         if kind == "master":
             reason = self.master_.check(message.get("value"))
@@ -287,7 +287,7 @@ def test_a_change_of_declarations_rebuilds_the_controls_then_fills_them():
             # Same declarations, same values: nothing but frames so far
             # (a text after the last frame would come before the next one).
 
-            controls.params = ParamSet(Retuned)
+            controls.params = ParamSet(Retuned)  # what a recall of a look with other knobs does
             sink.send(2 / 60, frame)
             assert not isinstance(ws.recv(timeout=5.0), str)
             declare = next_text(ws)
@@ -591,7 +591,7 @@ def test_stop_closes_sockets_joins_threads_and_frees_port():
     reuse.stop()
 
 
-# -- aura controls: pattern picker, master, blackout ---------------------------
+# -- aura controls: recall, master, blackout ------------------------------------
 
 
 def test_a_new_client_gets_the_aura_state():
@@ -600,40 +600,40 @@ def test_a_new_client_gets_the_aura_state():
         ws, greeting = greet(sink)
         with ws:
             assert greeting["aura"] == {
-                "type": "aura", "pattern": "plasma", "patterns": ["comet", "plasma"],
+                "type": "aura", "looks": {"current": "calm", "items": [{"name": "calm"}, {"name": "warm"}]},
                 "master": 0.6, "cap": 0.6, "blackout": False,
             }
 
 
-def test_accepted_pick_echoes_the_new_pattern_to_every_client():
+def test_an_accepted_recall_echoes_the_new_look_to_every_client():
     n = 4
     frame = np.zeros((n, 3), dtype=np.float32)
     aura = FakeControl()
     with preview_sink(line(n), control=aura) as sink:
-        picker, _ = client_for(sink)
+        asker, _ = client_for(sink)
         watcher, _ = client_for(sink)
-        with picker, watcher:
-            picker.send(json.dumps({"type": "pick", "name": "comet"}))
+        with asker, watcher:
+            asker.send(json.dumps({"type": "recall", "name": "warm"}))
             wait_until(lambda: aura.calls)
             sink.send(0.0, frame)
             echo = next_text(watcher)
-            assert echo["type"] == "aura" and echo["pattern"] == "comet"
-            assert next_text(picker) == echo  # no refusal came first
+            assert echo["type"] == "aura" and echo["looks"]["current"] == "warm"
+            assert next_text(asker) == echo  # no refusal came first
             for t in (1 / 30, 2 / 30):  # unchanged state: no second echo
                 sink.send(t, frame)
                 assert isinstance(watcher.recv(timeout=5.0), bytes)
 
 
-def test_refused_pick_replies_to_the_asker_only():
+def test_a_refused_recall_replies_to_the_asker_only():
     aura = FakeControl()
     with preview_sink(line(4), control=aura) as sink:
         ws, _ = client_for(sink)
         with ws:
-            ws.send(json.dumps({"type": "pick", "name": "../../etc/x.py"}))
+            ws.send(json.dumps({"type": "recall", "name": "../../etc/x.py"}))
             reply = next_text(ws)
-            assert reply == {"type": "refused", "control": "pick", "name": None, "id": None,
-                             "reason": "unknown pattern '../../etc/x.py'"}
-            assert aura.pattern == "plasma"
+            assert reply == {"type": "refused", "control": "recall", "name": None, "id": None,
+                             "reason": "no look '../../etc/x.py'"}
+            assert aura.current == "calm"
 
 
 def test_master_and_blackout_messages_reach_the_aura_and_echo():

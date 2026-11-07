@@ -1,6 +1,7 @@
 import { Block } from "../../design/Block";
 import { Details } from "../../design/Details";
 import { Switch } from "../../design/Switch";
+import { LOCALE } from "../../params/format";
 import { NumberField } from "../../params/NumberField";
 import type { ReactNode } from "react";
 import type { Issue, IssueLevel, RigReport } from "../api/types";
@@ -9,20 +10,20 @@ import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 
 const fixed = (digits: number) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat(LOCALE, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
 const oneDecimal = fixed(1);
 const twoDecimals = fixed(2);
 const whole = fixed(0);
-const percent = new Intl.NumberFormat("en-US", {
+const percent = new Intl.NumberFormat(LOCALE, {
   style: "percent",
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
-const trimmed = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
-const exact = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 });
+const trimmed = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 2 });
+const exact = new Intl.NumberFormat(LOCALE, { maximumSignificantDigits: 6 });
 
 /** Watts with one decimal place: 1,228.8 W. */
 export const formatW = (w: number) => `${oneDecimal.format(w)} W`;
@@ -32,7 +33,7 @@ export const formatA = (a: number) => `${oneDecimal.format(a)} A`;
 export const formatV = (v: number) => `${twoDecimals.format(v)} V`;
 /** A fraction as a percentage with one decimal place: 62.5%. */
 export const formatPct = (fraction: number) => percent.format(fraction);
-export const formatInt = (n: number) => whole.format(n);
+const formatInt = (n: number) => whole.format(n);
 const formatM = (m: number) => `${trimmed.format(m)} m`;
 
 const LEVELS: Record<IssueLevel, { title: string; mark: string }> = {
@@ -40,19 +41,6 @@ const LEVELS: Record<IssueLevel, { title: string; mark: string }> = {
   violation: { title: "Violations", mark: "▲" },
   warning: { title: "Warnings", mark: "!" },
 };
-
-/** The page's fold, its count in its summary. */
-function Disclosure({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: ReactNode;
-}) {
-  return <Details summary={`${title} (${count})`}>{children}</Details>;
-}
 
 function IssueItems({
   issues,
@@ -104,9 +92,9 @@ export function IssueList({ issues }: { issues: readonly Issue[] }) {
         );
       })}
       {warnings.length > 0 && (
-        <Disclosure title="Warnings" count={warnings.length}>
+        <Details summary={`Warnings (${warnings.length})`}>
           <IssueItems issues={warnings} level="warning" />
-        </Disclosure>
+        </Details>
       )}
     </div>
   );
@@ -239,7 +227,7 @@ function Sections({ report }: { report: RigReport }) {
   const notes = rows<string>(report.notes);
   return (
     <div className="studio-folds">
-      <Disclosure title="Outputs" count={outputs.length}>
+      <Details summary={`Outputs (${outputs.length})`}>
         <ul className="studio-rows">
           {outputs.map((o) => (
             <Row
@@ -250,8 +238,8 @@ function Sections({ report }: { report: RigReport }) {
             />
           ))}
         </ul>
-      </Disclosure>
-      <Disclosure title="Feeds" count={feeds.length}>
+      </Details>
+      <Details summary={`Feeds (${feeds.length})`}>
         <ul className="studio-rows">
           {feeds.map((f) => (
             <Row
@@ -262,8 +250,8 @@ function Sections({ report }: { report: RigReport }) {
             />
           ))}
         </ul>
-      </Disclosure>
-      <Disclosure title="PSUs" count={psus.length}>
+      </Details>
+      <Details summary={`PSUs (${psus.length})`}>
         <ul className="studio-rows">
           {psus.map((p) => (
             <Row
@@ -274,8 +262,8 @@ function Sections({ report }: { report: RigReport }) {
             />
           ))}
         </ul>
-      </Disclosure>
-      <Disclosure title="Hops" count={hops.length}>
+      </Details>
+      <Details summary={`Hops (${hops.length})`}>
         <ul className="studio-rows">
           {hops.map((h) => (
             <Row
@@ -285,8 +273,8 @@ function Sections({ report }: { report: RigReport }) {
             />
           ))}
         </ul>
-      </Disclosure>
-      <Disclosure title="Bill of materials" count={bom.length}>
+      </Details>
+      <Details summary={`Bill of materials (${bom.length})`}>
         <ul className="studio-rows">
           {bom.map((b) => (
             <Row
@@ -301,8 +289,8 @@ function Sections({ report }: { report: RigReport }) {
             />
           ))}
         </ul>
-      </Disclosure>
-      <Disclosure title="Assumed values and sources" count={basis.length}>
+      </Details>
+      <Details summary={`Assumed values and sources (${basis.length})`}>
         <ul className="studio-rows">
           {basis.map((b) => (
             <Row
@@ -313,15 +301,15 @@ function Sections({ report }: { report: RigReport }) {
             />
           ))}
         </ul>
-      </Disclosure>
+      </Details>
       {notes.length > 0 && (
-        <Disclosure title="Notes" count={notes.length}>
+        <Details summary={`Notes (${notes.length})`}>
           <ul className="studio-rows">
             {notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>
-        </Disclosure>
+        </Details>
       )}
     </div>
   );

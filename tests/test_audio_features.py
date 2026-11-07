@@ -130,7 +130,7 @@ def test_a_run_logs_its_features_and_a_replay_renders_the_same_bytes(tmp_path: P
     shown = drive(live, 90)
     live.feature_log.close()
     replay = build(["run", looks, "--audio", f"replay:{log}", "--ansi"])
-    assert replay.audio is None and replay.loop._before[0] == replay.triggers.before_frame
+    assert replay.audio is None and replay.loop._before[0] == replay.aura.before_frame
     assert drive(replay, 90) == shown and len(set(shown)) > 20
     header = json.loads(log.read_text().splitlines()[0])["run"]
     assert header == {"version": 1, "seed": 0, "fps": 60.0, "audio": str(wav), "delay_ms": 0.0}
@@ -143,7 +143,7 @@ def drive(run, frames: int) -> list[bytes]:
         t = clock.advance()
         for hook in run.loop._before:
             hook(t)
-        out.append(run.fader.advance_to(t).tobytes())
+        out.append(run.aura.fader.advance_to(t).tobytes())
     return out
 
 
