@@ -1,6 +1,6 @@
-"""Hosting effect programs: the op registry, a program in a `Renderer`
-(binding, the nodes' knobs and buffers, errors), and programs in the layer
-stack (below, masks, controls by address)."""
+"""Running effect programs: the op registry, a program bound to a map in a
+`Renderer` (binding, the nodes' knobs and buffers, errors), and programs
+in the layer stack (below, masks, controls by address)."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ import pytest
 from fakes import frames, hosted, one_node, program_layer, stack
 from pewpew.compose import Layer, layer_seed
 from pewpew.errors import blamed
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.expr import noise, osc
 from pewpew.fx.graph import Graph, Node, Program
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.op import REGISTRY, RESERVED_ARGS, BindCtx, FrameCtx, Op, node_key, node_seed
 from pewpew.fx.types import Coords, Fn, Port, Sig, Ty
 from pewpew.mapping import grid, line
@@ -89,18 +89,14 @@ def test_one_class_re_registers_and_another_under_its_name_is_refused() -> None:
 # ---- a program in a renderer -------------------------------------------------------------
 
 
-def test_a_program_class_renders_and_names_its_knobs_by_address() -> None:
-    class Tide(ProgramPattern):
-        program = osc(8, 0.1).id("waves").modulate(noise(3, 0.1), 0.2).palette("ember").id("tint")
-
-    renderer = Renderer(Tide(), grid(6, 6), name="layers.base")
+def test_a_bound_program_renders_and_names_its_knobs_by_address() -> None:
+    program = Program.of(osc(8, 0.1).id("waves").modulate(noise(3, 0.1), 0.2).palette("ember").id("tint"))
+    renderer = Renderer(BoundProgram(program, "layers.base"), grid(6, 6))
     assert frames(renderer, 3).dtype == np.float32
-    assert [p.owner for p in renderer.pattern.node_params.values()] == [  # type: ignore[attr-defined]
+    assert [p.owner for p in renderer.bound.node_params.values()] == [
         "layers.base.waves", "layers.base.noise", "layers.base.modulate", "layers.base.tint",
     ]
-    bare = Renderer(Tide(), grid(6, 6))
-    assert bare.pattern.node_params["waves"].owner == "tide.waves"  # type: ignore[attr-defined]
-    assert frames(Renderer(Tide(), grid(6, 6), seed=1), 3).shape == (3, 36, 3)
+    assert frames(hosted(program, grid(6, 6), seed=1), 3).shape == (3, 36, 3)
 
 
 def test_a_node_that_raises_is_named_on_the_status_line(counter: type[Op],
@@ -138,7 +134,7 @@ def test_a_node_whose_build_raises_is_named(counter: type[Op], monkeypatch: pyte
 
 
 def test_strict_mode_names_a_node_that_gives_float64(counter: type[Op], monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(ProgramPattern, "strict", True)
+    monkeypatch.setattr(BoundProgram, "strict", True)
     monkeypatch.setattr(counter, "build", lambda self, inputs: lambda c: self.frames.astype(np.float64))
     renderer = hosted(Program(Graph((Node("n", "count_test"),)), "n"))
     renderer.advance_to(1 / FPS)
@@ -229,9 +225,9 @@ def test_a_mask_is_clipped_so_it_never_brightens_its_layer() -> None:
 def test_a_mask_of_the_wrong_shape_is_the_layers_error_not_the_auras(gives, monkeypatch: pytest.MonkeyPatch,
                                                                     fake_ops: None) -> None:
     """The compositor blends a mask after the renderer's containment, so the
-    host refuses a wrong one inside it, as the aura runs: without the tests'
+    bound program refuses a wrong one inside it, as the aura runs: without the tests'
     check of every node."""
-    monkeypatch.setattr(ProgramPattern, "strict", False)
+    monkeypatch.setattr(BoundProgram, "strict", False)
 
     class Flat(Op, op="flatmask_test"):
         """A mask of the wrong shape."""

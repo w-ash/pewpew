@@ -1,9 +1,9 @@
-"""The param domain (ADR-006): what a pattern declares a user can set.
+"""The param domain (ADR-006): what an op declares a user can set.
 
-A param is a typed class attribute of a pattern. Its kind is one of
+A param is a typed class attribute of an op. Its kind is one of
 `float`, `int`, `bool`, `choice`, `color` or `palette`; a compound kind has
 named parts (a color's `h`, `s`, `v`). The id of a param is its attribute
-name; `group` is layout only. `ParamSet` holds one pattern's declarations
+name; `group` is layout only. `ParamSet` holds one class's declarations
 and their base values behind one validated write path, and `Bound` links
 it to the object that reads them, where a float, an int or a color's part
 can be driven by an offset (modulation). `probes` reads a describe record

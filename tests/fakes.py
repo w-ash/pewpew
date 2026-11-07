@@ -20,6 +20,7 @@ import warnings
 from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Self, TypeVar
@@ -37,11 +38,11 @@ from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.aura.variety import Made, at_once
 from pewpew.compose import Compositor, Layer, Look
 from pewpew.fx import expr, surprise
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.catalog import example as catalog_example
 from pewpew.fx.expr import noise
 from pewpew.fx.graph import Graph, Node, Program
-from pewpew.fx.host import ProgramPattern
-from pewpew.fx.op import REGISTRY, Op
+from pewpew.fx.op import REGISTRY, BindCtx, FrameCtx, Op
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.lab import handles
 from pewpew.mapping import line
@@ -347,6 +348,45 @@ def one_node(op: str, args: Mapping | None = None, *, node: str | None = None) -
     return Program(Graph((Node(nid, op, dict(args or {})),)), nid)
 
 
+def source_op(name: str, render: Callable[[Any, Coords], np.ndarray], *,
+              setup: Callable[[Any, BindCtx], None] | None = None,
+              advance: Callable[[Any, FrameCtx], None] | None = None) -> Program:
+    """A program of one node of a new rgb source op `name`, registered
+    while `fake_ops` runs: its closure is `render(op, coords)`, and
+    `setup(op, ctx)` and `advance(op, ctx)` are its hooks."""
+    body: dict[str, Any] = {"__doc__": f"The test op {name}.", "sig": Sig.SOURCE, "out": Ty.RGB,
+                            "build": lambda self, inputs: partial(render, self)}
+    if setup is not None:
+        def setup_op(self: Op, ctx: BindCtx) -> None:
+            Op.setup(self, ctx)
+            setup(self, ctx)
+
+        body["setup"] = setup_op
+    if advance is not None:
+        body["advance"] = lambda self, ctx, inputs: advance(self, ctx)
+    type(name, (Op,), body, op=name)
+    return one_node(name)
+
+
+def costed(ft: FakeTime, costs: dict[int, float] | None = None, default: float = 0.0,
+           rendered: list[str] | None = None):
+    """A black program whose render costs `ft`'s wall time: `costs[frame_index]`
+    seconds, else `default` (needs `fake_ops`). Deterministic stand-in for
+    a slow or stalling frame. Each render appends `render<i>` to
+    `rendered`, if given."""
+    count = [0]
+
+    def render(op, c):
+        i = count[0]
+        if rendered is not None:
+            rendered.append(f"render{i}")
+        ft.t += (costs or {}).get(i, default)
+        count[0] += 1
+        return np.zeros((len(c.index), 3), dtype=np.float32)
+
+    return source_op("costed_test", render)
+
+
 def look(op: str, args: Mapping | None = None, *, node: str | None = None, **kw) -> Look:
     """A look of one layer, `base`, running one node of `op` at `args`
     (`one_node`); `kw` are the look's own fields (master, fade, cycle, seed)."""
@@ -402,16 +442,21 @@ def program_of(chain: str) -> Program:
     return made
 
 
-# A moving colour field: a frame source whose frames differ with time.
-FLOW = ProgramPattern.of(Program.of(noise(4).palette("aurora")))
+# A moving colour field: a program whose frames differ with time.
+FLOW = Program.of(noise(4).palette("aurora"))
 
 
-def hosted(source: object, mapping: np.ndarray | None = None, **kw) -> Renderer:
-    """`source`, a program, a builder chain or a `ProgramPattern` class,
-    running as layer `base` on `mapping` (line(16)); `kw` go to the
-    renderer, such as its seed."""
-    cls = source if isinstance(source, type) else ProgramPattern.of(Program.of(source))  # type: ignore[arg-type]
-    return Renderer(cls(), line(16) if mapping is None else mapping, name="layers.base", **kw)
+def hosted(source: object, mapping: np.ndarray | None = None, *, name: str = "layers.base", **kw) -> Renderer:
+    """`source`, a program or a builder chain, bound as `name` (layer
+    `base`) to `mapping` (line(16)) and run; `kw` go to the renderer, such
+    as its seed."""
+    bound = BoundProgram(Program.of(source), name)  # type: ignore[arg-type]
+    return Renderer(bound, line(16) if mapping is None else mapping, **kw)
+
+
+def op_of(renderer: Renderer, nid: str) -> Any:
+    """The op node `nid` of `renderer`'s program runs."""
+    return renderer.bound._nodes[nid].op
 
 
 def program_layer(lid: str, source: object, **mix: object) -> Layer:
@@ -456,7 +501,7 @@ def strict() -> None:
     field, and the real capture library never loads (conftest.py)."""
     warnings.simplefilter("error")
     sys.modules.setdefault("sounddevice", None)  # type: ignore[assignment]  # an import of it raises ImportError
-    ProgramPattern.strict = True
+    BoundProgram.strict = True
 
 
 def strict_worker(state: Path) -> None:

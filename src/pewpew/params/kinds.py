@@ -1,6 +1,6 @@
 """The param kinds: `Float`, `Int`, `Bool`, `Choice`, `Color` and `Palette`.
 
-A param is a class attribute of a pattern:
+A param is a class attribute of an op:
 
     speed = Float(0.4, 0.0, 2.0, "/s", label="Speed")
     color = Color((200.0, 1.0, 1.0))
@@ -38,8 +38,8 @@ def _pairs(mapping: Mapping[Any, str]) -> list[dict[str, Any]]:
 
 
 class Param(ABC, Generic[T]):
-    """The base of every kind: a declared, typed, user-settable value of a
-    pattern.
+    """The base of every kind: a declared, typed, user-settable value of an
+    op.
 
     A non-data descriptor. Before bind, `self.x` reads the default. At bind
     `ParamSet.apply` sets the instance attribute, which shadows the
@@ -71,7 +71,6 @@ class Param(ABC, Generic[T]):
         # Filled by __set_name__, which runs only for a param assigned in a
         # class body; every reader tolerates the blank.
         self.name: str = ""
-        self.owner: type | None = None
         self._spec: dict[str, Any] | None = None
         value, reason = self.parse("default", default)
         if reason is not None:
@@ -79,7 +78,7 @@ class Param(ABC, Generic[T]):
         self.default: T = value  # type: ignore[assignment]
 
     def __set_name__(self, owner: type, name: str) -> None:
-        self.name, self.owner, self._spec = name, owner, None
+        self.name, self._spec = name, None
         if not self.label:
             self.label = name.replace("_", " ").capitalize()
 

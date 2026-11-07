@@ -70,7 +70,6 @@ line-length = 120
 src = [".", "src", "tests", "bench"]  # where import sorting finds first-party modules
 extend-exclude = [
     "research/excerpts",  # verbatim third-party snippets, kept as cited evidence
-    "bench/authoring",  # frozen study code, held bit-exact by tests/test_port_equivalence.py
     "projects",  # private project repos, cloned in and gitignored
 ]
 

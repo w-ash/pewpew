@@ -5,11 +5,11 @@
 // preview/index.html @ 519eb6d1418cf45a2840deb2b4708c6cd884f2b9 when the
 // playground was retired in favor of the engine-backed preview sink
 // (`python -m pewpew run <pattern> --preview`). This is NOT a port of
-// bench/authoring/fire.py — it is an original upgrade: PSX-Doom
+// the authoring study's fire pattern — it is an original upgrade: PSX-Doom
 // randomized advection + wind/gusts, scrolling-noise cooling, wandering
 // hot-spot tongues, and an additive ember layer. The Python port story
-// must translate it onto the ADR-005 contract (seeded RNG in
-// before_render, heat as a `self.buffer`, dt-based decay via the kit).
+// must translate it onto the op contract (ADR-025: seeded draws in an
+// op's `advance`, heat as a `BindCtx.buffer`, dt-based decay via the kit).
 //
 // The `Fire.render` palette maps heat -> R, then G, then B with a cap
 // below white so only embers go white; the ember layer itself lived in

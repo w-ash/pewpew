@@ -35,7 +35,7 @@ from pewpew.fx.graph import Graph, Node
 from pewpew.fx.ops import OPS
 from pewpew.jsonfile import TooDeep, nests_deeper, parse_json
 from pewpew.params import ParamSet
-from pewpew.problems import Code, Problem, Refused, problem
+from pewpew.problems import Code, Problem, Refused, member, problem
 from pewpew.result import Result
 
 # What check_look and the render family take: a look or a looks file.
@@ -128,11 +128,9 @@ class _Read:
         try:
             book = parse_looks(json.dumps(file))
         except LookError as exc:
-            return cls(_localized([problem(text, file) for text in exc.problems], single))
-        texts = route_reasons(book)
-        if texts:
-            examples = _examples(book)
-            return cls(_localized([problem(text, file, examples) for text in texts], single))
+            return cls(_problems(exc.problems, file, single))
+        if texts := route_reasons(book):
+            return cls(_problems(texts, file, single))
         return cls((), single, book, {name: _ready(look) for name, look in book.looks.items()})
 
 
@@ -166,6 +164,13 @@ def _program(data: dict[str, Any]) -> Problem:
     reason = ('this is a layer\'s program ("out" and "nodes"), not a look; a look holds it as a layer: '
               '{"layers": [{"id": "base", ...the program}]}')
     return Problem("", Code.NOT_A_LOOK, reason, example={"layers": [{"id": "base", **data}]})
+
+
+def _problems(texts: Iterable[str], file: Any, single: bool) -> tuple[Problem, ...]:
+    """`texts`, reasons found in the looks file data `file`, as problems
+    with a valid example for each knob they name (`_localized`)."""
+    examples = _examples(file)
+    return _localized([problem(text, file, examples) for text in texts], single)
 
 
 def _localized(problems: list[Problem], single: bool) -> tuple[Problem, ...]:
@@ -212,15 +217,29 @@ def dims_reasons(layers: Iterable[Layer], dims: int) -> list[str]:
     return [text for layer in layers for text in check(layer.program, where=layer_address(layer.id), dims=dims)]
 
 
-def _examples(book: LookBook) -> dict[str, Any]:
-    """A valid value for each knob of each look, by path: the knob's
-    default."""
+def _examples(file: Any) -> dict[str, Any]:
+    """A valid value for each knob of each look of `file`, a looks file's
+    JSON data, by path: the knob's default. Read off the data, so a look
+    that does not decode has them too: a layer's mix knobs, and the knobs
+    of each node whose op is known. Never raises."""
     examples: dict[str, Any] = {}
-    for name, look in book.looks.items():
-        for layer in look.layers:
-            sets = [ParamSet(LayerControls, name=layer_address(layer.id))]
-            sets += (ParamSet(OPS[node.op], name=layer_address(layer.id, node.id)) for node in layer.program.graph)
+    for name, look in _items(member(file, "looks")):
+        layers = member(look, "layers")
+        for layer in layers if isinstance(layers, list) else ():
+            lid = member(layer, "id")
+            if not isinstance(lid, str):
+                continue
+            sets = [ParamSet(LayerControls, name=layer_address(lid))]
+            for nid, node in _items(member(layer, "nodes")):
+                op = member(node, "op")
+                if isinstance(op, str) and op in OPS:
+                    sets.append(ParamSet(OPS[op], name=layer_address(lid, nid)))
             for params in sets:
                 for record in params.describe():
                     examples[f"looks.{name}.{params.owner}.{record['name']}"] = record["default"]
     return examples
+
+
+def _items(data: Any) -> list[tuple[str, Any]]:
+    """The entries of `data` when it is an object, else none."""
+    return list(data.items()) if isinstance(data, dict) else []

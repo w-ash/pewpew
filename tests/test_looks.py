@@ -26,9 +26,11 @@ from fakes import (
     one_node,
     program_of,
     restore,
+    rgb,
     run_main,
     serving,
     solid,
+    source_op,
     wait_until,
 )
 from pewpew.aura.book import (
@@ -44,13 +46,12 @@ from pewpew.aura.looks import Looks
 from pewpew.compose import DEFAULT_FADE, Layer, Look, Route
 from pewpew.crossfade import Crossfader
 from pewpew.fx import expr
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.graph import Graph, Node, Program
-from pewpew.fx.host import ProgramPattern
 from pewpew.jsonfile import write_atomic
 from pewpew.mapping import grid, line
 from pewpew.pace import PacedLoop
 from pewpew.params import HSV, ParamSet
-from pewpew.pattern import Pattern
 from pewpew.render import Renderer
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
@@ -68,9 +69,7 @@ def make_rig(tmp_path, looks, mapping=None, current=None, cycle=None, start=None
 def knobs(source, nid: str = "solid") -> ParamSet:
     """The knobs of node `nid` of the program `source` runs: a renderer,
     or a rig's layer `base`."""
-    pattern = (source if isinstance(source, Renderer) else source.renderer()).pattern
-    assert isinstance(pattern, ProgramPattern)
-    return pattern.node_params[nid]
+    return (source if isinstance(source, Renderer) else source.renderer()).bound.node_params[nid]
 
 
 def program_running(run) -> Program:
@@ -299,8 +298,7 @@ def test_the_notes_key_survives_a_rewrite(tmp_path):
 
 def renderer(op: str = "solid_test", mapping=None, **args):
     """A renderer, named `layers.base`, of one node of `op` at `args`."""
-    return Renderer(ProgramPattern.of(one_node(op, args))(), line(4) if mapping is None else mapping,
-                    name="layers.base")
+    return hosted(one_node(op, args), line(4) if mapping is None else mapping)
 
 
 def test_between_fades_the_crossfader_is_the_renderer():
@@ -331,19 +329,20 @@ def test_a_raising_side_still_renders_a_frame():
     assert fader.error is not None and fader.error.pattern == "layers.base"
 
 
-class FourOnly(Pattern):
-    """Red that binds a 4-pixel map only: `setup` raises on any other."""
+def four_only() -> Renderer:
+    """A renderer of red that binds a 4-pixel map only: its op's `setup`
+    raises on any other."""
 
-    def setup(self, n, x, y, z, index):
-        if n != 4:
+    def setup(op, ctx):
+        if ctx.n != 4:
             raise RuntimeError("binds 4 pixels only")
 
-    def render(self, x, y, z, index):
-        return np.tile(np.array([1.0, 0.0, 0.0], np.float32), (self.n, 1))
+    return hosted(source_op("four_only_test", lambda op, c: rgb(1.0, 0.0, 0.0, len(c.index)), setup=setup),
+                  line(4))
 
 
 def test_an_outgoing_side_that_cannot_render_ends_the_fade_not_the_frame():
-    out = Renderer(FourOnly(), line(4))
+    out = four_only()
     fader = Crossfader(out)
     fader.fade_to(renderer(red=0.0, blue=1.0), 1.0)
     with pytest.raises(RuntimeError, match="binds 4 pixels only"):
@@ -353,7 +352,7 @@ def test_an_outgoing_side_that_cannot_render_ends_the_fade_not_the_frame():
 
 
 def test_a_map_reload_the_outgoing_side_cannot_bind_ends_the_fade():
-    fader = Crossfader(Renderer(FourOnly(), line(4)))
+    fader = Crossfader(four_only())
     fader.fade_to(renderer(red=0.0, blue=1.0), 1.0)
     fader.rebind(line(6))
     assert not fader.fading
@@ -483,7 +482,7 @@ def test_the_status_says_which_part_failed_and_which_layer_raised(tmp_path):
     assert status() == ("looks", "cannot recall 'x': it was deleted", None)
     run.looks.error = None
     # Every frame now raises: the test breaks the layer on purpose.
-    layer_renderer(run.aura).pattern.render = None  # pyright: ignore[reportAttributeAccessIssue]
+    layer_renderer(run.aura).bound.render = None  # pyright: ignore[reportAttributeAccessIssue]
     run.aura.fader.advance_to(1 / 60)
     assert status()[0::2] == ("render", "layers.base")
     assert status()[1].startswith("layers.base.render raised")
@@ -588,8 +587,8 @@ def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):
 
     monkeypatch.setattr(run_module, "Watchdog", lambda timeout, **kw: Watchdog(
         timeout, **kw, startup=0.02, interval=0.005, on_stall=fired))
-    hangs = ProgramPattern.setup
-    monkeypatch.setattr(ProgramPattern, "setup", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
+    hangs = BoundProgram.bind
+    monkeypatch.setattr(BoundProgram, "bind", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
     run_main(["run", str(path), "--frames", "1", "--watchdog", "1"])
     assert len(stalls) == 1 and stalls[0] >= 0.02
 

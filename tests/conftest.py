@@ -16,7 +16,7 @@ from hypothesis import settings
 from fake_sounddevice import FakeSoundDevice, laptop
 from fakes import EXAMPLE_ROOM, STATE_FILES, FakeProcess, Pooled, UdpRecorder, strict_worker, with_test_ops
 from pewpew import audit, awake, watchdog, wled
-from pewpew.fx.host import ProgramPattern
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.room.map import load_room
 from pewpew.sinks import ddp
 
@@ -95,10 +95,10 @@ def no_real_side_effects(monkeypatch: pytest.MonkeyPatch, state_folders: Iterato
 @pytest.fixture(autouse=True)
 def strict_nodes(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every node of every program a test runs is checked to give a float32
-    field of the right shape (`ProgramPattern.strict`); a worker of the
+    field of the right shape (`BoundProgram.strict`); a worker of the
     suite's process pool, and a process `fakes.in_new_process` starts, sets
     it with `fakes.strict`."""
-    monkeypatch.setattr(ProgramPattern, "strict", True)
+    monkeypatch.setattr(BoundProgram, "strict", True)
 
 
 @pytest.fixture(scope="session", autouse=True)

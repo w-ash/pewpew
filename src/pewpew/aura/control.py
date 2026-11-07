@@ -54,7 +54,7 @@ from pewpew.compose import Knob, Look, layer_address
 from pewpew.compose.stack import check_fade, check_on_off, parse_fade
 from pewpew.errors import Refusal, describe_exception, unknown
 from pewpew.fx import catalog as book
-from pewpew.fx.codec import MAX_LAYERS, decode_program
+from pewpew.fx.codec import MAX_LAYERS, out_id
 from pewpew.fx.graph import check_id, free_id
 from pewpew.fx.surprise import check_seed, check_strength
 from pewpew.lab.check import ready
@@ -241,7 +241,7 @@ class AuraControl:
             return f"set takes a param address, got {name!r}"
         found, reason = self._deck.controls.parse(name, value)
         if reason is not None:
-            return reason  # network-safe wording; `hint` names a file, so it stays out
+            return reason
         assert found is not None
         knob, parsed = found
         self._calls.call_soon(lambda: self._set(name, knob, parsed))
@@ -616,9 +616,8 @@ def wire_states(control: Control, mod: dict) -> dict[str, Any]:
 def _id_base(doc: dict) -> str:
     """What the id of layer `doc` (the looks file's form) is made from when
     it gives none: its program's `out` node's id, given or the last node in
-    the order they run, as the loader decodes it, else `LAYER`."""
-    program, _ = decode_program(doc)
-    out = program.out if program is not None else doc.get("out")
+    the order they run, also when an arg is refused, else `LAYER`."""
+    out = out_id(doc) or doc.get("out")
     return out if isinstance(out, str) and check_id(out, "layer") is None else LAYER
 
 

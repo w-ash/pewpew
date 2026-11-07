@@ -15,6 +15,7 @@ import pewpew.run as run_module
 from fakes import (
     FakeTime,
     aura_rig,
+    hosted,
     layered,
     look,
     looks_file,
@@ -24,6 +25,7 @@ from fakes import (
     run_main,
     serving,
     solid,
+    source_op,
     wait_until,
 )
 from pewpew.aura.book import VERSION, CycleConfig, LookBook, LookError, Trigger, parse_looks
@@ -31,33 +33,14 @@ from pewpew.aura.triggers import MAX_QUEUE, Arbiter, Triggers
 from pewpew.aura.variety import Made
 from pewpew.compose import Layer, Look
 from pewpew.features import EventFeatures, FakeFeatures
-from pewpew.fx.host import ProgramPattern
 from pewpew.fx.op import REGISTRY, BindCtx, FrameCtx, Op
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.jsonfile import read_run
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer, SlotClock
+from pewpew.render import SlotClock
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
-
-
-class Counter(Pattern):
-    """Red steps up by 0.1 for every room event the pattern sees."""
-
-    def setup(self, n, x, y, z, index):
-        self.seen = 0
-        self.log: list = []
-
-    def before_render(self, dt, features):
-        self.log.append(features.events)
-        self.seen += len(features.events)
-
-    def render(self, x, y, z, index):
-        out = np.zeros((self.n, 3), dtype=np.float32)
-        out[:, 0] = min(1.0, 0.1 * self.seen)
-        return out
 
 
 @pytest.fixture
@@ -220,11 +203,13 @@ def test_a_full_queue_refuses_more():
 # ---- features ------------------------------------------------------------------
 
 
-def test_a_pattern_sees_each_fired_event_on_one_frame_only():
+def test_a_program_sees_each_fired_event_on_one_frame_only():
     features = EventFeatures(FakeFeatures(0))
     trig = Triggers({"cue": QUICK, "door": Trigger(priority="sensor", debounce=0.0, cooldown=0.0)}, features=features)
-    pattern = Counter()
-    renderer = Renderer(pattern, line(4), features=features)
+    log: list = []
+    program = source_op("events_test", lambda op, c: np.zeros((len(c.index), 3), np.float32),
+                        advance=lambda op, ctx: log.append(ctx.features.events))
+    renderer = hosted(program, line(4), features=features)
     clock = SlotClock(60.0)
 
     def frame() -> None:
@@ -239,8 +224,8 @@ def test_a_pattern_sees_each_fired_event_on_one_frame_only():
     trig.submit("page", "nosuch")
     frame()
     frame()
-    assert [len(e) for e in pattern.log] == [0, 2, 0]
-    cue, door = pattern.log[1]
+    assert [len(e) for e in log] == [0, 2, 0]
+    cue, door = log[1]
     assert (cue.name, cue.source, cue.value, cue.priority, cue.tick) == ("cue", "page", None, "button", 1)
     assert cue.t == SlotClock(60.0).advance(2)  # the engine time of the frame it fired on
     assert (door.name, door.value, door.priority) == ("door", 1.0, "sensor")
@@ -279,9 +264,7 @@ def test_a_held_look_returns_to_the_live_state_after_its_hold(tmp_path):
     r = make(tmp_path, HOLD_RED)
     assert r.step() == BLUE
     saved = r.path.read_bytes()
-    pattern = r.renderer().pattern
-    assert isinstance(pattern, ProgramPattern)
-    pattern.node_params["solid"].set("green", 0.5)  # an unsaved tweak: the journal keeps it
+    r.renderer().bound.node_params["solid"].set("green", 0.5)  # an unsaved tweak: the journal keeps it
     r.master.set(0.4)
     r.trig.submit("page", "cue")
     assert r.step() == RED

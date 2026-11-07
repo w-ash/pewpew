@@ -268,6 +268,24 @@ def decode_program(raw: Any, *, where: str = "program") -> tuple[Program | None,
     None, and every problem, each prefixed by `where` (the layer's
     address). Keys of `raw` other than those three are not read. Never
     raises."""
+    program, problems = _unchecked_program(raw, where)
+    if program is None:
+        return None, problems
+    problems = check(program, where=where)
+    return (None, problems) if problems else (program, [])
+
+
+def out_id(raw: Any) -> str | None:
+    """The id of the node a layer's program in `raw` gives (`out`), its
+    args unchecked, or None when its nodes do not form a program. Never
+    raises."""
+    program, _ = _unchecked_program(raw, "program")
+    return None if program is None else program.out
+
+
+def _unchecked_program(raw: Any, where: str) -> tuple[Program | None, Problems]:
+    """`decode_program` before `check`: the program's nodes, their order,
+    `out` and `alpha`, its args unread."""
     if not isinstance(raw, dict):
         return None, [f"{where} is an object with 'nodes'"]
     nodes_raw = raw.get("nodes")
@@ -291,9 +309,7 @@ def decode_program(raw: Any, *, where: str = "program") -> tuple[Program | None,
     if problems:
         return None, problems
     assert isinstance(out, str)  # refused above otherwise
-    program = Program(Graph(ordered), out, alpha)
-    problems.extend(check(program, where=where))
-    return (None, problems) if problems else (program, [])
+    return Program(Graph(ordered), out, alpha), []
 
 
 def _node(where: str, nid: Any, item: Any, problems: Problems, noun: str = "node") -> Node | None:

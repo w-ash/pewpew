@@ -1,20 +1,22 @@
 """The render core: a stateful `Renderer`.
 
-`Renderer` is one bound (pattern, mapping) pair, advanced frame by frame;
-each layer of a stack is one, running its program
-(pewpew.fx.host.ProgramPattern). The same inputs give byte-identical
-frames (architecture §8 item 1): engine time comes from the caller
-(`advance_to`), never a wall clock (req Q-5). It owns two engine
-responsibilities:
+`Renderer` runs one effect program bound to a mapping
+(pewpew.fx.bound_program.BoundProgram), frame by frame; each layer of a
+stack is one. The same inputs give byte-identical frames (architecture
+§8 item 1): engine time comes from the caller (`advance_to`), never a
+wall clock (req Q-5). It owns the engine's side of a frame:
 
-1. **Purity.** Registered buffers are read-only across the `render` call and
+1. **Purity.** The program's buffers are read-only across its render and
    writable again afterwards (ADR-005 amendment; architecture §3).
-2. **Containment.** `before_render` and `render` are wrapped separately, per
-   frame. A raising pattern yields a pulsing-red error frame and the loop
-   keeps stepping and keeps calling the pattern, so a failure that passes
-   heals with no restart — led-control's precedent
+2. **Containment.** The program's advance and render are wrapped
+   separately, per frame. A raising program yields a pulsing-red error
+   frame and the loop keeps stepping and keeps calling it, so a failure
+   that passes heals with no restart — led-control's precedent
    [S660:ledcontrol/animationcontroller.py#L418-L434] and Pixelblaze's
    crash-proof editor semantics [S504]. Errors never stop rendering (ADR-005).
+3. **Bind poisoning.** A bind that raises leaves the renderer refusing to
+   render until a later bind succeeds.
+4. **Frame checks.** A frame that is not (n, 3) float32 is contained.
 """
 
 from __future__ import annotations
@@ -22,48 +24,23 @@ from __future__ import annotations
 import logging
 import math
 import traceback
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Protocol
 
 import numpy as np
 
 from pewpew import kit
-from pewpew.classinfo import pattern_name
 from pewpew.errors import blamed, describe_exception
 from pewpew.features import FakeFeatures, FeatureSource
-from pewpew.params import ParamSet
-from pewpew.pattern import Pattern
+from pewpew.fx.bound_program import BoundProgram
+from pewpew.fx.types import Coords
 
 logger = logging.getLogger(__name__)
 
 # Error-frame look: solid red pulsing at 2 Hz, never darker than 25% so it can
-# never be mistaken for "the pattern is just dark right now" [S660].
+# never be mistaken for "the look is just dark right now" [S660].
 _ERROR_PULSE_HZ = 2.0
 _ERROR_FLOOR = 0.25
-
-
-@dataclass(frozen=True)
-class _Geometry:
-    """What one binding renders over: the coordinate arrays handed to the
-    pattern."""
-
-    n: int
-    x: np.ndarray
-    y: np.ndarray
-    z: np.ndarray
-    index: np.ndarray
-
-    @classmethod
-    def of(cls, coords: np.ndarray) -> _Geometry:
-        # Read-only column views: they are views onto the caller's mapping,
-        # outside the buffer registry, so an in-place `x += 0.5` in `render`
-        # would corrupt the mapping for every later frame.
-        x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
-        index = np.arange(len(coords), dtype=np.int32)
-        for column in (x, y, z, index):
-            column.setflags(write=False)
-        return cls(len(coords), x, y, z, index)
 
 
 @dataclass(frozen=True)
@@ -73,7 +50,7 @@ class PatternError:
     status line; the log gives the frame and time."""
 
     pattern: str
-    phase: str  # "before_render" | "render"
+    phase: str  # "advance" | "render"
     exception: BaseException
     traceback: str
     frame: int
@@ -147,30 +124,22 @@ def error_frame(n: int, t: float) -> np.ndarray:
 
 
 class Renderer:
-    """One bound (pattern, mapping) pair, advanced frame by frame."""
+    """One bound program run frame by frame (module docstring)."""
 
     def __init__(
         self,
-        pattern: Pattern,
+        bound: BoundProgram,
         mapping: np.ndarray,
         *,
-        params: Mapping[str, Any] | None = None,
         seed: int = 0,
         features: FeatureSource | None = None,
-        name: str | None = None,
         t: float = 0.0,
     ) -> None:
-        """`name` is what errors and refusals call the pattern, for its whole
-        life: by default its class's name (pewpew.classinfo). `t` is the
-        engine time it starts at, so a renderer built mid-run takes one
-        slot as its first dt."""
-        if isinstance(pattern, type):
-            raise TypeError("Renderer takes a Pattern instance, not a class — pass Cls() here")
-        self.pattern = pattern
-        self.name = name or pattern_name(type(pattern))
-        # Built once and never replaced (see `params`): a bad param is
-        # refused before the first frame.
-        self._params = ParamSet(type(pattern), params, name=self.name)
+        """Bind `bound` to `mapping`, its nodes keyed from `seed`. Errors
+        name it by `bound.name`. `t` is the engine time it starts at, so a
+        renderer built mid-run takes one slot as its first dt. Raises what
+        the bind raises."""
+        self.bound = bound
         self.seed = seed
         # The seeded fake by default, so a sequence follows from its arguments.
         self.features = FakeFeatures(seed) if features is None else features
@@ -178,11 +147,11 @@ class Renderer:
         self._t = float(t)
         self._frame = 0
         self._error: PatternError | None = None
-        # The failure sites and complaints already logged. Never cleared by a
-        # good frame: a pattern that fails on alternate frames would
-        # otherwise log a traceback 30 times a second.
+        # The failure sites already logged. Never cleared by a good frame: a
+        # program that fails on alternate frames would otherwise log a
+        # traceback 30 times a second.
         self._logged: set[tuple] = set()
-        self._bind_mapping(mapping)
+        self.rebind(mapping)
 
     # ---- state ---------------------------------------------------------
 
@@ -197,41 +166,37 @@ class Renderer:
         return self._n
 
     @property
-    def params(self) -> ParamSet:
-        """The pattern's declared params and their current values; `set` on
-        it reaches the running pattern (loop thread only). The same object
-        for this renderer's whole life, `rebind` included."""
-        return self._params
-
-    @property
     def error(self) -> PatternError | None:
-        """The current contained failure, or None while the pattern is healthy."""
+        """The current contained failure, or None while the program is healthy."""
         return self._error
 
     # ---- binding -------------------------------------------------------
 
     def rebind(self, mapping: np.ndarray) -> None:
-        """Rebind the pattern to a new mapping.
+        """Bind the program to a new mapping.
 
-        Buffers are reallocated and zeroed (no resampling [S219]), the RNG is
-        reseeded, and `setup` runs again. Engine time and the frame counter
-        continue: a new map mid-run is not a restart.
+        Buffers are reallocated at their fill (no resampling [S219]) and
+        each op's `setup` runs again; the nodes' knobs are kept. Engine
+        time and the frame counter continue: a new map mid-run is not a
+        restart. Raises ValueError for a mapping that is not (N, 3), and
+        what the bind raises.
         """
-        self._bind_mapping(mapping)
-
-    def _bind_mapping(self, mapping: np.ndarray) -> None:
         mapping = np.asarray(mapping)
         if mapping.ndim != 2 or mapping.shape[1] != 3:
             raise ValueError(f"mapping must be (N,3) world coords, got {mapping.shape}")
         self._n = int(mapping.shape[0])
-        self._geom = _Geometry.of(mapping)
-        # A raising `setup` leaves the pattern half-initialized. Binding is
-        # not contained (a bind failure is loud), so the renderer refuses to
+        # Read-only column views: they are views onto the caller's mapping,
+        # outside the buffers, so an in-place `x += 0.5` in a render would
+        # corrupt the mapping for every later frame.
+        x, y, z = mapping[:, 0], mapping[:, 1], mapping[:, 2]
+        index = np.arange(self._n, dtype=np.int32)
+        for column in (x, y, z, index):
+            column.setflags(write=False)
+        # A raising bind leaves the program half-bound. Binding is not
+        # contained (a bind failure is loud), so the renderer refuses to
         # render until a later bind succeeds.
         self._bind_failed = True
-        geom = self._geom
-        self.pattern._bind(geom.n, geom.x, geom.y, geom.z, geom.index, seed=self.seed, params=self._params,
-                           name=self.name)
+        self.bound.bind(Coords.of(x, y, z, index), self.seed)
         self._bind_failed = False
 
     # ---- the frame path -------------------------------------------------
@@ -241,13 +206,13 @@ class Renderer:
         caller owns the timeline (`SlotClock`)."""
         if self._bind_failed:
             raise RuntimeError(
-                f"{self.name} is not bound — its setup() raised, "
-                "so its buffers are half-initialized. Fix the pattern and rebind."
+                f"{self.bound.name} is not bound: its bind raised, so its buffers are "
+                "half-initialized. Rebind it to a map it can run on."
             )
         t = float(t)
         dt = t - self._t
         if dt < 0.0:
-            # A stateful pattern cannot run backwards: `fade` would amplify,
+            # A stateful program cannot run backwards: a fade would amplify,
             # and a trail would saturate to white.
             raise ValueError(
                 f"time never goes backwards: advance_to({t!r}) is before the current t={self._t!r}"
@@ -255,34 +220,28 @@ class Renderer:
         self._t = t
         frame_index = self._frame
         self._frame += 1
-        pattern = self.pattern
-        geom = self._geom
+        bound = self.bound
 
         try:
             # Contained too: a failing feature source must not end the run.
-            features = self.features.at(t)
-            pattern.before_render(dt, features)
-        except Exception as exc:  # noqa: BLE001  contained: a pattern must not take the aura down
-            return self._contain("before_render", exc, frame_index, t)
+            bound.advance(dt, self.features.at(t))
+        except Exception as exc:  # noqa: BLE001  contained: a program must not take the aura down
+            return self._contain("advance", exc, frame_index, t)
 
-        locked, unlockable = pattern._lock_buffers()
-        for complaint in unlockable:
-            self._note(complaint)
         try:
-            frame = pattern.render(geom.x, geom.y, geom.z, geom.index)
-        except Exception as exc:  # noqa: BLE001  contained: a pattern must not take the aura down
+            with bound.buffers.locked():
+                frame = bound.render()
+        except Exception as exc:  # noqa: BLE001  contained: a program must not take the aura down
             return self._contain("render", exc, frame_index, t)
-        finally:
-            pattern._unlock_buffers(locked)
 
-        # Shape and dtype only: a float64 frame would break `pixels`'
-        # BufferSpec. Range and finiteness are O(N) on the hot path; the
-        # goldens and bench_authoring check them.
-        if not isinstance(frame, np.ndarray) or frame.shape != (geom.n, 3):
+        # Shape and dtype only: a float64 frame would become a float64
+        # `pixels`. Range and finiteness are O(N) on the hot path; the
+        # goldens check them.
+        if not isinstance(frame, np.ndarray) or frame.shape != (self._n, 3):
             got = f"{type(frame).__name__}"
             if isinstance(frame, np.ndarray):
                 got = f"array of shape {frame.shape}"
-            exc = TypeError(f"render must return an ({geom.n},3) array, got {got}")
+            exc = TypeError(f"render must return an ({self._n},3) array, got {got}")
             return self._contain("render", exc, frame_index, t)
         if frame.dtype != np.float32:
             exc = TypeError(f"render must return float32, got {frame.dtype}")
@@ -290,8 +249,8 @@ class Renderer:
 
         self._error = None
         # `pixels` gets a copy: the caller's frame must not be the state the
-        # pattern reads back, which the next render also locks read-only.
-        pattern.pixels = frame.copy()
+        # program reads back, which the next render also locks read-only.
+        bound.buffers.pixels = frame.copy()
         return frame
 
     def step(self, dt: float) -> np.ndarray:
@@ -311,7 +270,7 @@ class Renderer:
     # ---- containment ----------------------------------------------------
 
     def _contain(self, phase: str, exc: Exception, frame_index: int, t: float) -> np.ndarray:
-        self._error = contain(self.name, phase, exc, frame_index, t, self._logged)
+        self._error = contain(self.bound.name, phase, exc, frame_index, t, self._logged)
         # Not assigned to `pixels`: a failed frame keeps the trail state.
         return self.error_frame(t)
 
@@ -320,22 +279,14 @@ class Renderer:
         the current mapping."""
         return error_frame(self._n, t)
 
-    def _note(self, complaint: str) -> None:
-        """Log a non-fatal engine complaint, once."""
-        key = ("note", complaint)
-        if key not in self._logged:
-            self._logged.add(key)
-            logger.warning("%s: %s", self.name, complaint)
-
 
 class SlotClock:
     """Engine time per schedule slot: `t += 1/fps`, repeated, so the first
     slot is at t = 1/fps.
 
     The one home of the float sequence every deterministic artifact is
-    frozen against: it matches `pewpew.testing.clock.FakeClock.frames()` and
-    `bench/bench_authoring.py::run_sequence` bit for bit, where `t = i/fps`
-    would not. The offline renders and `pewpew.pace.PacedLoop` both use it.
+    frozen against: it matches `pewpew.testing.clock.FakeClock.frames()` bit for
+    bit, where `t = i/fps` would not. The offline renders and `pewpew.pace.PacedLoop` both use it.
     """
 
     def __init__(self, fps: float, start: float = 0.0) -> None:

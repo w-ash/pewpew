@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 import fakes
-from fakes import program_of
+from fakes import op_of, program_of
 from pewpew.compose import Look
 from pewpew.fx.catalog import example
 from pewpew.fx.compile import check, field_ops
@@ -106,12 +106,12 @@ def test_every_op_arg_set_while_running_changes_the_picture(
 ) -> None:
     held, turned = hosted(program, mapping), hosted(program, mapping)
     for renderer in (held, turned):
-        renderer.pattern.node_params[nid].set(name, a)  # type: ignore[attr-defined]  # a ProgramPattern
+        renderer.bound.node_params[nid].set(name, a)
     clock = SlotClock(FPS)
     times = [clock.advance() for _ in range(2 * HALF)]
     before = [np.stack([r.advance_to(t).copy() for t in times[:HALF]]) for r in (held, turned)]
     assert np.array_equal(before[0], before[1]), "the two runs must be identical until the arg moves"
-    turned.pattern.node_params[nid].set(name, b)  # type: ignore[attr-defined]
+    turned.bound.node_params[nid].set(name, b)
     after = [np.stack([r.advance_to(t).copy() for t in times[HALF:]]) for r in (held, turned)]
     observed = rms(*after)
     assert observed > LIVENESS_RMS, (
@@ -187,10 +187,10 @@ def test_a_rate_keeps_its_phase_so_a_change_never_jumps_and_an_hour_runs_as_a_se
     early, late = (run(program_of("osc(8, 0.25)"), line(16), 2, start=start) for start in (0.0, 3600.0))
     np.testing.assert_array_equal(early, late)
     renderer = hosted(program_of("osc(8, 0.25)"), line(16))
-    op = renderer.pattern._nodes["osc"].op  # type: ignore[attr-defined]  # a ProgramPattern
+    op = op_of(renderer, "osc")
     renderer.advance_to(1.0)
     assert op.phase("sync") == pytest.approx(0.25)
-    renderer.pattern.node_params["osc"].set("sync", 1.0)  # type: ignore[attr-defined]
+    renderer.bound.node_params["osc"].set("sync", 1.0)
     renderer.advance_to(1.5)
     assert op.phase("sync") == pytest.approx(-0.25), "0.75 of a cycle, centred on 0"
 
@@ -202,7 +202,7 @@ def steps(program: Program, frames: int, phase: tuple[str, float] | None = None)
     renderer.advance_to(0.0)
     if phase is not None:
         nid, at = phase
-        renderer.pattern._nodes[nid].op.phases["speed"] = at  # type: ignore[attr-defined]  # a ProgramPattern
+        op_of(renderer, nid).phases["speed"] = at
     clock = SlotClock(FPS)
     shown = np.stack([renderer.advance_to(clock.advance()).copy() for _ in range(frames)])
     return np.abs(np.diff(shown, axis=0)).max(axis=(1, 2))

@@ -1,8 +1,8 @@
-"""The read-only sensor frame patterns see, plus its deterministic stand-in.
+"""The read-only sensor frame effect programs see, plus its deterministic stand-in.
 
-Patterns never touch raw audio: features arrive pre-chewed (melbanks, beat,
+Programs never touch raw audio: features arrive pre-chewed (melbanks, beat,
 group scalars) from the feature bus (architecture §7, ADR-009), so
-`FeatureFrame` is the whole of what `before_render` gets. A run with
+`FeatureFrame` is the whole of what an op's `advance` gets. A run with
 `--audio` reads the analysis of real sound (`pewpew.audio`); every other
 renderer reads the seeded `FakeFeatures`, which is faithful in shape.
 
@@ -27,7 +27,7 @@ N_BANDS = 16  # the bands of every frame
 
 @dataclass(frozen=True)
 class Event:
-    """One accepted room event, as a pattern sees it in `features.events`."""
+    """One accepted room event, as an op sees it in `features.events`."""
 
     name: str
     source: str

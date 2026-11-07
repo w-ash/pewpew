@@ -14,7 +14,7 @@ Ids never change once given: a knob's address,
 cannot be one of the words a layer's own address uses (`RESERVED`).
 
 These are values only; evaluating them is the ops' work (pewpew.fx.op,
-pewpew.fx.host), and pewpew.fx.codec is their JSON form.
+pewpew.fx.bound_program), and pewpew.fx.codec is their JSON form.
 """
 
 from __future__ import annotations

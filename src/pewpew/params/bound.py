@@ -33,7 +33,7 @@ def drive_range(param: Param[Any], where: str, part: str = "") -> Parsed[Ranged[
 
 class Bound:
     """The link from a `ParamSet` to its target, the object that reads each
-    value as an attribute (a pattern, an op).
+    value as an attribute (an op, a layer's mix).
 
     The target's attribute is the param's base value, or, while the param
     is driven, the base moved by an offset in plain units (ADR-006). The

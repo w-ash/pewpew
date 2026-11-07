@@ -24,7 +24,6 @@ from pewpew.aura.book import CycleConfig, LookBook, LookError, load_looks, parse
 from pewpew.aura.director import Director, Slot
 from pewpew.aura.variety import at_once
 from pewpew.compose import Look
-from pewpew.fx.host import ProgramPattern
 from pewpew.jsonfile import write_atomic
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
@@ -163,9 +162,7 @@ def test_the_aura_plays_the_director_s_slots_a_fresh_one_unsaved_and_input_stops
 
 def solid_knobs(rig):
     """The knobs of the `solid` node that the rig's layer `base` runs now."""
-    pattern = rig.renderer().pattern
-    assert isinstance(pattern, ProgramPattern)
-    return pattern.node_params["solid"]
+    return rig.renderer().bound.node_params["solid"]
 
 
 def test_unsaved_edits_hold_the_idle_cycle_off_until_they_are_undone(tmp_path: Path):

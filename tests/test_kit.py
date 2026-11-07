@@ -5,7 +5,7 @@ helpers the 2026-07-16 study made ADR-005 conditional on
 (bench/results/authoring-2026-07-16.md, "Verdict"): `fade`, `bins`.
 
 Every helper test inlines the literal expression it replaces, copied
-from the frozen study evidence in `bench/authoring/*.py`, as the reference
+from the study's pattern code, as the reference
 — and asserts bit-exact (`==` / `np.array_equal`) agreement with it, not
 "close enough". Several tests also demonstrate the specific edge or dtype
 trap each helper exists to remove (stumble numbers in the inventory).
@@ -48,7 +48,7 @@ def test_hsv_matches_reference_and_stays_in_range():
 # ---- fade(dt, tau) — stumble #2 --------------------------------------------
 
 
-# Comet.tail and Geq.fall, the Param defaults in bench/authoring/.
+# Comet.tail and Geq.fall, the study's Param defaults.
 @pytest.mark.parametrize("tau", [0.25, 0.35], ids=["comet-tail", "geq-fall"])
 def test_fade_matches_the_study_expression(tau):
     assert fade(DT, tau) == math.exp(-DT / tau)

@@ -1,8 +1,8 @@
 """Per-frame exception containment (ADR-005; architecture §3).
 
-"Errors never stop rendering": a raising pattern produces a visible error
-state and the engine keeps stepping *and keeps calling the pattern*, so a
-pattern whose failure passes recovers with no restart. Precedent is led-control's
+"Errors never stop rendering": a raising program produces a visible error
+state and the engine keeps stepping *and keeps calling the program*, so a
+program whose failure passes recovers with no restart. Precedent is led-control's
 pulsing-red frame [S660:ledcontrol/animationcontroller.py#L418-L434] and
 Pixelblaze's crash-proof editor [S504].
 """
@@ -12,51 +12,49 @@ from __future__ import annotations
 import logging
 
 import numpy as np
+import pytest
 
 from fakes import frames as render_frames
-from pewpew.classinfo import pattern_name
+from fakes import hosted, op_of, source_op
 from pewpew.mapping import line
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
+
+pytestmark = pytest.mark.usefixtures("fake_ops")
 
 FPS = 60.0
 DT = 1.0 / FPS
+NID = "flaky_test"
 
 
-class Flaky(Pattern):
-    """Renders a flat grey ramp, but raises on the frames in `fail_on`."""
+def flaky(fail_on=frozenset(), *, advance_fails: bool = False):
+    """A program that renders flat grey, brighter each frame, but raises
+    in render on the frames in `fail_on`, or in every advance."""
 
-    fail_on: frozenset[int] = frozenset()
+    def setup(op, ctx):
+        op.frame = -1
 
-    def __init__(self) -> None:
-        self.frame = -1
+    def advance(op, ctx):
+        if advance_fails:
+            raise RuntimeError("boom in advance")
+        op.frame += 1
 
-    def before_render(self, dt, features):
-        self.frame += 1
+    def render(op, c):
+        if op.frame in fail_on:
+            raise ValueError(f"boom in render at frame {op.frame}")
+        return np.full((len(c.index), 3), 0.25 * (op.frame + 1), dtype=np.float32)
 
-    def render(self, x, y, z, index):
-        if self.frame in self.fail_on:
-            raise ValueError(f"boom in render at frame {self.frame}")
-        v = np.full(index.size, 0.25 * (self.frame + 1), dtype=np.float32)
-        return np.stack([v, v, v], axis=1)
-
-
-class AlwaysFails(Flaky):
-    fail_on = frozenset(range(10_000))
+    return source_op(NID, render, setup=setup, advance=advance)
 
 
-class FailsOnce(Flaky):
-    fail_on = frozenset({2})
+def always_fails():
+    return flaky(frozenset(range(10_000)))
 
 
-class BeforeRenderFails(Flaky):
-    def before_render(self, dt, features):
-        raise RuntimeError("boom in before_render")
+def fails_once():
+    return flaky(frozenset({2}))
 
 
-class WrongShape(Flaky):
-    def render(self, x, y, z, index):
-        return np.zeros((index.size, 4), dtype=np.float32)
+def advance_fails():
+    return flaky(advance_fails=True)
 
 
 def is_error_frame(frame: np.ndarray) -> bool:
@@ -71,7 +69,7 @@ def is_error_frame(frame: np.ndarray) -> bool:
 
 
 def test_render_failure_yields_pulsing_red_frames() -> None:
-    frames = render_frames(Renderer(AlwaysFails(), line(8)), 30, FPS)
+    frames = render_frames(hosted(always_fails(), line(8)), 30, FPS)
 
     assert frames.shape == (30, 8, 3) and frames.dtype == np.float32
     assert all(is_error_frame(f) for f in frames)
@@ -79,26 +77,26 @@ def test_render_failure_yields_pulsing_red_frames() -> None:
     assert len(np.unique(frames[:, 0, 0])) > 5
 
 
-def test_before_render_failure_is_contained_too() -> None:
-    renderer = Renderer(BeforeRenderFails(), line(8))
+def test_advance_failure_is_contained_too() -> None:
+    renderer = hosted(advance_fails(), line(8))
     frames = [renderer.step(DT) for _ in range(3)]
 
     assert all(is_error_frame(f) for f in frames)
     assert renderer.error is not None
-    assert renderer.error.phase == "before_render"
-    assert renderer.error.pattern == "beforerenderfails"
-    assert "boom in before_render" in renderer.error.traceback
+    assert renderer.error.phase == "advance"
+    assert renderer.error.pattern == "layers.base" and renderer.error.path == f"layers.base.{NID}"
+    assert "boom in advance" in renderer.error.traceback
 
 
-def test_renderer_keeps_stepping_and_keeps_calling_the_pattern() -> None:
-    renderer = Renderer(AlwaysFails(), line(8))
+def test_renderer_keeps_stepping_and_keeps_calling_the_program() -> None:
+    renderer = hosted(always_fails(), line(8))
     for _ in range(5):
         renderer.step(DT)
 
     assert renderer.t == 5 * DT
-    # The pattern was still called every frame — that is what lets a
-    # pattern whose failure passes recover with no restart.
-    assert renderer.pattern.frame == 4
+    # The program was still called every frame — that is what lets a
+    # program whose failure passes recover with no restart.
+    assert op_of(renderer, NID).frame == 4
     assert renderer.error is not None
     assert renderer.error.phase == "render"
     assert renderer.error.frame == 4
@@ -107,7 +105,7 @@ def test_renderer_keeps_stepping_and_keeps_calling_the_pattern() -> None:
 
 
 def test_error_is_populated_then_cleared_on_recovery() -> None:
-    renderer = Renderer(FailsOnce(), line(4))
+    renderer = hosted(fails_once(), line(4))
     good_a = renderer.step(DT)
     good_b = renderer.step(DT)
     assert renderer.error is None
@@ -123,18 +121,19 @@ def test_error_is_populated_then_cleared_on_recovery() -> None:
 
 
 def test_failed_frame_does_not_corrupt_pixels() -> None:
-    renderer = Renderer(FailsOnce(), line(4))
+    renderer = hosted(fails_once(), line(4))
     renderer.step(DT)
     last_good = renderer.step(DT).copy()
 
     renderer.step(DT)  # the failing frame
-    # The trail state a pattern reads next frame is still the last good frame,
-    # not the red error frame.
-    assert np.array_equal(renderer.pattern.pixels, last_good)
+    # The last frame a program reads next frame (`prev()`) is still the
+    # last good frame, not the red error frame.
+    assert np.array_equal(renderer.bound.buffers.pixels, last_good)
 
 
 def test_wrong_return_shape_is_contained() -> None:
-    renderer = Renderer(WrongShape(), line(4))
+    renderer = hosted(fails_once(), line(4))
+    renderer.bound.render = lambda: np.zeros((4, 4), dtype=np.float32)
     frame = renderer.step(DT)
 
     assert is_error_frame(frame)
@@ -142,15 +141,15 @@ def test_wrong_return_shape_is_contained() -> None:
 
 
 def test_failing_sequences_stay_deterministic() -> None:
-    for factory in (AlwaysFails, BeforeRenderFails, FailsOnce):
-        a = render_frames(Renderer(factory(), line(8)), 12, FPS)
-        b = render_frames(Renderer(factory(), line(8)), 12, FPS)
-        assert np.array_equal(a, b), pattern_name(factory)
+    for factory in (always_fails, advance_fails, fails_once):
+        a = render_frames(hosted(factory(), line(8)), 12, FPS)
+        b = render_frames(hosted(factory(), line(8)), 12, FPS)
+        assert np.array_equal(a, b), factory.__name__
 
 
 def test_repeated_failures_log_once(caplog) -> None:
     caplog.set_level(logging.ERROR, logger="pewpew.render")
-    renderer = Renderer(AlwaysFails(), line(8))
+    renderer = hosted(always_fails(), line(8))
     for _ in range(30):
         renderer.step(DT)
 
@@ -159,17 +158,16 @@ def test_repeated_failures_log_once(caplog) -> None:
     assert "(frame 0, t=0.016667)" in records[0].getMessage()
 
 
-class SteadyFailure(Flaky):
-    def render(self, x, y, z, index):
-        raise ValueError("boom")
-
-
-def test_a_pattern_that_fails_every_frame_keeps_one_status_text() -> None:
+def test_a_program_that_fails_every_frame_keeps_one_status_text() -> None:
     """The status line is the error's text: it names no frame or time, so
     the preview sends it once, not once per frame."""
-    renderer = Renderer(SteadyFailure(), line(8), name="mine")
+
+    def render(op, c):
+        raise ValueError("boom")
+
+    renderer = hosted(source_op("steady_test", render), line(8), name="mine")
     texts = set()
     for _ in range(30):
         renderer.step(DT)
         texts.add(str(renderer.error))
-    assert texts == {"mine.render raised: ValueError: boom"}
+    assert texts == {"mine.render raised: ValueError: boom (in node mine.steady_test (steady_test))"}

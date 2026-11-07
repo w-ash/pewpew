@@ -1278,9 +1278,9 @@
     {
       "type": "refused",
       "control": "add_layer",
-      "name": "layers.layer.osc.freq",
+      "name": "layers.osc.osc.freq",
       "id": 8,
-      "reason": "layers.layer.osc.freq must be within 0.5..32.0, got 99.0"
+      "reason": "layers.osc.osc.freq must be within 0.5..32.0, got 99.0"
     },
     {
       "type": "ack",

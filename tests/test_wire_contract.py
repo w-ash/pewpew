@@ -114,7 +114,7 @@ def capture(folder: Path) -> dict:
                 layer = next_text(ws)
             ws.send(json.dumps({"type": "blackout", "id": "b1", "on": False}))
             ack = next_text(ws)
-            rig.renderer().pattern.render = lambda *args: (_ for _ in ()).throw(RuntimeError("boom"))
+            rig.renderer().bound.render = lambda: (_ for _ in ()).throw(RuntimeError("boom"))
             error = later("status")
             assert monitor.scan() is None
             wait_until(lambda: not monitor.state()["scan"]["running"])

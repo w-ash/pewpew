@@ -21,7 +21,7 @@ from pewpew.__main__ import main
 from pewpew.aura.master import Master
 from pewpew.compose import layer_seed
 from pewpew.fx import expr
-from pewpew.fx.host import ProgramPattern
+from pewpew.fx.bound_program import BoundProgram
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
 from pewpew.rig import EXAMPLES
@@ -209,10 +209,10 @@ def test_ctrl_c_ends_the_run_through_the_whole_teardown(recorder, monkeypatch):
     """Ctrl-C is how a run ends from the terminal: exit 0, with the outputs
     stopped as at the end of `--frames`."""
 
-    def interrupted(self, x, y, z, index):
+    def interrupted(self):
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(ProgramPattern, "render", interrupted)
+    monkeypatch.setattr(BoundProgram, "render", interrupted)
     try:
         rc, _ = run_main(["run", looks_file(), "--map", "line:4", "--frames", "100", "--ddp", "127.0.0.1=0+4"])
     except KeyboardInterrupt:

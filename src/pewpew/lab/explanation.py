@@ -19,7 +19,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from pewpew.classinfo import pattern_summary
+from pewpew.classinfo import docstring_summary
 from pewpew.compose import Controls, Layer, Route, look_controls
 from pewpew.fx.compile import label_of
 from pewpew.fx.graph import Node
@@ -106,7 +106,7 @@ def _signal(node: Node, span: Range, routes: Sequence[Route], knobs: Controls) -
     """Signal `node`, which gives `span`, in words, with the routes it drives."""
     cls = OPS[node.op]
     lo, hi = span
-    about = f"{pattern_summary(cls)} It gives {lo:g} to {hi:g}."
+    about = f"{docstring_summary(cls)} It gives {lo:g} to {hi:g}."
     lines = tuple(_knob(record, node.args[record["name"]]) for record in ParamSet(cls).describe())
     return SignalNote(node.id, node.op, about, lines, tuple(
         _route(route, lo < 0, knobs) for route in routes if route.source == node.id
@@ -138,7 +138,7 @@ def _note(layer: Layer) -> LayerNote:
 
 def _node(node: Node) -> str:
     """A node in words: `id (op, label): what it does`, with no full stop."""
-    summary = pattern_summary(OPS[node.op]).rstrip(".")
+    summary = docstring_summary(OPS[node.op]).rstrip(".")
     head = f"{node.id} ({node.op}, {label_of(node)})"
     return f"{head}: {summary}" if summary else head
 

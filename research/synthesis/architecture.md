@@ -150,8 +150,9 @@ osc(8, 0.1).id("waves").kaleid(5).modulate(noise(3, 0.1), 0.2).palette("ember")
   `pattern` op, no hand-written Python effect, no hot reload of a file and
   no per-fixture rendering (every layer renders per pixel; a room's
   fixtures keep wiring, power and DDP, [ADR-007](decisions/ADR-007-mapping-calibration.md)).
-  `Pattern`, `Renderer`, `Crossfader` and `ParamSet` stay as internals, not
-  as an author API. An `--ops-dir` that loaded user op files was rejected:
+  Each layer's `Renderer` runs a `BoundProgram` (a program bound to the
+  map, with its ops' `Buffers`); it, the `Crossfader` and `ParamSet` are
+  internals, not an author API ([ADR-025](decisions/ADR-025-one-effect-system.md) amendment). An `--ops-dir` that loaded user op files was rejected:
   plugin discovery finds installed packages, not a file handed to a running
   program [S1414]. The price is that a new effect needs an engine change
   and a release.

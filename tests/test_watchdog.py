@@ -5,16 +5,13 @@ from __future__ import annotations
 import json
 import threading
 
-import numpy as np
 import pytest
 
-from fakes import FakeProcess, FakeTime
+from fakes import FakeProcess, FakeTime, costed, hosted
 from pewpew import watchdog as watchdog_module
 from pewpew.awake import KeepAwake
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
-from pewpew.pattern import Pattern
-from pewpew.render import Renderer
 from pewpew.watchdog import EXIT_STALL, MARKER_FRESH_S, Stall, Watchdog, marker_path, take_marker
 
 
@@ -111,11 +108,6 @@ def test_the_stall_marker_defaults_beside_the_audit_log(monkeypatch, tmp_path):
     assert marker_path() == tmp_path / ".local" / "state" / "pewpew" / "stalled"
 
 
-class Flat(Pattern):
-    def render(self, x, y, z, index):
-        return np.zeros((len(x), 3), dtype=np.float32)
-
-
 def test_the_thread_fires_once_on_a_stall():
     """The thread checks on fake time: a stall past the timeout fires once,
     with the stall it measured, and the thread then ends."""
@@ -140,12 +132,13 @@ def test_the_thread_fires_once_on_a_stall():
     assert fired == [pytest.approx(5.0)] and dog.fired
 
 
+@pytest.mark.usefixtures("fake_ops")
 def test_each_frame_the_loop_completes_is_a_beat():
     """The loop drives the watchdog through `on_frame`: the stall is measured
     from the last frame, not from the start."""
     ft = FakeTime()
     dog = Watchdog(5.0, now=ft.now)
-    loop = PacedLoop(Renderer(Flat(), line(8)), fps=60.0, on_frame=[dog.beat], now=ft.now, sleep=ft.sleep)
+    loop = PacedLoop(hosted(costed(ft), line(8)), fps=60.0, on_frame=[dog.beat], now=ft.now, sleep=ft.sleep)
     loop.run(frames=3)
     last = ft.t - ft.sleeps[-1]  # the beat comes before the frame's sleep
     ft.t = last + 4.9
