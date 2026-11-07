@@ -1251,9 +1251,26 @@ series (batch mode).
 - Remove the page's operator and editor views; Layout mode replaces them.
 - Remove the pre-engine harness pattern contract and the fleet-simulation
   stub from `src/harness/`.
+- Remove `Pattern` (ADR-025 amendment). A layer's `Renderer` runs a
+  `BoundProgram`, one program bound to the map, whose `Buffers` hold its
+  ops' state and the last frame and lock them read-only while it renders.
+  Gone with it: one class made per program, the renderer's own param set
+  (`Renderer.params`, `params=`, `name=`), the class checks on buffer and
+  param names, `ParamSet.hint` (a refusal no longer points at a source
+  file) and `Param.owner`. A contained failure in an op's `advance` names
+  the phase `advance`.
+- Remove the authoring study's prototype (`bench/bench_authoring.py`,
+  `bench/authoring/`); its report stays in `bench/results/`.
 
 ### Fixed
 
+- Name a layer added without an id by its `out` node also when one of its
+  args is refused, so the refusal names `layers.<out>…`, not `layers.layer…`.
+- Give an out-of-range op knob or layer mix knob in a look that does not
+  decode its default as the problem's `example`, as a route's knob had.
+- Let a `LayerError` cross a process pool: it unpickles with its layer and
+  reason.
+- Point the control page's "not saved" note at `run LOOKS`, not `--looks`.
 - A number entry's − and + answer a finger over the full 44 px, as a
   bordered button does; they were 2 px short.
 - A bordered button or tile answers a finger over the full 44 px, not 42.

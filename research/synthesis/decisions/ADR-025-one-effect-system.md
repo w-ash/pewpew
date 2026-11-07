@@ -70,6 +70,8 @@ server-side.
   internals.** `ProgramPattern` is a `Pattern` and every layer is a
   `Renderer` (ADR-021, ADR-022); the crossfader fades two stacks and op
   args are param sets. None is exported or documented as an author API.
+  *(Superseded 2026-11-07: `Pattern` and `ProgramPattern` go; a
+  `Renderer` runs a `BoundProgram`. See the amendment below.)*
 
 ## Consequences
 
@@ -129,3 +131,63 @@ the model kept, not the choice of which effects to drop.
   from them.
 - **Looks version 5 with a migration.** The file's shape does not change;
   only one op leaves the catalog, which the codec already refuses by name.
+
+## Amendment (2026-11-07) — a bound program, not a pattern class
+
+Code: `src/pewpew/fx/bound_program.py`, `src/pewpew/fx/buffers.py`,
+`src/pewpew/render.py`.
+
+### Context
+
+After the removals above, `Pattern` had one subclass, `ProgramPattern`.
+It worked around its base: it wrapped `_bind`, and made a class per
+program only because the `Renderer` read its params off the pattern's
+class. Most of `Pattern` (the author hooks, the class checks on buffer
+and param names, `ParamSet.hint`'s pointer to a source file) served
+pattern authors, who no longer exist.
+
+### Decision
+
+- **Composition, no base.** `BoundProgram(program, name)` is one program
+  bound to a map: one instance per layer, built from a `Program` value,
+  with no class per program and no abstract base or protocol in its
+  place. `bind(coords, seed)` checks the program against the map, sets up
+  each node's op and builds the closures (ADR-022); `advance(dt,
+  features)` and `render()` run a frame. Its nodes' param sets are its
+  only params.
+- **`Buffers` keeps the state.** Each bind makes a `Buffers` that holds
+  every array an op declares through `ctx.buffer` (as `<nid>.<name>`) and
+  `pixels`, the last frame that `prev()` reads [S1407]. Its `locked()`
+  makes every array read-only while the program renders, so the
+  ADR-005 purity rule holds as before. An op holds its arrays and writes
+  them in place, so the registry tracks arrays, not names.
+- **The `Renderer` keeps its own job**: engine time, containment (phases
+  `advance` and `render`), the error frame, bind poisoning and the frame
+  checks. It has no param set of its own. `PatternError` keeps its name
+  for now.
+
+### Consequences
+
+- A layer's RNG keys and `pixels` seed as before, so every golden frame
+  is unchanged.
+- An op's buffer cannot shadow anything, since no buffer is an attribute,
+  so the reserved-name checks go.
+
+### Evidence
+
+- [S1406][S1408] AVS builds a preset from typed components, and webvs
+  saves it as plain JSON: an effect is data over a known component set,
+  so binding one to a map needs a value, not a class.
+- [S1400] Hydra composes a fixed vocabulary of functions into a chain;
+  the chain is the effect, and no type is made per chain.
+- [S1407] MilkDrop warps and decays the previous frame each frame: the
+  last frame is state the engine keeps beside the effect's own.
+
+### Rejected alternatives
+
+- **Keep `Pattern` as an abstract base**, or **a `Protocol`** for what a
+  `Renderer` runs. One implementation needs no seam, and either keeps
+  the hooks and checks that served authors (the maintainer's decision,
+  2026-11-07).
+- **A class per program** (`ProgramPattern.of`). It existed only for the
+  renderer's params, which a bound program does not need.
