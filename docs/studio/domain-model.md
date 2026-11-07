@@ -72,7 +72,7 @@ Addressing sits on the wiring layer, not on the fixture type. MVR puts `Addresse
   "slot_h":{"v":0.003,"status":"assumed","src":"Clen's diffuser dimension drawing, scaled by eye"},
   "lip_t":{"v":0.0015,"status":"assumed","src":"Clen's diffuser dimension drawing, scaled by eye"},
   "cap_t":{"v":0.004,"status":"assumed","src":"not found; Q-012"},
-  "pigtail":{"v":0.30,"status":"assumed","src":"not measured"},
+  "pigtail":{"v":0.20,"status":"measured","src":"measured by the maintainer: about 20 cm long"}, "pigtail_inset":{"v":0.15,"status":"measured","src":"measured by the maintainer: each pigtail leaves the underside 15 cm in from its end, at right angles to the bar"},
   "led_w":{"v":0.005,"status":"assumed","src":"CL05 package not found (RES-008)"}},
  "profiles":{
   "housing":{"rect":["housing_w","housing_h"],"at":[0,"housing_h/2 - axis_z"],
@@ -92,8 +92,8 @@ Addressing sits on the wiring layer, not on the fixture type. MVR puts `Addresse
  "anchors":{
   "end_a":{"at":[0,"-length/2",0],"dir":[0,-1,0],"accepts":"diffuser_outer"},
   "end_b":{"at":[0,"length/2",0],"dir":[0,1,0],"accepts":"diffuser_outer"},
-  "in":{"at":[0,"-length/2","housing_h/2 - axis_z"],"connector":"clen-4pin","gender":{"v":"male","status":"inferred","src":"RES-010"},"pigtail_m":"pigtail"},
-  "out":{"at":[0,"length/2","housing_h/2 - axis_z"],"connector":"clen-4pin","gender":{"v":"female","status":"inferred","src":"RES-010"},"pigtail_m":"pigtail"},
+  "in":{"at":[0,"pigtail_inset - length/2","-axis_z"],"dir":[0,0,-1],"connector":"clen-4pin","gender":{"v":"male","status":"inferred","src":"RES-010"},"pigtail_m":"pigtail"},
+  "out":{"at":[0,"length/2 - pigtail_inset","-axis_z"],"dir":[0,0,-1],"connector":"clen-4pin","gender":{"v":"female","status":"inferred","src":"RES-010"},"pigtail_m":"pigtail"},
   "tslot":{"at":[0,0,"-axis_z"],"dir":[0,0,-1],"src":"Clen's end-to-end joining drawing"}},
  "pixels":{"count":64,"span_m":"length","z_m":"-flat_z","leds_per_pixel":1,"facing":[0,0,1],
   "beam_deg":{"v":330,"status":"stated","src":"Clen's beam-angle drawing"},
@@ -372,7 +372,7 @@ The 2.5 µs bit time is 1/400 kbps (arithmetic); the low-speed mode is on p. 1-2
 ## 9. Open questions
 
 1. **Bar cross-section (Q-011).** Housing depth (18.5 or about 25 mm), diffuser OD and wall, the flat's width and height, and the T-slot opening, cavity and lip. Settled by calipers (PRT-002) and a square-on photo of an end with a scale in frame.
-2. **Bar ends (Q-012).** End-cap thickness, how far the diffuser extends past the strip, and where the pigtail exits and how long it is. Settled by calipers and a tape measure.
+2. **Bar ends (Q-012).** End-cap thickness and how far the diffuser extends past the strip. Settled by calipers.
 3. **Pixel lattice.** The distance from the housing end to the centres of LED 1 and LED 64. This confirms the 1000 mm span and the (i+0.5)/n rule.
 4. **Data order (Q-017; Q-005).** Light pixel 0, then pixel 32, alone in WLED, and confirm that male is the input. A continuity pin map would also fix the cable conductor roles.
 5. **Electrical (Q-004; Q-010).** Watts at 24 V on full white and on each channel alone, and the V+ drop from the male to the female pin at 2 A, all on the bench supply (PRT-001). These fill `measured_w` and `passthrough_ohm`.

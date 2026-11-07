@@ -20,7 +20,7 @@
     "lip_t": {"v": 0.0015, "status": "assumed", "src": "scaled by eye from IMG-dims, Clen's bar dimension drawing (not public)"},
     "cap_t": {"v": 0.004, "status": "assumed", "src": "not found; Q-012, the maintainer's private notes"},
     "pigtail": {"v": 0.2, "status": "measured", "src": "measured by the maintainer, 2026-11-05: about 20 cm long"},
-    "pigtail_inset": {"v": 0.15, "status": "measured", "src": "measured by the maintainer, 2026-11-05: each pigtail leaves the underside about 15 cm in from its end"},
+    "pigtail_inset": {"v": 0.15, "status": "measured", "src": "measured by the maintainer, 2026-11-05: each pigtail leaves the underside about 15 cm in from its end, at right angles to the bar"},
     "led_w": {"v": 0.005, "status": "assumed", "src": "the CL05 package is not found (RES-008, the maintainer's private notes)"},
     "led_h": {"v": 0.0016, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:90)"},
     "strip_w": {"v": 0.01, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:89)"},
