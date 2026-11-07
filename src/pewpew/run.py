@@ -7,11 +7,11 @@ file, room map, arrangement, power cap, looks file, `--param`, `--ddp` or
 `--audio`); `--dry-run` stops there with `Launch.plan`. `Run` builds the
 parts, each from the ones before it:
 
-    calls, stats -> features -> layer stack -> crossfader -> deck (one
-    reloader per layer) -> looks -> triggers -> DDP sink -> room ->
-    watchdog, keep-awake, health -> aura control -> sinks -> the paced loop
+    stats -> features -> DDP sink, blink -> watchdog, keep-awake, health
+    -> the aura (pewpew.aura.pipeline) -> room -> sinks -> the paced loop
 
-so every part gets what it needs at construction. The command line's
+so every part gets what it needs at construction. The health monitor
+reaches the room, built after the aura, only once the run starts. The command line's
 pattern runs as a stack of one layer, `base` (pewpew.compose), so its
 knobs are `layers.base.<pattern>.<param>` and its seed is derived from
 `--seed` as every layer's is. An arrangement `--map` (`pewpew.rig`) gives
@@ -76,15 +76,10 @@ from pewpew import audit
 from pewpew.audio import AudioFeatures, AudioSource, FeatureLog, LiveSource, ReplayFeatures
 from pewpew.audio.inputs import read_input
 from pewpew.aura.book import LookBook, load_looks, pattern_problems
-from pewpew.aura.control import AuraControl
-from pewpew.aura.deck import Deck, pattern_label
-from pewpew.aura.looks import Looks
-from pewpew.aura.master import Master
-from pewpew.aura.triggers import Triggers
-from pewpew.aura.variety import Variety
+from pewpew.aura.deck import pattern_label
+from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.awake import KeepAwake
-from pewpew.compose import Compositor, Look, Resolved, layer_address, pattern_layer
-from pewpew.crossfade import Crossfader
+from pewpew.compose import Look, Resolved, layer_address, pattern_layer
 from pewpew.errors import LoadError
 from pewpew.features import EventFeatures, FakeFeatures, FeatureSource
 from pewpew.fx.graph import as_id
@@ -92,7 +87,7 @@ from pewpew.health import HealthMonitor
 from pewpew.jsonfile import read_or_exit
 from pewpew.load import Catalog, LoadedPattern, resolve
 from pewpew.mapping import Grouping
-from pewpew.pace import Calls, PacedLoop, PaceStats, Stage
+from pewpew.pace import PaceStats
 from pewpew.params import ParamSet
 from pewpew.power import PowerCap, PowerLimiter, power_stage
 from pewpew.reload import Watch
@@ -230,7 +225,6 @@ class Run:
     ) -> None:
         args = self.args = launch.args
         self.launch = launch
-        self.calls = Calls()
         self.stats = PaceStats()
         # Opened once every argument has passed, so a refused launch leaves no file behind.
         self.feature_log = None
@@ -247,37 +241,12 @@ class Run:
             self.audio = base = AudioFeatures(
                 launch.audio, fps=args.fps, delay=args.audio_delay / 1000.0, log=self.feature_log,
             )
-        self.features = EventFeatures(base)
-        look = launch.look
-        # An unattended run leaves a failing layer out of the mix (`bypass`); its
-        # error still reaches the status line.
-        stack = Compositor(
-            [Resolved(look.layers[0], launch.loaded.cls, launch.label)], launch.mapping, seed=look.seed,
-            features=self.features, grouping=launch.grouping, units=args.units, bypass=args.unattended, now=now,
-        )
-        # The loop drives the crossfader, and everything that would reach the
-        # stack reaches it, so a look recall can put a new stack in place.
-        self.fader = Crossfader(stack)
-        self.deck = Deck(self.fader, launch.catalog, self.calls.call_soon, {BASE: launch.loaded}, watch=watch)
-        self.master = Master(args.master_cap)
-        self.variety = Variety(self.deck, seed=args.seed)
-        book = launch.book
-        self.looks = Looks(args.looks, book, self.deck, self.master, variety=self.variety) if book is not None else None
+        features = EventFeatures(base)
         # Opened once every argument has passed, so a refused launch leaves no file behind.
         self.trigger_log = open_log(args.trigger_log, "trigger log") if args.trigger_log is not None else None
-        self.triggers = Triggers(
-            book.triggers if book is not None else {}, looks=self.looks, features=self.features,
-            log=self.trigger_log, log_max=int(args.trigger_log_max * 1_000_000),
-        )
-        if args.armed:
-            self.triggers.arm(True, "launch")  # applied and logged at the first tick
         self.ddp = launch.ddp
         room = launch.room
         self.blink = Blink(room) if room is not None else None
-        self.room = None if room is None else RoomLive(
-            args.room, room, launch.room_bytes, self.fader, self.calls.call_soon,
-            ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch,
-        )
         # `--watchdog`, else on for an unattended run only, so a debugger stopped at
         # a breakpoint in a dev run is not killed; 0 is off.
         watchdog_s = (args.watchdog if args.watchdog is not None else WATCHDOG_S if args.unattended else 0.0) or None
@@ -288,15 +257,29 @@ class Run:
         if args.preview or self.ddp is not None or self.awake is not None:
             self.monitor = HealthMonitor(
                 self.ddp, stats=self.stats, target=args.fps, awake=self.awake, watchdog=watchdog_s,
-                names=self.room.board_names if self.room is not None else None,
-                argv=launch.argv, on_rebind=self.room.rebind if self.room is not None else None,
+                names=self._board_names if room is not None else None,
+                argv=launch.argv, on_rebind=self._rebind_board if room is not None else None,
                 audio=self.audio.state if self.audio is not None else None,
             )
-        self.control = AuraControl(
-            self.calls, self.deck, self.master, self.triggers, looks=self.looks, blink=self.blink,
-            boards=self.monitor if self.ddp is not None else None,
-            health=self.monitor.state if self.monitor is not None else None,
-            accept_looks=args.accept_looks, variety=self.variety,
+        look = launch.look
+        # An unattended run leaves a failing layer out of the mix (`bypass`); its
+        # error still reaches the status line.
+        self.aura = build_aura_pipeline(
+            look, [(Resolved(look.layers[0], launch.loaded.cls, launch.label), launch.loaded)], launch.mapping,
+            catalog=launch.catalog, seed=args.seed, features=features, grouping=launch.grouping, units=args.units,
+            bypass=args.unattended, now=now, watch=watch, master_cap=args.master_cap, looks_path=args.looks,
+            book=launch.book, trigger_log=self.trigger_log, trigger_log_max=int(args.trigger_log_max * 1_000_000),
+            blink=self.blink, boards=self.monitor if self.ddp is not None else None,
+            health=self.monitor.state if self.monitor is not None else None, accept_looks=args.accept_looks,
+        )
+        self.calls, self.features, self.fader, self.deck = self.aura.calls, features, self.aura.fader, self.aura.deck
+        self.master, self.variety, self.looks = self.aura.master, self.aura.variety, self.aura.looks
+        self.triggers, self.control = self.aura.triggers, self.aura.control
+        if args.armed:
+            self.triggers.arm(True, "launch")  # applied and logged at the first tick
+        self.room = None if room is None else RoomLive(
+            args.room, room, launch.room_bytes, self.fader, self.calls.call_soon,
+            ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch,
         )
         sources: list[tuple[Source, Any]] = [
             ("reload", self.deck), ("reload", self.room), ("render", self.fader), ("looks", self.looks),
@@ -332,16 +315,12 @@ class Run:
         if self.ddp is not None:
             self.outputs.append((self.ddp, self._start_ddp))
         self.drivers = [SinkDriver(sink.send, name=type(sink).__name__) for sink, _ in self.outputs]
-        # Each frame: the audio, the triggers, then the looks, before it
-        # renders; the blink, the master, then the power limit, after.
-        after: list[Stage] = [*([self.blink.apply] if self.blink is not None else []), self.master.apply]
-        if launch.limiter is not None:
-            after.append(power_stage(launch.limiter))
-        self.loop = PacedLoop(
-            self.fader, fps=args.fps, calls=self.calls, stats=self.stats,
-            before=[*([self.audio.before_frame] if self.audio is not None else []), self.triggers.before_frame,
-                    *([self.looks.before_frame] if self.looks is not None else [])],
-            after=after,
+        # Each frame: the audio, then the aura's own stages, before it renders;
+        # after it, the aura's, then the power limit, behind the master.
+        self.loop = self.aura.loop(
+            args.fps, stats=self.stats,
+            before=[self.audio.before_frame] if self.audio is not None else [],
+            after=[power_stage(launch.limiter)] if launch.limiter is not None else [],
             on_frame=[*self.drivers, *([self.watchdog.beat] if self.watchdog is not None else [])],
         )
 
@@ -502,6 +481,15 @@ class Run:
         capture.start()
         print(f"audio: opening {capture.kind} {capture.name!r}; audit record appended to {path}", file=sys.stderr,
               flush=True)
+
+    def _board_names(self) -> tuple[str, ...]:
+        """The room's board names, for the health monitor (`RoomLive.board_names`)."""
+        return self.room.board_names() if self.room is not None else ()
+
+    def _rebind_board(self, board: str, address: str) -> str | None:
+        """Point a room board at `address`, for the health monitor (`RoomLive.rebind`)."""
+        assert self.room is not None, "only a run with a room map rebinds a board"
+        return self.room.rebind(board, address)
 
     def _show_room(self, room: RoomMap) -> None:
         """Draw a reloaded room map on the preview. Loop thread."""

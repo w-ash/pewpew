@@ -28,22 +28,22 @@ pytest.importorskip("httpx2")
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from fakes import Pooled
-from pewpew import Pattern
-from pewpew.load import gallery
-from pewpew.mapping import Grouping, line
-from pewpew.params import ParamSet
+from fakes import FakeTime
+from pewpew.mapping import Grouping
 from pewpew.power import Limited, PowerCap, PowerLimiter
 from pewpew.rig import EXAMPLES, load_catalog
 from pewpew.sinks.base import to_display_u8
 from pewpew.sinks.preview import message, status_state
 from pewpew.studio.app import create_app
 from pewpew.studio.limits import Limits, RateLimiter, address_key, client_ip
-from pewpew.studio.session import POWER_HZ, Echo, FramePayload, Session
+from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, as_look, example_looks
 from pewpew.studio.store import SqliteStore, arrangement_id, canonical_json
 from pewpew.studio.transport import Outbox
 
 FPS = 120.0  # fast enough that a test waits milliseconds, not seconds
+ROOT = Path(__file__).resolve().parents[1]
+LOOKS = example_looks(ROOT / "examples")
+START_LOOK = as_look(LOOKS[START])
 
 
 class FakeRigError(ValueError):
@@ -52,10 +52,15 @@ class FakeRigError(ValueError):
         self.issues = issues
 
 
+def plane(n: int) -> np.ndarray:
+    """`n` points over two axes, in two rows: the example looks fold a plane, so a strip will not do."""
+    return np.column_stack([np.linspace(0.0, 1.0, n), np.arange(n) % 2, np.zeros(n)]).astype(np.float32)
+
+
 class FakeRig:
     def __init__(self, n: int, issues=()):
         self.n = n
-        self.mapping = line(n)
+        self.mapping = plane(n)
         self.catalog_digest = "digest-1"
         self.issues = issues
         self.report = None
@@ -148,6 +153,16 @@ def header(frame):
     return struct.unpack("<fI", frame[:8])
 
 
+def first_knob(ws, kind="float"):
+    """The first knob of `kind` the session declares."""
+    return next(k for k in read_until(ws, is_type("declare"))["params"] if k["kind"] == kind)
+
+
+def session_of(client) -> Session:
+    (session,) = state_of(client).sessions.sessions()
+    return session
+
+
 # -- HTTP ----------------------------------------------------------------------
 
 
@@ -169,13 +184,17 @@ def test_assembly_is_immutable_and_unknown_digest_is_404(client):
     assert client.get("/api/assembly/nope.glb").status_code == 404
 
 
-def test_patterns_lists_the_gallery_as_the_describe_golden_has_it(client):
-    body = client.get("/api/patterns").json()
-    assert {p["name"] for p in body} == set(gallery())
-    golden = json.loads((Path(__file__).parent / "goldens" / "describe.json").read_text())["patterns"]
-    for p in body:
-        assert p["params"] == golden[p["name"]]
-        assert p["values"] == ParamSet(gallery()[p["name"]]).snapshot_json()
+def test_looks_lists_each_example_look_by_its_file_name(client):
+    body = client.get("/api/looks").json()
+    files = sorted(ROOT.glob("examples/*.look.json"))
+    assert sorted(body) == [path.name.removesuffix(".look.json") for path in files]
+    tide = json.loads((ROOT / "examples" / "tide.look.json").read_text())
+    assert body["tide"] == tide["looks"][tide["current"]]
+
+
+def test_an_app_without_the_start_look_does_not_start(tmp_path):
+    with pytest.raises(RuntimeError, match="tide"):
+        create_app(examples=tmp_path)
 
 
 def test_compile_success_and_422(client):
@@ -272,9 +291,7 @@ def test_store_is_idempotent():
 def test_hello_then_frames_of_the_right_length(client):
     with client.websocket_connect("/ws/session") as ws:
         hello = json.loads(ws.receive_text())
-        assert hello["type"] == "hello" and hello["fps"] == FPS
-        assert hello["pattern"] in hello["patterns"]
-        assert hello["pattern"] == ("rainbow" if "rainbow" in hello["patterns"] else "plasma")
+        assert hello == {"type": "hello", "n": 256, "fps": FPS, "capabilities": ["ack", "look"]}
         first = read_until(ws, is_frame)
         second = read_until(ws, is_frame)
         assert len(first) == 8 + 3 * hello["n"]
@@ -304,38 +321,62 @@ def test_bind_of_a_bad_arrangement_is_refused_and_the_run_goes_on(client):
         read_until(ws, is_frame)
 
 
-def test_pattern_swap_sends_a_new_hello(client):
+def test_a_look_message_is_applied_and_acked(client):
     with client.websocket_connect("/ws/session") as ws:
-        hello = json.loads(ws.receive_text())
-        other = next(p for p in hello["patterns"] if p != hello["pattern"])
-        ws.send_text(json.dumps({"type": "pattern", "name": other}))
-        assert read_until(ws, is_type("hello"))["pattern"] == other
-        ws.send_text(json.dumps({"type": "pattern", "name": "../../etc/passwd"}))
+        ws.receive_text()
+        ws.send_text(json.dumps({"type": "look", "look": LOOKS["warp-lane"], "fade": 0, "id": 7}))
+        assert read_until(ws, is_type("ack")) == {"type": "ack", "id": 7, "control": "look"}
+        want = [layer["id"] for layer in LOOKS["warp-lane"]["layers"]]
+        aura = read_until(ws, lambda m: is_type("aura")(m) and [x["id"] for x in m["stack"]["layers"]] == want)
+        assert aura["fading"] is False
+        ws.send_text(json.dumps({"type": "look", "look": {"layers": "/etc/passwd"}, "id": 8}))
         refused = read_until(ws, is_type("refused"))
-        assert refused["control"] == "pattern" and "/" not in refused["reason"]
+        assert (refused["control"], refused["id"]) == ("look", 8) and "/etc" not in refused["reason"]
+
+
+def test_an_unknown_control_is_refused_with_its_id_and_passed_over_without(client):
+    with client.websocket_connect("/ws/session") as ws:
+        ws.receive_text()
+        ws.send_text(json.dumps({"type": "pattern", "name": "plasma"}))
+        ws.send_text(json.dumps({"type": "pattern", "name": "plasma", "id": "a"}))
+        refused = read_until(ws, lambda m: is_type("refused")(m) or is_type("ack")(m))
+        assert (refused["type"], refused["control"], refused["id"]) == ("refused", "pattern", "a")
+        assert "unknown control" in refused["reason"]
+
+
+def test_requests_that_need_a_looks_file_or_boards_are_refused(client):
+    with client.websocket_connect("/ws/session") as ws:
+        ws.receive_text()
+        for i, request in enumerate([{"type": "save", "name": "x"}, {"type": "keep"}, {"type": "scan"},
+                                     {"type": "blink", "fixture": "a"}]):
+            ws.send_text(json.dumps({**request, "id": i}))
+            refused = read_until(ws, is_type("refused"))
+            assert (refused["control"], refused["id"]) == (request["type"], i)
 
 
 def test_refused_set_names_the_range_and_never_a_path_and_the_loop_survives(client):
     with client.websocket_connect("/ws/session") as ws:
-        hello = json.loads(ws.receive_text())
-        knob = hello["params"][0]
+        ws.receive_text()
+        knob = first_knob(ws)
         ws.send_text(json.dumps({"type": "set", "name": knob["name"], "value": 1e9}))
         refused = read_until(ws, is_type("refused"))
         assert (refused["control"], refused["name"]) == ("set", knob["name"])
         assert "/" not in refused["reason"] and ".py" not in refused["reason"]
-        ws.send_text(json.dumps({"type": "set", "name": ["unhashable"], "value": 1}))
-        read_until(ws, is_type("refused"))
+        ws.send_text(json.dumps({"type": "set", "name": ["unhashable"], "value": 1, "id": 1}))
+        assert read_until(ws, is_type("refused"))["id"] == 1
         read_until(ws, is_frame)
-        assert state_of(client).sessions.sessions()[0].alive
+        assert session_of(client).alive
 
 
-def test_accepted_set_is_echoed_in_params(client):
+def test_a_set_by_address_reaches_the_layer_and_is_echoed_in_params(client):
     with client.websocket_connect("/ws/session") as ws:
-        knob = json.loads(ws.receive_text())["params"][0]
-        value = (knob["lo"] + knob["hi"]) / 2 if "lo" in knob else knob["default"]
-        ws.send_text(json.dumps({"type": "set", "name": knob["name"], "value": value}))
-        msg = read_until(ws, lambda m: is_type("params")(m) and m["values"][knob["name"]] == value)
-        assert msg["values"][knob["name"]] == value
+        ws.receive_text()
+        name = "layers.sparks.sparks.rate"
+        ws.send_text(json.dumps({"type": "set", "name": name, "value": 12.5, "id": 3}))
+        assert read_until(ws, is_type("ack"))["control"] == "set"
+        read_until(ws, lambda m: is_type("params")(m) and m["values"][name] == 12.5)
+        layer = session_of(client).control.values()
+        assert layer[name] == 12.5
 
 
 def wait_for(cond, timeout=3.0):
@@ -434,7 +475,6 @@ def test_close_all_stops_every_loop_inside_the_deadline(client):
 
 # -- the real rig ------------------------------------------------------------------
 
-ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = json.loads((EXAMPLES / "golden-rings.json").read_text())
 
 
@@ -473,103 +513,74 @@ def test_real_rig_compiles_and_binds_golden_rings():
             assert len(read_until(ws, is_frame)) == 8 + 3 * 3072
 
 
-def _bound_golden_rings() -> tuple[str, bool]:
-    """Bind the golden rings over the socket with Pulse running: the bound
-    renderer's units, and whether it spreads each fixture's colour to that
-    fixture's pixels as the compiled rig groups them."""
-    from pewpew.rig import compile_rig, load_arrangement
-
-    with TestClient(real_app()) as c, c.websocket_connect("/ws/session") as ws:
-        ws.receive_text()
-        ws.send_text(json.dumps({"type": "pattern", "name": "pulse"}))
-        read_until(ws, is_type("hello"))
-        ws.send_text(json.dumps({"type": "bind", "arrangement": GOLDEN}))
-        read_until(ws, is_type("bound"))
-        read_until(ws, is_type("hello"))
-        (session,) = state_of(c).sessions.sessions()
-        gather = session.renderer.gather
-        fixture_of = compile_rig(load_arrangement(GOLDEN), load_catalog()).fixture_of
-        return session.renderer.units, gather is not None and bool((gather == fixture_of).all())
-
-
-# The bind on the suite's process pool (conftest.py).
-JOBS = {"bound": _bound_golden_rings}
-
-
-def test_a_bind_gives_the_session_the_rigs_fixture_grouping(pooled: Pooled):
-    """A per-fixture pattern renders once per fixture of the bound rig."""
-    assert pooled["bound"] == ("fixture", True)
-
-
-# -- coalesced changes (review finding 1) -------------------------------------------
+# -- coalesced binds (review finding 1) ----------------------------------------------
 
 
 class RecordingSink:
     def __init__(self):
         self.controls = []
+        self.frames = []
+        self.powers = []
 
     def frame(self, payload):
-        pass
+        self.frames.append(payload)
 
-    def control(self, message, seen=None):
+    def hello(self, message):
+        self.controls.append(message)
+
+    def control(self, message):
         self.controls.append(message)
 
     def power(self, watts, uncapped_watts):
-        pass
+        self.powers.append((watts, uncapped_watts))
 
     def closed(self):
         pass
 
 
-def test_pending_changes_coalesce_into_one_closure():
+def stepped(sink, **kw) -> Session:
+    """A session in the start look that a test steps itself, paced on fake time, so no slot is
+    skipped; never started."""
+    session = Session(sink, START_LOOK, **{"fps": FPS, **kw})
+    clock = FakeTime()
+    session._loop._now, session._loop._sleep = clock.now, clock.sleep
+    return session
+
+
+def test_pending_binds_coalesce_into_one_closure():
     sink = RecordingSink()
-    session = Session(sink, pattern="plasma", fps=FPS)  # never started, so nothing drains
-    names = sorted(gallery())
-    for name in names * 50 + ["plasma"]:
-        assert session.pattern(name) is None
-    for n in range(1, 500):
-        session.bind(line(n), catalog_digest="d", issues=[], limiter=None)
-    knob = session.hello()[0]["params"][0]
-    values = [knob["lo"] + (knob["hi"] - knob["lo"]) * k / 10_000 for k in range(10_000)]
-    for value in values:
-        assert session.set(knob["name"], value) is None
-    assert len(session._loop.calls._queue) == 1  # one apply closure for every change above
+    session = stepped(sink)
+    for n in range(4, 500):
+        session.bind(plane(n), catalog_digest="d", issues=[], limiter=None)
+    assert len(session._aura.calls._queue) == 1  # one apply closure for every bind above
     session._loop.run(frames=1)
     assert session.n == 499
-    # The sets were parsed against the plasma that the new plasma replaced.
-    assert session.renderer.params[knob["name"]] == knob["default"]
-    kinds = [m["type"] for m in sink.controls]
-    assert kinds == ["bound", "hello"] and sink.controls[1]["pattern"] == "plasma"
-    assert not {"params", "values"} & set(sink.controls[0])  # the hello after it carries them
-    for value in values:
-        assert session.set(knob["name"], value) is None
-    assert len(session._loop.calls._queue) == 1
+    assert [m["type"] for m in sink.controls] == ["bound", "hello"]
+    assert sink.controls[1] == session.hello() and sink.controls[1]["n"] == 499
+
+
+def test_a_bind_passes_the_rigs_fixture_grouping_to_the_stack_and_keeps_engine_time():
+    session = stepped(RecordingSink())
+    session._loop.run(frames=3)
+    t = session.t
+    grouping = Grouping(np.array([[0.25, 0.0, 0.0], [0.75, 1.0, 0.0]], np.float32), np.repeat([0, 1], 4))
+    session.bind(plane(8), grouping=grouping, catalog_digest="d", issues=[], limiter=None)
     session._loop.run(frames=1)
-    assert session.renderer.params[knob["name"]] == values[-1]
+    assert session._aura.fader.current.grouping is grouping and session.n == 8
+    assert session.t > t
 
 
-def test_a_pattern_change_starts_the_new_pattern_at_its_defaults():
-    session = Session(RecordingSink(), pattern="sparkle", fps=FPS)
-    session.set("color", {"h": 10, "s": 1, "v": 1})
-    session._loop.run(frames=1)
-    session.pattern("wave")
-    session._loop.run(frames=1)
-    assert session.renderer.params.snapshot_json() == ParamSet(gallery()["wave"]).snapshot_json()
-    assert session.t > 0  # the new renderer took up the engine time
+def test_a_bind_the_look_cannot_run_on_is_refused_and_the_old_map_stays():
+    sink = RecordingSink()
+    session = stepped(sink)
+    strip = np.column_stack([np.linspace(0, 1, 8), np.zeros(8), np.zeros(8)]).astype(np.float32)
+    session.bind(strip, catalog_digest="d", issues=[], limiter=None)  # tide folds a plane: a strip has none
+    session._loop.run(frames=2)
+    assert sink.controls[-1]["type"] == "refused" and sink.controls[-1]["control"] == "bind"
+    assert session.n == 256 and len(sink.frames[-1].data) == 8 + 3 * 256
 
 
-def test_the_session_streams_the_capped_frame_and_both_power_readings():
-    class Sink(RecordingSink):
-        def __init__(self):
-            super().__init__()
-            self.frames, self.powers = [], []
-
-        def frame(self, payload):
-            self.frames.append(payload.data)
-
-        def power(self, watts, uncapped_watts):
-            self.powers.append((watts, uncapped_watts))
-
+def test_the_cap_runs_after_the_master_and_streams_both_power_readings():
     class Halve:
         cap = PowerCap(max_brightness=0.5)
 
@@ -580,22 +591,21 @@ def test_the_session_streams_the_capped_frame_and_both_power_readings():
             self.seen.append(frame.copy())
             return Limited(frame * np.float32(0.5), 0.5, 1.0, 2.0)
 
-    sink, halve = Sink(), Halve()
-    session = Session(sink, pattern="plasma", fps=POWER_HZ)  # a power reading every frame
-    session._loop._sleep = lambda s: None
-    session.bind(line(8), catalog_digest="d", issues=[], limiter=cast(PowerLimiter, halve))
+    sink, halve = RecordingSink(), Halve()
+    session = stepped(sink, fps=POWER_HZ)  # a power reading every frame
+    session.bind(plane(8), catalog_digest="d", issues=[], limiter=cast(PowerLimiter, halve))
     session._loop.run(frames=2)
-    # No master and no other stage: the limiter runs in on_frame, after the render.
-    assert session._loop._after == ()
-    assert sink.frames[-1][8:] == to_display_u8(halve.seen[-1] * np.float32(0.5)).tobytes()
+    assert session._loop._after == (session._aura.master.apply, session._limit)
+    assert sink.frames[-1].data[8:] == to_display_u8(halve.seen[-1] * np.float32(0.5)).tobytes()
     assert sink.powers[-1] == (1.0, 2.0)
+    assert session.control.master(0.0) is None
+    session._loop.run(frames=1)
+    assert not halve.seen[-1].any()  # the limiter gets the frame at the master's level
 
 
 def test_a_failed_frame_is_dropped_and_the_cap_stays_bound():
     class Flaky(RecordingSink):
-        def __init__(self):
-            super().__init__()
-            self.frames, self.failed = [], False
+        failed = False
 
         def frame(self, payload):
             if not self.failed:
@@ -604,9 +614,8 @@ def test_a_failed_frame_is_dropped_and_the_cap_stays_bound():
             self.frames.append(payload.data)
 
     sink = Flaky()
-    session = Session(sink, pattern="plasma", fps=FPS)
-    session._loop._sleep = lambda s: None
-    session.bind(line(8), catalog_digest="d", issues=[], limiter=PowerLimiter(PowerCap(max_brightness=0.0)))
+    session = stepped(sink)
+    session.bind(plane(8), catalog_digest="d", issues=[], limiter=PowerLimiter(PowerCap(max_brightness=0.0)))
     session._loop.run(frames=3)
     assert sink.failed and len(sink.frames) == 2
     assert all(not any(data[8:]) for data in sink.frames)  # still black: the cap held
@@ -624,104 +633,55 @@ def test_an_uncapped_limiter_runs_only_when_a_reading_is_due():
             return Limited(frame, 1.0, 1.0, 1.0)
 
     counting = Counting()
-    session = Session(RecordingSink(), pattern="plasma", fps=FPS)
-    session._loop._sleep = lambda s: None
-    session.bind(line(8), catalog_digest="d", issues=[], limiter=cast(PowerLimiter, counting))
+    session = stepped(RecordingSink())
+    session.bind(plane(8), catalog_digest="d", issues=[], limiter=cast(PowerLimiter, counting))
     session._loop.run(frames=3 * session._power_every)
     assert counting.calls == 3
 
 
-def test_a_pattern_change_drops_sets_checked_against_the_old_pattern():
-    session = Session(RecordingSink(), pattern="plasma", fps=FPS)
-    knob = session.hello()[0]["params"][0]
-    session.set(knob["name"], knob["hi"])
-    other = next(n for n in sorted(gallery()) if n != "plasma")
-    session.pattern(other)
-    session.pattern("plasma")
-    session._loop.run(frames=1)
-    assert session.renderer.params[knob["name"]] == knob["default"]
+def test_frames_carry_the_previews_states_in_its_wire_text():
+    sink = RecordingSink()
+    session = stepped(sink, seed=3)
+    session._loop.run(frames=2)
+    control = session.control
+    texts = dict(zip(["status", "declare", "params", "mod", "aura", "health", "catalog"], sink.frames[-1].texts))
+    assert texts["status"] == message("status", status_state(None))
+    assert texts["declare"] == message("declare", control.describe())
+    assert texts["params"] == message("params", control.values())
+    assert texts["aura"] == message("aura", control.state())
+    assert texts["catalog"] == message("catalog", control.catalog())
+    assert texts["health"] is None  # a session has no health monitor
+    assert json.loads(texts["aura"])["master"] == START_LOOK.master  # the start look's master
 
 
-def test_hello_carries_specs_and_values_and_status_has_the_preview_shape(client):
+def test_two_sessions_with_one_seed_stream_the_same_frames():
+    """Engine time comes from the slots, and every seed is injected: same inputs, same bytes."""
+    a, b = RecordingSink(), RecordingSink()
+    for sink in (a, b):
+        stepped(sink, seed=5)._loop.run(frames=6)
+    assert [f.data[8:] for f in a.frames] == [f.data[8:] for f in b.frames]
+    assert any(f.data[8:] != a.frames[0].data[8:] for f in a.frames)  # and the look moves
+
+
+def test_the_session_sends_the_status_and_each_state_after_the_hello(client):
     with client.websocket_connect("/ws/session") as ws:
-        hello = json.loads(ws.receive_text())
-        params = ParamSet(gallery()[hello["pattern"]])
-        assert hello["params"] == params.describe() and hello["values"] == params.snapshot_json()
+        ws.receive_text()
         status = read_until(ws, is_type("status"))
         assert status == {"type": "status", "error": None, "source": None, "path": None}
-
-
-def test_every_param_kind_is_parsed_by_its_own_kind_and_set_on_the_loop(monkeypatch):
-    import pewpew.studio.session as session_module
-    from params_zoo import Zoo
-
-    monkeypatch.setattr(session_module, "gallery", lambda: {"zoo": Zoo})
-    session = Session(RecordingSink(), fps=FPS)
-    for name, value in [("level", 0.25), ("bands", 4), ("invert", True), ("shape", "steps")]:
-        assert session.set(name, value) is None
-    assert session.set("color", {"h": 30, "s": 1, "v": 0.5}) is None
-    stops = [{"at": 0, "h": 0, "s": 1, "v": 1}, {"at": 1, "h": 240, "s": 1, "v": 1}]
-    assert session.set("palette", {"stops": stops}) is None
-    assert "takes a whole number" in (session.set("bands", 2.5) or "")
-    assert "one of" in (session.set("shape", "stripes") or "")
-    assert session.set("invert", 1) is not None
-    assert "must be 0.0" in (session.set("palette", {"stops": [{**stops[0], "at": 0.5}, stops[1]]}) or "")
-    assert "unknown preset" in (session.set("palette", "nosuch") or "")
-    session._loop.run(frames=1)
-    assert session.renderer.params.snapshot_json() == {
-        "level": 0.25, "bands": 4, "invert": True, "shape": "steps", "color": {"h": 30.0, "s": 1.0, "v": 0.5},
-        "palette": {"label": "", "stops": [{"at": 0.0, "h": 0.0, "s": 1.0, "v": 1.0},
-                                           {"at": 1.0, "h": 240.0, "s": 1.0, "v": 1.0}]},
-    }
-    assert json.loads(session.echo().params)["values"]["shape"] == "steps"
-    # A preset is set by its label, and its stops come back in the JSON form.
-    assert session.set("palette", "ocean") is None
-    session._loop.run(frames=1)
-    assert session.renderer.params.snapshot_json()["palette"] == Zoo.palette.to_json(Zoo.palette.presets["ocean"])
+        for kind in ("declare", "params", "aura", "catalog"):
+            read_until(ws, is_type(kind))
 
 
 def test_a_typed_set_over_the_socket_is_echoed_in_its_json_form(client):
+    name = "layers.sparks.glint.palette"
+    stops = [{"at": 0, "h": 0, "s": 1, "v": 1}, {"at": 1, "h": 240, "s": 1, "v": 1}]
     with client.websocket_connect("/ws/session") as ws:
         ws.receive_text()
-        ws.send_text(json.dumps({"type": "pattern", "name": "pulse"}))
-        assert read_until(ws, is_type("hello"))["pattern"] == "pulse"
-        ws.send_text(json.dumps({"type": "set", "name": "color", "value": {"h": 30, "s": 1, "v": 1}}))
-        read_until(ws, lambda m: is_type("params")(m) and m["values"]["color"] == {"h": 30.0, "s": 1.0, "v": 1.0})
-        ws.send_text(json.dumps({"type": "set", "name": "color", "value": 3}))
+        ws.send_text(json.dumps({"type": "set", "name": name, "value": {"stops": stops}}))
+        read_until(ws, lambda m: is_type("params")(m) and m["values"][name]["stops"][1]["h"] == 240.0)
+        ws.send_text(json.dumps({"type": "set", "name": name, "value": 3}))
         refused = read_until(ws, is_type("refused"))
-        assert (refused["control"], refused["name"]) == ("set", "color")
-
-
-class ByX(Pattern):
-    """Grey by x: per fixture, every pixel of a fixture takes its centre's x."""
-
-    units = "fixture"
-
-    def render(self, x, y, z, index):
-        return np.stack([x, x, x], axis=1)
-
-
-def test_a_bind_with_fixtures_renders_a_per_fixture_pattern_one_colour_per_fixture(monkeypatch):
-    import pewpew.studio.session as session_module
-
-    class Sink(RecordingSink):
-        def __init__(self):
-            super().__init__()
-            self.frames = []
-
-        def frame(self, payload):
-            self.frames.append(payload.data)
-
-    monkeypatch.setattr(session_module, "gallery", lambda: {"byx": ByX})
-    sink = Sink()
-    session = Session(sink, fps=FPS)
-    session._loop._sleep = lambda s: None
-    grouping = Grouping(np.array([[0.25, 0.0, 0.0], [0.75, 0.0, 0.0]], np.float32), np.repeat([0, 1], 4))
-    session.bind(line(8), grouping=grouping, catalog_digest="d", issues=[], limiter=None)
-    session._loop.run(frames=2)
-    shown = np.frombuffer(sink.frames[-1][8:], np.uint8).reshape(8, 3)
-    expected = to_display_u8(np.repeat(np.array([[0.25] * 3, [0.75] * 3], np.float32), 4, axis=0))
-    assert (shown == expected).all()
+        assert (refused["control"], refused["name"]) == ("set", name)
 
 
 def test_the_real_rig_binds_one_unit_per_fixture():
@@ -1074,18 +1034,19 @@ def test_a_hello_drops_the_frame_queued_before_it():
         async def send_bytes(self, data):
             self.sent.append(data)
 
-    old = [{"name": "speed", "kind": "float", "lo": 0, "hi": 1, "default": 0.5}]
-    new = [{"name": "scale", "kind": "float", "lo": 0, "hi": 1, "default": 0.5}]
-
-    def echo(declared):
-        return Echo(message("declare", declared), message("params", {p["name"]: p["default"] for p in declared}))
+    status = message("status", status_state(None))
+    declare = message("declare", [{"name": "layers.base.osc.freq", "kind": "float"}])
 
     async def scenario():
         box = Outbox(asyncio.get_running_loop())
         ws = Recorder()
-        box.frame(FramePayload(b"OLD", message("status", status_state(None)), echo(old)))
-        box.control({"type": "hello", "params": new}, echo(new))
         pump = asyncio.ensure_future(box.pump(cast(Any, ws)))
+        box.frame(FramePayload(b"ONE", (status, declare)))
+        await asyncio.sleep(0.01)
+        box.frame(FramePayload(b"OLD", (status, declare)))
+        box.hello({"type": "hello", "n": 2})
+        await asyncio.sleep(0.01)
+        box.frame(FramePayload(b"NEW", (status, declare)))
         await asyncio.sleep(0.01)
         box.close_with({"type": "bye"})
         await asyncio.wait_for(pump, 1)
@@ -1093,23 +1054,21 @@ def test_a_hello_drops_the_frame_queued_before_it():
 
     sent = asyncio.run(scenario())
     assert b"OLD" not in sent
-    assert [m["type"] for m in sent] == ["hello", "bye"]
+    kinds = [m if isinstance(m, bytes) else m["type"] for m in sent]
+    # Each state goes again after the hello, though its text has not changed.
+    assert kinds == [b"ONE", "status", "declare", "hello", b"NEW", "status", "declare", "bye"]
 
 
 # -- unexpected input (finding 11) -------------------------------------------------------
 
 
-def test_param_check_refuses_an_integer_too_large_for_a_float():
-    params = ParamSet(gallery()["plasma"])
-    name = params.describe()[0]["name"]
-    assert "finite" in (params.check(name, 10**400) or "")
-
-
 def test_a_huge_integer_set_is_refused_and_the_socket_stays_open(client):
     with client.websocket_connect("/ws/session") as ws:
-        knob = json.loads(ws.receive_text())["params"][0]
+        ws.receive_text()
+        knob = first_knob(ws)
         ws.send_text(f'{{"type":"set","name":"{knob["name"]}","value":{"9" * 400}}}')
-        assert read_until(ws, is_type("refused"))["name"] == knob["name"]
+        refused = read_until(ws, is_type("refused"))
+        assert refused["name"] == knob["name"] and "finite" in refused["reason"]
         read_until(ws, is_frame)
 
 

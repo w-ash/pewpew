@@ -740,6 +740,14 @@ series (batch mode).
 
 ### Changed
 
+- The studio runs the aura (ADR-025): each session builds the pipeline
+  `run` builds (`pewpew.aura.pipeline.build_aura_pipeline`), starts in
+  `examples/tide.look.json`'s look, takes every aura request
+  (`set` by knob address, `look`, `surprise`, ...) with the preview's
+  `ack` and `refused` answers, and streams the preview's per-frame
+  messages (`declare`, `params`, `mod`, `aura`, `catalog`). `bind`, `pause`
+  and `resume` stay; the `pattern` message and `GET /api/patterns` are
+  gone, and `GET /api/looks` lists the example looks.
 - `examples/tide.look.json` and `examples/mcp-ember.look.json` draw their
   sparks with `particles` and an `ember` palette, not the `sparkle` pattern.
 - The engine package is now `pewpew.aura`, and `run --unattended` replaces

@@ -4,7 +4,12 @@ The session thread posts through `loop.call_soon_threadsafe`. Frames and power
 readings keep only the newest value, so a slow client loses frames and never
 queues them. Discrete messages (hello, bound, refused) keep their order; their
 queue is bounded, and overflow closes the socket. A hello drops the pending
-frame, because that frame predates it.
+frame, because that frame predates it, and every per-frame message goes
+again after it.
+
+Beside each frame the pump sends each per-frame message whose text has
+changed since this client last got it, as the preview does
+(`pewpew.sinks.preview.changed_texts`).
 """
 
 from __future__ import annotations
@@ -15,7 +20,8 @@ from collections import deque
 
 from fastapi import WebSocket
 
-from pewpew.studio.session import Echo, FramePayload
+from pewpew.sinks.preview import changed_texts
+from pewpew.studio.session import FramePayload
 
 MAX_CONTROL_BACKLOG = 256
 
@@ -26,7 +32,8 @@ class Outbox:
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
         self._event = asyncio.Event()
-        self._control: deque[tuple[dict, Echo | None]] = deque()
+        # Each message, and whether it is a hello.
+        self._control: deque[tuple[dict, bool]] = deque()
         self._frame: FramePayload | None = None
         self._power: tuple[float, float] | None = None
         self._dead = False
@@ -44,8 +51,11 @@ class Outbox:
     def frame(self, payload: FramePayload) -> None:
         self._post(self._put_frame, payload)
 
-    def control(self, message: dict, seen: Echo | None = None) -> None:
-        self._post(self._put_control, message, seen)
+    def hello(self, message: dict) -> None:
+        self._post(self._put_control, message, True)
+
+    def control(self, message: dict) -> None:
+        self._post(self._put_control, message, False)
 
     def power(self, watts: float, uncapped_watts: float) -> None:
         self._post(self._put_power, (watts, uncapped_watts))
@@ -65,17 +75,17 @@ class Outbox:
         self._frame = payload
         self._event.set()
 
-    def _put_control(self, message: dict, seen: Echo | None) -> None:
+    def _put_control(self, message: dict, hello: bool) -> None:
         if len(self._control) >= MAX_CONTROL_BACKLOG:
             self.overflow = True
         else:
-            self._control.append((message, seen))
-            if seen is not None:
+            self._control.append((message, hello))
+            if hello:
                 self._frame = None
         self._event.set()
 
     def _put_close(self, message: dict) -> None:
-        self._control.append((message, None))
+        self._control.append((message, False))
         self._closing = True
         self._event.set()
 
@@ -89,21 +99,19 @@ class Outbox:
 
     async def pump(self, ws: WebSocket) -> None:
         """Send until the session dies, the backlog overflows or `close_with`
-        is called. Status, declarations and values go out only on a change,
-        as in the preview."""
-        last_status: str | None = None
-        last_params: str | None = None
-        last_declare: str | None = None
+        is called. Each per-frame message goes out only on a change, as in
+        the preview."""
+        last: dict[str, str | None] = {}
         while True:
             await self._event.wait()
             self._event.clear()
             if self.overflow or self._dead:
                 return
             while self._control:
-                message, seen = self._control.popleft()
+                message, hello = self._control.popleft()
                 await ws.send_text(json.dumps(message))
-                if seen is not None:  # a hello already carries these
-                    last_declare, last_params = seen.declare, seen.params
+                if hello:
+                    last.clear()
             if self._closing:
                 return
             if self._power is not None:
@@ -113,14 +121,5 @@ class Outbox:
             if payload is None:
                 continue
             await ws.send_bytes(payload.data)
-            if payload.status != last_status:
-                last_status = payload.status
-                await ws.send_text(payload.status)
-            if payload.echo.declare != last_declare:
-                last_declare = payload.echo.declare
-                # New controls, built empty: the values follow even when unchanged.
-                last_params = None
-                await ws.send_text(payload.echo.declare)
-            if payload.echo.params != last_params:
-                last_params = payload.echo.params
-                await ws.send_text(payload.echo.params)
+            for text in changed_texts(payload.texts, last):
+                await ws.send_text(text)

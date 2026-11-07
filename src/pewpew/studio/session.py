@@ -1,90 +1,88 @@
-"""One visitor's renderer: a `Renderer` under a `PacedLoop` on its own thread.
+"""One visitor's aura: the aura pipeline under a `PacedLoop` on its own thread.
 
-Every change to the renderer runs on the loop thread between frames, through
-`PacedLoop.calls`. Changes are coalesced, not queued: one slot for a bind,
-one for a pattern and one value per param, applied by at most one queued
-closure. A paused session therefore holds a bounded amount of pending work.
-A closure that raises would end `run()`, so the apply step contains its own
-failures.
+A session builds what `python -m pewpew run` builds (ADR-025,
+`pewpew.aura.pipeline`), with no looks file and no boards, and it takes
+whole looks (`accept_looks`). It starts in a look given whole (the studio
+starts every session in an example look), each layer resolved as a look
+recall resolves one (`pewpew.aura.deck.ready_layer`). Every request a
+visitor sends goes to the pipeline's `AuraControl`, which refuses what
+needs a looks file or boards; the session adds only `bind`, `pause` and
+`resume`.
 
-A param value is parsed by the running pattern's `ParamSet` on the caller's
-thread, so each kind (float, int, bool, choice, color, palette) refuses and
-coerces its own values, and set on the loop thread. A pattern change starts
-the new pattern fresh, at its defaults, as the preview's pick does
-(`pewpew.aura.deck.Deck.put`): the loop's source is a `Crossfader`, cut to
-a renderer spawned on the same geometry and engine time. A bind rebinds to the rig's
-mapping with one unit per fixture, so a per-fixture pattern lights each bar
-as one.
+A bind is coalesced, not queued: one slot, applied by at most one queued
+closure on the loop thread, so a paused session holds a bounded amount of
+pending work. It rebinds the crossfader to the rig's mapping and fixture
+grouping; engine time continues.
 
-Each frame passes the bound rig's `PowerLimiter` before it is quantized, so
-the stream carries the capped light (architecture §2 stage 3). A session has
-no master dimmer, so the limiter is its only stage.
+Each frame passes the master, then the bound rig's `PowerLimiter`, an
+`after` stage, before it is quantized, so the stream carries the capped
+light (architecture §2 stage 3). Beside each frame go the current text of
+every per-frame message the preview sends (`pewpew.sinks.preview.StateTexts`):
+the status, the knobs, their values, the driven knobs' live values, the
+aura state and the catalog. The `mod` values are read at most
+`MOD_HZ` times a second of engine time.
 
-The text messages are the preview's own wire text (`pewpew.sinks.preview.message`
-and `refusal`).
-
-The session never touches asyncio. It reports through a `SessionSink`, whose
-methods run on the loop thread and must not block.
+The session never touches asyncio. It reports through a `SessionSink`,
+whose methods run on the loop thread (or, for an answer, the thread that
+asked) and must not block.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-import struct
 import threading
 import time
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
 
-from pewpew.crossfade import Crossfader
-from pewpew.load import gallery
-from pewpew.mapping import Grouping, line
-from pewpew.pace import PacedLoop
-from pewpew.params import ParamSet
+from pewpew.aura.book import VERSION, parse_looks
+from pewpew.aura.control import AuraControl
+from pewpew.aura.deck import ready_layer
+from pewpew.aura.pipeline import build_aura_pipeline
+from pewpew.compose import Look
+from pewpew.load import Catalog
+from pewpew.mapping import Grouping, grid
 from pewpew.power import PowerLimiter
-from pewpew.render import Renderer
 from pewpew.sinks.base import to_display_u8
-from pewpew.sinks.preview import message, refusal, status_state
+from pewpew.sinks.preview import FRAME_HEADER, StateTexts, refusal
 
 logger = logging.getLogger(__name__)
 
 FPS = 30.0
 POWER_HZ = 2.0
-DEFAULT_PATTERNS = ("rainbow", "plasma")
+START = "tide"  # the example look every session starts in
 
 
-def default_pattern(available: dict[str, type]) -> str:
-    for name in DEFAULT_PATTERNS:
-        if name in available:
-            return name
-    return min(available)
+def example_looks(folder: Path) -> dict[str, dict]:
+    """The current look of each example looks file in `folder`
+    (`*.look.json`), in the looks file's form, by the file's name."""
+    looks = {}
+    for path in sorted(folder.glob("*.look.json")):
+        data = json.loads(path.read_bytes())
+        looks[path.name.removesuffix(".look.json")] = data["looks"][data["current"]]
+    return looks
 
 
-@dataclass(frozen=True)
-class Echo:
-    """The wire text of the `declare` and `params` messages for one moment."""
-
-    declare: str
-    params: str
-
-
-def _echo(declared: list[dict], values: dict) -> Echo:
-    return Echo(message("declare", declared), message("params", values))
+def as_look(doc: dict) -> Look:
+    """`doc`, one look in the looks file's form, as a `Look`. Raises
+    LookError for a look the looks file's loader refuses."""
+    return parse_looks(json.dumps({"version": VERSION, "looks": {"look": doc}})).looks["look"]
 
 
 @dataclass(frozen=True)
 class FramePayload:
     """One frame plus the absolute state beside it, as in the preview sink:
     whichever payload survives the one-slot mailbox holds the latest truth.
-    `status` is the `status` message's wire text."""
+    `texts` is the current text of each per-frame message, in the
+    preview's order (`StateTexts`)."""
 
     data: bytes
-    status: str
-    echo: Echo
+    texts: tuple[str | None, ...]
 
 
 @dataclass(frozen=True)
@@ -99,9 +97,12 @@ class _Bind:
 class SessionSink(Protocol):
     def frame(self, payload: FramePayload) -> None: ...
 
-    def control(self, message: dict, seen: Echo | None = None) -> None:
-        """A discrete text message. `seen` accompanies a `hello`: the echo
-        it already carries, so the transport can skip repeating it."""
+    def hello(self, message: dict) -> None:
+        """The `hello` message: every per-frame message follows it again."""
+        ...
+
+    def control(self, message: dict) -> None:
+        """A discrete text message."""
         ...
 
     def power(self, watts: float, uncapped_watts: float) -> None:
@@ -115,33 +116,30 @@ class SessionSink(Protocol):
 
 class Session:
     def __init__(
-        self,
-        sink: SessionSink,
-        *,
-        pattern: str | None = None,
-        fps: float = FPS,
-        mapping: np.ndarray | None = None,
+        self, sink: SessionSink, look: Look, *, fps: float = FPS, mapping: np.ndarray | None = None, seed: int = 0,
     ) -> None:
-        self._patterns = gallery()
+        """A session that starts in `look` on `mapping` (default a 16 x 16
+        grid, which every example look renders on), its made looks seeded
+        from `seed`. Raises as `Compositor` does for a look it cannot start."""
+        catalog = Catalog(None)
+        self._aura = build_aura_pipeline(
+            look, [ready_layer(layer, catalog.resolve, catalog.names) for layer in look.layers],
+            grid(16, 16) if mapping is None else mapping, catalog=catalog, seed=seed, accept_looks=True,
+        )
+        if look.master is not None:
+            self._aura.master.set(look.master)
         self._sink = sink
         self._fps = fps
-        name = pattern or default_pattern(self._patterns)
-        self._pattern_name = name
-        # The bound geometry, kept for a rebind that has to be undone.
-        self._mapping = line(64) if mapping is None else mapping
-        self._grouping: Grouping | None = None
-        self._fader: Crossfader[Renderer] = Crossfader(Renderer(self._patterns[name](), self._mapping))
-        self._loop = PacedLoop(self._fader, fps=fps, on_frame=[self._on_frame])
+        self._texts = StateTexts(self._aura.control, now=lambda: self._aura.fader.t)
+        self._loop = self._aura.loop(fps, after=[self._limit], on_frame=[self._on_frame])
         self._seq = 0
         self._limiter: PowerLimiter | None = None
+        # The power reading of the frame `_limit` capped last, when one was due.
+        self._reading: tuple[float, float] | None = None
         self._logged: set[type] = set()
         self._power_every = max(1, round(fps / POWER_HZ))
         self._lock = threading.Lock()
         self._next_bind: _Bind | None = None
-        self._next_pattern: str | None = None
-        # Each value with the ParamSet it was parsed against.
-        self._next_sets: dict[str, tuple[ParamSet, object]] = {}
-        self._apply_queued = False
         self._paused_since: float | None = None
         self._want_run = threading.Event()
         self._closed = threading.Event()
@@ -154,7 +152,9 @@ class Session:
         self._thread.start()
 
     def pause(self) -> None:
-        """Stop rendering until `resume`; engine time is kept."""
+        """Stop rendering until `resume`; engine time is kept. A request
+        that waits for the loop thread waits until it resumes, or is
+        answered late."""
         if self._paused_since is None:
             self._paused_since = time.monotonic()
         self._want_run.clear()
@@ -176,9 +176,11 @@ class Session:
         return self._paused_since
 
     def close(self, join: bool = False, timeout: float = 2.0) -> None:
+        """Stop the loop for good, and answer every request that waits for it."""
         self._closed.set()
         self._want_run.set()
         self._loop.stop()
+        self._aura.calls.close()
         if join and self._thread.is_alive():
             self._thread.join(timeout)
 
@@ -201,92 +203,65 @@ class Session:
 
     # -- messages out ------------------------------------------------------
 
-    def hello(self) -> tuple[dict, Echo]:
-        """The `hello` message, with the running pattern's declarations
-        (`spec()` each) and values (`snapshot_json()`), and its echo."""
-        params = self._fader.current.params
-        declared, values = params.describe(), params.snapshot_json()
-        return {
-            "type": "hello",
-            "n": self._fader.current.n,
-            "fps": self._fps,
-            "patterns": sorted(self._patterns),
-            "pattern": self._pattern_name,
-            "params": declared,
-            "values": values,
-        }, _echo(declared, values)
+    def hello(self) -> dict[str, Any]:
+        """The `hello` message: the pixel count, the frame rate and what a
+        client may rely on (the preview's `capabilities`)."""
+        return {"type": "hello", "n": self.n, "fps": self._fps,
+                "capabilities": ["ack", *self._aura.control.capabilities]}
 
-    def echo(self) -> Echo:
-        """The current `declare` and `params` wire text."""
-        params = self._fader.current.params
-        return _echo(params.describe(), params.snapshot_json())
+    def _status(self) -> tuple[str, str, str | None] | None:
+        """The render error and the address of the part that raised, or None."""
+        error = self._aura.fader.error
+        return None if error is None else ("render", str(error), error.path)
 
-    def status(self) -> str:
-        """The current `status` wire text: the render error and the address
-        of the part that raised, or none."""
-        error = self._fader.error
-        return message("status", status_state(None if error is None else ("render", str(error), error.path)))
-
-    def _send_hello(self) -> None:
-        hello, seen = self.hello()
-        self._sink.control(hello, seen)
+    def _limit(self, t: float, frame: np.ndarray) -> np.ndarray:
+        """The `after` stage behind the master: the frame under the bound
+        rig's cap, keeping the power reading when one is due. An uncapped
+        limiter runs only then. Never raises: a frame the limiter refuses
+        goes out black, never uncapped."""
+        self._reading = None
+        limiter = self._limiter
+        due = (self._seq + 1) % self._power_every == 0
+        if limiter is None or not (limiter.cap.caps or due):
+            return frame
+        try:
+            limited = limiter(frame)
+        except Exception as exc:
+            if self._first(exc):
+                logger.exception("the power limit refused a frame; it goes out black")
+            return np.zeros(frame.shape, dtype=np.float32)
+        if due and limited.watts is not None and limited.uncapped_watts is not None:
+            self._reading = (limited.watts, limited.uncapped_watts)
+        return limited.frame
 
     def _on_frame(self, t: float, frame: np.ndarray) -> None:
-        """Loop thread. Must not raise or block.
-
-        A frame that fails is dropped and the limiter stays bound, so a
-        failure never streams uncapped light. An uncapped limiter runs only
-        when a power reading is due.
-        """
+        """Loop thread. Must not raise or block: a frame that fails is
+        dropped."""
+        self._seq = (self._seq + 1) & 0xFFFFFFFF
         try:
-            seq = (self._seq + 1) & 0xFFFFFFFF
-            due = seq % self._power_every == 0
-            limiter = self._limiter
-            limited = None
-            if limiter is not None and (limiter.cap.caps or due):
-                limited = limiter(frame)
-                frame = limited.frame
-            self._seq = seq
-            data = struct.pack("<fI", t, self._seq) + to_display_u8(frame).tobytes()
-            self._sink.frame(FramePayload(data, self.status(), self.echo()))
-            if due and limited is not None and limited.watts is not None and limited.uncapped_watts is not None:
-                self._sink.power(limited.watts, limited.uncapped_watts)
+            data = FRAME_HEADER.pack(t, self._seq) + to_display_u8(frame).tobytes()
+            self._sink.frame(FramePayload(data, self._texts(self._status())))
+            if self._reading is not None:
+                self._sink.power(*self._reading)
         except Exception as exc:
-            if type(exc) not in self._logged:  # the first of each kind; one per frame would flood
-                self._logged.add(type(exc))
+            if self._first(exc):
                 logger.exception("dropped a frame")
+
+    def _first(self, exc: Exception) -> bool:
+        """Whether `exc` is the first of its kind, the only one logged: one
+        a frame would flood the log."""
+        first = type(exc) not in self._logged
+        self._logged.add(type(exc))
+        return first
 
     # -- messages in (any thread) -------------------------------------------
 
-    def set(self, name: object, value: object) -> str | None:
-        """Ask for a param change, native or JSON. Returns the refusal
-        reason, or None.
-
-        The param's kind parses the value here, on the caller's thread. A
-        later set of the same param replaces a pending one."""
-        if not isinstance(name, str):
-            return f"set takes a param name, got {name!r}"
-        params = self._fader.current.params
-        parsed, reason = params.parse(name, value)
-        if reason is not None:
-            return reason  # network-safe wording; `hint` names a file, so it stays out
-        with self._pending():
-            self._next_sets[name] = (params, parsed)
-        return None
-
-    def pattern(self, name: object) -> str | None:
-        """Ask for a gallery pattern, fresh at its defaults. Returns the
-        refusal reason, or None.
-
-        Pending sets are dropped: they were checked against the pattern that
-        the new one replaces."""
-        key = name.lower() if isinstance(name, str) else None
-        if key not in self._patterns:
-            return f"unknown pattern; available: {', '.join(sorted(self._patterns))}"
-        with self._pending():
-            self._next_pattern = key
-            self._next_sets.clear()
-        return None
+    @property
+    def control(self) -> AuraControl:
+        """The aura's controls: every request but `bind`, `pause` and
+        `resume` goes here. Its requests may block until the loop thread
+        answers, so call them off the event loop."""
+        return self._aura.control
 
     def bind(
         self,
@@ -303,90 +278,40 @@ class Session:
         `limiter` caps the rig's frames and estimates their power; None
         streams them uncapped with no power messages. A later bind replaces
         a pending one."""
-        with self._pending():
+        with self._lock:
+            queue = self._next_bind is None
             self._next_bind = _Bind(mapping, grouping, catalog_digest, issues, limiter)
-
-    @contextmanager
-    def _pending(self) -> Iterator[None]:
-        """Change the pending slots under the lock, then queue the apply
-        closure unless one is already queued."""
-        with self._lock:
-            yield
-            queue = not self._apply_queued
-            self._apply_queued = True
         if queue:
-            self._loop.calls.call_soon(self._apply_pending)
+            self._aura.calls.call_soon(self._apply_bind)
 
-    # -- the apply step (loop thread) ----------------------------------------
-
-    def _apply_pending(self) -> None:
+    def _apply_bind(self) -> None:
+        """Loop thread. A bind the look cannot run on is refused, and the
+        old mapping stays bound."""
         with self._lock:
-            bind, pattern, sets = self._next_bind, self._next_pattern, self._next_sets
-            self._next_bind, self._next_pattern, self._next_sets = None, None, {}
-            self._apply_queued = False
-        changed = False
-        if bind is not None:
-            changed |= self._apply_bind(bind)
-        if pattern is not None:
-            changed |= self._apply_pattern(pattern)
-        for name, (params, value) in sets.items():
-            self._apply_set(params, name, value)
-        if changed:
-            self._send_hello()
-
-    def _apply_set(self, params: ParamSet, name: str, value: object) -> None:
-        """Set a value that passed `parse` against `params` on another
-        thread. Never raises: a pattern change in between runs other params
-        by now, and that must not end the session, so the set is dropped."""
-        if params is not self._fader.current.params:
-            logger.warning("dropped a live set of %r: the pattern it was for no longer runs", name)
+            bind, self._next_bind = self._next_bind, None
+        if bind is None:
             return
+        fader = self._aura.fader
+        old = fader.current.mapping, fader.current.grouping
         try:
-            params.set(name, value)
-        except ValueError:
-            logger.warning("dropped a live set of %r to %r: the param no longer accepts it", name, value)
-
-    def _apply_bind(self, bind: _Bind) -> bool:
-        try:
-            self._fader.rebind(bind.mapping, bind.grouping)
+            fader.rebind(bind.mapping, bind.grouping)
         except Exception:
-            logger.exception("rebind failed")
-            self._fader.rebind(self._mapping, self._grouping)  # if this raises too, the loop ends
-            self._refuse("bind", "the pattern could not start on this arrangement")
-            return False
-        self._mapping, self._grouping = bind.mapping, bind.grouping
+            logger.warning("rebind failed", exc_info=True)
+            fader.rebind(*old)  # if this raises too, the loop ends
+            self._sink.control(refusal("bind", "the look could not start on this arrangement"))
+            return
         self._limiter = bind.limiter
-        self._sink.control(
-            {"type": "bound", "n": self._fader.current.n, "catalog_digest": bind.catalog_digest, "issues": bind.issues}
-        )
-        return True
-
-    def _apply_pattern(self, key: str) -> bool:
-        try:
-            self._fader.cut(self._fader.current.spawn(self._patterns[key]()))
-        except Exception:
-            logger.exception("pattern %s failed to start", key)
-            self._refuse("pattern", "that pattern could not start on this arrangement")
-            return False
-        self._pattern_name = key
-        return True
-
-    def _refuse(self, name: str, reason: str) -> None:
-        self._sink.control(refusal(name, reason))
-
-    @property
-    def renderer(self) -> Renderer:
-        """The running renderer. The loop thread owns it: read it from
-        another thread, never change it."""
-        return self._fader.current
+        self._sink.control({"type": "bound", "n": self.n, "catalog_digest": bind.catalog_digest,
+                            "issues": bind.issues})
+        self._sink.hello(self.hello())
 
     @property
     def n(self) -> int:
-        return self._fader.current.n
+        return len(self._aura.fader.current.mapping)
 
     @property
     def t(self) -> float:
-        return self._fader.current.t
+        return self._aura.fader.t
 
 
 class SessionRegistry:

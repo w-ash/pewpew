@@ -43,7 +43,7 @@ import itertools
 import logging
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future
-from typing import Any, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from pewpew.aura.book import check_name
 from pewpew.aura.deck import Deck
@@ -65,6 +65,9 @@ from pewpew.params import Int
 from pewpew.params.kinds import Parsed
 from pewpew.problems import Refused
 from pewpew.room.blink import Blink
+
+if TYPE_CHECKING:
+    from pewpew.sinks.base import Control
 
 logger = logging.getLogger(__name__)
 
@@ -635,6 +638,16 @@ class AuraControl:
             return answer
 
         return run
+
+
+def wire_states(control: Control, mod: dict) -> dict[str, Any]:
+    """The states a page draws each frame, by message type: `declare`,
+    `params`, `mod`, `aura`, `health` (None without a monitor) and
+    `catalog`. `mod` is the driven knobs' live values (`AuraControl.mod`),
+    which the caller reads at its own rate. The preview and the studio both
+    send these (`pewpew.sinks.preview.StateTexts`)."""
+    return {"declare": control.describe(), "params": control.values(), "mod": mod, "aura": control.state(),
+            "health": control.health(), "catalog": control.catalog()}
 
 
 def _id_base(doc: dict) -> str:

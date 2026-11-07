@@ -10,6 +10,10 @@
 !src
 !src/**
 
+# --- The example looks (runtime: `COPY examples/*.look.json`) ---
+!examples
+!examples/*.look.json
+
 # --- Frontend build inputs (node-builder does `COPY studio-web/ ./`) ---
 !studio-web
 !studio-web/**

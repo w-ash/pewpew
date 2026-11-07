@@ -72,13 +72,16 @@ RUN groupadd --gid 1000 pewpew && \
 # serves.
 COPY --from=python-builder /app/.venv /app/.venv
 COPY --from=node-builder /app/studio-web/dist /app/studio-web/dist/
+# The example looks: GET /api/looks lists them, and every session starts in one.
+COPY examples/*.look.json /app/examples/
 
-# The package is installed into .venv, so app.py's default studio-web/dist path (three
-# levels above the package file) points inside the venv. This override names
-# the copy above instead.
+# The package is installed into .venv, so app.py's default studio-web/dist and
+# examples paths (three levels above the package file) point inside the venv.
+# These overrides name the copies above instead.
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PEWPEW_STUDIO_WEB_DIST=/app/studio-web/dist
+    PEWPEW_STUDIO_WEB_DIST=/app/studio-web/dist \
+    PEWPEW_STUDIO_EXAMPLES=/app/examples
 
 USER pewpew
 # The one directory the runtime user can write. Without DATABASE_URL the CLI's
