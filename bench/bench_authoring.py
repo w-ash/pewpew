@@ -38,7 +38,7 @@ from authoring.plasma import Plasma
 from authoring.sdf3d import Sdf3d
 from authoring.surface import FakeFeatures, grid, lattice, line
 from bench.common import try_cmd
-from harness.clock import FakeClock
+from pewpew.testing.clock import FakeClock
 
 SEED = 42
 FPS = 60.0

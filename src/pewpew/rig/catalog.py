@@ -1,6 +1,6 @@
 """The catalog: validated, cross-checked entity data with a content digest.
 
-`load_catalog()` reads `data/<kind>/<id>.json`, one entity per file
+`load_catalog()` reads `catalog_entries/<kind>/<id>.json`, one entity per file
 (docs/studio/domain-model.md:25-35). Loading validates every file, resolves
 every reference and evaluates every expression, so a catalog that loads is
 one `compile_rig` can use without further checks. The result is cached per
@@ -44,7 +44,7 @@ from pewpew.rig.models import (
     value,
 )
 
-DATA_ROOT = Path(__file__).with_name("data")
+DATA_ROOT = Path(__file__).with_name("catalog_entries")
 HOST_PREFIX = "host:"
 
 _KIND_ORDER = {kind: i for i, kind in enumerate(KINDS)}

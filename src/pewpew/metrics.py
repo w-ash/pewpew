@@ -8,7 +8,7 @@ a second of frames, where the count is only a lower bound. `rms` compares
 two sequences; `LIVENESS_RMS` is how far an input must move one to count.
 
 Every number except `nonfinite` is taken from the frames as a sink shows
-them (`pewpew.sinks.base.sanitize`): NaN to 0, +inf to 1, clipped to
+them (`pewpew.sinks.sink.sanitize`): NaN to 0, +inf to 1, clipped to
 [0, 1]. Luma is WCAG relative luminance, Y = 0.2126 R + 0.7152 G +
 0.0722 B, on linear light. A sample is one pixel of one frame. A mean over
 no samples (no pixels, or one frame for a per-step number) is 0.
@@ -23,7 +23,7 @@ from numpy.typing import ArrayLike
 
 from pewpew.color import oklab
 from pewpew.render import check_frames
-from pewpew.sinks.base import sanitize
+from pewpew.sinks.sink import sanitize
 
 # WCAG 2.2 SC 2.3.1: no more than three flashes in any one second.
 FLASH_LIMIT = 3.0

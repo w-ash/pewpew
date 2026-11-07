@@ -23,7 +23,7 @@ Only screen clamps: its formula assumes a white ceiling of 1 and darkens
 above it (1.6 over 1.6 gives 0.64), so it reads both inputs clipped to
 [0, 1] (ADR-021). A stack clamps once, after its last layer
 (pewpew.compose); a frame that skips the blend goes out unclamped, and the
-sinks clip every frame to 0-1 (pewpew.sinks.base.sanitize).
+sinks clip every frame to 0-1 (pewpew.sinks.sink.sanitize).
 
 `LIGHTS_BLACK` holds the modes that show something over black: over an
 empty accumulator, multiply, min, subtract and highlight stay black.

@@ -117,7 +117,7 @@ stack the programs run in.
   and no alpha returns that layer's frame object as it is: no copy, no
   blend and no clamp. Its values outside [0, 1] reach the sinks, which
   sanitize every frame after the master (NaN to 0, then clipped to
-  [0, 1]; `pewpew.sinks.base.sanitize`), as they do for a lone pattern
+  [0, 1]; `pewpew.sinks.sink.sanitize`), as they do for a lone pattern
   today. A one-layer run therefore renders the bytes a bare `Renderer`
   renders.
 - **Derived seeds, every layer.** A layer's seed is the Python int
