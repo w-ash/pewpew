@@ -1,7 +1,7 @@
 import wire from "../../../tests/goldens/wire.json";
-import type { BoardHealth, HealthState } from "../../src/domain/health/health";
-import type { AuraState } from "../../src/domain/aura/aura";
-import type { Control, HelloMessage, ServerMessage } from "../../src/infra/wire/protocol";
+import type { BoardHealth, HealthState } from "../../src/health/health";
+import type { AuraState } from "../../src/aura/aura";
+import type { Control, HelloMessage, ServerMessage } from "../../src/wire/protocol";
 import { PATTERNS } from "./describe";
 
 type Message<T extends ServerMessage["type"]> = Extract<ServerMessage, { type: T }>;

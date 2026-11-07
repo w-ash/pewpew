@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import {
   argParts, blendsAbout, brings, fits, newLayer, newText, offReason, patternLabels, SHELVES, shelve, shortText, showsBlack, sourceLabels, summaryText, type Card,
-} from "../../src/domain/stack/catalog";
+} from "../../src/stack/catalog";
 import { first } from "../fixtures/messages";
 
 const { cards, blends } = first("catalog");

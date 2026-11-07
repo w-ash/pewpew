@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import {
   chainSaysMore, contextOf, depthOf, depthSign, frontFirst, isMix, isPattern, isSignal, layerOf, mixAddress, movedBy, moveTo, nodeAt, nodeOrder, ownerOf,
   pageCase, panelOf, pickedFront, routesInto, runs, sectionOf, signalKind, summaryOf, type SignalItem,
-} from "../../src/domain/stack/stack";
+} from "../../src/stack/stack";
 import catalog from "../../../tests/goldens/catalog.json";
 import { param } from "../fixtures/describe";
 

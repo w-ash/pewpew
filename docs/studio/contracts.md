@@ -132,7 +132,7 @@ as a method or function that takes a linear-light float frame.
 ## WebSocket `/ws/session` (ws3 owns)
 
 The `status`, `declare`, `params` and `refused` messages are the preview's
-(`src/pewpew/sinks/preview.py`, typed in `web/src/infra/wire/protocol.ts`); the session sends the
+(`src/pewpew/sinks/preview.py`, typed in `web/src/wire/protocol.ts`); the session sends the
 text `pewpew.sinks.preview.message` builds.
 
 - **Server to client, text:**

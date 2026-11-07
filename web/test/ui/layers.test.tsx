@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { AuraState } from "../../src/domain/aura/aura";
-import type { LayerItem } from "../../src/domain/stack/stack";
-import type { ClientMessage, ServerMessage } from "../../src/infra/wire/protocol";
+import type { AuraState } from "../../src/aura/aura";
+import type { LayerItem } from "../../src/stack/stack";
+import type { ClientMessage, ServerMessage } from "../../src/wire/protocol";
 import { App } from "../../src/app/App";
 import { first, refused, AURA } from "../fixtures/messages";
 import { pastDoubleTap, renderWired } from "./harness";

@@ -60,7 +60,7 @@ runs on the laptop and on fly.io.
   | Layer | Choice |
   |---|---|
   | Backend | FastAPI + uvicorn + pydantic 2.14 |
-  | Frontend | React 19, @react-three/fiber 9.8, drei 10.7, three r186, zustand 5, Vite 8, TypeScript 7, Tailwind 4, Biome, Vitest, Playwright, pnpm |
+  | Frontend | React 19, @react-three/fiber 9.8, drei 10.7, three r186, zustand 5, Vite 8, TypeScript 7, the control page's styles and controls (`@pewpew/page`), Biome, Vitest, Playwright, pnpm |
   | Type sharing | `scripts/export_openapi.py` → orval |
   | Database | Neon Postgres in production, SQLite locally and in tests |
 

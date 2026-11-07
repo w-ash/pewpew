@@ -1,46 +1,30 @@
+import { Select, type SelectItem } from "@pewpew/page/design";
 import { type ReactNode, useEffect, useId, useState } from "react";
-import { cn } from "@/lib/cn";
 
 export function SectionHeading({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
-      {children}
-    </h2>
-  );
+  return <h2 className="t-eyebrow">{children}</h2>;
 }
 
-export function Button({
+/** A control under its visible name, as the page's knobs are. */
+export function Field({
+  label,
+  unit,
+  htmlFor,
   children,
-  onClick,
-  disabled,
-  variant = "default",
-  title,
 }: {
+  label: string;
+  unit?: string;
+  htmlFor?: string;
   children: ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  variant?: "default" | "primary" | "danger";
-  title?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={cn(
-        "inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border px-3 text-sm",
-        "disabled:cursor-not-allowed disabled:opacity-40",
-        variant === "default" &&
-          "border-line bg-surface text-ink hover:border-muted",
-        variant === "primary" &&
-          "border-accent bg-accent text-surface hover:opacity-90",
-        variant === "danger" &&
-          "border-line bg-surface text-error hover:border-error",
-      )}
-    >
+    <label htmlFor={htmlFor} className="studio-field">
+      <span className="field-label">
+        {label}
+        {unit && ` ${unit}`}
+      </span>
       {children}
-    </button>
+    </label>
   );
 }
 
@@ -89,18 +73,12 @@ export function NumberField({
     if (!editing) setText(format(value));
   }, [value, editing, decimals, integer]);
   return (
-    <label
-      htmlFor={id}
-      className="flex min-w-0 flex-col gap-1 text-xs text-muted"
-    >
-      <span>
-        {label}
-        {unit && <span className="opacity-70"> {unit}</span>}
-      </span>
+    <Field label={label} unit={unit} htmlFor={id}>
       <input
         id={id}
         type="number"
         inputMode="decimal"
+        className="t-value"
         step={step}
         min={min}
         max={max}
@@ -123,13 +101,13 @@ export function NumberField({
             return;
           onChange(integer ? Math.round(v) : v);
         }}
-        className="h-11 w-full min-w-0 rounded-md border border-line bg-bg px-2 font-data text-sm text-ink tabular-nums focus:border-accent focus:outline-none"
       />
-    </label>
+    </Field>
   );
 }
 
-export function Select<T extends string>({
+/** The page's Select under a visible name. */
+export function SelectField<T extends string>({
   label,
   value,
   options,
@@ -137,28 +115,16 @@ export function Select<T extends string>({
 }: {
   label: string;
   value: T;
-  options: ReadonlyArray<{ value: T; label: string }>;
+  options: readonly SelectItem[];
   onChange: (value: T) => void;
 }) {
-  const id = useId();
   return (
-    <label
-      htmlFor={id}
-      className="flex min-w-0 flex-col gap-1 text-xs text-muted"
-    >
-      <span>{label}</span>
-      <select
-        id={id}
+    <Field label={label}>
+      <Select
+        items={options}
         value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="h-11 w-full min-w-0 rounded-md border border-line bg-bg px-2 text-sm text-ink focus:border-accent focus:outline-none"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        onChange={(v) => onChange(v as T)}
+      />
+    </Field>
   );
 }

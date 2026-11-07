@@ -740,6 +740,11 @@ series (batch mode).
 
 ### Changed
 
+- The studio uses the control page's styles and controls (`@pewpew/page`), with
+  Tailwind gone, so the two pages share one design system; the studio is dark
+  only, as the control page is. `web/` and `studio-web/` are one pnpm workspace
+  with one lockfile at the repo root, and `web/src` is laid out by feature
+  (`wire/`, `params/`, `stack/`, `design/`, ...), not by layer.
 - `examples/tide.look.json` and `examples/mcp-ember.look.json` draw their
   sparks with `particles` and an `ember` palette, not the `sparkle` pattern.
 - The engine package is now `pewpew.aura`, and `run --unattended` replaces
@@ -1195,6 +1200,7 @@ series (batch mode).
 
 ### Fixed
 
+- A bordered button or tile answers a finger over the full 44 px, not 42.
 - Refuse JSON that nests arrays and objects more than 64 deep on every
   platform (`pewpew.jsonfile.MAX_DEPTH`), before the parser runs. Python's
   parser stops only when the machine stack runs out, so before, the same

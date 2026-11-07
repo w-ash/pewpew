@@ -38,23 +38,26 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---------------------------------------------------------------------------
 FROM node:24-slim AS node-builder
 
-WORKDIR /app/studio-web
+WORKDIR /app
 
-# Pinned to studio-web/package.json's `packageManager`. pnpm 11 reads its settings
-# (build allowlist, peer rules) from pnpm-workspace.yaml, so it ships with the
-# manifest and lockfile.
+# Pinned to the root package.json's `packageManager`. pnpm 11 reads its settings
+# (build allowlist, peer rules) from pnpm-workspace.yaml at the workspace root.
 RUN npm install -g pnpm@11.20.0
 
-COPY studio-web/package.json studio-web/pnpm-lock.yaml studio-web/pnpm-workspace.yaml ./
+# The workspace: the studio imports the control page's library from web/.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY web/package.json web/
+COPY studio-web/package.json studio-web/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --filter pewpew-studio...
 
 # No build args: every API call is a relative path, so the bundle is the same
 # in every environment. The default arrangement is imported from the rig
 # package's examples, at the same path relative to studio-web/ as in the repo.
-COPY studio-web/ ./
+COPY web/ web/
+COPY studio-web/ studio-web/
 COPY src/pewpew/rig/examples/ /app/src/pewpew/rig/examples/
-RUN pnpm build
+RUN pnpm -C studio-web build
 
 # ---------------------------------------------------------------------------
 # Stage 3: Runtime

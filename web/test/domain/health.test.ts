@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   bannerText, chip, frameGap, healthRows, mac, okHint, rebindOffers, scanNote, STALE_MS, uptime,
   type FoundBoard,
-} from "../../src/domain/health/health";
+} from "../../src/health/health";
 import { board, health } from "../fixtures/messages";
 
 test("frames go stale after STALE_MS, and none yet is not stale", () => {

@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { act } from "react";
 import { render } from "vitest-browser-react";
-import type { ClientMessage, Sender, ServerMessage } from "../../src/infra/wire/protocol";
-import { WireContext, WireStore } from "../../src/infra/wire/store";
-import { ArmClockContext, CONFIRM_MIN_MS, type ArmClock } from "../../src/ui/common/useArm";
-import { LayoutProvider } from "../../src/ui/layout/LayoutMode";
-import { LayerList } from "../../src/ui/stack/LayerList";
-import { useLayerSelection } from "../../src/ui/stack/selection";
-import "../../src/ui/styles.css";
+import type { ClientMessage, Sender, ServerMessage } from "../../src/wire/protocol";
+import { WireContext, WireStore } from "../../src/wire/store";
+import { ArmClockContext, CONFIRM_MIN_MS, type ArmClock } from "../../src/design/useArm";
+import { LayoutProvider } from "../../src/layout/LayoutMode";
+import { LayerList } from "../../src/stack/LayerList";
+import { useLayerSelection } from "../../src/stack/selection";
+import "../../src/styles.css";
 import { greeting } from "../fixtures/messages";
 
 // The clock two-press buttons read. It moves only in pastDoubleTap, and no arm

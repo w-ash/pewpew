@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
-import { percent } from "../../src/domain/params/format";
+import { percent } from "../../src/params/format";
 import {
   cycleText, FADES, fadeSeconds, findLook, holdReason, liveLook, lookStatus, MAX_LOOKS, nameHint, offSaved, saveOf, unsaved, varyReason, type LooksState,
-} from "../../src/domain/aura/looks";
+} from "../../src/aura/looks";
 import { param } from "../fixtures/describe";
-import { capText, stepMaster } from "../../src/domain/aura/master";
-import { neighbour, nowOf, patternList, type AuraState } from "../../src/domain/aura/aura";
-import { armable, cueText, lastText } from "../../src/domain/aura/triggers";
+import { capText, stepMaster } from "../../src/aura/master";
+import { neighbour, nowOf, patternList, type AuraState } from "../../src/aura/aura";
+import { armable, cueText, lastText } from "../../src/aura/triggers";
 
 const stack = { layers: [{ id: "base", nodes: [{ id: "wash", op: "pattern", label: "wash", in: [] }] }], signals: [], routes: [], front: [], dims: 1 } as const;
 const aura = (patch: Partial<AuraState>): AuraState => ({

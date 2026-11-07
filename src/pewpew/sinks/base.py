@@ -83,7 +83,7 @@ class Control(Protocol):
 
     def state(self) -> dict:
         """The aura state, JSON-ready and names only;
-        web/src/infra/wire/protocol.ts types it. Cheap: a sink reads it
+        web/src/wire/protocol.ts types it. Cheap: a sink reads it
         every frame."""
         ...
 

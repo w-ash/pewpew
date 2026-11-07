@@ -75,12 +75,26 @@ test.describe("on a phone", () => {
   test("controls are at least 44 px and fields 16 px, so iOS does not zoom", async ({
     page,
   }) => {
+    // Playwright's touch emulation leaves the pointer fine; a phone's is coarse.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "pointer", value: "coarse" }],
+    });
     await page.goto("/");
     await expect(page.getByTestId("entity-list")).toContainText("inner");
     await page.getByRole("button", { name: /^inner/ }).click();
+    // A control under a finger is drawn smaller and answers on a ::before
+    // that reaches past its edges (web/src/design/controls.css).
     const heights = await page
       .locator("button:visible, [role=tab]:visible")
-      .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+      .evaluateAll((els) =>
+        els.map((e) =>
+          Math.max(
+            e.getBoundingClientRect().height,
+            Number.parseFloat(getComputedStyle(e, "::before").height) || 0,
+          ),
+        ),
+      );
     expect(heights.length).toBeGreaterThan(5);
     expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
     const fonts = await page

@@ -33,6 +33,6 @@ describe("ArrangementPanel import", () => {
     await waitFor(() => expect(alert).toHaveBeenCalled());
     expect(alert.mock.calls[0][0]).toMatch(/^bad\.json was not imported: /);
     expect(useDoc.getState().history.present).toBe(DEFAULT_ARRANGEMENT);
-    expect(screen.getByText("inner")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^inner/ })).toBeInTheDocument();
   });
 });

@@ -145,7 +145,7 @@ The collision check (2026-11-06) searched `src`, `web/src`, `docs` and
 | project, workspace | generic; QLab's workspace is theatre [S1811] |
 | composition | Resolume [S1802]; collides with `compose` and the compositor |
 | sketch, app | the program itself in Processing and openFrameworks [S1821][S1822]; generic |
-| stage, desk, console | lighting-console and theatre words; `web/src/ui/stage/` exists |
+| stage, desk, console | lighting-console and theatre words; `web/src/stage/` exists |
 | radio, tuner | mesh radio throughout architecture §4d; "tune its knobs" is page copy (RA-27 §8) |
 | glow | `Lattice.glow` (`src/pewpew/fx/field.py`) and the `glow` param (`src/pewpew/fx/expr.pyi:120`) |
 | beacon, bridge, fleet, gateway | mesh-tier words (architecture §4d) |

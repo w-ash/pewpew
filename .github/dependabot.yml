@@ -20,25 +20,15 @@ updates:
     cooldown:
       default-days: 7
 
-  # The page's exact pins in web/package.json. A bump changes the build hash,
-  # so its PR needs `just web` and the rebuilt page committed before CI passes.
+  # The pnpm workspace: the page's exact pins in web/package.json and the
+  # studio's in studio-web/package.json, one lockfile. A web/ bump changes the
+  # page's build hash, so its PR needs `just web` and the rebuilt page committed.
   - package-ecosystem: "npm"
-    directory: "/web"
+    directory: "/"
     schedule:
       interval: "weekly"
     cooldown:
       default-days: 7
     groups:
-      web-minor-patch:
-        update-types: ["minor", "patch"]
-
-  # The studio's pins in studio-web/package.json (built by `just studio`).
-  - package-ecosystem: "npm"
-    directory: "/studio-web"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    groups:
-      studio-web-minor-patch:
+      frontend-minor-patch:
         update-types: ["minor", "patch"]

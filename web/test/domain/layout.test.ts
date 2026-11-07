@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   DOT, DOT_MIN, GLOW_GAP, GLOW_MAX, inputMarker, makeLayout, nearestFixture, padOf, type Layout, type MapShape, type RoomShape, type Viewport,
-} from "../../src/domain/room/layout";
+} from "../../src/room/layout";
 const line: MapShape = { n: 8, total: 8, positions: Array.from({ length: 8 }, (_, i) => [i / 7, 0, 0]), is3d: false, room: null };
 const grid: MapShape = {
   n: 12, total: 12, is3d: false, room: null,

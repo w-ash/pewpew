@@ -209,7 +209,7 @@ Pulls presets and playlists forward from Phase 3 for the three-board rig
 `src/pewpew/sinks/preview.py` module docstring. *(Since 2026-11-05 the
 looks file format is `src/pewpew/aura/book.py`, the looks controller is
 `src/pewpew/aura/looks.py`, and the wire is described in
-`web/src/infra/wire/protocol.ts`; see the amendment "one shape per wire
+`web/src/wire/protocol.ts`; see the amendment "one shape per wire
 fact".)*
 
 Status stays **Proposed**. The canonical state tree, the `save` flag, HTTP
@@ -641,7 +641,7 @@ ways. The wire also carried fields no consumer read, and named one thing two
 ways: `a`/`b` for a fixture's `start`/`end`, and `attract`, `dur`, `repeat`
 for what the page and the per-look flag call the idle cycle. Code:
 `src/pewpew/sinks/preview.py`, `src/pewpew/params/`, `src/pewpew/aura/`; the
-wire is described in `web/src/infra/wire/protocol.ts`.
+wire is described in `web/src/wire/protocol.ts`.
 
 Status stays **Proposed**.
 

@@ -22,7 +22,7 @@ function buildStamp(): Plugin {
 
 const LICENSES = "licenses.md";
 // The fonts' copyright lines and licence, which OFL §2 asks every copy to carry (tools/fonts.py).
-const FONT_LICENSE = new URL("./src/ui/fonts/OFL.txt", import.meta.url);
+const FONT_LICENSE = new URL("./src/design/fonts/OFL.txt", import.meta.url);
 
 // The licenses of every bundled package, from Vite's `build.license`, then the
 // fonts', moved into the page as a comment: the one file is all that ships. The

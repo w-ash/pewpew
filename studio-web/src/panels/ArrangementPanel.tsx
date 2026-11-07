@@ -1,3 +1,4 @@
+import { Button, Tile, ToggleButton } from "@pewpew/page/design";
 import { useRef } from "react";
 import { ApiError } from "@/api/client";
 import { compileArrangement } from "@/api/endpoints";
@@ -37,9 +38,8 @@ import {
   type YawPitchRoll,
   yprToQuat,
 } from "@/editor/pose";
-import { cn } from "@/lib/cn";
 import { useDoc } from "@/store/doc";
-import { Button, NumberField, SectionHeading, Select } from "./ui";
+import { Field, NumberField, SectionHeading, SelectField } from "./ui";
 
 const DEFAULT_TYPE = "clen-rgbw-bar-1m";
 
@@ -142,34 +142,32 @@ export function ArrangementPanel({
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <section>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          <span>Name</span>
+    <div className="studio-panel">
+      <section className="studio-section">
+        <Field label="Name">
           <input
             value={arrangement.name ?? ""}
             onChange={(e) =>
               commit({ ...arrangement, name: e.target.value }, "name")
             }
             placeholder="Untitled arrangement"
-            className="h-11 rounded-md border border-line bg-bg px-2 text-base text-ink focus:border-accent focus:outline-none"
           />
-        </label>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
+        </Field>
+        <div className="studio-actions">
+          <Button onPress={undo} disabled={!canUndo} title="Undo (⌘Z)">
             Undo
           </Button>
-          <Button onClick={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
+          <Button onPress={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
             Redo
           </Button>
           <Button
-            onClick={exportJson}
+            onPress={exportJson}
             title="Download this arrangement as JSON"
           >
             Export
           </Button>
           <Button
-            onClick={() => fileInput.current?.click()}
+            onPress={() => fileInput.current?.click()}
             title="Open an arrangement JSON file"
           >
             Import
@@ -178,7 +176,7 @@ export function ArrangementPanel({
             ref={fileInput}
             type="file"
             accept="application/json,.json"
-            className="hidden"
+            hidden
             onChange={(e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
@@ -188,11 +186,11 @@ export function ArrangementPanel({
         </div>
       </section>
 
-      <section>
+      <section className="studio-section">
         <SectionHeading>Add</SectionHeading>
-        <div className="flex flex-wrap gap-2">
+        <div className="studio-actions">
           <Button
-            onClick={() => {
+            onPress={() => {
               const { arrangement: next, id } = addFixture(
                 arrangement,
                 types[0].id,
@@ -203,14 +201,14 @@ export function ArrangementPanel({
           >
             Bar
           </Button>
-          <Button onClick={addRing}>Ring</Button>
-          <Button onClick={addArray}>Array</Button>
+          <Button onPress={addRing}>Ring</Button>
+          <Button onPress={addArray}>Array</Button>
         </div>
       </section>
 
-      <section>
+      <section className="studio-section">
         <SectionHeading>Fixtures</SectionHeading>
-        <ul className="flex flex-col gap-1" data-testid="entity-list">
+        <ul className="studio-entities" data-testid="entity-list">
           {arrangement.groups.map((g) => (
             <EntityRow
               key={`g:${g.id}`}
@@ -234,7 +232,7 @@ export function ArrangementPanel({
             />
           ))}
           {arrangement.groups.length + arrangement.fixtures.length === 0 && (
-            <li className="text-sm text-muted">
+            <li className="t-label">
               Nothing yet. Add a bar, a ring or an array.
             </li>
           )}
@@ -269,20 +267,15 @@ function EntityRow({
 }) {
   return (
     <li>
-      <button
-        type="button"
-        onClick={onClick}
+      <Tile
+        name={label}
+        flat
+        selected={active}
         aria-pressed={active}
-        className={cn(
-          "flex min-h-11 w-full items-center justify-between gap-3 rounded-md border px-3 text-left text-sm",
-          active
-            ? "border-accent bg-accent/10 text-ink"
-            : "border-transparent text-ink hover:border-line",
-        )}
+        onPress={onClick}
       >
-        <span className="truncate font-data">{label}</span>
-        <span className="shrink-0 text-xs text-muted">{detail}</span>
-      </button>
+        <span className="t-caption">{detail}</span>
+      </Tile>
     </li>
   );
 }
@@ -322,17 +315,14 @@ function SelectionEditor({
   const endAttach = group?.preset === "array" ? group.attach : fixture?.attach;
 
   return (
-    <section
-      className="flex flex-col gap-4 rounded-md border border-line p-3"
-      aria-label="Selection"
-    >
-      <div className="flex items-baseline justify-between gap-2">
+    <section className="studio-card" aria-label="Selection">
+      <div className="studio-section-head">
         <SectionHeading>Selected</SectionHeading>
-        <span className="truncate font-data text-sm">{selection.id}</span>
+        <span className="t-heading">{selection.id}</span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="studio-actions">
         <Button
-          onClick={() => {
+          onPress={() => {
             const r = duplicate(arrangement, selection);
             if (r) {
               edit(r.arrangement);
@@ -344,7 +334,7 @@ function SelectionEditor({
         </Button>
         <Button
           disabled={!flipped}
-          onClick={() => flipped && edit(flipped)}
+          onPress={() => flipped && edit(flipped)}
           title="Swap the data-in and data-out ends"
         >
           Flip
@@ -353,7 +343,7 @@ function SelectionEditor({
           <Button
             disabled={!canExplode}
             title="Turn this group into free fixtures at their compiled poses"
-            onClick={() => {
+            onPress={() => {
               const next =
                 rig && explodeGroup(arrangement, group.id, rig.fixtures);
               if (next) {
@@ -366,8 +356,8 @@ function SelectionEditor({
           </Button>
         )}
         <Button
-          variant="danger"
-          onClick={() => {
+          tone="danger"
+          onPress={() => {
             edit(remove(arrangement, selection));
             select(null);
           }}
@@ -387,9 +377,9 @@ function SelectionEditor({
           }
         />
       ) : (
-        <p className="text-sm text-muted">
-          This group's rotation is an <span className="font-data">aim</span>,
-          which only the server resolves. Explode it to edit its fixtures.
+        <p className="t-label">
+          This group's rotation is an <span className="t-code">aim</span>, which
+          only the server resolves. Explode it to edit its fixtures.
         </p>
       )}
 
@@ -455,8 +445,8 @@ export function PoseInspector({
   const setRot = (field: keyof YawPitchRoll, v: number) =>
     onChange({ ...pose, quat_xyzw: yprToQuat({ ...ypr, [field]: v }) }, field);
   return (
-    <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="studio-section">
+      <div className="studio-grid-3">
         {(["x", "y", "z"] as const).map((axis, i) => (
           <NumberField
             key={axis}
@@ -469,7 +459,7 @@ export function PoseInspector({
           />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="studio-grid-3">
         <NumberField
           label="Yaw"
           unit="° about Y"
@@ -495,7 +485,7 @@ export function PoseInspector({
           onChange={(v) => setRot("roll", v)}
         />
       </div>
-      <p className="text-xs text-muted">
+      <p className="note">
         Turns apply yaw, then pitch, then roll, each about the fixture's own
         axes.
       </p>
@@ -520,29 +510,20 @@ function Ends({
     })),
   ];
   return (
-    <div className="flex flex-col gap-2">
+    <div className="studio-section">
       {ends.map(([end, label, current]) => (
-        <div key={end} className="flex flex-col gap-1">
-          <span className="text-xs text-muted">{label}</span>
-          <fieldset
-            className="flex flex-wrap overflow-hidden rounded-md border border-line"
-            aria-label={label}
-          >
+        <div key={end} className="studio-field">
+          <span className="field-label">{label}</span>
+          <fieldset className="studio-segments" aria-label={label}>
             {options.map((o) => (
-              <button
+              <ToggleButton
                 key={o.id ?? "none"}
-                type="button"
-                aria-pressed={current === o.id}
-                onClick={() => onChange(end, o.id)}
-                className={cn(
-                  "min-h-11 flex-1 px-3 text-sm not-first:border-l not-first:border-line",
-                  current === o.id
-                    ? "bg-ink text-surface"
-                    : "text-ink hover:bg-bg",
-                )}
+                variant="tertiary"
+                pressed={current === o.id}
+                onPressedChange={() => onChange(end, o.id)}
               >
                 {o.name}
-              </button>
+              </ToggleButton>
             ))}
           </fieldset>
         </div>
@@ -561,7 +542,7 @@ function TypeSelect({
   onChange: (id: string) => void;
 }) {
   return (
-    <Select
+    <SelectField
       label="Fixture type"
       value={value}
       options={fixtureTypes(catalog).map((t) => ({
@@ -583,14 +564,14 @@ function RingEditor({
   onChange: (patch: Partial<Group>, key: string) => void;
 }) {
   return (
-    <section className="flex flex-col gap-2" aria-label="Ring">
+    <section className="studio-section" aria-label="Ring">
       <SectionHeading>Ring</SectionHeading>
       <TypeSelect
         catalog={catalog}
         value={group.type}
         onChange={(type) => onChange({ type }, "type")}
       />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="studio-grid-2">
         <NumberField
           label="Count"
           integer
@@ -639,7 +620,7 @@ function RingEditor({
           value={group.roll_deg ?? 0}
           onChange={(roll_deg) => onChange({ roll_deg }, "roll_deg")}
         />
-        <Select<DataIn>
+        <SelectField<DataIn>
           label="Data in"
           value={group.data_in ?? "inner"}
           options={[
@@ -684,14 +665,14 @@ function ArrayEditor({
       "counts",
     );
   return (
-    <section className="flex flex-col gap-2" aria-label="Array">
+    <section className="studio-section" aria-label="Array">
       <SectionHeading>Array</SectionHeading>
       <TypeSelect
         catalog={catalog}
         value={group.type}
         onChange={(type) => onChange({ type }, "type")}
       />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="studio-grid-2">
         <NumberField
           label="Count"
           integer
@@ -712,7 +693,7 @@ function ArrayEditor({
         />
       </div>
       {[0, ...(m && m > 1 ? [1] : [])].map((row) => (
-        <div key={row} className="grid grid-cols-3 gap-2">
+        <div key={row} className="studio-grid-3">
           {(["x", "y", "z"] as const).map((axis, i) => (
             <NumberField
               key={axis}
@@ -727,7 +708,7 @@ function ArrayEditor({
         </div>
       ))}
       {memberPose && member ? (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="studio-grid-3">
           {(["yaw", "pitch", "roll"] as const).map((field) => (
             <NumberField
               key={field}
@@ -751,9 +732,9 @@ function ArrayEditor({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted">
-          The member rotation is an <span className="font-data">aim</span>; edit
-          it in the file.
+        <p className="t-label">
+          The member rotation is an <span className="t-code">aim</span>; edit it
+          in the file.
         </p>
       )}
     </section>

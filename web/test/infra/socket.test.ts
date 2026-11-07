@@ -1,8 +1,8 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { decodeParam } from "../../src/domain/params/kinds";
-import { setParam } from "../../src/infra/wire/protocol";
-import { RECONNECT_MS, Socket } from "../../src/infra/wire/socket";
-import { WireStore } from "../../src/infra/wire/store";
+import { decodeParam } from "../../src/params/kinds";
+import { setParam } from "../../src/wire/protocol";
+import { RECONNECT_MS, Socket } from "../../src/wire/socket";
+import { WireStore } from "../../src/wire/store";
 import { record } from "../fixtures/describe";
 import { hello } from "../fixtures/messages";
 

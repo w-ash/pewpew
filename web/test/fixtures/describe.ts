@@ -1,5 +1,5 @@
-import { decodeParam } from "../../src/domain/params/kinds";
-import type { Param } from "../../src/domain/params/schema";
+import { decodeParam } from "../../src/params/kinds";
+import type { Param } from "../../src/params/schema";
 import describe from "../../../tests/goldens/describe.json";
 
 /** Every pattern's param records, as the engine's describe golden holds them. */
