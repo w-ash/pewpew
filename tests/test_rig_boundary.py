@@ -248,11 +248,13 @@ def test_an_unreadable_catalog_is_a_rig_error(tmp_path):
     root = tmp_path / "data"
     shutil.copytree(DATA_ROOT, root)
     path = root / "fixture_type" / f"{BAR}.json"
-    for content, code in ((b"[" * 100_000, "too_deep"), (b"\xff\xfe", "bad_json")):
+    # Unclosed nesting is too deep where the C stack runs out first (macOS), and
+    # bad JSON where the parser reaches the end of the file first (Linux).
+    for content, codes in ((b"[" * 100_000, ({"too_deep"}, {"bad_json"})), (b"\xff\xfe", ({"bad_json"},))):
         path.write_bytes(content)
         with pytest.raises(RigError) as exc:
             read_catalog(root)
-        assert {i.code for i in exc.value.issues} == {code}
+        assert {i.code for i in exc.value.issues} in codes
     with pytest.raises(RigError) as exc:
         load_catalog(tmp_path / "missing")
     assert [i.code for i in exc.value.issues] == ["unreadable_file"]
