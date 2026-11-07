@@ -13,9 +13,9 @@ from pathlib import Path
 WEB = Path(__file__).resolve().parent.parent / "web"
 
 # What the built page is made from: everything in web/src but dotfiles
-# (editor swap files, .DS_Store), the page shell, the lockfile and the build
-# config. Tests and installed packages are not.
-FILES = ("index.html", "package.json", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.node.json", "vite.config.ts")
+# (editor swap files, .DS_Store), the page shell, the build config and the
+# workspace lockfile at the repo root. Tests and installed packages are not.
+FILES = ("index.html", "package.json", "../pnpm-lock.yaml", "tsconfig.json", "tsconfig.node.json", "vite.config.ts")
 
 
 def web_hash() -> str:
@@ -25,7 +25,7 @@ def web_hash() -> str:
     digest = hashlib.sha256()
     for path in sorted(paths):
         data = path.read_bytes()
-        digest.update(f"{path.relative_to(WEB).as_posix()}\0{len(data)}\0".encode())
+        digest.update(f"{path.resolve().relative_to(WEB.parent).as_posix()}\0{len(data)}\0".encode())
         digest.update(data)
     return digest.hexdigest()[:16]
 

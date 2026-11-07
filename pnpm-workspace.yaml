@@ -1,0 +1,8 @@
+# The two pages: web/ (the control page, and the library the studio imports)
+# and studio-web/ (the hosted studio). pnpm 11 reads its settings here.
+packages:
+  - web
+  - studio-web
+allowBuilds:
+  esbuild: true
+  msw: true

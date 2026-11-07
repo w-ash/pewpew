@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev": "vite",
     "dev:mock": "vite --mode mock",
@@ -43,6 +42,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "0.187.0",
-    "zustand": "^5.0.16"
+    "zustand": "^5.0.16",
+    "@pewpew/page": "workspace:*"
   }
 }

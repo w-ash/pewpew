@@ -37,13 +37,13 @@ agent interface drive the same engine, so no hardware is needed to start
 
 ```sh
 uv sync                                                    # the pinned Python and dev tools
-pnpm -C web install --frozen-lockfile                      # the page's tools
+pnpm install --frozen-lockfile                             # both pages' tools (web/, studio-web/)
 pnpm -C web exec playwright install chromium webkit        # the browsers its tests run in
 uv run just check                                          # every gate CI runs
 ```
 
-pnpm is the version `web/package.json` pins, and Node is in its `engines`
-range.
+pnpm is the version the root `package.json` pins, and Node is in its
+`engines` range.
 
 ## Live preview
 

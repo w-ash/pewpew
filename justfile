@@ -13,10 +13,10 @@ sources:
 typecheck:
     uv run basedpyright
 
-# The preview page: install from the lockfile, type-check and test the source
-# in web/, then build it into src/pewpew/sinks/web/index.html.
+# The preview page: install the workspace from its lockfile, type-check and test
+# the source in web/, then build it into src/pewpew/sinks/web/index.html.
 web:
-    pnpm -C web install --frozen-lockfile
+    pnpm install --frozen-lockfile
     pnpm -C web check
     pnpm -C web test
     pnpm -C web build
@@ -26,10 +26,10 @@ web:
 fonts:
     uv run --no-project --with fonttools==4.68.0 --with brotli==1.2.1 python tools/fonts.py
 
-# The studio frontend: install from the lockfile, then biome, tsc and the build
-# (`check`) and the unit tests. E2E (`pnpm -C studio-web e2e`) is not in the gate.
+# The studio frontend: install the workspace from its lockfile, then biome, tsc and
+# the build (`check`) and the unit tests. E2E (`pnpm -C studio-web e2e`) is not in the gate.
 studio:
-    pnpm -C studio-web install --frozen-lockfile
+    pnpm install --frozen-lockfile
     pnpm -C studio-web check
     pnpm -C studio-web test
 

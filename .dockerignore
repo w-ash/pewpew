@@ -10,14 +10,24 @@
 !src
 !src/**
 
-# --- Frontend build inputs (node-builder does `COPY studio-web/ ./`) ---
+# --- Frontend build inputs (node-builder: the pnpm workspace root, the studio, and
+# the control page's source, which the studio imports as a library) ---
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
 !studio-web
 !studio-web/**
+!web
+!web/package.json
+!web/src
+!web/src/**
 
 # Dev-only trees inside studio-web/. studio-web/tsconfig.json includes "e2e" as well as "src",
 # so studio-web/e2e stays in the build context and is type-checked by `pnpm build`.
 studio-web/node_modules
 studio-web/node_modules/**
+web/node_modules
+web/node_modules/**
 studio-web/dist
 studio-web/dist/**
 studio-web/test-results
