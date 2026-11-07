@@ -15,10 +15,9 @@ import threading
 import numpy as np
 import pytest
 
-from fakes import FakeTime, Oversleeper, wait_until
+from fakes import FLOW, FakeTime, Oversleeper, wait_until
 from pewpew import Pattern, Renderer, line, render_sequence
 from pewpew.pace import STOPPING, Calls, PacedLoop, PaceStats
-from pewpew.patterns.plasma import Plasma
 
 PERIOD = 1.0 / 60.0
 SEED = 42
@@ -128,12 +127,12 @@ def test_a_stall_short_of_two_periods_loses_no_slot():
 
 def test_engine_time_matches_render_sequence_bitwise():
     frames = 60
-    expected = render_sequence(Plasma, line(N_PX), seed=SEED, frames=frames)
+    expected = render_sequence(FLOW, line(N_PX), seed=SEED, frames=frames)
 
     ft = FakeTime()
     got_t: list[float] = []
     got_frames: list[np.ndarray] = []
-    renderer = Renderer(Plasma(), line(N_PX), seed=SEED)
+    renderer = Renderer(FLOW(), line(N_PX), seed=SEED)
     loop = PacedLoop(
         renderer,
         fps=60.0,
@@ -249,7 +248,7 @@ def test_poisoned_bind_propagates():
 def test_callback_advancing_renderer_time_is_adopted():
     ft = FakeTime()
     delivered: list[float] = []
-    renderer = Renderer(Plasma(), line(N_PX), seed=SEED)
+    renderer = Renderer(FLOW(), line(N_PX), seed=SEED)
 
     def probe_frame():
         renderer.step(0.5)  # a supervisor rendering a transition frame
@@ -286,7 +285,7 @@ def test_real_time_smoke():
     """The one real-clock run: structure only, no timing assertions — bench
     numbers are distributions, never test gates (T-5)."""
     delivered: list[float] = []
-    renderer = Renderer(Plasma(), line(N_PX), seed=SEED)
+    renderer = Renderer(FLOW(), line(N_PX), seed=SEED)
     loop = PacedLoop(renderer, fps=60.0, on_frame=[lambda t, frame: delivered.append(t)])
     stats = loop.run(frames=3)
     assert stats.ticks == 3

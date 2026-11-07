@@ -32,7 +32,6 @@ from pewpew.aura.variety import Made
 from pewpew.features import EventFeatures, FakeFeatures
 from pewpew.jsonfile import read_run
 from pewpew.pace import PacedLoop
-from pewpew.patterns import Comet
 from pewpew.render import SlotClock
 
 
@@ -293,15 +292,15 @@ def test_keep_during_a_hold_is_refused_and_keeps_the_made_look_once_the_aura_ret
 
 
 def test_a_pick_during_a_hold_cancels_the_return(tmp_path):
-    r = make(tmp_path, HOLD_RED, catalog=FakeCatalog({**CLASSES, "comet": Comet}))
+    r = make(tmp_path, HOLD_RED, catalog=FakeCatalog(CLASSES))
     r.step()
     r.trig.submit("page", "cue")
     r.step()
     with LoopThread(r.calls):
-        assert r.control.pick("comet") is None
+        assert r.control.pick("pixelramp") is None
     assert r.looks.held is None
     r.step(60)
-    assert type(r.renderer().pattern).__name__ == "Comet"
+    assert type(r.renderer().pattern).__name__ == "PixelRamp"
 
 
 def test_a_lower_class_cannot_replace_a_higher_hold(tmp_path):

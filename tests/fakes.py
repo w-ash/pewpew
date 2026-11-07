@@ -44,6 +44,7 @@ from pewpew.features import EventFeatures, FakeFeatures
 from pewpew.fx import expr, surprise
 from pewpew.fx.catalog import example as catalog_example
 from pewpew.fx.compile import is_pattern_program
+from pewpew.fx.expr import noise
 from pewpew.fx.graph import Program
 from pewpew.fx.host import ProgramPattern
 from pewpew.lab import handles
@@ -360,12 +361,23 @@ def program_of(chain: str) -> Program:
     return made
 
 
+# A moving colour field: a frame source whose frames differ with time.
+FLOW = ProgramPattern.of(Program.of(noise(4).palette("aurora")))
+
+
 def hosted(source: object, mapping: np.ndarray | None = None, **kw) -> Renderer:
     """`source`, a program, a builder chain or a `ProgramPattern` class,
     running as layer `base` on `mapping` (line(16)); `kw` go to the
     renderer, such as its seed."""
     cls = source if isinstance(source, type) else ProgramPattern.of(Program.of(source))  # type: ignore[arg-type]
     return Renderer(cls(), line(16) if mapping is None else mapping, name="layers.base", **kw)
+
+
+def program_layer(lid: str, source: object, **mix: object) -> tuple[Layer, type[Pattern]]:
+    """A layer `lid` that runs `source`, a program or a builder chain, and the class that hosts it: a
+    `stack` entry. `mix` are the layer's own fields, such as its blend."""
+    program = Program.of(source)  # type: ignore[arg-type]
+    return Layer(lid, program, **mix), ProgramPattern.of(program, {"solid": Solid})  # type: ignore[arg-type]
 
 
 def stack(*layers: tuple[Layer, type[Pattern]], mapping=None, seed: int = 0, **kw) -> Compositor:

@@ -28,7 +28,7 @@ from pewpew.compose.modulation import signal_problems
 from pewpew.fx.catalog import example
 from pewpew.fx.codec import decode_look, encode_look, encode_node, to_python
 from pewpew.fx.compile import signal_ops
-from pewpew.fx.expr import band, beat, knob, layer, lfo, look, noise, osc, pattern, walk
+from pewpew.fx.expr import band, beat, knob, layer, lfo, look, noise, osc, walk
 from pewpew.fx.graph import Graph, Node
 from pewpew.fx.host import ProgramPattern
 from pewpew.fx.ops import OPS
@@ -39,7 +39,6 @@ from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.rendering import play
 from pewpew.lab.verify import Verification, verify_looks
 from pewpew.params import Float, Int, declared_params
-from pewpew.patterns import Plasma
 from pewpew.render import error_frame
 from pewpew.run import status_line
 from test_fx_codec import value
@@ -65,6 +64,12 @@ def live(stack: Compositor, path: str) -> Any:
 
 def tint() -> Any:
     return osc(8).palette("ember")
+
+
+def swapped() -> Resolved:
+    """Layer `base` running another program than `tint`, as a pick leaves it."""
+    made = look(layer("base", noise(3).palette("ocean"))).layers[0]
+    return Resolved(made, ProgramPattern.of(made.program), "base")
 
 
 # ---- the seat ------------------------------------------------------------------------
@@ -152,16 +157,16 @@ def test_a_route_whose_knob_is_gone_rests_and_the_stack_saves_without_it() -> No
     made = look(layer("base", tint()), front=[FREQ, "signals.macro.value"], routes=[
         lfo(1.0).id("breath").to(FREQ, depth=2), knob(1.0).id("macro").to("layers.base.opacity", depth=-0.5)])
     stack = running(made)
-    stack.put(Resolved(pattern_layer("base", "plasma"), Plasma, "plasma"))
+    stack.put(swapped())
     frames(stack, 1)
     state = stack.state()
     assert state["routes"] == [{"source": "macro", "path": "layers.base.opacity", "depth": -0.5}]
-    assert state["front"] == ["layers.base.plasma.speed", "signals.macro.value"]
+    assert state["front"] == ["layers.base.noise.scale", "signals.macro.value"]
     assert [s["id"] for s in state["signals"]] == ["breath", "macro"]
     assert live(stack, "layers.base.opacity") == 0.5 and set(stack.mod()) == {"layers.base.opacity"}
     saved = stack.snapshot()
     assert [node.id for node in saved.signals or ()] == ["macro"]
-    assert saved.front == ("layers.base.plasma.speed", "signals.macro.value")
+    assert saved.front == ("layers.base.noise.scale", "signals.macro.value")
     assert check_look(saved).ok
 
 
@@ -169,7 +174,7 @@ def test_a_save_leaves_out_the_front_knobs_of_a_signal_it_leaves_out() -> None:
     made = look(layer("base", tint()), front=["signals.breath.rate"], routes=[
         lfo(1.0).id("breath").to(FREQ, depth=2)])
     stack = running(made)
-    stack.put(Resolved(pattern_layer("base", "plasma"), Plasma, "plasma"))
+    stack.put(swapped())
     saved = stack.snapshot()
     assert (saved.signals, saved.routes, saved.front) == (None, (), ())
     assert check_look(saved).ok
@@ -181,7 +186,7 @@ def test_a_save_leaves_out_a_chain_of_signals_that_drives_only_what_is_gone() ->
     made = look(layer("base", tint()), routes=[
         lfo(1.0).id("breath").to(FREQ, depth=2), knob(0.5).id("macro").to("signals.breath.rate", depth=0.5)])
     stack = running(made)
-    stack.put(Resolved(pattern_layer("base", "plasma"), Plasma, "plasma"))
+    stack.put(swapped())
     saved = stack.snapshot()
     assert (saved.signals, saved.routes) == (None, ())
     assert check_look(saved).ok
@@ -286,8 +291,8 @@ def test_the_builder_refuses_a_signal_where_it_cannot_go() -> None:
         osc(8).to(FREQ, 1.0)
     with pytest.raises(TypeError, match="osc.axis cannot be modulated: it is a choice"):
         osc(8, axis=lfo())  # type: ignore[arg-type]  # on purpose
-    with pytest.raises(TypeError, match=r"wave.color cannot be modulated: drive one of the color's parts"):
-        pattern("wave", color=lfo())
+    with pytest.raises(TypeError, match=r"palette.palette cannot be modulated: it is a palette; only a float"):
+        osc(8).palette(lfo())
     with pytest.raises(ValueError, match=r"routes\[0\]: unknown knob 'layers.top.osc.freq'"):
         look(layer("base", tint()), routes=[lfo().to("layers.top.osc.freq", depth=1)])
     with pytest.raises(ValueError, match=r"^osc: unknown param 'synk'; params: freq, sync, offset, axis$"):

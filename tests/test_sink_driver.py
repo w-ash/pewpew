@@ -12,10 +12,9 @@ import threading
 import numpy as np
 import pytest
 
-from fakes import FakeTime
+from fakes import FLOW, FakeTime
 from pewpew import Renderer, line
 from pewpew.pace import PacedLoop
-from pewpew.patterns.plasma import Plasma
 from pewpew.sinks.base import SinkDriver
 
 N_PX = 16
@@ -75,7 +74,7 @@ def test_loop_never_blocks_on_a_stalled_sink():
         stalled.wait(timeout=30.0)
 
     ft = FakeTime()
-    renderer = Renderer(Plasma(), line(N_PX), seed=42)
+    renderer = Renderer(FLOW(), line(N_PX), seed=42)
     driver = SinkDriver(send, name="stalled")
     driver.start()
     try:
@@ -114,7 +113,7 @@ def test_sink_exception_contained(caplog):
 def test_delivered_frame_is_read_only_and_unaliased():
     got: list[np.ndarray] = []
     ft = FakeTime()
-    renderer = Renderer(Plasma(), line(N_PX), seed=42)
+    renderer = Renderer(FLOW(), line(N_PX), seed=42)
     loop = PacedLoop(
         renderer,
         fps=60.0,

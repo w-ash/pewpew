@@ -40,7 +40,6 @@ from pewpew.lab.rendering import play
 from pewpew.mapping import dimensions, parse_map
 from pewpew.metrics import Metrics
 from pewpew.params import Palette, ParamSet
-from pewpew.patterns import Comet
 from pewpew.problems import Code, Refused
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
@@ -431,9 +430,11 @@ def test_with_audio_a_route_may_follow_a_sound_band_and_without_it_never_does_ea
     assert all(node.id.startswith(surprise.SIGNAL_NAMES[node.op]) for node in nodes[True])
 
 
-def test_the_aura_refuses_a_variation_that_changes_nothing(monkeypatch):
+def test_the_aura_refuses_a_variation_that_changes_nothing(monkeypatch, tmp_path):
+    rig = aura_rig(mapping=line(24), looks={}, path=tmp_path / "looks.json")
+    rig.looks.play(rig.variety.surprise(8))
+    rig.frame(rig.clock.advance())
     monkeypatch.setattr(surprise, "judge", lambda candidate, space: surprise.Verdict(("flashes",)))
-    rig = aura_rig(Comet, mapping=line(8))
     with pytest.raises(ValueError, match="no change of the look made from seed 3"):
         rig.variety.vary(0.5, 3)
 

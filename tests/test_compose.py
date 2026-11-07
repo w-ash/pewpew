@@ -10,9 +10,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from fakes import FixtureRamp, PixelRamp, Raises, Solid, bar, build, frames, rgb, room, spec, stack, the
+from fakes import FixtureRamp, PixelRamp, Raises, Solid, bar, build, frames, program_layer, rgb, room, spec, stack, the
 from harness.goldens import assert_matches_golden
-from pewpew import Float, Int, Pattern, Renderer, line, render_sequence
+from params_zoo import Zoo
+from pewpew import Float, Int, Pattern, Renderer, grid, line
 from pewpew.compose import (
     Compositor,
     Controls,
@@ -30,9 +31,10 @@ from pewpew.compose import (
 from pewpew.crossfade import Crossfader
 from pewpew.features import FakeFeatures, FeatureFrame, MemoFeatures
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
+from pewpew.fx.expr import noise, osc, particles, ripple
 from pewpew.fx.graph import RESERVED, Graph, Node, Program, as_id, check_id
+from pewpew.fx.host import ProgramPattern
 from pewpew.params import declared_params
-from pewpew.patterns import Comet, Fire, Plasma, Sparkle, Wave, canopy
 from pewpew.render import SlotClock
 from pewpew.room.map import compile_room
 
@@ -223,7 +225,7 @@ def test_a_blend_at_weight_0_leaves_the_frame_and_a_float64_weight_stays_float32
 
 
 def two_layers(**kw) -> Compositor:
-    return stack((pattern_layer("base", "comet", {"speed": 0.5}), Comet),
+    return stack(program_layer("base", noise(speed=0.5)),
                  (pattern_layer("top", "solid", blend="screen", opacity=0.5), Solid), **kw)
 
 
@@ -231,35 +233,36 @@ def test_the_knobs_are_named_by_address_in_display_order():
     controls = two_layers().controls
     names = [record["name"] for record in controls.describe()]
     assert names == [
-        "layers.base.comet.speed", "layers.base.comet.tail",
+        "layers.base.noise.scale", "layers.base.noise.speed", "layers.base.noise.octaves", "layers.base.noise.kind",
         "layers.base.opacity", "layers.base.blend", "layers.base.enabled",
         "layers.top.solid.red", "layers.top.solid.green", "layers.top.solid.blue",
         "layers.top.opacity", "layers.top.blend", "layers.top.enabled",
     ]
     where = {record["name"]: (record["layer"], record["node"]) for record in controls.describe()}
-    assert where["layers.base.comet.speed"] == ("base", "comet") and where["layers.top.blend"] == ("top", "")
+    assert where["layers.base.noise.speed"] == ("base", "noise") and where["layers.top.blend"] == ("top", "")
     records = {record["name"]: record for record in controls.describe()}
     assert records["layers.top.blend"]["kind"] == "choice" and "value" not in records["layers.top.blend"]
     values = controls.snapshot_json()
-    assert values["layers.base.comet.speed"] == 0.5 and values["layers.top.blend"] == "screen"
+    assert values["layers.base.noise.speed"] == 0.5 and values["layers.top.blend"] == "screen"
     assert list(values) == names
 
 
 def test_a_knob_is_parsed_and_set_through_its_set_and_refused_in_its_words():
     comp = two_layers()
     controls = comp.controls
-    assert controls.parse("layers.base.comet.speed", 5.0) == (
-        None, "layers.base.comet.speed must be within 0.0..2.0, got 5.0")
-    for wrong in ("layers.base.comet.nosuch", "speed", "layers.base.speed", "layers.nosuch.comet.speed"):
+    assert controls.parse("layers.base.noise.speed", 5.0) == (
+        None, "layers.base.noise.speed must be within 0.0..2.0, got 5.0")
+    for wrong in ("layers.base.noise.nosuch", "speed", "layers.base.speed", "layers.nosuch.noise.speed"):
         # Every address that names no knob gets every address, so the fix is in the list.
         reason = controls.parse(wrong, 1)[1]
         assert reason is not None and reason.startswith(f"unknown knob {wrong!r}")  # in a route's words
-        assert "; knobs: layers.base.comet.speed, " in reason
+        assert "; knobs: layers.base.noise.scale, " in reason
     found, reason = controls.parse("layers.top.opacity", 0.25)
     assert reason is None and found is not None and found[0].params is comp.layer("top").mix.params
     assert controls.set("layers.top.opacity", 0.25) is True
     assert comp.layer("top").mix.opacity == 0.25
-    assert controls.set("layers.base.comet.speed", 1.5) and the(comp.layer("base").renderer.pattern, Comet).speed == 1.5
+    assert controls.set("layers.base.noise.speed", 1.5)
+    assert comp.layer("base").renderer.pattern.node_params["noise"]["speed"] == 1.5  # type: ignore[attr-defined]
     assert controls.find("layers.top.solid.red") == (comp.layer("top").renderer.params, "red", "")
     assert controls.find("layers.top.solid") is None
     with pytest.raises(ValueError, match="layers.top.blend takes one of"):
@@ -269,17 +272,17 @@ def test_a_knob_is_parsed_and_set_through_its_set_and_refused_in_its_words():
 def test_a_part_address_names_the_part_a_route_drives():
     """`layers.<lid>.<nid>.<arg>.<part>` (ADR-006) finds the color and its
     part, as `Bound.drive` takes it; a set takes the whole color."""
-    comp = stack((pattern_layer("base", "wave"), Wave))
+    comp = stack((pattern_layer("base", "zoo"), Zoo))
     controls, params = comp.controls, comp.layer("base").renderer.params
-    assert controls.find("layers.base.wave.color.h") == (params, "color", "h")
-    assert controls.find("layers.base.wave.color.x") is None and controls.find("layers.base.wave.speed.h") is None
-    assert controls.parse("layers.base.wave.color.h", 10.0)[1] == (
-        "layers.base.wave.color.h is a part of layers.base.wave.color; set layers.base.wave.color as a whole")
-    knob = controls.find("layers.base.wave.color.h")
+    assert controls.find("layers.base.zoo.color.h") == (params, "color", "h")
+    assert controls.find("layers.base.zoo.color.x") is None and controls.find("layers.base.zoo.level.h") is None
+    assert controls.parse("layers.base.zoo.color.h", 10.0)[1] == (
+        "layers.base.zoo.color.h is a part of layers.base.zoo.color; set layers.base.zoo.color as a whole")
+    knob = controls.find("layers.base.zoo.color.h")
     assert knob is not None
     assert knob.params.bound is not None
     knob.params.bound.drive(f"{knob.name}.{knob.part}", 10.0)
-    assert the(comp.layer("base").renderer.pattern, Wave).color.h == params["color"].h + 10.0
+    assert the(comp.layer("base").renderer.pattern, Zoo).color.h == params["color"].h + 10.0
 
 
 def test_the_controls_follow_a_hot_reload_and_keep_each_set():
@@ -310,33 +313,37 @@ def test_layer_controls_drive_like_any_knob():
 # ---- the compositor -------------------------------------------------------------------------
 
 IDENTITY = [
-    (Comet, line(300), None), (Fire, line(64), None), (Plasma, line(32), None), (Wave, None, "canopy"),
-    (Sparkle, None, "canopy"),
+    ("particles", particles(), line(300), None), ("noise", noise(3).palette("ember"), line(64), None),
+    ("ripple", ripple(), grid(8, 8), None), ("osc", osc(8, 0.2).palette("ocean"), None, "canopy"),
+    ("particles", particles(), None, "canopy"),
 ]
 
 
-@pytest.mark.parametrize("cls, mapping, where", IDENTITY, ids=lambda v: getattr(v, "__name__", None))
-def test_a_one_layer_stack_is_its_renderer_byte_for_byte(cls, mapping, where):
+@pytest.mark.parametrize("source, mapping, where", [row[1:] for row in IDENTITY],
+                         ids=[f"{row[0]}-{row[3] or len(row[2])}" for row in IDENTITY])
+def test_a_one_layer_stack_is_its_renderer_byte_for_byte(source, mapping, where, example):
     """The identity path: the layer's frame untouched, its seed derived."""
     grouping = None
     if where == "canopy":
-        room_ = canopy()
-        mapping, grouping = room_.mapping, room_.grouping
+        mapping, grouping = example.mapping, example.grouping
     lid = "base"
-    comp = Compositor([Resolved(pattern_layer(lid, cls.__name__.lower()), cls, "x")], mapping, seed=5,
+    program = Program.of(source)
+    cls = ProgramPattern.of(program)
+    comp = Compositor([Resolved(Layer(lid, program), cls, lid)], mapping, seed=5,
                       features=FakeFeatures(5), grouping=grouping)
-    alone = Renderer(cls(), mapping, seed=layer_seed(5, lid), features=FakeFeatures(5), grouping=grouping)
+    alone = Renderer(cls(), mapping, seed=layer_seed(5, lid), features=FakeFeatures(5), grouping=grouping,
+                     name=f"layers.{lid}")
     assert frames(comp).tobytes() == frames(alone).tobytes()
 
 
 def test_the_seed_a_layer_draws_is_its_own_whatever_else_runs():
     """Adding a layer above never changes the picture of the one below."""
-    alone = stack((pattern_layer("base", "sparkle"), Sparkle), mapping=line(64), seed=3)
-    under = stack((pattern_layer("base", "sparkle"), Sparkle), (pattern_layer("top", "comet", opacity=0.0), Comet),
+    alone = stack(program_layer("base", particles()), mapping=line(64), seed=3)
+    under = stack(program_layer("base", particles()), program_layer("top", particles(), opacity=0.0),
                   mapping=line(64), seed=3)
     renders = [frames(alone, 20), frames(under, 20)]
     assert renders[0].tobytes() == renders[1].tobytes()
-    other = stack((pattern_layer("other", "sparkle"), Sparkle), mapping=line(64), seed=3)
+    other = stack(program_layer("other", particles()), mapping=line(64), seed=3)
     assert frames(other, 20).tobytes() != renders[0].tobytes()
 
 
@@ -407,10 +414,10 @@ def lit(frame: np.ndarray) -> float:
     return float((frame.max(axis=1) > 0.5).mean())
 
 
-def test_sparkle_enabled_again_lights_its_usual_share():
-    """The backlog's acceptance: sparkle on line(300), off for 10 s, lights about its usual share."""
+def test_particles_enabled_again_light_their_usual_share():
+    """The backlog's acceptance: sparks on line(300), off for 10 s, light about their usual share."""
     dark = (pattern_layer("base", "solid", {"red": 0.0}), Solid)
-    sparks = (pattern_layer("sparks", "sparkle", blend="screen"), Sparkle)
+    sparks = program_layer("sparks", particles(), blend="screen")
     comp, fresh = stack(dark, sparks, mapping=line(300)), stack(dark, sparks, mapping=line(300))
     clock = SlotClock(60.0)
     usual = [lit(fresh.advance_to(clock.advance())) for _ in range(60)][-1]
@@ -432,7 +439,7 @@ def test_each_layer_reads_one_feature_frame_per_slot():
             calls.append(t)
             return super().at(t)
 
-    comp = stack(*((pattern_layer(lid, "wave", blend="add"), Wave) for lid in ("a", "b", "c")),
+    comp = stack(*(program_layer(lid, osc(4, 0.2), blend="add") for lid in ("a", "b", "c")),
                  features=Counted(0))
     frames(comp, 5)
     assert len(calls) == len(set(calls)) == 5
@@ -572,8 +579,9 @@ def test_put_replaces_one_layer_and_the_others_run_on():
 
 
 def test_the_stack_is_a_look_again_at_its_live_values():
-    look = Look((pattern_layer("base", "comet", {"speed": 0.5}), pattern_layer("top", "solid", blend="screen")), seed=4)
-    comp = stack(*zip(look.layers, (Comet, Solid), strict=True), seed=look.seed)
+    base = program_layer("base", noise(speed=0.5))
+    look = Look((base[0], pattern_layer("top", "solid", blend="screen")), seed=4)
+    comp = stack(base, (look.layers[1], Solid), seed=look.seed)
     comp.controls.set("layers.top.solid.red", 0.25)
     comp.controls.set("layers.top.opacity", 0.75)
     snap = comp.snapshot()
@@ -581,7 +589,7 @@ def test_the_stack_is_a_look_again_at_its_live_values():
     assert pattern_of(snap.layers[1].program.output) == ("solid", {"red": 0.25, "green": 0.0, "blue": 0.0})
     assert (snap.layers[1].opacity, snap.layers[1].blend) == (0.75, "screen")
     assert comp.state() == {
-        "layers": [{"id": "base", "nodes": [{"id": "comet", "op": "pattern", "label": "comet", "in": []}]},
+        "layers": [{"id": "base", "nodes": [{"id": "noise", "op": "noise", "label": "Noise", "in": []}]},
                    {"id": "top", "nodes": [{"id": "solid", "op": "pattern", "label": "solid", "in": []}]}],
         "signals": [], "routes": [], "front": [], "dims": 1,
     }
@@ -621,10 +629,11 @@ def test_a_crossfade_between_two_layered_looks_is_the_mean_at_its_midpoint():
 
 
 def three_layer_frames() -> np.ndarray:
-    """Plasma under comet (screen) and wave (add, half): the stack golden."""
-    comp = stack((pattern_layer("base", "plasma"), Plasma),
-                 (pattern_layer("trail", "comet", blend="screen", opacity=0.6), Comet),
-                 (pattern_layer("swell", "wave", blend="add", opacity=0.5), Wave), mapping=line(32), seed=11)
+    """Noise under sparks (screen) and stripes (add, half): the stack golden."""
+    comp = stack(program_layer("base", noise(3, 0.3).palette("ember")),
+                 program_layer("trail", particles(), blend="screen", opacity=0.6),
+                 program_layer("swell", osc(4, 0.2).palette("ocean"), blend="add", opacity=0.5),
+                 mapping=line(32), seed=11)
     return frames(comp, 24)
 
 
@@ -632,16 +641,20 @@ def test_a_layered_render_is_byte_identical_twice():
     assert three_layer_frames().tobytes() == three_layer_frames().tobytes()
 
 
-def test_run_runs_its_pattern_as_layer_base_with_a_derived_seed():
-    """The visible change: comet's sparks under `run` draw the base layer's
+def test_run_runs_its_pattern_as_layer_base_with_a_derived_seed(tmp_path):
+    """The visible change: a pattern's sparks under `run` draw the base layer's
     stream, not seed 0's."""
-    run = build(["run", "comet", "--map", "line:300", "--seed", "0"])
+    source = tmp_path / "sparks.py"
+    source.write_text("from pewpew.fx.expr import particles\nfrom pewpew.fx.host import ProgramPattern\n\n\n"
+                      "class Sparks(ProgramPattern):\n    program = particles()\n")
+    run = build(["run", str(source), "--map", "line:300", "--seed", "0"])
     live = run.fader.current
     assert [layer.id for layer in live.layers] == ["base"] and live.layer("base").renderer.seed == layer_seed(0, "base")
     got = frames(run.fader, 60)
-    want = render_sequence(Comet, line(300), frames=60, fps=60.0, seed=layer_seed(0, "base"))
+    cls = ProgramPattern.of(Program.of(particles()))
+    want = frames(Renderer(cls(), line(300), seed=layer_seed(0, "base"), name="layers.base"), 60)
     assert got.tobytes() == want.tobytes()
-    assert want.tobytes() != render_sequence(Comet, line(300), frames=60, fps=60.0, seed=0).tobytes()
+    assert want.tobytes() != frames(Renderer(cls(), line(300), seed=0, name="layers.base"), 60).tobytes()
 
 
 def test_controls_are_one_value_replaced_whole():
