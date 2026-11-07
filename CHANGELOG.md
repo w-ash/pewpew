@@ -749,7 +749,8 @@ series (batch mode).
   seeds its layers. After a pick no look is current, and the file keeps
   naming the last one, so a restart comes back in it. After a watchdog
   stall a restart starts in the next look of the idle cycle's order that
-  can start, not the one that stalled, and says so on the status line; the
+  can start, not the one that stalled, playing it as a pick so the file
+  keeps naming the operator's look, and says so on the status line; the
   watchdog is armed before the look is built. The LaunchAgent template
   runs `run __LOOKS__ --room __ROOM__`.
 - The studio runs the aura (ADR-025): each session builds the pipeline

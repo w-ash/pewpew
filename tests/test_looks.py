@@ -537,10 +537,12 @@ def test_a_start_after_a_stall_runs_the_next_look_of_the_cycle_and_says_so(tmp_p
     first, second, after = stalled_runs(tmp_path, monkeypatch, book)
     said = "the last run stalled in 'calm', so 'wave' runs"
     assert capsys.readouterr().err.strip() == said and first.looks.error == said
-    assert first.looks.book.current == "wave" and type(layer_renderer(first).pattern) is Wave
+    assert first.looks.book.current is None and type(layer_renderer(first).pattern) is Wave  # run as a pick
     assert after == book.to_bytes()  # the file still names calm
     assert second.looks.error is None and type(layer_renderer(second).pattern) is Pulse
     assert book.after("calm") == ["fold", "wave", "out"] and book.after("wave") == ["calm", "fold", "out"]
+    assert first.looks.set_cycle("out", True) is None  # an unrelated write after the fallback
+    assert load_looks(tmp_path / "looks.json").current == "calm"
 
 
 def test_a_start_after_a_stall_of_the_only_look_runs_it_again_and_says_so(tmp_path, monkeypatch, capsys):

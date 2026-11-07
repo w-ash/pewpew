@@ -245,13 +245,13 @@ class Run:
         # its first render still ends the run.
         if self.watchdog is not None:
             self.watchdog.start()
-        book, layers, stalled = after_stall(launch, take_marker(marker_path()))
-        assert book.current is not None  # the launch made the look it starts in current
+        book = launch.book
+        start, layers, stalled = after_stall(launch, take_marker(marker_path()))
         # An unattended run leaves a failing layer out of the mix (`bypass`); its
         # error still reaches the status line.
         try:
             self.aura = build_aura_pipeline(
-                book.looks[book.current], layers, launch.mapping, seed=args.seed, features=features,
+                book.looks[start], layers, launch.mapping, seed=args.seed, features=features,
                 grouping=launch.grouping, bypass=args.unattended, now=now, master_cap=args.master_cap,
                 looks_path=args.looks, book=book, trigger_log=self.trigger_log,
                 trigger_log_max=int(args.trigger_log_max * 1_000_000), blink=self.blink,
@@ -261,8 +261,10 @@ class Run:
         except (LayerError, ValueError) as exc:  # ValueError: a signal or route the stack cannot run
             if self.watchdog is not None:
                 self.watchdog.stop()
-            raise SystemExit(f"{args.looks}: cannot start look {book.current!r}: {exc}") from None
+            raise SystemExit(f"{args.looks}: cannot start look {start!r}: {exc}") from None
         assert self.aura.looks is not None  # a run always has its looks file
+        if start != book.current:
+            self.aura.looks.leave()  # runs as a pick does: no look is current, and the file keeps its own
         if stalled is not None:
             print(stalled, file=sys.stderr, flush=True)
             self.aura.looks.error = stalled
@@ -341,7 +343,8 @@ class Run:
         return 0
 
     def _start(self, services: list) -> None:
-        self.looks.begin()
+        if self.looks.book.current is not None:
+            self.looks.begin()
         self.triggers.begin_run(
             seed=self.args.seed, fps=self.args.fps, pattern=self.deck.current, look=self.looks.book.current,
             armed=self.args.armed,
@@ -539,26 +542,28 @@ def ready_look(look: Look, mapping: np.ndarray) -> tuple[Resolved, ...]:
     return layers
 
 
-def after_stall(launch: Launch, stalled: float | None) -> tuple[LookBook, tuple[Resolved, ...], str | None]:
-    """The book with the look the run starts in current, that look's
-    layers, and what to say about it. After a stall (`stalled`, the
-    marker's age, pewpew.watchdog), the run does not start in the look that
-    stalled, the launch's current one, but in the first that can start of
-    the others in the idle cycle's order after it (`LookBook.after`); with
-    no other, in that look again. The file is not written: its `current`
-    stays the operator's."""
+def after_stall(launch: Launch, stalled: float | None) -> tuple[str, tuple[Resolved, ...], str | None]:
+    """The look the run starts in, its layers, and what to say about it.
+    After a stall (`stalled`, the marker's age, pewpew.watchdog), the run
+    does not start in the look that stalled, the launch's current one, but
+    in the first that can start of the others in the idle cycle's order
+    after it (`LookBook.after`), which the run plays as a pick, so the
+    file's `current` stays the operator's; with no other, in that look
+    again."""
     book = launch.book
     stalled_in = book.current
+    assert stalled_in is not None, "the launch made the look it starts in current"
     if stalled is None:
-        return book, launch.layers, None
+        return stalled_in, launch.layers, None
     for name in book.after(stalled_in):
         try:
             layers = ready_look(book.looks[name], launch.mapping)
         except ValueError as exc:
             logger.warning("after the stall, look %r cannot start either: %s", name, exc)
             continue
-        return book.with_current(name), layers, f"the last run stalled in {stalled_in!r}, so {name!r} runs"
-    return book, launch.layers, f"the last run stalled in {stalled_in!r}, the only look that starts, so it runs again"
+        return name, layers, f"the last run stalled in {stalled_in!r}, so {name!r} runs"
+    again = f"the last run stalled in {stalled_in!r}, the only look that starts, so it runs again"
+    return stalled_in, launch.layers, again
 
 
 Source = Literal["render", "reload", "looks"]  # the part an error comes from
