@@ -42,7 +42,6 @@ import inspect
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from pewpew.classinfo import first_sentence
 from pewpew.color import PRESETS
 from pewpew.compose.stack import Look
 from pewpew.fx.blend import ABOUT, LABELS, LIGHTS_BLACK, Blend
@@ -65,6 +64,20 @@ _PALETTE = Palette(PRESETS[0], presets=PRESETS)
 def doc(obj: object) -> str:
     """`obj`'s docstring as one paragraph."""
     return " ".join((inspect.getdoc(obj) or "").split())
+
+
+def first_sentence(paragraph: str) -> str:
+    """The first sentence of `paragraph`, a line of words: up to the first
+    ". ", or all of it."""
+    head, stop, _ = paragraph.partition(". ")
+    return head + "." if stop else paragraph
+
+
+def docstring_summary(cls: type) -> str:
+    """What a class does, in one sentence: the first sentence of its
+    docstring, else ""."""
+    text = (cls.__doc__ or "").strip()
+    return first_sentence(" ".join(text.split("\n\n")[0].split())) if text else ""
 
 
 def example(py: str) -> Program | Look:

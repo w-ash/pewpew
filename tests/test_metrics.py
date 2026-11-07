@@ -1,5 +1,5 @@
 """Frame metrics (src/pewpew/metrics.py) on synthetic signals whose answer
-is known. The flash counter's own tests stay in test_canopy_patterns.py."""
+is known."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from numpy.typing import ArrayLike
 
-from pewpew.kit import hsv
+from pewpew.color import hsv
 from pewpew.metrics import FLASH_LIMIT, Metrics, flash_rates, measure
 
 FPS = 60.0

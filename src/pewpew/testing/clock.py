@@ -1,7 +1,7 @@
 """Deterministic time source for tests.
 
-Patterns are functions of t (req Q-5); tests inject this instead of wall
-clock so every run of a pattern is bit-reproducible.
+A look is a function of t (req Q-5); tests inject this instead of wall
+clock so every run of a look is bit-reproducible.
 """
 
 from __future__ import annotations

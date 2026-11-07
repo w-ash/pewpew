@@ -23,8 +23,8 @@ from pewpew.fx.op import BindCtx, Cost, FrameCtx, Op, Rate
 from pewpew.fx.ops.sims import arrivals
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import noise as prim
+from pewpew.fx.prims.vec import TWO_PI, fade
 from pewpew.fx.types import Coords, Fn, Sig, Ty
-from pewpew.kit import TWO_PI, fade
 from pewpew.params import Choice, Float, Int
 
 # Lattice nodes per point spacing for a glow: a blob a point wide still

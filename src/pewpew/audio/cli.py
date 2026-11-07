@@ -16,7 +16,7 @@ subscribing (pewpew.audio.net); `run --audio net:NAME` takes one. `analyse` read
 with `--feature-log` the log, which `run --audio replay:PATH` plays back.
 It runs the analysis `run` runs, frame by frame at `--fps`, with no lead,
 so the beats are the file's own times: the tempo and its confidence, how
-long the beat spent in each mode, the beat times patterns would see, and
+long the beat spent in each mode, the beat times a program would see, and
 each level's mean and peak. With `--json` it prints one JSON document.
 `key` is tier 1 and attended: it makes the key of the node with that MAC
 (or keeps the one it has), writes the NVS image's CSV that the node's

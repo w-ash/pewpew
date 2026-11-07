@@ -47,7 +47,7 @@ from typing import Generic, TypeVar
 
 import numpy as np
 
-from pewpew.render import Live, PatternError
+from pewpew.render import Live, RenderFailure
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +144,7 @@ class Crossfader(Generic[S]):
         return self._current.t
 
     @property
-    def error(self) -> PatternError | None:
+    def error(self) -> RenderFailure | None:
         """The current source's contained failure, else the outgoing one's."""
         err = self._current.error
         outgoing = self._outgoing

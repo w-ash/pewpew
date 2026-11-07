@@ -18,9 +18,8 @@ from pewpew.fx.op import BindCtx, Cost, Op, Rate, plane_choice
 from pewpew.fx.op import axis_choice as _axis_choice
 from pewpew.fx.prims import noise as prim
 from pewpew.fx.prims import sdf
-from pewpew.fx.prims.vec import F32, plane_axes
+from pewpew.fx.prims.vec import F32, TWO_PI, plane_axes, wave
 from pewpew.fx.types import Coords, Fn, Sig, Ty
-from pewpew.kit import TWO_PI, wave
 from pewpew.params import Choice, Float, Int
 
 # The period of a drift phase, in lattice units. A noise that drifts loops

@@ -29,10 +29,10 @@ from typing import Protocol
 
 import numpy as np
 
-from pewpew import kit
 from pewpew.errors import blamed, describe_exception
 from pewpew.features import FakeFeatures, FeatureSource
 from pewpew.fx.bound_program import BoundProgram
+from pewpew.fx.prims.vec import wave
 from pewpew.fx.types import Coords
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,13 @@ _ERROR_FLOOR = 0.25
 
 
 @dataclass(frozen=True)
-class PatternError:
-    """One contained pattern failure — what `Renderer.error` exposes. Its
-    text names no frame, so a pattern that fails every frame keeps one
-    status line; the log gives the frame and time."""
+class RenderFailure:
+    """One contained render failure — what `Renderer.error` exposes. Its
+    text names no frame, so a layer that fails every frame keeps one
+    status line; the log gives the frame and time. `layer` is the address
+    of the layer that failed, such as `layers.base`."""
 
-    pattern: str
+    layer: str
     phase: str  # "advance" | "render"
     exception: BaseException
     traceback: str
@@ -57,19 +58,19 @@ class PatternError:
     t: float
 
     def __str__(self) -> str:
-        return f"{self.pattern}.{self.phase} raised: {describe_exception(self.exception)}"
+        return f"{self.layer}.{self.phase} raised: {describe_exception(self.exception)}"
 
     @property
     def path(self) -> str:
         """The address of the part that raised: the node of an effect
         program the exception names (`pewpew.errors.blamed`), else the
-        pattern's."""
-        return blamed(self.exception) or self.pattern
+        layer's."""
+        return blamed(self.exception) or self.layer
 
 
 def contain(
     owner: str, phase: str, exc: Exception, frame: int, t: float, logged: set[tuple], *, outcome: str = "",
-) -> PatternError:
+) -> RenderFailure:
     """`exc`, which `owner` raised in `phase` at frame `frame` and engine
     time `t`, as a contained failure. It is logged once per failure site:
     `logged` holds the sites already logged, and `outcome` (what the
@@ -82,7 +83,7 @@ def contain(
     # Drop the traceback: it pins every frame's locals while the error is
     # set. The formatted text is what the record needs.
     exc.__traceback__ = None
-    error = PatternError(owner, phase, exc, formatted, frame, t)
+    error = RenderFailure(owner, phase, exc, formatted, frame, t)
     if key not in logged:
         logged.add(key)
         logger.error("%s%s (frame %d, t=%.6f)\n%s", error, outcome, frame, t, formatted)
@@ -107,7 +108,7 @@ class Live(FrameSource, Protocol):
     `pewpew.crossfade.Crossfader` fades between two."""
 
     @property
-    def error(self) -> PatternError | None: ...
+    def error(self) -> RenderFailure | None: ...
 
     def error_frame(self, t: float) -> np.ndarray: ...
 
@@ -117,7 +118,7 @@ class Live(FrameSource, Protocol):
 def error_frame(n: int, t: float) -> np.ndarray:
     """The deterministic pulsing-red frame of `n` pixels at engine time `t`:
     what a contained failure shows."""
-    level = _ERROR_FLOOR + (1.0 - _ERROR_FLOOR) * float(kit.wave(_ERROR_PULSE_HZ * t))
+    level = _ERROR_FLOOR + (1.0 - _ERROR_FLOOR) * float(wave(_ERROR_PULSE_HZ * t))
     frame = np.zeros((n, 3), dtype=np.float32)
     frame[:, 0] = np.float32(level)
     return frame
@@ -146,7 +147,7 @@ class Renderer:
 
         self._t = float(t)
         self._frame = 0
-        self._error: PatternError | None = None
+        self._error: RenderFailure | None = None
         # The failure sites already logged. Never cleared by a good frame: a
         # program that fails on alternate frames would otherwise log a
         # traceback 30 times a second.
@@ -166,7 +167,7 @@ class Renderer:
         return self._n
 
     @property
-    def error(self) -> PatternError | None:
+    def error(self) -> RenderFailure | None:
         """The current contained failure, or None while the program is healthy."""
         return self._error
 

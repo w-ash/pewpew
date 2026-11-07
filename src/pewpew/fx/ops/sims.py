@@ -29,9 +29,8 @@ import numpy as np
 from pewpew.fx.op import BindCtx, Cost, FrameCtx, Op
 from pewpew.fx.prims import knn
 from pewpew.fx.prims.knn import Neighbors
-from pewpew.fx.prims.vec import F32
+from pewpew.fx.prims.vec import F32, fade
 from pewpew.fx.types import SAME, Coords, Fn, Port, Sig, Ty
-from pewpew.kit import fade
 from pewpew.params import Choice, Float, Int
 
 # Neighbours per point by the map's dimension: on a strip, a grid or a

@@ -19,8 +19,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from pewpew.classinfo import docstring_summary
 from pewpew.compose import Controls, Layer, Route, look_controls
+from pewpew.fx.catalog import docstring_summary
 from pewpew.fx.compile import label_of
 from pewpew.fx.graph import Node
 from pewpew.fx.ops import OPS

@@ -485,7 +485,7 @@ def test_a_brief_render_drops_its_spec_and_cannot_render_again():
 
 
 def test_every_verb_refuses_a_look_that_names_op_pattern_as_any_unknown_op():
-    """No op `pattern` runs a gallery pattern or a file: a look that names
+    """No op `pattern` runs a file: a look that names
     it is refused as any unknown op is (ADR-025)."""
     named = {"layers": [{"id": "base", "nodes": {"mine": {"op": "pattern", "args": {"pattern": "comet"}}}}]}
     for verb in (lambda: render(named, MAP, SECONDS, FPS), lambda: compare(STRIPES, named, map_spec=MAP),

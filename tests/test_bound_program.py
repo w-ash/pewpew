@@ -112,7 +112,7 @@ def test_a_node_that_raises_is_named_on_the_status_line(counter: type[Op],
     frame = renderer.advance_to(1 / FPS)
     error = renderer.error
     assert error is not None and frame[:, 0].min() > 0.0  # the pulsing-red frame
-    assert error.path == "layers.base.n" and error.pattern == "layers.base"
+    assert error.path == "layers.base.n" and error.layer == "layers.base"
     assert str(error) == "layers.base.render raised: ZeroDivisionError: bad step (in node layers.base.n (count_test))"
 
 

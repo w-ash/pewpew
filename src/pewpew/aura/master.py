@@ -68,6 +68,6 @@ class Master:
     def apply(self, t: float, frame: np.ndarray) -> np.ndarray:
         """`frame` at engine time `t` times the scale, as a new float32
         array; `frame` is not changed. The loop's frame is shared with the
-        pattern's state (render.py), so the product must never be written
+        renderer's state (render.py), so the product must never be written
         into it. `t` is unused: the master involves no time."""
         return np.multiply(frame, np.float32(self.scale), dtype=np.float32)

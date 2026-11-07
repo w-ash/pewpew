@@ -21,6 +21,7 @@ from pewpew.fx.prims.vec import (
     AXES,
     F32,
     MID,
+    TWO_PI,
     Axis,
     Center,
     Plane,
@@ -33,7 +34,6 @@ from pewpew.fx.prims.vec import (
     plane_axes,
     vec,
 )
-from pewpew.kit import TWO_PI
 
 
 def _with(p: Vec, changes: dict[int, F32]) -> Vec:
