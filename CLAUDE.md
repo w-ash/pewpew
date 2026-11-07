@@ -15,8 +15,9 @@ every major decision has an ADR in `research/synthesis/decisions/`.
   two pages in `web/`, the control page and the studio (built and tested; needs Node, pnpm
   and the Playwright browsers), and the L1 suite. CI
   (`.github/workflows/ci.yml`) runs the same recipe; run it unpiped before
-  every commit. There is no lint or type baseline: suppress a finding only
-  inline, with its reason.
+  every commit. There is no lint baseline. The basedpyright baseline
+  (`.basedpyright/baseline.json`, tests only) holds old debt: fix, never add;
+  suppress a new finding only inline, with its reason.
 - `uv run pytest` (`just test`) — the L1 suite (golden frames +
   determinism). It must stay green and fast (<30 s).
 - `just test-thorough` — the L1 suite with more examples a property
