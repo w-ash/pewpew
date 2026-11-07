@@ -165,18 +165,24 @@ export class WireStore {
     }
   }
 
+  /** A new connection, on positions `map` with frames in `gamma`: what the last one said is dropped, and
+   * the rest follows. The engine's hello opens one; a page whose server sends no hello calls it as its socket
+   * opens. */
+  opened({ gamma, map }: Pick<WireState, "gamma" | "map">): void {
+    this.wire.clear();
+    this.setMods({});
+    this.clearFrame();
+    this.update({
+      connected: true, gamma, map, params: this.declare([]), aura: null, catalog: null,
+      error: null, refusals: {}, paramRefusals: {}, session: this.state.session + 1,
+    });
+  }
+
   receive(msg: ServerMessage): void {
     switch (msg.type) {
       case "hello": {
-        // A new connection: what the last one said is dropped, and the rest follows.
         const { type: _, display_gamma, ...map } = msg;
-        this.wire.clear();
-        this.setMods({});
-        this.clearFrame();
-        this.update({
-          connected: true, gamma: display_gamma, map, params: this.declare([]), aura: null, catalog: null,
-          error: null, refusals: {}, paramRefusals: {}, session: this.state.session + 1,
-        });
+        this.opened({ gamma: display_gamma, map });
         break;
       }
       case "layout": {

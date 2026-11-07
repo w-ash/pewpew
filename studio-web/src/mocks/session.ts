@@ -1,25 +1,26 @@
 /**
  * A mock `/ws/session`, for dev and tests only. It follows the backend's
- * behavior (src/pewpew/studio/app.py and session.py): the session starts on
- * a 64-pixel placeholder, `hello` comes on connect and after each bind or
- * pattern change with the params' records and values, `bound` precedes that
- * `hello`, and a failed bind is `refused` with `control: "bind"` and
- * `issues`.
+ * behavior (src/pewpew/studio/session.py, docs/studio/contracts.md): the
+ * session starts in `tide` on a 256-pixel placeholder; `hello` comes on
+ * connect and after each bind, the per-frame states after it; a request with
+ * an `id` is answered with `ack` or `refused`, and one without is answered
+ * only when refused; while paused, every request but `pause`, `resume` and
+ * `bind` is refused. A failed bind is `refused` with `control: "bind"`.
  */
 import { ws } from "msw";
-import type { Arrangement, ParamValue } from "@/api/types";
+import type { Arrangement } from "@/api/types";
 import { type PowerCap, powerOf } from "@/editor/arrangement";
 import { encodeFrame } from "@/session/protocol";
+import { MockAura } from "./aura";
 import { MockCompileError, mockCompile } from "./compile";
-import {
-  MOCK_PATTERNS,
-  mockRefusal,
-  mockWatts,
-  renderMockFrame,
-} from "./frames";
+import { mockWatts, renderMockFrame } from "./frames";
+import { MOCK_LOOKS } from "./looks";
 
 const FPS = 30;
-const PLACEHOLDER_N = 64;
+const PLACEHOLDER_N = 256;
+/** What a session without a looks file, boards or a room refuses. */
+const NO_FILE = ["recall", "save", "keep", "delete", "cycle", "fade"];
+const NO_BOARDS = ["scan", "rebind", "blink"];
 
 const sessionLink = ws.link(/\/ws\/session$/);
 
@@ -28,29 +29,28 @@ export const sessionHandler = sessionLink.addEventListener(
   ({ client }) => {
     let n = PLACEHOLDER_N;
     let cap: PowerCap = { max_watts: null, max_brightness: 1 };
-    let pattern = "rainbow";
-    let values: Record<string, ParamValue> = defaults(pattern);
+    const names = Object.keys(MOCK_LOOKS);
+    let made = 0;
+    const aura = new MockAura(MOCK_LOOKS.tide ?? MOCK_LOOKS[names[0]]);
     let paused = false;
     let seq = 0;
     let t = 0;
     const send = (msg: object) => client.send(JSON.stringify(msg));
-    const hello = () =>
-      send({
-        type: "hello",
-        n,
-        fps: FPS,
-        patterns: Object.keys(MOCK_PATTERNS).sort(),
-        pattern,
-        params: MOCK_PATTERNS[pattern],
-        values,
-      });
+    const states = () => {
+      for (const msg of aura.states()) send(msg);
+    };
+    const hello = () => {
+      send({ type: "hello", n, fps: FPS, capabilities: ["ack", "look"] });
+      states();
+    };
 
     hello();
     const timer = setInterval(() => {
       if (paused) return;
       t += 1 / FPS;
       seq = (seq + 1) >>> 0;
-      const rgb = renderMockFrame(pattern, values, n, t);
+      const level = aura.blackout ? 0 : aura.master;
+      const rgb = renderMockFrame(aura.layers.length, level, n, t);
       // The server's limiter on the linear frame, done here on display bytes.
       const uncapped = mockWatts(rgb);
       const s = Math.min(
@@ -70,6 +70,20 @@ export const sessionHandler = sessionLink.addEventListener(
         });
     }, 1000 / FPS);
 
+    /** The engine's answer to request `msg`: `reason` refuses it; else an `ack` when it has an `id`. */
+    const answer = (msg: Record<string, unknown>, reason: string | null) => {
+      const id = msg.id ?? null;
+      if (reason !== null)
+        send({
+          type: "refused",
+          control: msg.type,
+          name: msg.type === "set" ? msg.name : null,
+          id,
+          reason,
+        });
+      else if (id !== null) send({ type: "ack", id, control: msg.type });
+    };
+
     client.addEventListener("close", () => clearInterval(timer));
     client.addEventListener("message", (event) => {
       if (typeof event.data !== "string") return;
@@ -79,13 +93,18 @@ export const sessionHandler = sessionLink.addEventListener(
       } catch {
         return;
       }
+      let reason: string | null = null;
+      if (paused && !["pause", "resume", "bind"].includes(String(msg.type))) {
+        answer(msg, "the session is paused: resume it first");
+        return;
+      }
       switch (msg.type) {
         case "pause":
           paused = true;
-          break;
+          return;
         case "resume":
           paused = false;
-          break;
+          return;
         case "bind":
           try {
             const rig = mockCompile(msg.arrangement as Arrangement);
@@ -99,55 +118,58 @@ export const sessionHandler = sessionLink.addEventListener(
             });
             hello();
           } catch (e) {
-            const issues = e instanceof MockCompileError ? e.issues : [];
             send({
               type: "refused",
               control: "bind",
+              name: null,
+              id: null,
               reason: (e as Error).message,
-              issues,
+              issues: e instanceof MockCompileError ? e.issues : [],
             });
           }
+          return;
+        case "set":
+          reason = aura.set(msg.name, msg.value);
           break;
-        case "pattern": {
-          const name = String(msg.name).toLowerCase();
-          if (!(name in MOCK_PATTERNS)) {
-            send({
-              type: "refused",
-              control: "pattern",
-              reason: `unknown pattern; available: ${Object.keys(MOCK_PATTERNS).join(", ")}`,
-            });
-            break;
-          }
-          pattern = name;
-          values = defaults(pattern);
-          hello();
+        case "look":
+          if (typeof msg.look !== "object" || !msg.look)
+            reason = "a look is an object with 'layers'";
+          else aura.play(msg.look as never);
           break;
-        }
-        case "set": {
-          const spec = MOCK_PATTERNS[pattern].find((p) => p.name === msg.name);
-          const reason = spec
-            ? mockRefusal(spec, msg.value)
-            : `no param ${String(msg.name)}`;
-          if (reason !== null) {
-            send({
-              type: "refused",
-              control: "set",
-              ...(typeof msg.name === "string" ? { name: msg.name } : {}),
-              reason,
-            });
-            break;
-          }
-          values = { ...values, [msg.name as string]: msg.value as ParamValue };
-          send({ type: "params", values });
+        case "surprise":
+        case "vary":
+          // The mock makes no looks: it plays the next example.
+          made = (made + 1) % names.length;
+          aura.play(MOCK_LOOKS[names[made]]);
           break;
-        }
+        case "add_layer":
+          reason = aura.add(msg.layer as Record<string, unknown>, msg.below);
+          break;
+        case "remove_layer":
+          reason = aura.remove(msg.lid);
+          break;
+        case "move_layer":
+          reason = aura.move(msg.lid, msg.to);
+          break;
+        case "front":
+          aura.front = (msg.paths as string[]) ?? [];
+          break;
+        case "master":
+          aura.master = Number(msg.value);
+          break;
+        case "blackout":
+          aura.blackout = msg.on === true;
+          break;
+        default:
+          if (NO_FILE.includes(String(msg.type)))
+            reason = "no looks file: start the run with --looks PATH";
+          else if (NO_BOARDS.includes(String(msg.type)))
+            reason = "this session drives no boards";
+          else if (msg.id === undefined) return;
+          else reason = `unknown control ${String(msg.type)}`;
       }
+      answer(msg, reason);
+      if (reason === null) states();
     });
   },
 );
-
-export function defaults(pattern: string): Record<string, ParamValue> {
-  return Object.fromEntries(
-    MOCK_PATTERNS[pattern].map((p) => [p.name, p.default as ParamValue]),
-  );
-}

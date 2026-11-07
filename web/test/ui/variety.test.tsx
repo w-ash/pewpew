@@ -5,6 +5,8 @@ import { Deck } from "../../src/deck/Deck";
 import { LookPanel } from "../../src/deck/LookPanel";
 import { StatusBar } from "../../src/status/StatusBar";
 import { TopBar } from "../../src/status/TopBar";
+import { Variety } from "../../src/deck/Variety";
+import { useDisclosure } from "../../src/design/Disclosure";
 import { refused, AURA } from "../fixtures/messages";
 import { pastDoubleTap, renderWired } from "./harness";
 
@@ -317,4 +319,18 @@ test("at 360 px the top bar holds every mode and the health word without sliding
   expect(bar.scrollWidth).toBeLessThanOrEqual(bar.clientWidth);
   expect(getComputedStyle(document.querySelector(".health-chip > .t-value")!).textOverflow).toBe("ellipsis");
   await page.viewport(414, 896);
+});
+
+test("without a looks book, surprise me and vary this each take one press", async () => {
+  function Bookless() {
+    return <Variety aura={{ ...AURA, looks: null }} looks={null} note={useDisclosure()} />;
+  }
+  const { screen, sent, answer } = await renderWired(<Bookless />);
+  await screen.getByRole("button", { name: "vary this" }).click();
+  await answer();
+  await screen.getByRole("button", { name: "surprise me" }).click();
+  expect(sent).toEqual([
+    { type: "vary", strength: null, seed: null },
+    { type: "surprise", seed: null },
+  ]);
 });

@@ -4,14 +4,15 @@
  *
  * `customFetch` throws `ApiError` on any non-2xx reply, so only the 200 body
  * reaches these functions. The spec types the arrangement, catalog and
- * compile bodies as free-form objects; these functions give them their
- * hand-written types.
+ * compile bodies and the looks as free-form objects; these functions give them
+ * their hand-written types.
  */
 import * as api from "./generated";
 import type {
   Arrangement,
   Catalog,
   CompiledRig,
+  LookDocument,
   SavedArrangement,
 } from "./types";
 
@@ -42,4 +43,9 @@ export async function saveArrangement(
 export async function getArrangement(id: string): Promise<Arrangement> {
   const { data } = await api.getArrangement(encodeURIComponent(id));
   return data as Arrangement;
+}
+
+/** The example looks by name, each ready to send as a `look` request. */
+export async function getLooks(): Promise<Record<string, LookDocument>> {
+  return (await api.listLooks()).data as Record<string, LookDocument>;
 }

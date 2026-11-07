@@ -1,4 +1,12 @@
-import { Button, Tile, ToggleButton } from "@pewpew/page/design";
+import {
+  Block,
+  Button,
+  Field,
+  Segments,
+  SelectField,
+  Tile,
+} from "@pewpew/page/design";
+import { NumberField, type NumberRange } from "@pewpew/page/params";
 import { useRef } from "react";
 import { ApiError } from "@/api/client";
 import { compileArrangement } from "@/api/endpoints";
@@ -39,9 +47,36 @@ import {
   yprToQuat,
 } from "@/editor/pose";
 import { useDoc } from "@/store/doc";
-import { Field, NumberField, SectionHeading, SelectField } from "./ui";
 
 const DEFAULT_TYPE = "clen-rgbw-bar-1m";
+
+/** A position or a step, in meters. */
+const METERS: NumberRange = {
+  lo: -100,
+  hi: 100,
+  step: 0.01,
+  decimals: 4,
+  unit: "m",
+  periodic: false,
+};
+/** A turn, in degrees, which wraps past a half turn either way. */
+const DEGREES: NumberRange = {
+  lo: -180,
+  hi: 180,
+  step: 1,
+  decimals: 1,
+  unit: "°",
+  periodic: true,
+};
+/** A count of 1 to `hi`. */
+const count = (hi: number): NumberRange => ({
+  lo: 1,
+  hi,
+  step: 1,
+  decimals: 0,
+  unit: "",
+  periodic: false,
+});
 
 function fixtureTypes(catalog: Catalog | null) {
   const list = catalog?.fixture_types ?? [];
@@ -143,7 +178,7 @@ export function ArrangementPanel({
 
   return (
     <div className="studio-panel">
-      <section className="studio-section">
+      <div className="block fields">
         <Field label="Name">
           <input
             value={arrangement.name ?? ""}
@@ -153,7 +188,7 @@ export function ArrangementPanel({
             placeholder="Untitled arrangement"
           />
         </Field>
-        <div className="studio-actions">
+        <div className="row wrap">
           <Button onPress={undo} disabled={!canUndo} title="Undo (⌘Z)">
             Undo
           </Button>
@@ -184,11 +219,10 @@ export function ArrangementPanel({
             }}
           />
         </div>
-      </section>
+      </div>
 
-      <section className="studio-section">
-        <SectionHeading>Add</SectionHeading>
-        <div className="studio-actions">
+      <Block className="fields" title="Add">
+        <div className="row wrap">
           <Button
             onPress={() => {
               const { arrangement: next, id } = addFixture(
@@ -204,10 +238,9 @@ export function ArrangementPanel({
           <Button onPress={addRing}>Ring</Button>
           <Button onPress={addArray}>Array</Button>
         </div>
-      </section>
+      </Block>
 
-      <section className="studio-section">
-        <SectionHeading>Fixtures</SectionHeading>
+      <Block className="fields" title="Fixtures">
         <ul className="studio-entities" data-testid="entity-list">
           {arrangement.groups.map((g) => (
             <EntityRow
@@ -237,7 +270,7 @@ export function ArrangementPanel({
             </li>
           )}
         </ul>
-      </section>
+      </Block>
 
       {selection && (
         <SelectionEditor
@@ -315,12 +348,8 @@ function SelectionEditor({
   const endAttach = group?.preset === "array" ? group.attach : fixture?.attach;
 
   return (
-    <section className="studio-card" aria-label="Selection">
-      <div className="studio-section-head">
-        <SectionHeading>Selected</SectionHeading>
-        <span className="t-heading">{selection.id}</span>
-      </div>
-      <div className="studio-actions">
+    <Block className="fields" title={`Selected · ${selection.id}`}>
+      <div className="row wrap">
         <Button
           onPress={() => {
             const r = duplicate(arrangement, selection);
@@ -425,7 +454,7 @@ function SelectionEditor({
           }
         />
       )}
-    </section>
+    </Block>
   );
 }
 
@@ -445,51 +474,39 @@ export function PoseInspector({
   const setRot = (field: keyof YawPitchRoll, v: number) =>
     onChange({ ...pose, quat_xyzw: yprToQuat({ ...ypr, [field]: v }) }, field);
   return (
-    <div className="studio-section">
-      <div className="studio-grid-3">
-        {(["x", "y", "z"] as const).map((axis, i) => (
-          <NumberField
-            key={axis}
-            label={axis}
-            unit="m"
-            step={0.01}
-            decimals={4}
-            value={pose.position_m[i]}
-            onChange={(v) => setPos(i, v)}
-          />
-        ))}
-      </div>
-      <div className="studio-grid-3">
+    <>
+      {(["x", "y", "z"] as const).map((axis, i) => (
         <NumberField
-          label="Yaw"
-          unit="° about Y"
-          step={1}
-          decimals={1}
-          value={ypr.yaw}
-          onChange={(v) => setRot("yaw", v)}
+          key={axis}
+          label={axis}
+          range={METERS}
+          value={pose.position_m[i]}
+          onChange={(v) => setPos(i, v)}
         />
-        <NumberField
-          label="Pitch"
-          unit="° about X"
-          step={1}
-          decimals={1}
-          value={ypr.pitch}
-          onChange={(v) => setRot("pitch", v)}
-        />
-        <NumberField
-          label="Roll"
-          unit="° about Z"
-          step={1}
-          decimals={1}
-          value={ypr.roll}
-          onChange={(v) => setRot("roll", v)}
-        />
-      </div>
+      ))}
+      <NumberField
+        label="Yaw, about Y"
+        range={DEGREES}
+        value={ypr.yaw}
+        onChange={(v) => setRot("yaw", v)}
+      />
+      <NumberField
+        label="Pitch, about X"
+        range={DEGREES}
+        value={ypr.pitch}
+        onChange={(v) => setRot("pitch", v)}
+      />
+      <NumberField
+        label="Roll, about Z"
+        range={DEGREES}
+        value={ypr.roll}
+        onChange={(v) => setRot("roll", v)}
+      />
       <p className="note">
         Turns apply yaw, then pitch, then roll, each about the fixture's own
         axes.
       </p>
-    </div>
+    </>
   );
 }
 
@@ -502,34 +519,25 @@ function Ends({
   ends: Array<[End | RingEnd, string, AttachmentRef]>;
   onChange: (end: End | RingEnd, id: AttachmentRef) => void;
 }) {
-  const options = [
-    { id: null, name: "None" },
+  // "" stands for a bare end.
+  const items = [
+    { value: "", label: "None" },
     ...(catalog?.attachment_types ?? []).map((a) => ({
-      id: a.id,
-      name: a.name,
+      value: a.id,
+      label: a.name,
     })),
   ];
-  return (
-    <div className="studio-section">
-      {ends.map(([end, label, current]) => (
-        <div key={end} className="studio-field">
-          <span className="field-label">{label}</span>
-          <fieldset className="studio-segments" aria-label={label}>
-            {options.map((o) => (
-              <ToggleButton
-                key={o.id ?? "none"}
-                variant="tertiary"
-                pressed={current === o.id}
-                onPressedChange={() => onChange(end, o.id)}
-              >
-                {o.name}
-              </ToggleButton>
-            ))}
-          </fieldset>
-        </div>
-      ))}
+  return ends.map(([end, label, current]) => (
+    <div key={end} className="field">
+      <span className="field-label">{label}</span>
+      <Segments
+        label={label}
+        items={items}
+        value={current ?? ""}
+        onChange={(id) => onChange(end, id || null)}
+      />
     </div>
-  );
+  ));
 }
 
 function TypeSelect({
@@ -545,7 +553,7 @@ function TypeSelect({
     <SelectField
       label="Fixture type"
       value={value}
-      options={fixtureTypes(catalog).map((t) => ({
+      items={fixtureTypes(catalog).map((t) => ({
         value: t.id,
         label: t.name,
       }))}
@@ -564,73 +572,56 @@ function RingEditor({
   onChange: (patch: Partial<Group>, key: string) => void;
 }) {
   return (
-    <section className="studio-section" aria-label="Ring">
-      <SectionHeading>Ring</SectionHeading>
+    <Block className="fields" title="Ring">
       <TypeSelect
         catalog={catalog}
         value={group.type}
         onChange={(type) => onChange({ type }, "type")}
       />
-      <div className="studio-grid-2">
-        <NumberField
-          label="Count"
-          integer
-          step={1}
-          min={1}
-          max={360}
-          value={group.count}
-          onChange={(count) => onChange({ count }, "count")}
-        />
-        <NumberField
-          label="Start radius"
-          unit="m"
-          step={0.01}
-          min={0}
-          decimals={6}
-          value={group.start_radius_m}
-          onChange={(start_radius_m) =>
-            onChange({ start_radius_m }, "start_radius_m")
-          }
-        />
-        <NumberField
-          label="Angle offset"
-          unit="°"
-          step={0.5}
-          decimals={2}
-          value={group.angle_offset_deg ?? 0}
-          onChange={(angle_offset_deg) =>
-            onChange({ angle_offset_deg }, "angle_offset_deg")
-          }
-        />
-        <NumberField
-          label="Tilt"
-          unit="°"
-          step={1}
-          min={-90}
-          max={90}
-          decimals={2}
-          value={group.tilt_deg ?? 0}
-          onChange={(tilt_deg) => onChange({ tilt_deg }, "tilt_deg")}
-        />
-        <NumberField
-          label="Roll"
-          unit="° about the bar"
-          step={1}
-          decimals={2}
-          value={group.roll_deg ?? 0}
-          onChange={(roll_deg) => onChange({ roll_deg }, "roll_deg")}
-        />
-        <SelectField<DataIn>
-          label="Data in"
-          value={group.data_in ?? "inner"}
-          options={[
-            { value: "inner", label: "Inner end" },
-            { value: "outer", label: "Outer end" },
-          ]}
-          onChange={(data_in) => onChange({ data_in }, "data_in")}
-        />
-      </div>
-    </section>
+      <NumberField
+        label="Count"
+        range={count(360)}
+        value={group.count}
+        onChange={(count) => onChange({ count }, "count")}
+      />
+      <NumberField
+        label="Start radius"
+        range={{ ...METERS, lo: 0, decimals: 6 }}
+        value={group.start_radius_m}
+        onChange={(start_radius_m) =>
+          onChange({ start_radius_m }, "start_radius_m")
+        }
+      />
+      <NumberField
+        label="Angle offset"
+        range={{ ...DEGREES, step: 0.5, decimals: 2 }}
+        value={group.angle_offset_deg ?? 0}
+        onChange={(angle_offset_deg) =>
+          onChange({ angle_offset_deg }, "angle_offset_deg")
+        }
+      />
+      <NumberField
+        label="Tilt"
+        range={{ ...DEGREES, lo: -90, hi: 90, decimals: 2, periodic: false }}
+        value={group.tilt_deg ?? 0}
+        onChange={(tilt_deg) => onChange({ tilt_deg }, "tilt_deg")}
+      />
+      <NumberField
+        label="Roll, about the bar"
+        range={{ ...DEGREES, decimals: 2 }}
+        value={group.roll_deg ?? 0}
+        onChange={(roll_deg) => onChange({ roll_deg }, "roll_deg")}
+      />
+      <SelectField<DataIn>
+        label="Data in"
+        value={group.data_in ?? "inner"}
+        items={[
+          { value: "inner", label: "Inner end" },
+          { value: "outer", label: "Outer end" },
+        ]}
+        onChange={(data_in) => onChange({ data_in }, "data_in")}
+      />
+    </Block>
   );
 }
 
@@ -665,78 +656,61 @@ function ArrayEditor({
       "counts",
     );
   return (
-    <section className="studio-section" aria-label="Array">
-      <SectionHeading>Array</SectionHeading>
+    <Block className="fields" title="Array">
       <TypeSelect
         catalog={catalog}
         value={group.type}
         onChange={(type) => onChange({ type }, "type")}
       />
-      <div className="studio-grid-2">
-        <NumberField
-          label="Count"
-          integer
-          step={1}
-          min={1}
-          max={200}
-          value={n}
-          onChange={(v) => setCounts(v, m ?? 1)}
-        />
-        <NumberField
-          label="Rows"
-          integer
-          step={1}
-          min={1}
-          max={200}
-          value={m ?? 1}
-          onChange={(v) => setCounts(n, v)}
-        />
-      </div>
-      {[0, ...(m && m > 1 ? [1] : [])].map((row) => (
-        <div key={row} className="studio-grid-3">
-          {(["x", "y", "z"] as const).map((axis, i) => (
-            <NumberField
-              key={axis}
-              label={`${row === 0 ? "Step" : "Row step"} ${axis}`}
-              unit="m"
-              step={0.01}
-              decimals={4}
-              value={steps[row]?.[i] ?? 0}
-              onChange={(v) => setStep(row, i, v)}
-            />
-          ))}
-        </div>
-      ))}
+      <NumberField
+        label="Count"
+        range={count(200)}
+        value={n}
+        onChange={(v) => setCounts(v, m ?? 1)}
+      />
+      <NumberField
+        label="Rows"
+        range={count(200)}
+        value={m ?? 1}
+        onChange={(v) => setCounts(n, v)}
+      />
+      {[0, ...(m && m > 1 ? [1] : [])].flatMap((row) =>
+        (["x", "y", "z"] as const).map((axis, i) => (
+          <NumberField
+            key={`${row}${axis}`}
+            label={`${row === 0 ? "Step" : "Row step"} ${axis}`}
+            range={METERS}
+            value={steps[row]?.[i] ?? 0}
+            onChange={(v) => setStep(row, i, v)}
+          />
+        )),
+      )}
       {memberPose && member ? (
-        <div className="studio-grid-3">
-          {(["yaw", "pitch", "roll"] as const).map((field) => (
-            <NumberField
-              key={field}
-              label={`Member ${field}`}
-              unit="°"
-              step={1}
-              decimals={1}
-              value={member[field]}
-              onChange={(v) =>
-                onChange(
-                  {
-                    member: {
-                      ...memberPose,
-                      quat_xyzw: yprToQuat({ ...member, [field]: v }),
-                    },
+        (["yaw", "pitch", "roll"] as const).map((field) => (
+          <NumberField
+            key={field}
+            label={`Member ${field}`}
+            range={DEGREES}
+            value={member[field]}
+            onChange={(v) =>
+              onChange(
+                {
+                  member: {
+                    ...memberPose,
+                    quat_xyzw: yprToQuat({ ...member, [field]: v }),
                   },
-                  `member-${field}`,
-                )
-              }
-            />
-          ))}
-        </div>
+                },
+                `member-${field}`,
+              )
+            }
+          />
+        ))
       ) : (
         <p className="t-label">
           The member rotation is an <span className="t-code">aim</span>; edit it
           in the file.
         </p>
       )}
-    </section>
+    </Block>
   );
 }

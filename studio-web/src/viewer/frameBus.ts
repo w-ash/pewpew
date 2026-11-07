@@ -1,4 +1,4 @@
-import type { Frame } from "@/session/protocol";
+import type { Frame } from "@pewpew/page/wire";
 
 /**
  * The newest frame, handed from the socket to the render loop. Only the

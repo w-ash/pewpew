@@ -21,9 +21,9 @@ export class AppBoundary extends Component<
     if (this.state.error === null) return this.props.children;
     const canUndo = useDoc.getState().history.past.length > 0;
     return (
-      <div role="alert" className="studio-section studio-boundary">
+      <div role="alert" className="fields studio-boundary">
         <p>The studio hit an error: {this.state.error}</p>
-        <div className="studio-actions">
+        <div className="row wrap">
           {canUndo && (
             <Button
               variant="primary"

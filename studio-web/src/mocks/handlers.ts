@@ -2,9 +2,9 @@ import { HttpResponse, http } from "msw";
 import type { Arrangement } from "@/api/types";
 import { mockCatalog } from "./catalog";
 import { MockCompileError, mockCompile } from "./compile";
-import { MOCK_PATTERNS } from "./frames";
 import { mockGlb } from "./glb";
-import { defaults, sessionHandler } from "./session";
+import { MOCK_LOOKS } from "./looks";
+import { sessionHandler } from "./session";
 
 /**
  * Saved arrangements, keyed by a fake 22-character id. Handlers run in the
@@ -50,15 +50,7 @@ function compileOr422(arrangement: Arrangement) {
 
 export const httpHandlers = [
   http.get("/api/catalog", () => HttpResponse.json(mockCatalog)),
-  http.get("/api/patterns", () =>
-    HttpResponse.json(
-      Object.entries(MOCK_PATTERNS).map(([name, params]) => ({
-        name,
-        params,
-        values: defaults(name),
-      })),
-    ),
-  ),
+  http.get("/api/looks", () => HttpResponse.json(MOCK_LOOKS)),
   http.post("/api/compile", async ({ request }) => {
     const rig = compileOr422((await request.json()) as Arrangement);
     return rig instanceof HttpResponse ? rig : HttpResponse.json(rig);

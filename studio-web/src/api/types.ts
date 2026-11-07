@@ -3,10 +3,10 @@
  *
  * `Issue`, `IssueLevel` and `SavedArrangement` come from the OpenAPI spec
  * through orval (src/api/generated). The spec types the arrangement, catalog
- * and compile bodies and the pattern params as free-form objects, so the rest
- * is written by hand after the pydantic models (src/pewpew/rig/models.py:
- * `Pose`, `RingGroup`, `ArrayGroup`, `FixtureInstance`; `Catalog.to_json` in
- * src/pewpew/rig/catalog.py; `ParamSet.describe` in src/pewpew/pattern.py).
+ * and compile bodies as free-form objects, so the rest is written by hand
+ * after the pydantic models (src/pewpew/rig/models.py: `Pose`, `RingGroup`,
+ * `ArrayGroup`, `FixtureInstance`; `Catalog.to_json` in
+ * src/pewpew/rig/catalog.py).
  */
 import type { IssueModel } from "./generated/model";
 
@@ -192,90 +192,6 @@ export interface CompiledRig {
   issues: Issue[];
 }
 
-/** A color param's value: hue in degrees, saturation and brightness in 0..1. */
-export interface Hsv {
-  h: number;
-  s: number;
-  v: number;
-}
-
-/** One stop of a palette: its place `at` from 0 to 1, and its color. */
-export interface GradientStop extends Hsv {
-  at: number;
-}
-
-/** A palette param's value: a label ("" for none) and 2 or more stops in
- * order of `at`, the first at 0 and the last at 1. */
-export interface Gradient {
-  label: string;
-  stops: GradientStop[];
-}
-
-/** A param value in its JSON form, as `ParamSet.snapshot_json()` gives it. */
-export type ParamValue = number | boolean | string | Hsv | Gradient;
-
-/** The numeric fields of a float, an int, or one part of a color. */
-export interface NumberSpec {
-  lo: number;
-  hi: number;
-  step: number;
-  decimals: number;
-  unit: string;
-  periodic: boolean;
-}
-
-/** The fields every param record has (`Param.spec()`, src/pewpew/params/kinds.py). */
-interface ParamCommon {
-  name: string;
-  label: string;
-  help: string;
-  group: string;
-  widget: string;
-}
-
-export interface FloatParam extends ParamCommon, NumberSpec {
-  kind: "float";
-  default: number;
-}
-export interface IntParam extends ParamCommon, NumberSpec {
-  kind: "int";
-  default: number;
-}
-export interface BoolParam extends ParamCommon {
-  kind: "bool";
-  default: boolean;
-}
-export interface ChoiceParam extends ParamCommon {
-  kind: "choice";
-  default: string;
-  options: { value: string; label: string }[];
-}
-export interface ColorParam extends ParamCommon {
-  kind: "color";
-  default: Hsv;
-  parts: Record<"h" | "s" | "v", NumberSpec & { label: string }>;
-}
-export interface PaletteParam extends ParamCommon {
-  kind: "palette";
-  default: Gradient;
-  /** The numeric fields of a stop's place and color parts. */
-  stop: Record<"at" | "h" | "s" | "v", NumberSpec & { label: string }>;
-  max_stops: number;
-  /** The gradients a control offers, by label; a label sets its preset. */
-  presets: { value: Gradient; label: string }[];
-}
-/** A record of a kind this page does not know: shown, never set. */
-export interface UnknownParam extends ParamCommon {
-  kind: "unknown";
-  default: unknown;
-}
-
-/** One param record, as the engine declares it, by `kind`. */
-export type ParamSpec =
-  | FloatParam
-  | IntParam
-  | BoolParam
-  | ChoiceParam
-  | ColorParam
-  | PaletteParam
-  | UnknownParam;
+/** One look in the looks file's form (version 4), as `GET /api/looks` gives
+ * each: the engine checks it whole, so the page passes it through. */
+export type LookDocument = Opaque & { layers: unknown[] };

@@ -1,10 +1,11 @@
-import { useRef, type CSSProperties, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useRef, type CSSProperties, type ReactNode, type Ref } from "react";
 import { edited, fadeSeconds, liveLook, lookStatus, unsaved, type LookItem, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useSender } from "../wire/store";
 import type { Disclosure } from "../design/Disclosure";
 import { Icon, type IconName } from "../design/Icon";
 import { Tile } from "../design/Tile";
+import { TileRow } from "../design/TileRow";
 import { useInView } from "../design/useInView";
 import { pressable, useShortcuts } from "../design/shortcuts";
 import { useFade } from "./fade";
@@ -47,15 +48,6 @@ export function MarkSign({ mark }: { mark: Pick<Mark, "icon" | "slashed"> }) {
 
 /** The keys that press the first nine looks, in file order: the deck shows those nine. */
 export const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
-
-const MOVES: Readonly<Record<string, (i: number, n: number) => number>> = {
-  ArrowRight: (i, n) => (i + 1) % n,
-  ArrowDown: (i, n) => (i + 1) % n,
-  ArrowLeft: (i, n) => (i - 1 + n) % n,
-  ArrowUp: (i, n) => (i - 1 + n) % n,
-  Home: () => 0,
-  End: (_, n) => n - 1,
-};
 
 /** What a second press of `pressed` (a look's name, or surprise me) does over unsaved edits: drops them.
  * Empty when there are none. */
@@ -148,16 +140,8 @@ export function Looks({ looks, triggers, note, labelledBy }: { looks: LooksState
   if (!looks.items.length) return <p className="scroller empty note">No looks yet. Surprise me, then save one you like.</p>;
   const shown = looks.items.slice(0, KEYS.length);
   const stop = Math.max(shown.findIndex((item) => item.name === liveName), 0);
-  const roam = (e: KeyboardEvent<HTMLDivElement>) => {
-    const move = MOVES[e.key];
-    const buttons = tiles();
-    const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
-    if (!move || at < 0) return;
-    e.preventDefault();
-    buttons[move(at, buttons.length)]?.focus();
-  };
   return (
-    <div ref={row} className="scroller looks" role="toolbar" aria-labelledby={labelledBy} onKeyDown={roam}>
+    <TileRow ref={row} className="looks" labelledBy={labelledBy}>
       {shown.map((item, i) => (
         <LookTile
           key={item.name}
@@ -170,6 +154,6 @@ export function Looks({ looks, triggers, note, labelledBy }: { looks: LooksState
           hotkey={KEYS[i]}
         />
       ))}
-    </div>
+    </TileRow>
   );
 }

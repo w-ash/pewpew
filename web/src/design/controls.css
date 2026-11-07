@@ -59,7 +59,7 @@
     /* The target is placed in the padding box, so it reaches past a border too (--edge, its width). */
     inset: calc((var(--control-h) - var(--hit)) / 2 - var(--edge, 0px)) calc(-1 * var(--edge, 0px));
   }
-  :is(.button, .tile) {
+  :is(.button, .tile, [data-scope="number-input"]:is([data-part="decrement-trigger"], [data-part="increment-trigger"])) {
     --edge: 1px;
   }
 }

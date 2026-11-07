@@ -1,18 +1,19 @@
+import type { Frame } from "@pewpew/page/wire";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ARRANGEMENT } from "@/store/doc";
 import { initialSession, type SessionState } from "@/store/session";
 import { BIND_DEBOUNCE_MS, SessionClient, STALL_MS } from "./client";
-import { encodeFrame, type Frame } from "./protocol";
+import { encodeFrame } from "./protocol";
 
 class FakeSocket {
+  static readonly OPEN = 1;
   static all: FakeSocket[] = [];
   readyState = 0;
   binaryType: BinaryType = "blob";
   sent: string[] = [];
-  onopen: ((ev: Event) => void) | null = null;
-  onclose: ((ev: CloseEvent) => void) | null = null;
-  onmessage: ((ev: MessageEvent) => void) | null = null;
-  onerror: ((ev: Event) => void) | null = null;
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  onmessage: ((ev: { data: unknown }) => void) | null = null;
   url: string;
   constructor(url: string) {
     this.url = url;
@@ -23,14 +24,19 @@ class FakeSocket {
   }
   close() {
     this.readyState = 3;
-    this.onclose?.({} as CloseEvent);
+    this.onclose?.();
   }
   open() {
     this.readyState = 1;
-    this.onopen?.({} as Event);
+    this.onopen?.();
   }
-  receive(data: string | ArrayBuffer) {
-    this.onmessage?.({ data } as MessageEvent);
+  receive(data: string | ArrayBuffer | object) {
+    this.onmessage?.({
+      data:
+        typeof data === "string" || data instanceof ArrayBuffer
+          ? data
+          : JSON.stringify(data),
+    });
   }
   types() {
     return this.sent.map((s) => JSON.parse(s).type);
@@ -52,14 +58,16 @@ function harness(hidden = false) {
     removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
   } as unknown as Document;
   const frames: Frame[] = [];
+  const held: (() => void)[] = [];
   const activity = new EventTarget();
   const client = new SessionClient({
     url: "ws://test/ws/session",
-    createSocket: (url) => new FakeSocket(url) as unknown as WebSocket,
+    WebSocket: FakeSocket as unknown as typeof WebSocket,
     store,
     visibility,
     activity,
     onFrame: (f) => frames.push(f),
+    requestFrame: (cb) => held.push(cb),
   });
   const setHidden = (h: boolean) => {
     (visibility as { hidden: boolean }).hidden = h;
@@ -70,20 +78,20 @@ function harness(hidden = false) {
     store,
     frames,
     setHidden,
+    flush: () => {
+      for (const cb of held.splice(0)) cb();
+    },
     press: () => activity.dispatchEvent(new Event("pointerdown")),
     socket: () => FakeSocket.all[FakeSocket.all.length - 1],
   };
 }
 
-const hello = (n: number) =>
-  JSON.stringify({
-    type: "hello",
-    n,
-    fps: 30,
-    patterns: ["rainbow"],
-    pattern: "rainbow",
-    params: [],
-  });
+const bound = (n: number) => ({
+  type: "bound",
+  n,
+  catalog_digest: "d",
+  issues: [],
+});
 
 describe("SessionClient", () => {
   beforeEach(() => {
@@ -135,9 +143,7 @@ describe("SessionClient", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
-    h.socket().receive(
-      JSON.stringify({ type: "bound", n: 1, catalog_digest: "d", issues: [] }),
-    );
+    h.socket().receive(bound(1));
     h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(3)));
     vi.advanceTimersByTime(STALL_MS);
     expect(h.store.getState().stalled).toBe(false);
@@ -155,108 +161,89 @@ describe("SessionClient", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
-    h.socket().receive(hello(64));
     h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(64 * 3)));
     expect(h.frames).toHaveLength(0);
-    h.socket().receive(
-      JSON.stringify({
-        type: "bound",
-        n: 128,
-        catalog_digest: "d",
-        issues: [],
-      }),
-    );
+    h.socket().receive(bound(128));
     h.socket().receive(encodeFrame(0.2, 2, new Uint8Array(64 * 3)));
     h.socket().receive(encodeFrame(0.3, 3, new Uint8Array(128 * 3)));
     expect(h.frames.map((f) => f.seq)).toEqual([3]);
-    expect(h.store.getState()).toMatchObject({
-      boundN: 128,
-      catalogDigest: "d",
-    });
+    expect(h.store.getState().boundN).toBe(128);
   });
 
-  it("keeps the engine's values from hello and each params echo", () => {
+  it("opens the wire on connect, which a studio hello leaves alone", () => {
+    const h = harness();
+    h.client.start();
+    expect(h.client.wire.getState().connected).toBe(false);
+    h.socket().open();
+    expect(h.client.wire.getState()).toMatchObject({
+      connected: true,
+      gamma: 2.2,
+      session: 1,
+    });
+    h.socket().receive({
+      type: "declare",
+      params: [
+        {
+          name: "layers.base.waves.freq",
+          kind: "float",
+          label: "Freq",
+          default: 3,
+          lo: 0,
+          hi: 10,
+          step: 0.1,
+          decimals: 1,
+          layer: "base",
+          node: "waves",
+        },
+      ],
+    });
+    h.socket().receive({
+      type: "params",
+      values: { "layers.base.waves.freq": 4 },
+    });
+    // The hello after a bind: every state follows again as it is.
+    h.socket().receive({
+      type: "hello",
+      n: 64,
+      fps: 30,
+      capabilities: ["ack", "look"],
+    });
+    const wire = h.client.wire;
+    expect(wire.getState().session).toBe(1);
+    const [freq] = wire.getState().params;
+    expect(freq && wire.value(freq)).toBe(4);
+    h.socket().receive({ type: "power", watts: 42, uncapped_watts: 84 });
+    h.socket().receive({
+      type: "status",
+      error: "ZeroDivisionError",
+      source: "render",
+      path: "layers.base",
+    });
+    expect(h.store.getState()).toMatchObject({ watts: 42, uncappedWatts: 84 });
+    expect(wire.getState().error?.text).toBe("ZeroDivisionError");
+  });
+
+  it("sends the editor's requests on the same socket, a drag's on the next frame", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
-    h.socket().receive(
-      JSON.stringify({
-        type: "hello",
-        n: 64,
-        fps: 30,
-        patterns: ["a", "b"],
-        pattern: "a",
-        params: [
-          {
-            name: "speed",
-            kind: "float",
-            label: "Speed",
-            default: 1,
-            lo: 0,
-            hi: 2,
-            step: 0.1,
-            decimals: 1,
-          },
-          {
-            name: "color",
-            kind: "color",
-            label: "Color",
-            default: { h: 200, s: 1, v: 1 },
-            parts: {
-              h: { lo: 0, hi: 360, step: 2, decimals: 0 },
-              s: { lo: 0, hi: 1, step: 0.005, decimals: 3 },
-              v: { lo: 0, hi: 1, step: 0.005, decimals: 3 },
-            },
-          },
-        ],
-        values: { speed: 1.5 },
-      }),
-    );
-    // A value the hello leaves out starts at its default.
-    expect(h.store.getState().accepted).toEqual({
-      speed: 1.5,
-      color: { h: 200, s: 1, v: 1 },
+    h.client.socket.sendLatest({
+      type: "set",
+      name: "layers.base.waves.freq",
+      value: 4,
     });
-    h.socket().receive(
-      JSON.stringify({
-        type: "params",
-        values: { speed: 0.4, color: { h: 30, s: 1, v: 0.5 } },
-      }),
-    );
-    expect(h.store.getState().accepted).toEqual({
-      speed: 0.4,
-      color: { h: 30, s: 1, v: 0.5 },
+    h.client.socket.send({ type: "surprise", seed: null });
+    h.client.socket.sendLatest({
+      type: "set",
+      name: "layers.base.waves.freq",
+      value: 5,
     });
-    h.socket().receive(
-      JSON.stringify({
-        type: "refused",
-        control: "set",
-        name: "speed",
-        reason: "speed must be within 0–2",
-      }),
-    );
-    expect(h.store.getState().refusal?.reason).toBe("speed must be within 0–2");
-    expect(h.store.getState().refusedAt.speed).toBeGreaterThan(0);
-    h.socket().receive(
-      JSON.stringify({ type: "refused", control: "pattern", reason: "no" }),
-    );
-    expect(Object.keys(h.store.getState().refusedAt)).toEqual(["speed"]);
-    h.socket().receive(
-      JSON.stringify({ type: "power", watts: 42, uncapped_watts: 84 }),
-    );
-    h.socket().receive(
-      JSON.stringify({
-        type: "status",
-        error: "ZeroDivisionError",
-        source: "render",
-        pattern: "a",
-      }),
-    );
-    expect(h.store.getState()).toMatchObject({
-      watts: 42,
-      uncappedWatts: 84,
-      engineError: "ZeroDivisionError",
-    });
+    h.flush();
+    expect(h.socket().sent.map((s) => JSON.parse(s))).toEqual([
+      { type: "set", name: "layers.base.waves.freq", value: 4 },
+      { type: "surprise", seed: null },
+      { type: "set", name: "layers.base.waves.freq", value: 5 },
+    ]);
   });
 
   it("pauses while the tab is hidden and resumes when it shows", () => {
@@ -269,22 +256,17 @@ describe("SessionClient", () => {
     expect(h.socket().types()).toEqual(["pause", "resume", "pause"]);
   });
 
-  it("reconnects with backoff and binds again, keeping the chosen pattern", () => {
+  it("reconnects with backoff and binds again", () => {
     const h = harness();
     h.client.bind(DEFAULT_ARRANGEMENT);
     h.client.start();
     const first = h.socket();
     first.open();
-    h.client.setPattern("plasma");
-    first.receive(
-      JSON.stringify({ type: "bound", n: 64, catalog_digest: "d", issues: [] }),
-    );
-    first.receive(
-      JSON.stringify({ type: "power", watts: 1, uncapped_watts: 2 }),
-    );
+    first.receive(bound(64));
+    first.receive({ type: "power", watts: 1, uncapped_watts: 2 });
     first.close();
+    expect(h.client.wire.getState().connected).toBe(false);
     expect(h.store.getState()).toMatchObject({
-      connection: "closed",
       boundN: null,
       watts: null,
       uncappedWatts: null,
@@ -300,7 +282,7 @@ describe("SessionClient", () => {
     vi.advanceTimersByTime(1);
     expect(FakeSocket.all).toHaveLength(3);
     h.socket().open();
-    expect(h.socket().types()).toEqual(["bind", "pattern"]);
+    expect(h.socket().types()).toEqual(["bind"]);
   });
 
   it("backs off when sessions open but never bind", () => {

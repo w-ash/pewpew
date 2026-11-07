@@ -5,4 +5,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PatternInfoParamsItem = { [key: string]: unknown };
+export type ListLooks200 = {[key: string]: { [key: string]: unknown }};
