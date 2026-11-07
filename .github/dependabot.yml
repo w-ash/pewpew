@@ -20,9 +20,9 @@ updates:
     cooldown:
       default-days: 7
 
-  # The pnpm workspace: the page's exact pins in web/package.json and the
-  # studio's in studio-web/package.json, one lockfile. A web/ bump changes the
-  # page's build hash, so its PR needs `just web` and the rebuilt page committed.
+  # The pnpm workspace: both pages' exact pins in web/package.json, one
+  # lockfile. A bump changes the control page's build hash, so its PR needs
+  # `just web` and the rebuilt page committed.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

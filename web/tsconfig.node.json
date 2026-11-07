@@ -18,6 +18,8 @@
   },
   "include": [
     "vite.config.ts",
-    "dev-origin.ts"
+    "dev-origin.ts",
+    "playwright.config.ts",
+    "orval.config.ts"
   ]
 }

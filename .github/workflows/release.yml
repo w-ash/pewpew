@@ -41,12 +41,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      # `pnpm check` is biome, tsc and the production vite build.
-      - name: Studio web checks and tests
+      # tsc, the unit tests in the two browsers they run in, and both pages'
+      # builds.
+      - name: Web checks, tests and builds
         run: |
           pnpm install --frozen-lockfile
-          pnpm -C studio-web check
-          pnpm -C studio-web test
+          pnpm -C web exec playwright install --with-deps chromium webkit
+          pnpm -C web check
+          pnpm -C web test
+          pnpm -C web build
 
       - name: Docker build
         run: docker build .

@@ -61,7 +61,7 @@ IDLE_TIMEOUT_S = 600.0  # no inbound message for this long pauses a session
 PAUSED_TIMEOUT_S = 1800.0  # paused for this long closes it
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
 PAUSED = "the session is paused; send resume first"
-_WEB_DIST = Path(__file__).resolve().parents[3] / "studio-web" / "dist"
+_WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist" / "studio"
 _EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
 
 Builders = tuple[Callable[[str, Any], bytes], Callable[[str, Any], str]]

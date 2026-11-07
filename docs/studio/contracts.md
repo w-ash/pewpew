@@ -14,7 +14,7 @@ needs to change a contract says so in its report rather than changing it on its 
 | `schemas/arrangement.v1.json`, `schemas/catalog.v1.json` (generated, committed) | ws1 |
 | `src/pewpew/patterns/rainbow.py` | ws5 |
 | `src/pewpew/studio/` (FastAPI app, sessions, store, limits) and `python -m pewpew studio` | ws3 |
-| `studio-web/` (Vite + React + R3F) | ws4 |
+| `web/src/studio/` (Vite + React + R3F) | ws4 |
 | `Dockerfile`, `.dockerignore`, `fly.toml`, `.github/workflows/release.yml`, `docs/deployment.md` | ws6 |
 | `research/` ADRs and source fragments, `CHANGELOG.md` | ws7 |
 | `docs/studio/reports/<workstream>.md` | each workstream writes its own |
@@ -127,7 +127,7 @@ as a method or function that takes a linear-light float frame.
 | `POST /api/arrangements` (body: arrangement) | `{"id": "<22-char base64url>"}`; the id is the first 128 bits of SHA-256 over the canonical JSON |
 | `GET /api/arrangements/{id}` | the stored arrangement |
 | `GET /api/looks` | `{name: look}`: the current look of each `examples/*.look.json`, by file name, in the looks file's form, ready to send as a `look` request (`PEWPEW_STUDIO_EXAMPLES` names another folder) |
-| `GET /`, `GET /a/{id}`, `/assets/*` | the SPA from `studio-web/dist` when it exists |
+| `GET /`, `GET /a/{id}`, `/assets/*` | the SPA from `web/dist/studio` when it exists |
 
 ## WebSocket `/ws/session` (ws3 owns)
 
@@ -195,8 +195,8 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
 - The app factory is `pewpew.studio.app:create_app`, run with `uvicorn --factory`.
 - `pewpew[studio]` = fastapi, uvicorn[standard], psycopg[binary], manifold3d. pydantic joins the
   core dependencies.
-- `studio-web/` uses pnpm. `pnpm build` writes `studio-web/dist`. In development, Vite on 5173 proxies `/api`
-  and `/ws` to 8000.
+- `web/` uses pnpm. `pnpm build` writes `web/dist/studio`. In development (`pnpm dev:studio`), Vite on 5173
+  proxies `/api` and `/ws` to 8000.
 - The container listens on port 8000.
 
 ## Sources

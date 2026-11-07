@@ -1,4 +1,4 @@
-"""The build hash of the page source in `web/`.
+"""The build hash of the control page's source in `web/`.
 
 The Vite build stamps it into `<meta name="pewpew-build">` of the built page,
 and `tests/test_page_build.py` checks the stamp, so a source change without a
@@ -13,15 +13,18 @@ from pathlib import Path
 WEB = Path(__file__).resolve().parent.parent / "web"
 
 # What the built page is made from: everything in web/src but dotfiles
-# (editor swap files, .DS_Store), the page shell, the build config and the
+# (editor swap files, .DS_Store) and the hosted studio's source (src/studio,
+# which the page never imports), the page shell, the build config and the
 # workspace lockfile at the repo root. Tests and installed packages are not.
 FILES = ("index.html", "package.json", "../pnpm-lock.yaml", "tsconfig.json", "tsconfig.node.json", "vite.config.ts")
+STUDIO = WEB / "src" / "studio"
 
 
 def web_hash() -> str:
     """Return the SHA-256 of the page source files, as 16 hex digits."""
     paths = [WEB / name for name in FILES]
-    paths += (p for p in (WEB / "src").rglob("*") if p.is_file() and not p.name.startswith("."))
+    sources = (WEB / "src").rglob("*")
+    paths += (p for p in sources if p.is_file() and not p.name.startswith(".") and not p.is_relative_to(STUDIO))
     digest = hashlib.sha256()
     for path in sorted(paths):
         data = path.read_bytes()
