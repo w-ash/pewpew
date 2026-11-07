@@ -44,8 +44,6 @@ rig.pixel_in_fixture   # (N,) int32
 rig.fixtures           # tuple[FixtureInstance]: id, type_id, matrix (16 floats, column-major,
                        #   three.js Matrix4.elements order), attachments {"end_a"|"end_b": id|None},
                        #   pixel_start, pixel_count (each fixture's pixels are contiguous, in data order)
-rig.grouping           # pewpew.mapping.Grouping: each fixture as one unit, centred on the mean of its
-                       #   pixels in rig.mapping; fixture_grouping(mapping, fixtures) builds it
 rig.slices             # tuple[OutputSlice]: controller, output, start, count, led_type, color_order
 rig.report             # RigReport | None; filled by ws2; pydantic, JSON-serializable
 rig.issues             # tuple[Issue]: level ("error"|"violation"|"warning"), code, message, ref
@@ -56,9 +54,8 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
 - `RigError(ValueError)` carries `.issues`. It is raised for error-level issues; violations and
   warnings are returned on `rig.issues`.
 - A look renders per pixel (ADR-025, `research/synthesis/decisions/ADR-025-one-effect-system.md`):
-  the running look is rebound to `rig.mapping` and `rig.grouping` (`renderer.rebind(rig.mapping,
-  rig.grouping)` on each layer's renderer). `index` follows data order because the pixels are
-  compiled in that order.
+  the running look is rebound to `rig.mapping` (`Crossfader.rebind`). `index` follows data order
+  because the pixels are compiled in that order.
 
 **Pinned 2026-10-22 after ws1 and ws3 landed.**
 - **`Catalog.to_json()`** (in `src/pewpew/rig/catalog.py`) returns
@@ -100,7 +97,7 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
   `current_a`. A feed's `connector_a` includes the PSU's output connector (`psu.connector`). Each
   output gives `fps`, the wire's rate at most the firmware's `min_frame_interval_s`. New warnings:
   `relies_on_cap_and_fuse` and `psu_full_white_overload`.
-- **Session.** `Session.bind(mapping, grouping=..., catalog_digest=..., issues=..., limiter=...)`.
+- **Session.** `Session.bind(mapping, catalog_digest=..., issues=..., limiter=...)`.
   Each frame passes the master, then the limiter (an `after` stage), before it is quantized. A
   frame that fails is dropped and the limiter stays bound. The arrangement's `max_brightness`
   stays in the limiter, and `uncapped_watts` is the draw of the frame at the master's level,
@@ -165,7 +162,7 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
   any frame whose length is not `8 + 3n`.
 - **Client to server, text:**
   - `{"type":"bind","arrangement":{...}}`, which compiles, rebinds the running look to the rig's
-    mapping and fixture grouping, and keeps `t`. When the running look cannot run on it (a
+    mapping, and keeps `t`. When the running look cannot run on it (a
     strip for a look that folds a plane), the session cuts to the first example look that can
     (`tide` first, then by file name), and `status` says so (source `"bind"`) until another
     look runs. When none can, the bind is refused and the old mapping stays;

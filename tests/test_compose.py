@@ -587,9 +587,9 @@ def test_run_runs_a_layer_with_a_seed_derived_from_its_id(tmp_path):
     path = tmp_path / "sparks.look.json"
     path.write_bytes(LookBook({"sparks": expr.look(expr.layer("base", particles()))}, "sparks").to_bytes())
     run = build(["run", str(path), "--map", "line:300", "--seed", "0"])
-    live = run.fader.current
+    live = run.aura.fader.current
     assert [layer.id for layer in live.layers] == ["base"] and live.layer("base").renderer.seed == layer_seed(0, "base")
-    got = frames(run.fader, 60)
+    got = frames(run.aura.fader, 60)
     cls = ProgramPattern.of(Program.of(particles()))
     want = frames(Renderer(cls(), line(300), seed=layer_seed(0, "base"), name="layers.base"), 60)
     assert got.tobytes() == want.tobytes()

@@ -131,12 +131,12 @@ class AuraControl:
         master: Master,
         triggers: Triggers,
         *,
+        variety: Variety,
         looks: Looks | None = None,
         blink: Blink | None = None,
         boards: Boards | None = None,
         health: Callable[[], dict] | None = None,
         accept_looks: bool = False,
-        variety: Variety | None = None,
         timeout: float = ASK_TIMEOUT_S,
         max_making: int | None = None,
     ) -> None:
@@ -149,7 +149,7 @@ class AuraControl:
         self._boards = boards
         self._health = health
         self._accept_looks = accept_looks
-        self._variety = variety if variety is not None else Variety(deck)
+        self._variety = variety
         self._timeout = timeout
         # One slot per look a `surprise` or `vary` may be making at once; None: no limit.
         self._making = threading.BoundedSemaphore(max_making) if max_making is not None else None

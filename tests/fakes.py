@@ -500,7 +500,7 @@ def rgb(r: float, g: float, b: float, n: int) -> np.ndarray:
 
 
 def layer_renderer(aura, lid: str = "base") -> Renderer:
-    """The renderer layer `lid` of a rig's or a run's running stack runs now."""
+    """The renderer layer `lid` of an aura's running stack runs now: a rig or a run's `aura`."""
     return aura.fader.current.layer(lid).renderer
 
 
@@ -533,9 +533,7 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
     r.clock = SlotClock(60.0)
 
     def frame(t: float):
-        r.triggers.before_frame(t)
-        if r.looks is not None:
-            r.looks.before_frame(t)
+        aura.before_frame(t)
         return r.fader.advance_to(t)
 
     r.frame = frame

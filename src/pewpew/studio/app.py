@@ -50,7 +50,7 @@ from pewpew.studio.limits import (
     client_ip,
     declared_fixtures,
 )
-from pewpew.studio.session import START, Session, SessionRegistry, as_look, example_looks
+from pewpew.studio.session import START, Session, SessionRegistry, example_looks, start_looks
 from pewpew.studio.store import ID_PATTERN, Store, arrangement_id, canonical_json, store_from_env
 from pewpew.studio.transport import Outbox
 
@@ -246,8 +246,7 @@ def create_app(
     if START not in looks:
         raise RuntimeError(f"no example look {START!r}: every session starts in it")
     looks_body = json.dumps(looks).encode()
-    # The looks a session starts in, and falls back on in a bind, in that order.
-    starts = {name: as_look(looks[name]) for name in [START, *(name for name in looks if name != START)]}
+    starts = start_looks(looks)
 
     def catalog_of() -> Any:
         nonlocal catalog

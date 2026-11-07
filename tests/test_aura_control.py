@@ -517,7 +517,7 @@ def test_a_surprise_without_a_seed_takes_the_run_s_next_one_the_same_in_every_ru
 
 def test_a_run_varies_its_look_and_the_socket_answers_after(tmp_path):
     run = build(["run", looks_file(), "--map", "line:16"])
-    with serving(run.control, run.calls) as (_, ws, _):
+    with serving(run.aura.control, run.aura.calls) as (_, ws, _):
         ws.send(json.dumps({"type": "vary", "id": 1, "strength": 0.5, "seed": 3}))
         assert next_of(ws, "ack") == {"type": "ack", "id": 1, "control": "vary"}
         ws.send(json.dumps({"type": "master", "id": 3, "value": 0.5}))

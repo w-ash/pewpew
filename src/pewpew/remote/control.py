@@ -266,7 +266,7 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
                    "repeat per knob")
     add_allow_host(p, "also write to the engine at IP, a bench machine (default: only an engine on this machine)")
     p.add_argument("--dry-run", action="store_true",
-                   help="check the look against this machine's patterns and that the engine is on this machine, "
+                   help="check the look against this machine's catalog and that the engine is on this machine, "
                    "print what would be sent, and open no socket; the engine's map and --accept-looks are checked "
                    "only on a send")
     p.add_argument("--json", action="store_true",

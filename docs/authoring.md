@@ -693,9 +693,8 @@ one past the end. Use `pewpew.kit.bins(x, n)`, which clamps to `[0, n-1]`,
 and clamp a float before an `int32` cast by hand, as `bins` does.
 
 Hash thresholds: a hash in `float32` disagrees with the same expression in
-`float64` right at a threshold, and flips a few pixels. `pewpew.kit.hash01(x,
-seed, salt)` promotes to `float64` itself; if you hash by hand, cast before
-the comparison, not after.
+`float64` right at a threshold, and flips a few pixels. Cast to `float64`
+before the comparison, not after.
 
 An op with `warpable = True` (the default) gives a correct field at any
 finite point, including points far outside 0–1 that change every frame,
@@ -711,9 +710,7 @@ state (`below`, `prev`).
 |---|---|---|
 | `fade(dt, tau)` | `pewpew.kit.fade(dt, tau) -> float` | frame-rate-independent decay keep-factor (§9.5) |
 | `bins(x, n)` | `pewpew.kit.bins(x, n) -> int array` | coordinate → bin index, edge-clamped (§9.6) |
-| `sample2d(field, x, y)` | `pewpew.kit.sample2d(field, x, y) -> array` | nearest-cell lookup into a field (§9.1) |
-| `hash01(x, seed, salt)` | `pewpew.kit.hash01(x, seed, salt) -> array` | stable per-point pseudo-random value, float64 (§9.6) |
-| `wave(p)`, `triangle(p)`, `square(p, duty)` | `pewpew.kit` | 0–1 phase → 0–1 sine, triangle or pulse |
+| `wave(p)` | `pewpew.kit.wave(p) -> array` | 0–1 phase → 0–1 sine |
 | `ctx.buffer(name, shape, dtype, fill)` | `BindCtx.buffer`, in `setup` | declare an op's persistent state (§9.2) |
 | `ctx.rng()` | `FrameCtx.rng`, in `advance` | this node's random stream for this frame (§9.4) |
 | `Float`, `Int`, `Bool`, `Choice`, `Color`, `Palette` | `pewpew.params`; `Float(default, lo, hi, unit)` | declare an arg; ranges and kinds are enforced (§2) |

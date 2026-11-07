@@ -244,7 +244,7 @@ def trace_run_frames(tmp_path: Path, seconds: float = 5.0) -> list[bytes]:
         t = clock.advance()
         for hook in run.loop._before:
             hook(t)
-        out.append(run.fader.advance_to(t).tobytes() + frame_bytes(run.audio.at(t)))
+        out.append(run.aura.fader.advance_to(t).tobytes() + frame_bytes(run.audio.at(t)))
     return out
 
 

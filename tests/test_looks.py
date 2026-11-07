@@ -75,7 +75,7 @@ def knobs(source, nid: str = "solid") -> ParamSet:
 
 def program_running(run) -> Program:
     """The program a run's layer `base` runs now."""
-    return run.fader.current.layer("base").layer.program
+    return run.aura.fader.current.layer("base").layer.program
 
 
 def looks_file(**fields) -> str:
@@ -464,7 +464,7 @@ def test_a_run_starts_in_the_look_the_file_names_and_writes_nothing(tmp_path):
     path.write_bytes(data.replace(b"\n", b"\n\n"))  # spaced as no save writes it
     run = build(["run", str(path), "--frames", "2"])
     assert run.serve() == 0
-    assert knobs(layer_renderer(run), "zoo_test")["color"] == HSV(30.0, 1.0, 1.0)
+    assert knobs(layer_renderer(run.aura), "zoo_test")["color"] == HSV(30.0, 1.0, 1.0)
     assert run.looks.book.current == "calm" and not run.looks.changed()
     assert path.read_bytes() == data.replace(b"\n", b"\n\n")
 
@@ -482,13 +482,14 @@ def test_the_status_says_which_part_failed_and_which_layer_raised(tmp_path):
     run.looks.error = "cannot recall 'x': it was deleted"
     assert status() == ("looks", "cannot recall 'x': it was deleted", None)
     run.looks.error = None
-    layer_renderer(run).pattern.render = None  # every frame now raises
-    run.fader.advance_to(1 / 60)
+    # Every frame now raises: the test breaks the layer on purpose.
+    layer_renderer(run.aura).pattern.render = None  # pyright: ignore[reportAttributeAccessIssue]
+    run.aura.fader.advance_to(1 / 60)
     assert status()[0::2] == ("render", "layers.base")
     assert status()[1].startswith("layers.base.render raised")
     assert run.looks.recall("calm") is None
-    run.fader.advance_to(2 / 60)
-    assert run.fader.fading and run.looks.state()["fading"] == "calm"
+    run.aura.fader.advance_to(2 / 60)
+    assert run.aura.fader.fading and run.looks.state()["fading"] == "calm"
     assert status()[0::2] == ("render", "layers.base")
 
 

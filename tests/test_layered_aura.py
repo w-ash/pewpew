@@ -142,14 +142,14 @@ def test_run_plays_layered_looks_and_an_unattended_run_leaves_a_failing_layer_ou
     runs = []
     for extra in ([], ["--unattended"]):
         run = build([*argv, *extra])
-        assert [layer.id for layer in run.fader.current.layers] == ["base", "top"]
-        runs.append(np.stack([run.fader.advance_to(i / 60).copy() for i in range(1, 30)]))
-        assert run.fader.error is not None and run.fader.error.pattern == "layers.top"
+        assert [layer.id for layer in run.aura.fader.current.layers] == ["base", "top"]
+        runs.append(np.stack([run.aura.fader.advance_to(i / 60).copy() for i in range(1, 30)]))
+        assert run.aura.fader.error is not None and run.aura.fader.error.pattern == "layers.top"
         if run.watchdog is not None:
             run.watchdog.stop()  # armed as the run was built; it is never served
     dev, unattended = runs
     flow = build(["run", looks_file(), "--map", "line:300", "--frames", "1"])
-    alone = np.stack([flow.fader.advance_to(i / 60).copy() for i in range(1, 30)])
+    alone = np.stack([flow.aura.fader.advance_to(i / 60).copy() for i in range(1, 30)])
     assert unattended.tobytes() == alone.tobytes()  # the failing layer is out of the mix
     assert (dev[:, :, 0] >= 0.25).all()  # in dev it pulses red over the room
 
@@ -164,7 +164,7 @@ def test_run_plays_a_look_of_effect_programs_from_its_json(tmp_path):
         {"id": "glint", "blend": "screen", "opacity": 0.5, "nodes": {
             "w": {"op": "noise", "args": {"scale": 4.0}}, "dim": {"op": "contrast", "in": ["w"]}}}]}}}))
     run = build(["run", str(path), "--map", "grid:8x8", "--frames", "1"])
-    frame = run.fader.advance_to(1 / 60)
-    assert frame.shape == (64, 3) and run.fader.error is None and frame.max() > 0.0
-    values = run.control.values()
+    frame = run.aura.fader.advance_to(1 / 60)
+    assert frame.shape == (64, 3) and run.aura.fader.error is None and frame.max() > 0.0
+    values = run.aura.control.values()
     assert values["layers.base.fold.sides"] == 5 and values["layers.glint.w.scale"] == 4.0
