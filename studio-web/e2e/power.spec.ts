@@ -9,12 +9,15 @@ test("the power cap resizes the report and a share link keeps it", async ({
     { timeout: 15_000 },
   );
   await page.getByRole("tab", { name: "Report" }).click();
-  // 48 bars × 25.6 W = 1228.8 W; RGB through Accurate auto-white reaches half, 614.4 W; × 18.4% = 113.0 W.
+  // 48 bars × 25.6 W = 1228.8 W; RGB through Accurate auto-white reaches half, 614.4 W; × 20% = 122.9 W.
   await expect(page.getByTestId("report-capped")).toContainText("614.4 W");
-  const brightness = page.getByLabel(/Max brightness/);
-  await brightness.fill("18.4");
-  await expect(page.getByTestId("report-capped")).toContainText("113.0 W");
-  await page.getByLabel(/Max watts/).fill("100");
+  const entry = (name: string) => page.getByRole("spinbutton", { name });
+  await entry("Max brightness").fill("20");
+  await entry("Max brightness").press("Enter");
+  await expect(page.getByTestId("report-capped")).toContainText("122.9 W");
+  await page.getByRole("switch", { name: "Cap the watts" }).check();
+  await entry("Max watts").fill("100");
+  await entry("Max watts").press("Enter");
   await expect(page.getByTestId("report-capped")).toContainText("100.0 W");
 
   await page.getByRole("tab", { name: "Share" }).click();
@@ -22,7 +25,7 @@ test("the power cap resizes the report and a share link keeps it", async ({
   const link = await page.getByTestId("share-link").inputValue();
   await page.goto(new URL(link).pathname);
   await page.getByRole("tab", { name: "Report" }).click();
-  await expect(page.getByLabel(/Max watts/)).toHaveValue("100");
-  await expect(page.getByLabel(/Max brightness/)).toHaveValue("18.4");
+  await expect(entry("Max watts")).toHaveValue("100.0");
+  await expect(entry("Max brightness")).toHaveValue("20");
   await expect(page.getByTestId("report-capped")).toContainText("100.0 W");
 });

@@ -33,7 +33,11 @@
     "vitest-browser-react": "2.3.0"
   },
   "exports": {
+    "./deck": "./src/deck.ts",
     "./design": "./src/design.ts",
+    "./params": "./src/params.ts",
+    "./stack": "./src/stack.ts",
+    "./wire": "./src/wire.ts",
     "./styles.css": "./src/styles.css"
   }
 }

@@ -166,3 +166,51 @@ test("an ask the socket cannot send settles at once", async () => {
   expect(settled).toBe(true);
   expect(ws.sent).toEqual([]);
 });
+
+test("a page's own messages: its types go to it, not the store; it sends its own; opens and closes are told", () => {
+  FakeWebSocket.made = [];
+  const store = new WireStore();
+  const own: unknown[] = [];
+  const told: string[] = [];
+  const socket = new Socket<{ type: "bind"; arrangement: string }>(store, {
+    url: "ws://test/ws/session",
+    WebSocket: FakeWebSocket as unknown as typeof WebSocket,
+    build: null,
+    ownTypes: ["hello", "bound"],
+    onOwnMessage: (msg) => own.push(msg),
+    onOpen: () => told.push("open"),
+    onClose: () => told.push("close"),
+  });
+  socket.start();
+  const ws = FakeWebSocket.made[0]! as FakeWebSocket & { onopen: () => void };
+  ws.onopen();
+  ws.onmessage!({ data: JSON.stringify({ type: "hello", n: 64, fps: 30, capabilities: [] }) });
+  ws.onmessage!({ data: JSON.stringify({ type: "bound", n: 64 }) });
+  ws.onmessage!({ data: JSON.stringify({ type: "status", error: "x", source: "bind", path: null }) });
+  expect(own).toEqual([{ type: "hello", n: 64, fps: 30, capabilities: [] }, { type: "bound", n: 64 }]);
+  expect(store.getState()).toMatchObject({ connected: false, session: 0, error: { text: "x", source: "bind" } });
+  socket.send({ type: "bind", arrangement: "rig" });
+  expect(ws.sent).toEqual([{ type: "bind", arrangement: "rig" }]);
+  ws.close();
+  expect(told).toEqual(["open", "close"]);
+});
+
+test("the wait before a reconnect is the page's to give, and a stopped socket stays closed", () => {
+  vi.useFakeTimers();
+  FakeWebSocket.made = [];
+  const socket = new Socket(new WireStore(), {
+    url: "ws://test/ws",
+    WebSocket: FakeWebSocket as unknown as typeof WebSocket,
+    build: null,
+    reconnectMs: () => 5000,
+  });
+  socket.start();
+  FakeWebSocket.made[0]!.close();
+  vi.advanceTimersByTime(4999);
+  expect(FakeWebSocket.made).toHaveLength(1);
+  vi.advanceTimersByTime(1);
+  expect(FakeWebSocket.made).toHaveLength(2);
+  socket.stop();
+  vi.advanceTimersByTime(60_000);
+  expect(FakeWebSocket.made).toHaveLength(2);
+});

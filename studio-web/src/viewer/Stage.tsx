@@ -1,4 +1,5 @@
 import { Button, ToggleButton } from "@pewpew/page/design";
+import { useWire } from "@pewpew/page/wire";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -353,24 +354,24 @@ function StageStatus({
   onRetry: () => void;
   missing: readonly string[];
 }) {
-  const connection = useSession((s) => s.connection);
+  const connected = useWire((s) => s.connected);
+  const everOpened = useWire((s) => s.session > 0);
+  const engineError = useWire((s) => s.error?.text ?? null);
   const boundN = useSession((s) => s.boundN);
   const t = useSession((s) => s.t);
-  const engineError = useSession((s) => s.engineError);
   const stalled = useSession((s) => s.stalled);
-  const live = connection === "open" && boundN !== null;
   return (
     <div className="studio-status t-caption">
       <span data-testid="stage-status">
-        {connection === "open"
-          ? live
+        {connected
+          ? boundN !== null
             ? stalled
               ? "paused while idle · tap to resume"
               : `live · ${boundN} px${t !== null ? ` · t=${t.toFixed(1)} s` : ""}`
             : "binding…"
-          : connection === "connecting"
-            ? "connecting…"
-            : "disconnected, retrying…"}
+          : everOpened
+            ? "disconnected, retrying…"
+            : "connecting…"}
         {rig ? ` · ${rig.fixtures.length} fixtures` : ""}
       </span>
       {engineError && (

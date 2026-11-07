@@ -49,17 +49,33 @@ test("loads the golden rings against the mock and streams frames onto them", asy
   await page.getByRole("button", { name: /^inner/ }).click();
   await expect(page.getByRole("region", { name: "Ring" })).toBeVisible();
 
+  // The Effect tab is the control page's look editor, on the session's tide.
   await page.getByRole("tab", { name: "Effect" }).click();
-  const controls = page.getByRole("region", { name: "Pattern controls" });
-  await expect(controls).toContainText("Speed");
-  // A pattern with a color, an int, a bool and a choice: each control sends its kind.
-  await page.getByLabel("Running on the server").selectOption("pulse");
-  await expect(controls.getByLabel("Shape")).toBeVisible();
-  await controls.getByLabel("Shape").selectOption("flat");
-  await controls.getByLabel("Color").fill("#ff0000");
-  await controls.getByRole("switch", { name: "Invert" }).click();
-  await expect(controls.getByLabel("Shape")).toHaveValue("flat");
-  await expect(controls.getByLabel("Color")).toHaveValue("#ff0000");
+  const looks = page.getByRole("toolbar", { name: "looks" });
+  await expect(looks.getByRole("button")).toHaveCount(9);
+  await expect(page.getByRole("heading", { name: /^layers/ })).toBeVisible();
+  const freq = page.getByRole("spinbutton", { name: /freq/i }).first();
+  const before = await freq.inputValue();
+  await page
+    .getByRole("button", { name: /increase freq/i })
+    .first()
+    .click();
+  await expect(freq).not.toHaveValue(before);
+  // The rest of the examples are in the list of every look, tide marked; a look is sent whole.
+  await page.getByRole("button", { name: "all 13 looks" }).click();
+  const all = page.getByRole("region", { name: "looks" });
+  await expect(
+    all.getByRole("button", { name: "tide", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await all.getByRole("button", { name: "warp-lane" }).click();
+  await expect(all.getByRole("button", { name: "warp-lane" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await all.getByRole("button", { name: "close looks" }).click();
+  await expect(page.getByRole("heading", { name: /^lane ·/ })).toBeVisible();
+  await page.getByRole("button", { name: "surprise me" }).click();
+  await expect(page.getByRole("heading", { name: /^lane ·/ })).toBeHidden();
 
   await page.getByRole("tab", { name: "Report" }).click();
   await page.locator("summary", { hasText: "Warnings" }).click();

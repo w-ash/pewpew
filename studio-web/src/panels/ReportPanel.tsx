@@ -1,10 +1,10 @@
-import { Details } from "@pewpew/page/design";
+import { Block, Details, Switch } from "@pewpew/page/design";
+import { NumberField } from "@pewpew/page/params";
 import type { ReactNode } from "react";
 import type { Issue, IssueLevel, RigReport } from "@/api/types";
 import { powerOf, setPower } from "@/editor/arrangement";
 import { useDoc } from "@/store/doc";
 import { useSession } from "@/store/session";
-import { NumberField, SectionHeading } from "./ui";
 
 const fixed = (digits: number) =>
   new Intl.NumberFormat("en-US", {
@@ -88,12 +88,12 @@ export function IssueList({ issues }: { issues: readonly Issue[] }) {
   const of = (level: IssueLevel) => issues.filter((i) => i.level === level);
   const warnings = of("warning");
   return (
-    <div className="studio-section">
+    <div className="fields">
       {(["error", "violation"] as const).map((level) => {
         const list = of(level);
         if (list.length === 0) return null;
         return (
-          <div key={level} className="studio-section">
+          <div key={level} className="fields">
             <h3 className="t-label">
               {LEVELS[level].title} ({list.length})
             </h3>
@@ -325,6 +325,9 @@ function Sections({ report }: { report: RigReport }) {
   );
 }
 
+/** The watt cap a switch turns on at, which the field then changes. */
+const DEFAULT_MAX_WATTS = 500;
+
 /**
  * The arrangement's power cap. Each edit commits to the document, so the
  * next compile sizes the report for it and a share link keeps it.
@@ -337,32 +340,42 @@ export function PowerCapEditor() {
   const write = (next: Partial<typeof cap>) =>
     commit(setPower(arrangement, { ...cap, ...next }), "power");
   return (
-    <section className="studio-section" aria-label="Power cap">
-      <SectionHeading>Power cap</SectionHeading>
-      <fieldset disabled={loading} className="studio-grid-2">
-        <NumberField
-          label="Max watts"
-          unit="W"
-          value={cap.max_watts}
-          placeholder="none"
-          min={1}
-          max={1e6}
-          step={10}
-          decimals={1}
-          onChange={(v) => write({ max_watts: v })}
-          onClear={() => write({ max_watts: null })}
-        />
+    <Block className="fields" title="Power cap">
+      <fieldset disabled={loading} className="fields">
+        <Switch
+          checked={cap.max_watts !== null}
+          onChange={(on) => write({ max_watts: on ? DEFAULT_MAX_WATTS : null })}
+        >
+          Cap the watts
+        </Switch>
+        {cap.max_watts !== null && (
+          <NumberField
+            label="Max watts"
+            range={{
+              lo: 1,
+              hi: 1e6,
+              step: 10,
+              decimals: 1,
+              unit: "W",
+              periodic: false,
+            }}
+            value={cap.max_watts}
+            onChange={(v) => write({ max_watts: v })}
+          />
+        )}
         <NumberField
           label="Max brightness"
-          unit="%"
-          value={cap.max_brightness * 100}
-          min={0}
-          max={100}
-          step={1}
-          decimals={1}
-          onChange={(v) =>
-            write({ max_brightness: Number((v / 100).toFixed(4)) })
-          }
+          percent
+          range={{
+            lo: 0,
+            hi: 1,
+            step: 0.01,
+            decimals: 3,
+            unit: "",
+            periodic: false,
+          }}
+          value={cap.max_brightness}
+          onChange={(v) => write({ max_brightness: Number(v.toFixed(4)) })}
         />
       </fieldset>
       <p className="note">
@@ -370,7 +383,7 @@ export function PowerCapEditor() {
         checks feeds at the capped current, and every feed needs a fuse at its
         head: it protects the connector if the cap fails.
       </p>
-    </section>
+    </Block>
   );
 }
 
@@ -398,10 +411,10 @@ export function ReportPanel({
     v === undefined ? "—" : f(v);
   return (
     <div className="studio-panel">
-      <section className="studio-section" aria-label="Summary">
-        <SectionHeading>
-          Summary{stale ? " (from the last good compile)" : ""}
-        </SectionHeading>
+      <Block
+        className="fields"
+        title={`Summary${stale ? " (from the last good compile)" : ""}`}
+      >
         <dl className="studio-stats">
           <Stat label="Pixels">{n(totals.pixels, formatInt)}</Stat>
           <Stat label="Every channel full">
@@ -439,20 +452,18 @@ export function ReportPanel({
             {count("error")} · {count("violation")} · {count("warning")}
           </Stat>
         </dl>
-      </section>
+      </Block>
       <PowerCapEditor />
-      <section className="studio-section">
-        <SectionHeading>Issues</SectionHeading>
+      <Block className="fields" title="Issues">
         <IssueList issues={issues} />
-      </section>
-      <section className="studio-section">
-        <SectionHeading>Details</SectionHeading>
+      </Block>
+      <Block className="fields" title="Details">
         {report ? (
           <Sections report={report} />
         ) : (
           <p className="t-label">The server sent no report for this rig.</p>
         )}
-      </section>
+      </Block>
     </div>
   );
 }

@@ -28,7 +28,7 @@ import type {
   CompileArrangementBody,
   GetCatalog200,
   IssueList,
-  PatternInfo,
+  ListLooks200,
   SaveArrangementBody,
   SavedArrangement
 } from '../model';
@@ -617,32 +617,32 @@ export function useGetArrangement<TData = Awaited<ReturnType<typeof getArrangeme
 
 
 
-export type listPatternsResponse200 = {
-  data: PatternInfo[]
+export type listLooksResponse200 = {
+  data: ListLooks200
   status: 200
 }
 
-export type listPatternsResponseSuccess = (listPatternsResponse200) & {
+export type listLooksResponseSuccess = (listLooksResponse200) & {
   headers: Headers;
 };
 ;
 
-export type listPatternsResponse = (listPatternsResponseSuccess)
+export type listLooksResponse = (listLooksResponseSuccess)
 
-export const getListPatternsUrl = () => {
-
-
+export const getListLooksUrl = () => {
 
 
-  return `/api/patterns`
+
+
+  return `/api/looks`
 }
 
 /**
- * @summary List Patterns
+ * @summary List Looks
  */
-export const listPatterns = async ( options?: Parameters<typeof customFetch>[1]): Promise<listPatternsResponse> => {
+export const listLooks = async ( options?: Parameters<typeof customFetch>[1]): Promise<listLooksResponse> => {
 
-  return customFetch<listPatternsResponse>(getListPatternsUrl(),
+  return customFetch<listLooksResponse>(getListLooksUrl(),
   {
     ...options,
     method: 'GET'
@@ -655,69 +655,69 @@ export const listPatterns = async ( options?: Parameters<typeof customFetch>[1])
 
 
 
-export const getListPatternsQueryKey = () => {
+export const getListLooksQueryKey = () => {
     return [
-    `/api/patterns`
+    `/api/looks`
     ] as const;
     }
 
 
-export const getListPatternsQueryOptions = <TData = Awaited<ReturnType<typeof listPatterns>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPatterns>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getListLooksQueryOptions = <TData = Awaited<ReturnType<typeof listLooks>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLooks>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListPatternsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListLooksQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPatterns>>> = ({ signal }) => listPatterns({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLooks>>> = ({ signal }) => listLooks({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPatterns>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLooks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type ListPatternsQueryResult = NonNullable<Awaited<ReturnType<typeof listPatterns>>>
-export type ListPatternsQueryError = unknown
+export type ListLooksQueryResult = NonNullable<Awaited<ReturnType<typeof listLooks>>>
+export type ListLooksQueryError = unknown
 
 
-export function useListPatterns<TData = Awaited<ReturnType<typeof listPatterns>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPatterns>>, TError, TData>> & Pick<
+export function useListLooks<TData = Awaited<ReturnType<typeof listLooks>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLooks>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPatterns>>,
+          Awaited<ReturnType<typeof listLooks>>,
           TError,
-          Awaited<ReturnType<typeof listPatterns>>
+          Awaited<ReturnType<typeof listLooks>>
         > , 'initialData'
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListPatterns<TData = Awaited<ReturnType<typeof listPatterns>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPatterns>>, TError, TData>> & Pick<
+export function useListLooks<TData = Awaited<ReturnType<typeof listLooks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLooks>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPatterns>>,
+          Awaited<ReturnType<typeof listLooks>>,
           TError,
-          Awaited<ReturnType<typeof listPatterns>>
+          Awaited<ReturnType<typeof listLooks>>
         > , 'initialData'
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListPatterns<TData = Awaited<ReturnType<typeof listPatterns>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPatterns>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export function useListLooks<TData = Awaited<ReturnType<typeof listLooks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLooks>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary List Patterns
+ * @summary List Looks
  */
 
-export function useListPatterns<TData = Awaited<ReturnType<typeof listPatterns>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPatterns>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export function useListLooks<TData = Awaited<ReturnType<typeof listLooks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLooks>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListPatternsQueryOptions(options)
+  const queryOptions = getListLooksQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

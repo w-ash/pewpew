@@ -1,126 +1,139 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { ClientMessage, Sender, ServerMessage } from "@pewpew/page/wire";
+import { WireContext, WireStore } from "@pewpew/page/wire";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MOCK_PATTERNS } from "@/mocks/frames";
-import type { SessionClient } from "@/session/client";
-import { decodeParam } from "@/session/params";
-import { initialSession, useSession } from "@/store/session";
-import { zooRecord } from "@/test/describe";
+import { describe, expect, it } from "vitest";
+import { createQueryClient } from "@/api/queries";
+import { MockAura } from "@/mocks/aura";
+import { MOCK_LOOKS } from "@/mocks/looks";
 import { EffectPanel } from "./EffectPanel";
 
-function client() {
-  const setParam = vi.fn();
-  return {
-    setParam,
-    client: { setParam, setPattern: vi.fn() } as unknown as SessionClient,
+/** The panel on a wire that holds the mock's `tide` and records what it sends; an `ask` settles at once. */
+function renderPanel() {
+  const store = new WireStore();
+  store.opened({ gamma: 2.2, map: null });
+  const aura = new MockAura(MOCK_LOOKS.tide);
+  for (const msg of aura.states())
+    store.receive(msg as unknown as ServerMessage);
+  const sent: ClientMessage[] = [];
+  const sender: Sender = {
+    send: (msg) => sent.push(msg),
+    sendLatest: (msg) => sent.push(msg),
+    ask: async (msg) => {
+      sent.push(msg);
+    },
   };
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <WireContext.Provider value={{ store, sender }}>
+        <EffectPanel />
+      </WireContext.Provider>
+    </QueryClientProvider>,
+  );
+  return { sent, store, aura };
 }
 
 describe("EffectPanel", () => {
-  beforeEach(() => {
-    useSession.setState({
-      ...initialSession,
-      connection: "open",
-      patterns: ["pulse", "rainbow"],
-      pattern: "pulse",
-      params: [...MOCK_PATTERNS.pulse, ...MOCK_PATTERNS.rainbow],
-      accepted: {
-        color: { h: 0, s: 1, v: 1 },
-        bands: 3,
-        invert: true,
-        shape: "ramp",
-      },
+  it("shows the example looks as the deck shows saved looks, and plays one whole, over its own fade", async () => {
+    const { sent } = renderPanel();
+    const looks = await screen.findByRole("toolbar", { name: "looks" });
+    // The first nine, then the rest in the list of every look.
+    expect(within(looks).getAllByRole("button")).toHaveLength(9);
+    await userEvent.click(
+      within(looks).getByRole("button", { name: "copper-tide" }),
+    );
+    expect(sent).toEqual([
+      { type: "look", look: MOCK_LOOKS["copper-tide"], fade: null },
+    ]);
+    await waitFor(() =>
+      expect(
+        within(looks).getByRole("button", { name: "copper-tide" }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+  });
+
+  it("marks tide at the start, in the list of every look, until a surprise plays", async () => {
+    const { sent } = renderPanel();
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^all \d+ looks$/ }),
+    );
+    const all = screen.getByRole("region", { name: "looks" });
+    const tide = within(all).getByRole("button", { name: "tide" });
+    expect(tide).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(
+      within(all).getByRole("button", { name: "warp-lane" }),
+    );
+    expect(sent.at(-1)).toEqual({
+      type: "look",
+      look: MOCK_LOOKS["warp-lane"],
+      fade: null,
+    });
+    await waitFor(() =>
+      expect(
+        within(all).getByRole("button", { name: "warp-lane" }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(tide).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(within(all).getByRole("button", { name: /close/ }));
+    await userEvent.click(screen.getByRole("button", { name: /surprise me/ }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /^all \d+ looks$/ }),
+    );
+    const again = screen.getByRole("region", { name: "looks" });
+    expect(within(again).queryAllByRole("button", { pressed: true })).toEqual(
+      [],
+    );
+  });
+
+  it("shows the running look's main knobs and layers, and sets a knob by its address", async () => {
+    const { sent } = renderPanel();
+    // tide's front: its waves' frequency first.
+    const freq = screen.getAllByRole("spinbutton", { name: /freq/i })[0];
+    expect(freq).toBeDefined();
+    expect(screen.getByRole("heading", { name: /^layers/ })).toBeVisible();
+    for (const id of ["base", "echo", "sparks"])
+      expect(screen.getAllByText(id).length).toBeGreaterThan(0);
+    await userEvent.click(
+      screen.getAllByRole("button", { name: /increase freq/i })[0],
+    );
+    expect(sent.at(-1)).toMatchObject({
+      type: "set",
+      name: "layers.base.waves.freq",
     });
   });
 
-  it("draws one control per param, by kind, at the engine's values", () => {
-    render(<EffectPanel client={client().client} />);
-    expect(screen.getByLabelText("Color")).toHaveValue("#ff0000");
-    const bands = screen.getByLabelText("Bands");
-    expect(bands).toHaveAttribute("type", "range");
-    expect(bands).toHaveAttribute("step", "1");
-    expect(bands).toHaveValue("3");
-    expect(screen.getByRole("switch", { name: "Invert" })).toBeChecked();
-    expect(screen.getByLabelText("Shape")).toHaveValue("ramp");
-    const speed = screen.getByLabelText("Speed");
-    expect(speed).toHaveAttribute("max", "2");
-    expect(speed).toHaveAttribute("step", "0.01");
-    expect(screen.getByText("0.25 /s")).toBeInTheDocument();
-  });
-
-  it("sends each kind's value in its JSON form", async () => {
-    const { client: c, setParam } = client();
-    render(<EffectPanel client={c} />);
-    fireEvent.change(screen.getByLabelText("Bands"), {
-      target: { value: "5" },
-    });
-    await userEvent.click(screen.getByRole("switch", { name: "Invert" }));
-    await userEvent.selectOptions(screen.getByLabelText("Shape"), "flat");
-    fireEvent.change(screen.getByLabelText("Color"), {
-      target: { value: "#0000ff" },
-    });
-    fireEvent.change(screen.getByLabelText("Speed"), {
-      target: { value: "1.5" },
-    });
-    expect(setParam.mock.calls).toEqual([
-      ["bands", 5],
-      ["invert", false],
-      ["shape", "flat"],
-      ["color", { h: 240, s: 1, v: 1 }],
-      ["speed", 1.5],
+  it("asks for a surprise and a variation of what plays", async () => {
+    const { sent } = renderPanel();
+    await userEvent.click(screen.getByRole("button", { name: /surprise me/ }));
+    await userEvent.click(screen.getByRole("button", { name: /vary this/ }));
+    expect(sent).toEqual([
+      { type: "surprise", seed: null },
+      { type: "vary", strength: null, seed: null },
     ]);
   });
 
-  it("follows each echo and snaps back on a refusal", () => {
-    render(<EffectPanel client={client().client} />);
-    fireEvent.change(screen.getByLabelText("Bands"), {
-      target: { value: "6" },
+  it("adds a layer from the catalog's cards, above the one picked", async () => {
+    const { sent, store, aura } = renderPanel();
+    await userEvent.click(screen.getByRole("button", { name: "+ layer" }));
+    const cards = screen.getByRole("region", { name: "add layer" });
+    // Each shelf of cards starts folded but the first.
+    for (const shelf of within(cards).getAllByRole("button", {
+      expanded: false,
+    }))
+      await userEvent.click(shelf);
+    const card = within(cards).getByRole("button", { name: /kaleidoscope/i });
+    await userEvent.click(card);
+    const add = sent.at(-1);
+    expect(add).toMatchObject({ type: "add_layer", below: null });
+    // The engine runs it: the cards close on the new layer.
+    act(() => {
+      aura.add((add as { layer: Record<string, unknown> }).layer, null);
+      for (const msg of aura.states())
+        store.receive(msg as unknown as ServerMessage);
     });
-    expect(screen.getByLabelText("Bands")).toHaveValue("6");
-    act(() => useSession.setState({ refusedAt: { bands: 1 } }));
-    expect(screen.getByLabelText("Bands")).toHaveValue("3");
-    act(() =>
-      useSession.setState({
-        accepted: { ...useSession.getState().accepted, shape: "flat" },
-      }),
-    );
-    expect(screen.getByLabelText("Shape")).toHaveValue("flat");
-  });
-
-  it("resets every param to its default", async () => {
-    const { client: c, setParam } = client();
-    render(<EffectPanel client={c} />);
-    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
-    expect(setParam).toHaveBeenCalledWith("color", { h: 200, s: 1, v: 1 });
-    expect(setParam).toHaveBeenCalledWith("invert", false);
-    expect(setParam).toHaveBeenCalledWith("shape", "ramp");
-  });
-
-  it("offers a palette's presets, sends a pick by label, and shows the gradient", async () => {
-    const palette = decodeParam(zooRecord("palette"));
-    if (palette?.kind !== "palette") throw new Error("no palette in the zoo");
-    const own = {
-      label: "",
-      stops: [
-        { at: 0, h: 0, s: 1, v: 1 },
-        { at: 1, h: 240, s: 1, v: 1 },
-      ],
-    };
-    useSession.setState({ params: [palette], accepted: { palette: own } });
-    const { client: c, setParam } = client();
-    render(<EffectPanel client={c} />);
-    const menu = screen.getByLabelText("Palette");
-    expect(menu).toHaveValue("");
-    expect(screen.getByRole("option", { name: "Custom" })).toBeInTheDocument();
-    // The DOM keeps the swatch's colors as rgb().
-    expect(screen.getByTestId("palette-palette").style.backgroundImage).toBe(
-      "linear-gradient(to right, rgb(255, 0, 0) 0%, rgb(0, 0, 255) 100%)",
-    );
-    await userEvent.selectOptions(menu, "ocean");
-    expect(setParam.mock.calls).toEqual([["palette", "ocean"]]);
-    expect(menu).toHaveValue("ocean");
-    expect(screen.queryByRole("option", { name: "Custom" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
-    expect(setParam).toHaveBeenLastCalledWith("palette", palette.default);
+    expect(
+      screen.queryByRole("button", { name: /kaleidoscope/i }),
+    ).not.toBeInTheDocument();
   });
 });

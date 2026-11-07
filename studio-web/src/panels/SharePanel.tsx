@@ -1,11 +1,10 @@
-import { Button } from "@pewpew/page/design";
+import { Block, Button } from "@pewpew/page/design";
 import { useRef, useState } from "react";
 import { ApiError } from "@/api/client";
 import { saveArrangement } from "@/api/endpoints";
 import type { Issue } from "@/api/types";
 import { useDoc } from "@/store/doc";
 import { IssueList } from "./ReportPanel";
-import { SectionHeading } from "./ui";
 
 export function shareUrl(id: string, origin = window.location.origin) {
   return `${origin}/a/${id}`;
@@ -67,8 +66,7 @@ export function SharePanel() {
 
   return (
     <div className="studio-panel">
-      <section className="studio-section">
-        <SectionHeading>Share link</SectionHeading>
+      <Block className="fields" title="Share link">
         {share.mode === "shared" && (
           <p className="t-label">
             This is a shared arrangement. Links never change: any edit makes
@@ -82,7 +80,7 @@ export function SharePanel() {
           </p>
         )}
         {link ? (
-          <div className="studio-section">
+          <div className="fields">
             <input
               ref={linkInput}
               readOnly
@@ -92,7 +90,7 @@ export function SharePanel() {
               onFocus={(e) => e.target.select()}
               className="t-code"
             />
-            <div className="studio-actions">
+            <div className="row wrap">
               <Button variant="primary" onPress={() => copy(link)}>
                 {copied === "copied"
                   ? "Copied"
@@ -112,19 +110,18 @@ export function SharePanel() {
           </Button>
         )}
         {error && (
-          <div className="studio-section" role="alert">
-            <p className="studio-error">{error.message}</p>
+          <div className="fields" role="alert">
+            <p className="refusal">{error.message}</p>
             {error.issues.length > 0 && <IssueList issues={error.issues} />}
           </div>
         )}
-      </section>
-      <section className="studio-section">
-        <SectionHeading>What a link holds</SectionHeading>
+      </Block>
+      <Block className="fields" title="What a link holds">
         <p className="t-label">
           The arrangement only: fixtures, groups, wiring and the parts on their
           ends. The effect and its controls are not saved.
         </p>
-      </section>
+      </Block>
     </div>
   );
 }

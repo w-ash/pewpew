@@ -1,7 +1,10 @@
-// The page's one connection to the engine. Engine restarts are routine, so a
+// A page's one connection to the engine. Engine restarts are routine, so a
 // closed socket reconnects after a second; one that answers with another page
 // build (an upgrade) reloads the tab, since this page cannot drive its wire.
-import { parseFrame, parseMessage, type ClientMessage, type RequestId, type Sender } from "./protocol";
+// A page whose server speaks more than the wire (the studio's `bind`, `bound`)
+// sends and reads its own messages through the same connection; one whose
+// server sends no engine hello opens the store's state itself (`onOpen`).
+import { asServerMessage, parseFrame, parseTyped, type ClientMessage, type RequestId, type Sender, type TypedMessage } from "./protocol";
 import type { WireStore } from "./store";
 
 export const RECONNECT_MS = 1000;
@@ -14,6 +17,22 @@ export interface SocketOptions {
   /** This page's build stamp; by default its `pewpew-build` meta, or null outside a build. */
   readonly build?: string | null;
   readonly reload?: () => void;
+  /** Called as each connection opens, before any message on it. */
+  readonly onOpen?: () => void;
+  /** The message types the page reads itself, in place of the store: its own (the studio's `bound`), or
+   * its own of a name the wire has (the studio's `hello`, which is not the engine's). */
+  readonly ownTypes?: readonly string[];
+  /** Reads a message of `ownTypes`. */
+  readonly onOwnMessage?: (msg: TypedMessage) => void;
+  /** Called as each connection closes, after the store hears of it. */
+  readonly onClose?: () => void;
+  /** The wait before a reconnect, asked at each close; RECONNECT_MS by default. */
+  readonly reconnectMs?: () => number;
+}
+
+/** A message of a page's own, outside the wire's vocabulary. */
+export interface OwnMessage {
+  readonly type: string;
 }
 
 /** What a newer message replaces: a set of the same param, any master. */
@@ -21,8 +40,11 @@ function slot(msg: ClientMessage): string {
   return msg.type === "set" ? `set:${msg.name}` : msg.type;
 }
 
-export class Socket implements Sender {
+/** The connection; `Own` is what else the page sends (none for the control page). */
+export class Socket<Own extends OwnMessage = never> implements Sender {
   private ws: WebSocket | null = null;
+  private stopped = false;
+  private retry: ReturnType<typeof setTimeout> | null = null;
   /** Messages a drag produces, held to the next animation frame, the newest per slot. */
   private readonly pending = new Map<string, ClientMessage>();
   private flushing = false;
@@ -34,8 +56,12 @@ export class Socket implements Sender {
   private readonly now: () => number;
   private readonly build: string | null;
   private readonly reload: () => void;
+  private readonly store: WireStore;
+  private readonly options: SocketOptions;
 
-  constructor(private readonly store: WireStore, private readonly options: SocketOptions) {
+  constructor(store: WireStore, options: SocketOptions) {
+    this.store = store;
+    this.options = options;
     this.WS = options.WebSocket ?? WebSocket;
     this.requestFrame = options.requestFrame ?? ((cb) => requestAnimationFrame(cb));
     this.now = options.now ?? (() => performance.now());
@@ -48,13 +74,20 @@ export class Socket implements Sender {
   private readonly flushOnHide = () => this.flush();
 
   start(): void {
+    this.stopped = false;
     const ws = new this.WS(this.options.url);
     this.ws = ws;
     ws.binaryType = "arraybuffer";
+    ws.onopen = () => {
+      if (this.ws === ws) this.options.onOpen?.();
+    };
     ws.onmessage = (ev: MessageEvent) => {
+      if (this.ws !== ws) return;
       if (typeof ev.data === "string") {
-        const msg = parseMessage(ev.data);
-        if (msg?.type === "hello" && this.build && msg.build && msg.build !== this.build) this.reload();
+        const typed = parseTyped(ev.data);
+        const msg = asServerMessage(typed);
+        if (typed && this.options.ownTypes?.includes(typed.type)) this.options.onOwnMessage?.(typed);
+        else if (msg?.type === "hello" && this.build && msg.build && msg.build !== this.build) this.reload();
         else if (msg) {
           this.store.receive(msg);
           if ((msg.type === "ack" || msg.type === "refused") && msg.id !== null) this.answered(msg.id);
@@ -64,17 +97,26 @@ export class Socket implements Sender {
       }
     };
     ws.onclose = () => {
+      if (this.ws !== ws) return;
       this.ws = null;
       this.pending.clear();
       for (const settle of this.asked.values()) settle();
       this.asked.clear();
       this.store.disconnected();
-      setTimeout(() => this.start(), RECONNECT_MS);
+      this.options.onClose?.();
+      if (!this.stopped) this.retry = setTimeout(() => this.start(), this.options.reconnectMs?.() ?? RECONNECT_MS);
     };
   }
 
+  /** Close the connection for good: no reconnect follows. */
+  stop(): void {
+    this.stopped = true;
+    if (this.retry) clearTimeout(this.retry);
+    this.ws?.close();
+  }
+
   /** Send now, after anything held, so the engine sees requests in the order made. */
-  send(msg: ClientMessage): void {
+  send(msg: ClientMessage | Own): void {
     this.flush();
     this.write(msg);
   }
@@ -110,7 +152,7 @@ export class Socket implements Sender {
   }
 
   /** Send `msg`, with `id` when given, if the socket is open. Returns whether it went. */
-  private write(msg: ClientMessage, id?: RequestId): boolean {
+  private write(msg: ClientMessage | Own, id?: RequestId): boolean {
     if (this.ws?.readyState !== this.WS.OPEN) return false;
     this.ws.send(JSON.stringify(id === undefined ? msg : { ...msg, id }));
     return true;

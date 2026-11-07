@@ -30,6 +30,12 @@ test("a hello drops what the last connection said", () => {
   expect(store.value(color)).toBeUndefined();
 });
 
+test("a page whose server sends no hello opens the state itself, on its own gamma and no map", () => {
+  const { store } = storeWithZoo();
+  store.opened({ gamma: 2.2, map: null });
+  expect(store.getState()).toMatchObject({ connected: true, gamma: 2.2, map: null, params: [], aura: null, session: 2 });
+});
+
 test("an echo wakes only the params whose value changed, by kind", () => {
   const { store, p } = storeWithZoo();
   const color = vi.fn(), level = vi.fn();

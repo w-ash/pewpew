@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_ARRANGEMENT, useDoc } from "@/store/doc";
@@ -151,24 +151,35 @@ describe("PowerCapEditor", () => {
   );
   const present = () => useDoc.getState().history.present;
 
+  const entry = (name: string) => screen.getByRole("spinbutton", { name });
+  /** Type `text` over what entry `name` shows, then press Enter, as a person does. */
+  const retype = async (name: string, text: string) => {
+    // Paced as a person types: each key lands after the entry has drawn the last.
+    const user = userEvent.setup({ delay: 20 });
+    await user.tripleClick(entry(name));
+    await user.keyboard(text);
+    await waitFor(() => expect(entry(name)).toHaveValue(text));
+    await user.keyboard("{Enter}");
+  };
+
   it("writes the cap into the arrangement and drops it when it caps nothing", async () => {
     const user = userEvent.setup();
     render(<PowerCapEditor />);
-    const watts = screen.getByLabelText(/Max watts/);
-    const brightness = screen.getByLabelText(/Max brightness/);
-    expect(watts).toHaveValue(null);
-    expect(brightness).toHaveValue(100);
+    const cap = screen.getByRole("switch", { name: "Cap the watts" });
+    expect(cap).not.toBeChecked();
+    expect(screen.queryByRole("spinbutton", { name: "Max watts" })).toBeNull();
+    expect(entry("Max brightness")).toHaveValue("100");
 
-    await user.type(watts, "500");
+    await user.click(cap);
     expect(present().power).toEqual({ max_watts: 500 });
-    await user.clear(brightness);
-    await user.type(brightness, "18.4");
-    expect(present().power).toEqual({ max_watts: 500, max_brightness: 0.184 });
+    await retype("Max watts", "750");
+    expect(present().power).toEqual({ max_watts: 750 });
+    await retype("Max brightness", "18");
+    expect(present().power).toEqual({ max_watts: 750, max_brightness: 0.18 });
 
-    await user.clear(watts);
-    expect(present().power).toEqual({ max_brightness: 0.184 });
-    await user.clear(brightness);
-    await user.type(brightness, "100");
+    await user.click(cap);
+    expect(present().power).toEqual({ max_brightness: 0.18 });
+    await retype("Max brightness", "100");
     expect(present()).not.toHaveProperty("power");
     expect(present()).toEqual(DEFAULT_ARRANGEMENT);
   });
@@ -182,7 +193,8 @@ describe("PowerCapEditor", () => {
       { mode: "shared", id: "x" },
     );
     render(<PowerCapEditor />);
-    expect(screen.getByLabelText(/Max watts/)).toHaveValue(750);
-    expect(screen.getByLabelText(/Max brightness/)).toHaveValue(50);
+    expect(screen.getByRole("switch", { name: "Cap the watts" })).toBeChecked();
+    expect(entry("Max watts")).toHaveValue("750.0");
+    expect(entry("Max brightness")).toHaveValue("50");
   });
 });

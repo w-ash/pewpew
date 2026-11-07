@@ -1,25 +1,27 @@
 /**
- * One studio session over `/ws/session`.
+ * One studio session over `/ws/session`, on the control page's socket and
+ * wire store (`@pewpew/page/wire`): the look editor sends its requests and
+ * reads its states through them, and this client adds the studio's own.
  *
- * The server starts each session on a placeholder rig and sends `hello`
- * before any bind, so the client binds as soon as the socket opens and drops
- * frames until `bound` gives the real pixel count. A tab that is hidden sends
- * `pause`, because Fly bills egress (docs/studio/plan.md, "Share links").
+ * The server starts each session on a placeholder rig, so the client binds
+ * as soon as the socket opens and drops frames until `bound` gives the real
+ * pixel count. A tab that is hidden sends `pause`, because Fly bills egress
+ * (docs/studio/plan.md, "Share links").
  *
  * The server also pauses a session after 10 minutes with no message from the
  * client. When frames stop while the tab shows, the store's `stalled` turns
  * true, and the next pointer or key press on the page sends `resume`.
  */
-import type { Arrangement, ParamValue } from "@/api/types";
+import { type Frame, Socket, WireStore } from "@pewpew/page/wire";
+import type { Arrangement } from "@/api/types";
 import { type SessionState, useSession } from "@/store/session";
 import { frameBus } from "@/viewer/frameBus";
 import {
-  type ClientMessage,
-  encodeClientMessage,
-  type Frame,
-  parseFrame,
-  parseServerMessage,
-  type ServerMessage,
+  DISPLAY_GAMMA,
+  parseStudioMessage,
+  STUDIO_TYPES,
+  type StudioMessage,
+  type StudioServerMessage,
   sessionUrl,
 } from "./protocol";
 
@@ -31,17 +33,9 @@ const T_REPORT_MS = 250;
 export const STALL_MS = 2000;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel"] as const;
 
-type SocketLike = Pick<WebSocket, "send" | "close" | "readyState"> & {
-  binaryType: BinaryType;
-  onopen: ((ev: Event) => void) | null;
-  onclose: ((ev: CloseEvent) => void) | null;
-  onmessage: ((ev: MessageEvent) => void) | null;
-  onerror: ((ev: Event) => void) | null;
-};
-
 export interface SessionClientOptions {
   url?: string;
-  createSocket?: (url: string) => SocketLike;
+  WebSocket?: typeof WebSocket;
   /** Defaults to the zustand session store. */
   store?: {
     getState: () => SessionState;
@@ -54,6 +48,8 @@ export interface SessionClientOptions {
   /** Where a visitor's presses are heard; defaults to `window`. */
   activity?: Pick<EventTarget, "addEventListener" | "removeEventListener">;
   onFrame?: (frame: Frame) => void;
+  /** When a drag's held requests go out; the next animation frame by default. */
+  requestFrame?: (cb: () => void) => void;
 }
 
 /** Whether two arrangements differ at most in `name`, which the engine never reads. */
@@ -64,29 +60,24 @@ function sameRig(a: Arrangement, b: Arrangement): boolean {
   );
 }
 
-const OPEN = 1;
-
 export class SessionClient {
-  private socket: SocketLike | null = null;
+  /** What the session's engine last said, as the look editor reads it. */
+  readonly wire = new WireStore();
+  /** The connection, and the editor's sender. */
+  readonly socket: Socket<StudioMessage>;
   private retryMs = RETRY_MIN_MS;
-  private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private bindTimer: ReturnType<typeof setTimeout> | null = null;
   private arrangement: Arrangement | null = null;
-  private chosenPattern: string | null = null;
   private lastTReport = 0;
   private lastFrameAt = 0;
   private stallTimer: ReturnType<typeof setInterval> | null = null;
-  private stopped = false;
-  private readonly url: string;
-  private readonly createSocket: (url: string) => SocketLike;
+  private stopFrames: (() => void) | null = null;
   private readonly store: NonNullable<SessionClientOptions["store"]>;
   private readonly visibility: SessionClientOptions["visibility"];
   private readonly activity: SessionClientOptions["activity"];
   private readonly onFrame: (frame: Frame) => void;
 
   constructor(opts: SessionClientOptions = {}) {
-    this.url = opts.url ?? sessionUrl(window.location);
-    this.createSocket = opts.createSocket ?? ((u) => new WebSocket(u));
     this.store = opts.store ?? useSession;
     this.visibility =
       opts.visibility ??
@@ -94,28 +85,44 @@ export class SessionClient {
     this.activity =
       opts.activity ?? (typeof window === "undefined" ? undefined : window);
     this.onFrame = opts.onFrame ?? ((f) => frameBus.push(f));
+    this.socket = new Socket<StudioMessage>(this.wire, {
+      url: opts.url ?? sessionUrl(window.location),
+      WebSocket: opts.WebSocket,
+      requestFrame: opts.requestFrame,
+      // The studio is built apart from its server: no build stamp to compare.
+      build: null,
+      onOpen: this.onOpen,
+      ownTypes: STUDIO_TYPES,
+      onOwnMessage: (typed) => {
+        const msg = parseStudioMessage(typed);
+        if (msg) this.handle(msg);
+      },
+      onClose: this.onClose,
+      reconnectMs: () => {
+        const wait = this.retryMs;
+        this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
+        return wait;
+      },
+    });
   }
 
   start() {
-    this.stopped = false;
     this.visibility?.addEventListener("visibilitychange", this.onVisibility);
     for (const type of ACTIVITY_EVENTS)
       this.activity?.addEventListener(type, this.onActivity, { passive: true });
     this.stallTimer = setInterval(this.checkStall, STALL_MS / 2);
-    this.connect();
+    this.stopFrames = this.wire.subscribeFrame(this.onWireFrame);
+    this.socket.start();
   }
 
   stop() {
-    this.stopped = true;
     this.visibility?.removeEventListener("visibilitychange", this.onVisibility);
     for (const type of ACTIVITY_EVENTS)
       this.activity?.removeEventListener(type, this.onActivity);
     if (this.stallTimer) clearInterval(this.stallTimer);
-    if (this.retryTimer) clearTimeout(this.retryTimer);
     if (this.bindTimer) clearTimeout(this.bindTimer);
-    const s = this.socket;
-    this.socket = null;
-    s?.close();
+    this.stopFrames?.();
+    this.socket.stop();
   }
 
   /**
@@ -133,40 +140,46 @@ export class SessionClient {
     }, BIND_DEBOUNCE_MS);
   }
 
-  setPattern(name: string) {
-    this.chosenPattern = name;
-    this.send({ type: "pattern", name });
-  }
-
-  setParam(name: string, value: ParamValue) {
-    this.send({ type: "set", name, value });
-  }
-
   private sendBind() {
     if (this.arrangement)
-      this.send({ type: "bind", arrangement: this.arrangement });
+      this.socket.send({ type: "bind", arrangement: this.arrangement });
   }
 
-  private send(msg: ClientMessage) {
-    if (this.socket && this.socket.readyState === OPEN) {
-      this.socket.send(encodeClientMessage(msg));
+  private onOpen = () => {
+    // The server sends no engine hello: the connection opens the wire's state.
+    this.wire.opened({ gamma: DISPLAY_GAMMA, map: null });
+    if (this.bindTimer) {
+      clearTimeout(this.bindTimer);
+      this.bindTimer = null;
     }
-  }
+    this.sendBind();
+    if (this.visibility?.hidden) this.socket.send({ type: "pause" });
+  };
+
+  private onClose = () => {
+    // The bound rig died with the session.
+    this.store.setState({
+      boundN: null,
+      watts: null,
+      uncappedWatts: null,
+      stalled: false,
+    });
+  };
 
   private onVisibility = () => {
     this.lastFrameAt = performance.now();
-    this.send({ type: this.visibility?.hidden ? "pause" : "resume" });
+    this.socket.send({ type: this.visibility?.hidden ? "pause" : "resume" });
   };
 
   private onActivity = () => {
     if (!this.store.getState().stalled) return;
     this.lastFrameAt = performance.now();
-    this.send({ type: "resume" });
+    this.socket.send({ type: "resume" });
   };
 
   private checkStall = () => {
     const live =
-      this.socket?.readyState === OPEN &&
+      this.wire.getState().connected &&
       this.store.getState().boundN !== null &&
       !this.visibility?.hidden;
     const stalled = live && performance.now() - this.lastFrameAt > STALL_MS;
@@ -174,57 +187,11 @@ export class SessionClient {
       this.store.setState({ stalled });
   };
 
-  private connect() {
-    if (this.stopped) return;
-    this.store.setState({ connection: "connecting" });
-    const ws = this.createSocket(this.url);
-    ws.binaryType = "arraybuffer";
-    this.socket = ws;
-    ws.onopen = () => {
-      if (this.socket !== ws) return;
-      this.store.setState({ connection: "open" });
-      if (this.bindTimer) {
-        clearTimeout(this.bindTimer);
-        this.bindTimer = null;
-      }
-      this.sendBind();
-      if (this.chosenPattern)
-        this.send({ type: "pattern", name: this.chosenPattern });
-      if (this.visibility?.hidden) this.send({ type: "pause" });
-    };
-    ws.onmessage = (ev) => {
-      if (this.socket !== ws) return;
-      if (typeof ev.data === "string") {
-        const msg = parseServerMessage(ev.data);
-        if (msg) this.handle(msg);
-      } else if (ev.data instanceof ArrayBuffer) {
-        this.handleFrame(ev.data);
-      }
-    };
-    ws.onclose = () => {
-      if (this.socket !== ws) return;
-      this.socket = null;
-      // The engine's error and the bound rig died with the session.
-      this.store.setState({
-        connection: "closed",
-        boundN: null,
-        engineError: null,
-        watts: null,
-        uncappedWatts: null,
-        stalled: false,
-      });
-      if (this.stopped) return;
-      this.retryTimer = setTimeout(() => this.connect(), this.retryMs);
-      this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
-    };
-    ws.onerror = () => {};
-  }
-
-  private handleFrame(buffer: ArrayBuffer) {
+  /** A frame the wire received: shown only when it is as long as the bound rig. */
+  private onWireFrame = () => {
+    const frame = this.wire.getFrame();
     const n = this.store.getState().boundN;
-    if (n === null) return;
-    const frame = parseFrame(buffer, n);
-    if (!frame) return;
+    if (!frame || n === null || frame.rgb.length !== 3 * n) return;
     this.onFrame(frame);
     const now = performance.now();
     this.lastFrameAt = now;
@@ -233,60 +200,22 @@ export class SessionClient {
       this.lastTReport = now;
       this.store.setState({ t: frame.t });
     }
-  }
+  };
 
-  handle(msg: ServerMessage) {
-    const set = (patch: Partial<SessionState>) => this.store.setState(patch);
+  private handle(msg: StudioServerMessage) {
     switch (msg.type) {
-      case "hello":
-        set({
-          fps: msg.fps,
-          patterns: msg.patterns,
-          pattern: msg.pattern,
-          params: msg.params,
-          accepted: {
-            ...Object.fromEntries(msg.params.map((p) => [p.name, p.default])),
-            ...msg.values,
-          } as Record<string, ParamValue>,
-        });
-        break;
-      case "status":
-        set({ engineError: msg.error });
-        break;
-      case "declare":
-        set({ params: msg.params });
-        break;
-      case "params":
-        set({ accepted: { ...this.store.getState().accepted, ...msg.values } });
-        break;
-      case "refused": {
-        const state = this.store.getState();
-        set({
-          refusal: {
-            reason: msg.reason,
-            issues: msg.issues ?? [],
-            at: Date.now(),
-          },
-          refusedAt:
-            msg.control === "set" && msg.name
-              ? { ...state.refusedAt, [msg.name]: Date.now() }
-              : state.refusedAt,
-        });
-        break;
-      }
       case "bound":
         // Backoff resets only once a bind works, so a session that dies on
         // every bind retries ever more slowly instead of once a second.
         this.retryMs = RETRY_MIN_MS;
         this.lastFrameAt = performance.now();
-        set({
-          boundN: msg.n,
-          catalogDigest: msg.catalog_digest,
-          boundIssues: msg.issues,
-        });
+        this.store.setState({ boundN: msg.n });
         break;
       case "power":
-        set({ watts: msg.watts, uncappedWatts: msg.uncapped_watts });
+        this.store.setState({
+          watts: msg.watts,
+          uncappedWatts: msg.uncapped_watts,
+        });
         break;
     }
   }

@@ -1,7 +1,7 @@
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ApiError } from "./client";
-import { compileArrangement, getCatalog } from "./endpoints";
+import { compileArrangement, getCatalog, getLooks } from "./endpoints";
 import type { Arrangement, CompiledRig } from "./types";
 
 /** Quiet time after an edit before it compiles, so typing sends one compile. */
@@ -20,6 +20,10 @@ export function createQueryClient() {
 
 export function useCatalog() {
   return useQuery({ queryKey: ["catalog"], queryFn: getCatalog });
+}
+
+export function useLooks() {
+  return useQuery({ queryKey: ["looks"], queryFn: getLooks });
 }
 
 /** `value`, once it has stopped changing for `ms`. */

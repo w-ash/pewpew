@@ -47,8 +47,8 @@ export function LookEditor({ looks, triggers, master, onSave }: { looks: LooksSt
   const hint = nameHint(trimmed);
   const held = holdReason(triggers, "save");
   return (
-    <Field.Root className="look-editor look-form" aria-label="save as new" invalid={shown !== null || hint !== null}>
-      <div className="row">
+    <Field.Root className="look-editor fields look-form" aria-label="save as new" invalid={shown !== null || hint !== null}>
+      <div className="row wrap">
         <Field.Input
           className="look-name"
           value={name}
@@ -117,7 +117,7 @@ export function LookSettings({ looks, triggers, onSaveAs, onDone }: { looks: Loo
   const reason = told ?? shown?.reason;
   const fades = FADE_SECONDS.includes(current.fade) ? FADE_SECONDS : [...FADE_SECONDS, current.fade].sort((a, b) => a - b);
   return (
-    <div className="look-editor look-settings" role="group" aria-label={`${name} settings`}>
+    <div className="look-editor fields look-settings" role="group" aria-label={`${name} settings`}>
       <Select
         items={fades.map((s) => ({ value: String(s), label: ownFadeText(s) }))}
         value={String(current.fade)}
@@ -134,7 +134,7 @@ export function LookSettings({ looks, triggers, onSaveAs, onDone }: { looks: Loo
         <Icon name="cycle" /> {name} in shuffle
       </Switch>
       <DisclosureNote disclosure={about}>{cycleText(looks)}</DisclosureNote>
-      <div className="row look-lossy">
+      <div className="row wrap look-lossy">
         <Button variant="tertiary" onPress={onSaveAs}>
           save as new…
         </Button>

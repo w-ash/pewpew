@@ -1,4 +1,11 @@
-import { Badge, IconButton } from "@pewpew/page/design";
+import {
+  ArmStatus,
+  Badge,
+  IconButton,
+  StepStatus,
+  useMedia,
+} from "@pewpew/page/design";
+import { useRefusalExcept, WireContext } from "@pewpew/page/wire";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api/client";
 import { getArrangement } from "./api/endpoints";
@@ -11,7 +18,6 @@ import { ReportPanel } from "./panels/ReportPanel";
 import { SharePanel } from "./panels/SharePanel";
 import { SessionClient } from "./session/client";
 import { useDoc } from "./store/doc";
-import { useSession } from "./store/session";
 import { Stage } from "./viewer/Stage";
 
 type Tab = "arrange" | "effect" | "report" | "share";
@@ -21,6 +27,10 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "report", label: "Report" },
   { id: "share", label: "Share" },
 ];
+
+/** Where the stage sits beside the side card (studio.css), so the page's parts lay out as on a wide
+ * control page (`data-wide`). */
+const WIDE = "(min-width: 1024px)";
 
 const SHARE_PATH = /^\/a\/([A-Za-z0-9_-]{22})\/?$/;
 
@@ -97,6 +107,19 @@ function useShortcuts() {
 
 export function App({ client }: { client?: SessionClient }) {
   const [session] = useState(() => client ?? new SessionClient());
+  const [wire] = useState(() => ({
+    store: session.wire,
+    sender: session.socket,
+  }));
+  return (
+    <WireContext.Provider value={wire}>
+      <Studio session={session} />
+    </WireContext.Provider>
+  );
+}
+
+function Studio({ session }: { session: SessionClient }) {
+  const wide = useMedia(WIDE);
   const [tab, setTab] = useState<Tab>("arrange");
   const [notice, setNotice] = useState<string | null>(null);
   const arrangement = useDoc((s) => s.history.present);
@@ -107,7 +130,8 @@ export function App({ client }: { client?: SessionClient }) {
     rig,
     current,
   } = useCompiled(arrangement, share.mode !== "loading");
-  const refusal = useSession((s) => s.refusal);
+  // The editor shows a refused knob and a refused layer in place.
+  const refusal = useRefusalExcept("set", "add_layer");
   const [showRefusal, setShowRefusal] = useState(false);
 
   useSharedLink(setNotice);
@@ -152,7 +176,7 @@ export function App({ client }: { client?: SessionClient }) {
   };
 
   return (
-    <div className="studio">
+    <div className="studio" data-wide={wide || undefined}>
       <main className="studio-stage-area">
         <Stage rig={rig} catalog={catalog.data ?? null} />
       </main>
@@ -234,7 +258,7 @@ export function App({ client }: { client?: SessionClient }) {
               />
             </fieldset>
           )}
-          {tab === "effect" && <EffectPanel client={session} />}
+          {tab === "effect" && <EffectPanel />}
           {tab === "report" && (
             <ReportPanel
               report={rig?.report ?? null}
@@ -245,6 +269,8 @@ export function App({ client }: { client?: SessionClient }) {
           {tab === "share" && <SharePanel />}
         </div>
       </aside>
+      <ArmStatus />
+      <StepStatus />
     </div>
   );
 }

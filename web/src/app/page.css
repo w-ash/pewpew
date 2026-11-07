@@ -8,6 +8,16 @@
   gap: var(--space-xs);
   min-width: 0;
 }
+/* A row whose items wrap onto more lines where it has no room. */
+.row.wrap {
+  flex-wrap: wrap;
+}
+/* Fields and rows one under another, 8 apart: a form. */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
 
 /* One row swiped sideways on touch or a narrow screen, wrapped on a wide one with a mouse. */
 .scroller {
@@ -1084,6 +1094,27 @@
 .param-head label {
   color: var(--text-2);
 }
+/* A control under its visible name (Field). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.field > :is(input, select) {
+  width: 100%;
+}
+/* A number that is no knob (NumberField): its name, then its entry at the column's edge, as a knob's head and
+   entry are. */
+.number-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-sm);
+}
+.number-field > .note {
+  grid-column: 1 / -1;
+}
 .pattern-pick {
   display: flex;
   flex-direction: column;
@@ -1092,16 +1123,10 @@
 /* What a header's "save as…" or "⋯" opens: rows of a setting's words or action on the left and its control at
    the column's edge, in a nested card (.look-forms) that starts and ends in view. */
 .look-editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
   padding: var(--space-xs) 0;
 }
 .look-forms:has(> :not([hidden])) {
   margin-bottom: var(--space-sm);
-}
-.look-editor .row {
-  flex-wrap: wrap;
 }
 .look-name {
   flex: 1 0 8rem;
@@ -1408,7 +1433,7 @@
   padding-right: var(--space-xs);
 }
 
-/* A choice knob's options in a row, the chosen one in the selected fill. */
+/* Options in a row (Segments: a choice knob, a camera view), the chosen one in the selected fill. */
 .segments {
   position: relative;
   display: flex;

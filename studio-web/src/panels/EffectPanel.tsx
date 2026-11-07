@@ -1,308 +1,160 @@
-import { Button, Switch } from "@pewpew/page/design";
-import { useEffect, useId, useRef, useState } from "react";
-import type {
-  BoolParam,
-  ChoiceParam,
-  ColorParam,
-  FloatParam,
-  IntParam,
-  PaletteParam,
-  ParamSpec,
-  ParamValue,
-} from "@/api/types";
-import type { SessionClient } from "@/session/client";
+import { AllLooks, LooksGroup, listedLooks, Variety } from "@pewpew/page/deck";
+import { DisclosureNote, useDisclosure } from "@pewpew/page/design";
+import { LookKnobs, LookSignals } from "@pewpew/page/params";
 import {
-  gradientCss,
-  hexToHsv,
-  hsvToHex,
-  presetOf,
-  valueFor,
-} from "@/session/params";
+  ADD,
+  AddLayerPanel,
+  LayerList,
+  useLayerSelection,
+} from "@pewpew/page/stack";
+import {
+  type ClientMessage,
+  type Sender,
+  useStandingAura,
+  useWire,
+  WireContext,
+} from "@pewpew/page/wire";
+import { useContext, useState } from "react";
+import { useLooks } from "@/api/queries";
 import { useSession } from "@/store/session";
-import { SectionHeading, SelectField } from "./ui";
 
-type Send = (name: string, value: ParamValue) => void;
+/** The look each session starts in (docs/studio/contracts.md, "WebSocket"). */
+const FIRST = "tide";
 
 /**
- * The value a control shows: what the engine holds, except while the
- * visitor holds the control, so an echo cannot fight a drag. A refusal
- * snaps it back to what the engine holds, even mid-drag.
+ * The session's look, edited as the control page edits one: the example
+ * looks as the deck shows saved looks, the first nine as tiles and "all N ›"
+ * to the rest; surprise me and vary this; then the look's main knobs, its
+ * layers, each open with its own knobs, and its modulators. The list of
+ * every look and the cards a layer is added from open in the editor's place.
+ * A press on an example sends it whole, over its own fade. The example last
+ * started is marked as playing, `tide` on each new session, until a surprise
+ * or a variation plays. Nothing is saved: the session has no looks file.
  */
-function useShown<P extends ParamSpec>(spec: P) {
-  const accepted = valueFor(
-    spec,
-    useSession((s) => s.accepted[spec.name]),
-  );
-  const refusedAt = useSession((s) => s.refusedAt[spec.name] ?? 0);
-  const [shown, setShown] = useState<P["default"]>(accepted);
-  const holding = useRef(false);
-  const key = JSON.stringify(accepted);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for `accepted`, which is a new object per echo.
-  useEffect(() => {
-    if (!holding.current) setShown(accepted);
-  }, [key]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a refusal snaps back even mid-drag.
-  useEffect(() => {
-    if (refusedAt) setShown(accepted);
-  }, [refusedAt]);
-  const hold = {
-    onPointerDown: () => {
-      holding.current = true;
-    },
-    onPointerUp: () => {
-      holding.current = false;
-    },
-    onPointerCancel: () => {
-      holding.current = false;
-    },
-    onBlur: () => {
-      holding.current = false;
+export function EffectPanel() {
+  const wire = useContext(WireContext);
+  if (!wire) throw new Error("no WireContext");
+  const { store, sender } = wire;
+  const aura = useStandingAura();
+  const examples = useLooks();
+  const watts = useSession((s) => s.watts);
+  const session = useWire((s) => s.session);
+  const selection = useLayerSelection();
+  const [adding, setAdding] = useState(false);
+  const [allOpen, setAllOpen] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const [marked, setMarked] = useState({
+    session,
+    name: FIRST as string | null,
+  });
+  const looksNote = useDisclosure();
+  const madeNote = useDisclosure();
+  const current = marked.session === session ? marked.name : FIRST;
+
+  /** Whether the engine took `msg`, once `asked` settles: no refusal of its kind came meanwhile. */
+  const took = async (msg: ClientMessage, asked: Promise<void>) => {
+    const before = store.getState().refusals[msg.type]?.seq;
+    await asked;
+    return store.getState().refusals[msg.type]?.seq === before;
+  };
+  const mark = (name: string | null) =>
+    setMarked({ session: store.getState().session, name });
+  const play = (name: string) => {
+    const look = examples.data?.[name];
+    if (!look || pending) return;
+    setPending(name);
+    const msg: ClientMessage = { type: "look", look, fade: null };
+    void took(msg, sender.ask(msg))
+      .then((ok) => ok && mark(name))
+      .finally(() => setPending(null));
+  };
+  // Surprise me and vary this, which drop the mark once what they made plays.
+  const making: Sender = {
+    send: (msg) => sender.send(msg),
+    sendLatest: (msg) => sender.sendLatest(msg),
+    ask: (msg) => {
+      const asked = sender.ask(msg);
+      void took(msg, asked).then((ok) => ok && mark(null));
+      return asked;
     },
   };
-  return { shown, setShown, hold };
-}
-
-function Label({
-  htmlFor,
-  spec,
-  readout,
-}: {
-  htmlFor: string;
-  spec: ParamSpec;
-  readout?: string;
-}) {
-  return (
-    <div className="studio-param-head">
-      <label htmlFor={htmlFor} className="field-label" title={spec.help}>
-        {spec.label}
-      </label>
-      {readout !== undefined && (
-        <output htmlFor={htmlFor} className="t-value">
-          {readout}
-        </output>
-      )}
-    </div>
-  );
-}
-
-/** A slider over the engine's range and step, as for every float and int. */
-function NumberLever({
-  spec,
-  send,
-}: {
-  spec: FloatParam | IntParam;
-  send: Send;
-}) {
-  const id = useId();
-  const { shown, setShown, hold } = useShown(spec);
-  const decimals = spec.kind === "int" ? 0 : spec.decimals;
-  return (
-    <div className="studio-field">
-      <Label
-        htmlFor={id}
-        spec={spec}
-        readout={`${shown.toFixed(decimals)}${spec.unit ? ` ${spec.unit}` : ""}`}
-      />
-      <input
-        id={id}
-        type="range"
-        min={spec.lo}
-        max={spec.hi}
-        step={spec.kind === "int" ? 1 : spec.step}
-        value={shown}
-        {...hold}
-        onChange={(e) => {
-          const raw = Number(e.target.value);
-          const v = spec.kind === "int" ? Math.round(raw) : raw;
-          setShown(v);
-          send(spec.name, v);
-        }}
-        className="studio-range"
-      />
-    </div>
-  );
-}
-
-function Toggle({ spec, send }: { spec: BoolParam; send: Send }) {
-  const { shown, setShown } = useShown(spec);
-  return (
-    <Switch
-      checked={shown}
-      onChange={(on) => {
-        setShown(on);
-        send(spec.name, on);
-      }}
-    >
-      <span className="field-label" title={spec.help}>
-        {spec.label}
-      </span>
-    </Switch>
-  );
-}
-
-function Choice({ spec, send }: { spec: ChoiceParam; send: Send }) {
-  const { shown, setShown } = useShown(spec);
-  return (
-    <SelectField
-      label={spec.label}
-      value={shown}
-      options={spec.options}
-      onChange={(v) => {
-        setShown(v);
-        send(spec.name, v);
-      }}
-    />
-  );
-}
-
-/** The screen color of the engine's HSV; a pick goes back as HSV. */
-function ColorPick({ spec, send }: { spec: ColorParam; send: Send }) {
-  const id = useId();
-  const { shown, setShown, hold } = useShown(spec);
-  const hex = hsvToHex(shown);
-  return (
-    <div className="studio-color-row">
-      <Label htmlFor={id} spec={spec} readout={hex} />
-      <input
-        id={id}
-        type="color"
-        value={hex}
-        {...hold}
-        onChange={(e) => {
-          const hsv = hexToHsv(e.target.value);
-          if (!hsv) return;
-          setShown(hsv);
-          send(spec.name, hsv);
-        }}
-      />
-    </div>
-  );
-}
-
-const OWN = "";
-
-/** The engine's gradient as a swatch, and a menu of its presets; a pick
- * goes back as the preset's label, which the engine reads as its stops. */
-function PalettePick({ spec, send }: { spec: PaletteParam; send: Send }) {
-  const { shown, setShown } = useShown(spec);
-  const preset = presetOf(spec.presets, shown);
-  const options = [
-    ...(preset === null
-      ? [{ value: OWN, label: shown.label || "Custom" }]
-      : []),
-    ...spec.presets.map((p) => ({ value: p.label, label: p.label })),
-  ];
-  return (
-    <div className="studio-field">
-      {spec.presets.length > 0 ? (
-        <SelectField
-          label={spec.label}
-          value={preset ?? OWN}
-          options={options}
-          onChange={(label) => {
-            const picked = spec.presets.find((p) => p.label === label);
-            if (!picked) return;
-            setShown(picked.value);
-            send(spec.name, picked.label);
-          }}
-        />
-      ) : (
-        <span className="field-label" title={spec.help}>
-          {spec.label}
-        </span>
-      )}
-      <div
-        role="img"
-        aria-label={`${spec.label}: ${shown.label || "custom"} gradient`}
-        data-testid={`palette-${spec.name}`}
-        className="studio-swatch"
-        style={{ backgroundImage: gradientCss(shown) }}
-      />
-    </div>
-  );
-}
-
-/** One control per declared param, by its kind. */
-function Control({ spec, send }: { spec: ParamSpec; send: Send }) {
-  switch (spec.kind) {
-    case "float":
-    case "int":
-      return <NumberLever spec={spec} send={send} />;
-    case "bool":
-      return <Toggle spec={spec} send={send} />;
-    case "choice":
-      return <Choice spec={spec} send={send} />;
-    case "color":
-      return <ColorPick spec={spec} send={send} />;
-    case "palette":
-      return <PalettePick spec={spec} send={send} />;
-    default:
-      return <p className="t-label">{spec.label}: this page cannot set it.</p>;
-  }
-}
-
-export function EffectPanel({ client }: { client: SessionClient | null }) {
-  const patterns = useSession((s) => s.patterns);
-  const pattern = useSession((s) => s.pattern);
-  const params = useSession((s) => s.params);
-  const watts = useSession((s) => s.watts);
-  const fps = useSession((s) => s.fps);
-  const connection = useSession((s) => s.connection);
-  const send: Send = (name, value) => client?.setParam(name, value);
+  const looks = listedLooks(Object.keys(examples.data ?? {}), current, pending);
 
   return (
     <div className="studio-panel">
-      <section className="studio-section">
-        <SectionHeading>Pattern</SectionHeading>
-        {patterns.length ? (
-          <SelectField
-            label="Running on the server"
-            value={pattern}
-            options={patterns.map((p) => ({ value: p, label: p }))}
-            onChange={(name) => client?.setPattern(name)}
+      <div className="fields">
+        {examples.data ? (
+          <LooksGroup
+            looks={looks}
+            play={play}
+            triggers={null}
+            note={looksNote}
+            allOpen={allOpen}
+            onAll={() => setAllOpen(!allOpen)}
           />
         ) : (
-          <p className="t-label">
-            {connection === "open"
-              ? "No patterns."
-              : "Connecting to the engine…"}
+          <p className="note">
+            {examples.isError
+              ? "The example looks could not be loaded."
+              : "Loading the example looks…"}
           </p>
         )}
-        <p className="note">
-          Rendered by pewpew at {fps} fps
-          {watts !== null && (
-            <>
-              {" · "}
-              <span className="t-value readout" data-testid="effect-watts">
-                {watts.toFixed(1)} W
-              </span>{" "}
-              now
-            </>
-          )}
-        </p>
-      </section>
-
-      <section className="studio-section" aria-label="Pattern controls">
-        <SectionHeading>Controls</SectionHeading>
-        {params.length === 0 && (
-          <p className="t-label">This pattern has no controls.</p>
-        )}
-        {params.map((p) => (
-          <Control key={`${pattern}:${p.name}`} spec={p} send={send} />
-        ))}
-        {params.length > 0 && (
-          <div>
-            <Button
-              onPress={() => {
-                for (const p of params)
-                  if (p.kind !== "unknown") send(p.name, p.default);
-              }}
-            >
-              Reset
-            </Button>
+        {aura && (
+          <div className="deck-group">
+            <div className="row made-row">
+              <WireContext.Provider value={{ store, sender: making }}>
+                <Variety aura={aura} looks={aura.looks} note={madeNote} />
+              </WireContext.Provider>
+            </div>
+            <DisclosureNote disclosure={madeNote} live />
           </div>
         )}
-      </section>
+        {watts !== null && (
+          <p className="note">
+            <span className="t-value readout" data-testid="effect-watts">
+              {watts.toFixed(1)} W
+            </span>{" "}
+            now
+          </p>
+        )}
+      </div>
+
+      {allOpen && (
+        <AllLooks
+          looks={looks}
+          play={play}
+          triggers={null}
+          onClose={() => setAllOpen(false)}
+        />
+      )}
+      {adding && !allOpen && (
+        <AddLayerPanel
+          above={selection.id}
+          onClose={() => {
+            setAdding(false);
+            selection.focusOn(ADD);
+          }}
+          onAdded={(id) => {
+            setAdding(false);
+            selection.select(id);
+            selection.focusOn(id);
+          }}
+        />
+      )}
+      {/* The editor stays mounted under a panel, so what is open in it stays open. */}
+      <div hidden={adding || allOpen}>
+        {aura ? (
+          <section className="look-region" aria-label="Look editor">
+            <LookKnobs />
+            <div className="rest">
+              <LayerList selection={selection} onAdd={() => setAdding(true)} />
+              <LookSignals />
+            </div>
+          </section>
+        ) : (
+          <p className="note">Connecting to the engine…</p>
+        )}
+      </div>
     </div>
   );
 }

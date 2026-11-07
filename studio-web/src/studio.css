@@ -187,65 +187,9 @@
   flex-direction: column;
   gap: var(--space-lg);
 }
-.studio-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-.studio-section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-xs);
-  min-width: 0;
-}
-.studio-section-head > :last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.studio-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-.studio-grid-2,
-.studio-grid-3 {
-  display: grid;
-  align-items: end;
-  gap: var(--space-xs);
-}
-.studio-grid-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.studio-grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-/* A field: its name above it, as a knob's is. */
-.studio-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
-}
-.studio-field > :is(input, select) {
-  width: 100%;
-}
-
-/* The selected thing: a nested card on the region. */
-.studio-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-sm);
-  border-radius: var(--radius-inset);
-  background: var(--surface-raised);
-}
-.studio-card select,
-.studio-card input {
-  background-color: var(--surface-page);
+/* The blocks of a tab sit on the side card's inset, which is the page's slot inset. */
+.studio-tabpanel .block {
+  padding-inline: 0;
 }
 
 /* The list of fixtures and groups: rows of a list, a name and what it is. */
@@ -332,53 +276,12 @@
   font-family: var(--font-code);
   overflow-wrap: anywhere;
 }
-.studio-error {
-  color: var(--danger-fg);
-}
-
-/* ---- the effect ----------------------------------------------------------------------------- */
-
-.studio-param-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-xs);
-}
-.studio-range {
-  width: 100%;
-  min-height: var(--slider-h);
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  accent-color: var(--accent);
-}
-.studio-color-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-xs);
-  min-height: var(--control-h);
-}
-.studio-color-row > input[type="color"] {
-  width: calc(2 * var(--control-h));
-  padding: var(--space-2xs);
-  cursor: pointer;
-}
-.studio-swatch {
-  height: var(--space-sm);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-}
 
 /* A render error, in place of the page. */
 .studio-boundary {
   max-width: 28rem;
   margin: 0 auto;
   padding: var(--space-lg);
-}
-.studio-section > .button {
-  align-self: flex-start;
 }
 
 /* ---- the stage's status, over the canvas ------------------------------------------------------- */
