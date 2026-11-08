@@ -9,6 +9,10 @@ series (batch mode).
 
 ### Added
 
+- The example look `sway` (panel): rainbow bars sway back and forth on a slow `lfo`
+  routed to the oscillator's `sync` while `rotate` spins their direction. The MCP
+  server serves it at `pewpew://looks/sway`, and the studio offers it with the other
+  example looks.
 - Publish, from the Console to the Gallery: on an attended arrangement run
   (`--gallery URL`, default `https://pewpew.fly.dev`; the hello offers `publish`), pick
   looks (the current look and the favorites by default), read the public notice, and
