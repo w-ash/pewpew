@@ -175,7 +175,7 @@ def test_max_frames_bounds_a_long_window():
 
 def test_an_engine_that_sends_no_frames_gives_state_and_no_metrics():
     with engine(line(4)) as (sink, _):
-        seen = observe(f"ws://127.0.0.1:{sink.port}/", 0.05, timeout=0.1)
+        seen = observe(f"ws://127.0.0.1:{sink.port}/", 0.05, timeout=0.1, hello_timeout=30.0)
     assert (seen.frames, seen.fps, seen.metrics) == (0, 0.0, None)
     assert seen.aura is not None and seen.aura["stack"]["layers"][0]["nodes"][0]["op"] == "solid_test"
     assert seen.warnings[0] == ("the frames stopped 0.00 s into the 0.05 s window, after 0 frames (waited 0.15 s): "
@@ -234,7 +234,10 @@ def test_a_sheet_that_cannot_be_written_is_a_warning_and_exit_1(tmp_path, monkey
 
 
 def test_no_frames_exits_1_with_the_reason_on_stderr(monkeypatch, capsys):
-    monkeypatch.setattr(remote_observe, "observe", functools.partial(remote_observe.observe, timeout=0.1))
+    # A short wait for the frames that never come, and a long one for the hello, whose speed is the machine's.
+    monkeypatch.setattr(
+        remote_observe, "observe", functools.partial(remote_observe.observe, timeout=0.1, hello_timeout=30.0)
+    )
     with engine(line(4)) as (sink, _):
         port = sink.port
         code = main(["observe", f"localhost:{port}", "--seconds", "0.05"])
@@ -275,7 +278,7 @@ def test_a_handshake_slower_than_the_read_timeout_still_connects():
         conn.recv()
 
     with fake_engine(hello, process_request=slow_handshake) as url:
-        seen = observe(url, 0.05, timeout=0.1)
+        seen = observe(url, 0.05, timeout=0.1, hello_timeout=30.0)
     assert seen.frames == 0
 
 

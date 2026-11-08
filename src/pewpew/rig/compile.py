@@ -582,6 +582,14 @@ def _capacity_issues(
     return issues
 
 
+def _wire(m: np.ndarray) -> tuple[float, ...]:
+    """`to_three` of `m` rounded to 1e-12, so the last bits of a platform's
+    sin and cos do not reach the wire or its golden."""
+    with np.errstate(over="ignore"):  # a value too large to round is left as it is
+        rounded = np.round(m, 12)
+    return to_three(np.where(np.isfinite(rounded), rounded, m))
+
+
 def _fixture_instance(
     inst: Instance, chain: Chain | None, start: int, count: int, catalog: Catalog, bases: Mapping[str, str]
 ) -> FixtureInstance:
@@ -593,13 +601,13 @@ def _fixture_instance(
             continue
         anchor = ft.anchors[name]
         frame = anchor_frame(catalog.vec(ft.id, anchor.at), anchor.dir)
-        frames[name] = to_three(inst.matrix @ frame)
+        frames[name] = _wire(inst.matrix @ frame)
     return FixtureInstance(
         id=inst.id,
         type_id=inst.type_id,
         base_type_id=bases.get(inst.type_id, inst.type_id),
         group=inst.group,
-        matrix=to_three(inst.matrix),
+        matrix=_wire(inst.matrix),
         attachments=dict(inst.attachments),
         attachment_matrices=frames,
         pixel_start=start,

@@ -37,7 +37,10 @@ def contain(positions: np.ndarray) -> Contained:
     """Fit positions in the unit cube, keeping aspect ratio.
 
     The longest axis spans exactly [0, 1]. Shorter axes are centred on 0.5.
-    A flat axis, and a single point, map to 0. No points give an empty mapping.
+    A flat axis, and a single point, map to 0; an axis is flat when its extent
+    is within `_FLAT` of the longest, so libm rounding in a rotated flat rig
+    (z about 1e-16 on one platform, exactly 0 on another) gives one mapping.
+    No points give an empty mapping.
     """
     p = np.asarray(positions, dtype=np.float64)
     if len(p) == 0:
@@ -49,7 +52,7 @@ def contain(positions: np.ndarray) -> Contained:
     longest = float(extent.max()) or 1.0
     # Division, not a reciprocal multiply, so the longest axis lands on exactly 0 and 1.
     span = extent / longest
-    offset = np.where(extent > 0, (1.0 - span) / 2.0, 0.0)
+    offset = np.where(span > _FLAT, (1.0 - span) / 2.0, 0.0)
     mapping = np.ascontiguousarray((p - lo) / longest + offset, dtype=np.float32)
     mapping.setflags(write=False)
     return Contained(

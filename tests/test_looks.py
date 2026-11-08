@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 
 import numpy as np
 import pytest
@@ -589,7 +590,7 @@ def test_the_watchdog_is_armed_before_the_stack_is_built(tmp_path, monkeypatch):
         released.set()
 
     monkeypatch.setattr(run_module, "Watchdog", lambda timeout, **kw: Watchdog(
-        timeout, **kw, startup=0.02, interval=0.005, on_stall=fired))
+        timeout, **{**kw, "now": time.monotonic}, startup=0.02, interval=0.005, on_stall=fired))
     hangs = BoundProgram.bind
     monkeypatch.setattr(BoundProgram, "bind", lambda self, *a: (released.wait(5.0), hangs(self, *a)))
     run_main(["run", str(path), "--frames", "1", "--watchdog", "1"])

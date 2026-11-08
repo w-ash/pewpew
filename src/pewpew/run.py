@@ -245,7 +245,7 @@ class Run:
         # The look the run starts in, then the one that plays; what a stall marker names.
         self._started: str | None = None
         self.watchdog = Watchdog(
-            watchdog_s, marker=marker_path(), earlier=stall, playing=self._playing,
+            watchdog_s, marker=marker_path(), earlier=stall, playing=self._playing, now=now,
         ) if watchdog_s is not None else None
         self.awake = KeepAwake() if args.keep_awake or args.unattended else None
         # The monitor also restarts caffeinate when it ends, so `awake` needs it.

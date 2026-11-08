@@ -19,8 +19,8 @@ first frame to `seconds` after it, and the rate is the frames over the
 engine time they span (`span`, the first frame to the last). The
 metrics' own `seconds` is frames / fps, as for a rendered sequence, since
 each frame stands for one slot. The wall clock bounds only the waits: the
-client's `OPEN_TIMEOUT_S` for the connection, `timeout` seconds for the
-hello, then `seconds + timeout` for the frames.
+client's `OPEN_TIMEOUT_S` for the connection, `hello_timeout` seconds
+(default `timeout`) for the hello, then `seconds + timeout` for the frames.
 """
 
 from __future__ import annotations
@@ -168,14 +168,19 @@ class Capture:
 
 
 def capture(
-    url: str, seconds: float = WATCH_S, *, max_frames: int = MAX_FRAMES, timeout: float = TIMEOUT_S
+    url: str,
+    seconds: float = WATCH_S,
+    *,
+    max_frames: int = MAX_FRAMES,
+    timeout: float = TIMEOUT_S,
+    hello_timeout: float | None = None,
 ) -> Capture:
     """Read the engine at `url` (`engine_url` takes it) for `seconds` of
     engine time or `max_frames` frames, whichever comes first.
 
     Raises Unreachable when nothing completes the websocket handshake
     within the client's `OPEN_TIMEOUT_S`, or no hello follows within
-    `timeout` seconds, and ValueError for a bad argument. Frames that stop
+    `hello_timeout` seconds (default `timeout`), and ValueError for a bad argument. Frames that stop
     coming end the window `timeout` seconds past `seconds`, with a note.
     """
     if not (math.isfinite(seconds) and seconds > 0):
@@ -191,7 +196,7 @@ def capture(
 
     # Held, so a message that comes after the window cannot change what was read.
     with Client(url, keep_frames=max_frames, on_text=note) as client, client.hold():
-        client.hello(timeout)
+        client.hello(timeout if hello_timeout is None else hello_timeout)
         whole = client.wait(lambda: _closes(client.frames, seconds, max_frames), seconds + timeout)
         cut = None if whole else "the engine closed the connection" if client.ended else "the frames stopped"
         seen = Capture(url, dict(client.latest), _window(client.frames, seconds), faded=bool(fades))
@@ -214,10 +219,13 @@ def observe(
     max_frames: int = MAX_FRAMES,
     sheet: Path | None = None,
     timeout: float = TIMEOUT_S,
+    hello_timeout: float | None = None,
 ) -> Observation:
     """`capture` reduced to an Observation. With `sheet`, the contact
     sheet is written there as a PNG, when the frames allow one."""
-    return capture(url, seconds, max_frames=max_frames, timeout=timeout).observation(sheet)
+    return capture(
+        url, seconds, max_frames=max_frames, timeout=timeout, hello_timeout=hello_timeout
+    ).observation(sheet)
 
 
 def _closes(frames: Sequence[Frame], seconds: float, max_frames: int) -> bool:

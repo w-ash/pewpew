@@ -1440,6 +1440,10 @@ series (batch mode).
 
 ### Fixed
 
+- A near-flat axis (a rotated flat ring's height, about 1e-16 m on Linux) maps to 0
+  like an exactly flat one, so a layout maps the same on every platform; compiled
+  fixture matrices go out rounded to 1e-12. `observe` waits for the engine's hello
+  apart from its frame timeout, and the stall watchdog runs on the run's clock.
 - The hosted studio holds every list of an arrangement (feeds, chains, controllers,
   PSUs, tags, dims) to its 200-entry cap again, not the rig model's 2048; a longer
   list is refused as `too_many_entries` before compiling.

@@ -601,7 +601,7 @@ def test_a_look_that_hangs_while_it_is_built_is_named_in_the_stall_marker(monkey
     dogs: list[Watchdog] = []
 
     def watchdog(*args, **kw):
-        dogs.append(Watchdog(*args, **kw, now=lambda: clock.t))
+        dogs.append(Watchdog(*args, **{**kw, "now": lambda: clock.t}))
         return dogs[-1]
 
     def hang(*args, **kw):
