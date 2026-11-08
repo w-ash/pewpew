@@ -102,6 +102,15 @@ def strict_nodes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(BoundProgram, "strict", True)
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    """Under `-n`, spread tests by module: xdist's default `load` mode would
+    make every worker that touches a module start that module's whole JOBS
+    table (`pool_jobs`). Set here, not in `addopts`, so `-p no:xdist` and a
+    serial run still parse; an explicit `--dist` other than `load` stands."""
+    if getattr(config.option, "dist", "no") in ("load", "worksteal"):
+        config.option.dist = "loadfile"
+
+
 @pytest.fixture(scope="session", autouse=True)
 def pool_jobs(
     request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory,
@@ -113,8 +122,8 @@ def pool_jobs(
     before the first test, so they run beside the tests in front of them.
     Under xdist every worker collects all the tests and runs a share, so a
     module's jobs start on its first read instead, in a pool of two. Run
-    with `--dist loadfile`, as `just test` does, so each module's jobs start
-    in one worker. At the end, a job not done hung or was never read: the
+    with `--dist loadfile` (`pytest_configure` makes it the default for
+    `-n`), so each module's jobs start in one worker. At the end, a job not done hung or was never read: the
     workers are stopped, not waited for."""
     serial = "PYTEST_XDIST_WORKER" not in os.environ  # xdist sets it in each worker
     tables: dict[ModuleType | None, dict[Hashable, Callable[[], Any]]] = {
@@ -148,6 +157,7 @@ def pool_jobs(
         if stuck:
             for worker in multiprocessing.active_children():
                 worker.terminate()
+                worker.join()
 
 
 @pytest.fixture

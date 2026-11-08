@@ -24,6 +24,7 @@ from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Self, TypeVar
+from unittest import mock
 
 import numpy as np
 from websockets.sync.client import connect
@@ -53,6 +54,7 @@ from pewpew.render import Renderer, SlotClock
 from pewpew.run import Launch, Run
 from pewpew.sinks.ddp import Board, DdpSink
 from pewpew.sinks.preview import PreviewSink
+from pewpew.sinks.sink import SinkDriver
 
 T = TypeVar("T")
 
@@ -630,13 +632,38 @@ class Painter:
 
 
 def run_main(argv: list[str], *, ansi_stream: io.StringIO | None = None, **kw) -> tuple[int, str]:
-    """`main` on a fake sink clock, with no file watcher: the RateGate then
-    costs no wall time and cannot let the loop outrun the driver, so frame
-    counts are exact. Returns the exit code and what the ANSI sink wrote."""
+    """`main` on a fake clock, with no file watcher: the RateGate then costs
+    no wall time. The sinks and the loop share that clock, and a frame
+    reaches a sink only if the loop does not outrun it, so each time the
+    loop thread reads or sleeps the clock it first waits for every sink
+    driver to send what it holds, whatever the CPU load. Frame counts are
+    then exact. Returns the exit code and what the ANSI sink wrote."""
     ft = FakeTime()
     stream = ansi_stream if ansi_stream is not None else io.StringIO()
     kw.setdefault("watch", no_watch)
-    rc = main(argv, ansi_stream=stream, now=ft.now, sleep=ft.sleep, **kw)
+    made: list[SinkDriver] = []
+    init = SinkDriver.__init__
+    loop_thread = threading.get_ident()
+
+    def tracking(self: SinkDriver, *a: Any, **k: Any) -> None:
+        init(self, *a, **k)
+        made.append(self)
+
+    def settle() -> None:
+        if threading.get_ident() == loop_thread:
+            for driver in made:
+                driver.drain()
+
+    def now() -> float:
+        settle()
+        return ft.now()
+
+    def sleep(s: float) -> None:
+        settle()
+        ft.sleep(s)
+
+    with mock.patch.object(SinkDriver, "__init__", tracking):
+        rc = main(argv, ansi_stream=stream, now=now, sleep=sleep, **kw)
     return rc, stream.getvalue()
 
 

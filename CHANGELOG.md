@@ -774,7 +774,8 @@ series (batch mode).
 
 - Run the L1 suite in parallel: `just test` and `just test-thorough` use pytest-xdist
   (`-n auto --dist loadfile`), about 35 s serial to 15 s. `-n 0` or bare `uv run pytest`
-  runs it serially. Under xdist the process pool's jobs start per module on first read.
+  runs it serially; `-n` alone defaults to `--dist loadfile`. Under xdist the process
+  pool's jobs start per module on first read.
 - Arrangements map into the plan frame (x right, y up the plan, z height), the
   same frame as a room map, `line` and `grid`, so an effect on an arrangement
   lays out as it does on a room. A flat axis and a single point now map to 0
@@ -1319,6 +1320,10 @@ series (batch mode).
 
 ### Fixed
 
+- Test fixes: the audio clock-fit test's early-point bound is half a slot (a fixed
+  1 ms that a valid fit could exceed), and a harness race that could drop sink
+  frames under load is closed (`run_main` drains the sink drivers before each clock
+  read).
 - `observe` and `push` give the websocket handshake its own bound
   (`OPEN_TIMEOUT_S`, 5 s) in the shared client, apart from the read timeout. A
   short timeout, or a slow network, no longer reports a working engine as
