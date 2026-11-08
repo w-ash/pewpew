@@ -2,6 +2,7 @@ import { Splitter } from "@ark-ui/react/splitter";
 import { lazy, Suspense, useEffect, useId, useState } from "react";
 import { useStandingAura, useWire } from "../wire/store";
 import { Banner } from "../design/Banner";
+import { Button } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
 import { Panel } from "../design/Panel";
 import { StepStatus } from "../design/StepStatus";
@@ -18,6 +19,7 @@ import { LayoutProvider, useLayoutMode } from "../layout/LayoutMode";
 import { LayoutTools } from "../layout/LayoutTools";
 import { AddLayerPanel } from "../stack/AddLayer";
 import { ADD, useLayerSelection } from "../stack/selection";
+import { forgetParts } from "../rig/loadParts";
 import { usePlanImage } from "../stage/plan";
 import { Stage, useCover } from "../stage/Stage";
 import { StageControls, type StageView } from "../stage/StageControls";
@@ -79,6 +81,8 @@ function Shell() {
   const hasRig = useWire((s) => !!s.map?.rig);
   const [stageView, setStageView] = useState<StageView>("2d");
   const in3d = hasRig && stageView === "3d";
+  // A new value tries the 3D view again after it failed to load.
+  const [tries3d, setTries3d] = useState(0);
   // The health panel and the list of every look take the slot in turn: opening one closes the other.
   const [slotPanel, setSlotPanel] = useState<SlotPanel>(null);
   const toggle = (which: Exclude<SlotPanel, null>) => () => setSlotPanel(slotPanel === which ? null : which);
@@ -106,7 +110,23 @@ function Shell() {
     <div className="stage-area">
       <div className="stage-live" inert={lost}>
         {in3d ? (
-          <ErrorBoundary fallback={<p className="stage-note">The 3D view did not load. Reload the page to try again.</p>}>
+          <ErrorBoundary
+            resetKey={tries3d}
+            fallback={
+              <p className="stage-note" role="alert">
+                The 3D view did not load.{" "}
+                <Button
+                  variant="tertiary"
+                  onPress={() => {
+                    forgetParts();
+                    setTries3d((n) => n + 1);
+                  }}
+                >
+                  Retry
+                </Button>
+              </p>
+            }
+          >
             <Suspense fallback={<p className="stage-note">loading the 3D view…</p>}>
               <Stage3D />
             </Suspense>

@@ -5,32 +5,13 @@ import { Button, ToggleButton } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
 import { Segments } from "../design/Segments";
 import { useMedia } from "../design/useMedia";
-import type { PartsCatalog } from "../rig/parts";
 import { useWire, useWireContext } from "../wire/store";
 import { CameraRig, REDUCED_MOTION, SPIN_SPEED, useAccent, useCameraView, VIEW_ITEMS } from "./CameraRig";
 import type { ViewRig } from "./instances";
+import { loadParts } from "../rig/loadParts";
 import { useModels } from "./models";
 import { Rig } from "./Rig";
 import { FOV, rigBounds, type ViewName } from "./views";
-
-/** Where the engine serves the parts catalog, with each type's assembly URL (src/pewpew/sinks/preview.py). */
-const PARTS_URL = "/parts.json";
-
-let parts: Promise<PartsCatalog> | null = null;
-
-/** The engine's parts catalog, fetched once a page; a failed fetch is tried again on the next read. */
-function loadParts(): Promise<PartsCatalog> {
-  parts ??= fetch(PARTS_URL)
-    .then((r) => {
-      if (!r.ok) throw new Error(`the parts catalog answered ${r.status}`);
-      return r.json() as Promise<PartsCatalog>;
-    })
-    .catch((e: unknown) => {
-      parts = null;
-      throw e;
-    });
-  return parts;
-}
 
 const NO_SELECTION: ReadonlySet<number> = new Set();
 const noPick = () => {};
@@ -44,13 +25,16 @@ export default function Stage3D() {
     () => (map?.rig ? { n: map.n, total: map.total, fixtures: map.rig.fixtures, types: map.rig.types } : null),
     [map],
   );
-  const catalog = use(loadParts());
+  // A retry after a GLB failed fetches the catalog again: an engine upgraded under the page serves new
+  // assemblies, maybe for the same catalog digest.
+  const [partsTry, setPartsTry] = useState(0);
+  const catalog = use(loadParts(`${map?.rig?.catalog_digest ?? ""}#${partsTry}`));
   const camera = useCameraView(rig);
   const [spin, setSpin] = useState(false);
   const still = useMedia(REDUCED_MOTION);
   const accent = useAccent();
   const bounds = useMemo(() => rigBounds(rig?.fixtures ?? []), [rig]);
-  const models = useModels(rig, catalog);
+  const models = useModels(rig, catalog, () => setPartsTry((n) => n + 1));
   return (
     <div className="stage stage-3d">
       <Canvas

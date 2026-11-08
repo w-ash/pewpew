@@ -11,12 +11,17 @@ series (batch mode).
 
 - The Console's 3D view: on an arrangement run, a 2D/3D switch on the stage draws
   the rig in 3D, each fixture from its type's model, lit by the live frames (a
-  decimated map is colored from the nearest pixel sent). A `strip` sized by `dims`
-  is drawn as a bar of its own length and pixels. three.js and the view load only
-  when the stage first shows 3D; a run on any other map never fetches them. The
-  engine serves the parts catalog (`GET /parts.json`) and each model
-  (`GET /assembly/<digest>.glb`) from models prebuilt into the package
-  (`just assemblies`), so neither it nor the studio needs manifold3d at run time.
+  decimated map is colored from the nearest pixel sent). Each lit LED glows with at
+  least the 2D view's smallest dot, so a strip's 5 mm LEDs read from across the
+  room; close up, the LEDs draw at their true size. A type sized by `dims` is drawn
+  at its own length and pixels: its tube or diffuser keeps its shape, its end caps
+  their size; a cross-section dim (`tube_d`, `housing_w`…) is not drawn. three.js
+  and the view load only when the stage first shows 3D; a run on any other map
+  never fetches them. If the view or a model fails to load, a Retry fetches the
+  parts catalog again. The engine serves the parts catalog (`GET /parts.json`) and
+  each model (`GET /assembly/<digest>.glb`, gzipped when the browser allows) from
+  models prebuilt into the package (`just assemblies`, which writes nothing unless
+  every model builds), so neither it nor the studio needs manifold3d at run time.
 - Migrate a room map to an arrangement: `python -m pewpew rig migrate-room ROOM.json
   -o OUT.json [--controller PROFILE] [--type FIXTURE_TYPE]`. Each board becomes a
   controller with its host, each output a chain, and each fixture, `instances`
@@ -783,8 +788,8 @@ series (batch mode).
 - The page the engine serves is `index.html` and its own hashed files (listed in
   `files.json` beside it), not one inlined file. The engine serves each listed file
   with its type, gzipped when the browser allows, and cached as immutable; any other
-  path still gets the page.
-
+  path still gets the page. Building the page needs Node 22.18 or later (or 23.6 or
+  later), which runs TypeScript without a flag.
 - Run a real rig from an arrangement: `run --map RIG.arrangement.json` gives the
   mapping, the DDP boards (each controller's `host`, unless `--no-ddp`), the blink,
   the preview's room drawing and live reload on save. The room compiler is gone;

@@ -16,8 +16,9 @@ Changes to visual surfaces are verified BOTH ways before committing:
   stats caught (comet sparkle ratcheting to permanent white).
 
 The visual surface is the preview sink's served page
-(`src/pewpew/sinks/web/index.html`), built from `web/` (React + Ark UI,
-inlined by Vite). Edit `web/`, never the page. Run an engine in the
+(`src/pewpew/sinks/web/index.html` and the hashed files `files.json`
+lists, which the engine serves), built from `web/` by Vite (React + Ark UI;
+the 3D view, three.js, loads on demand). Edit `web/`, never the build. Run an engine in the
 background, `uv run python -m pewpew run <looks.json> --map <spec> --preview --port 0`,
 and read the port from its `preview at http://127.0.0.1:PORT/` line (7447
 is often a live unattended run). Iterate with the Vite dev server against it:
@@ -25,8 +26,8 @@ is often a live unattended run). Iterate with the Vite dev server against it:
 Open it on 127.0.0.1 or localhost: it refuses a websocket upgrade with any
 other Host or Origin (`web/dev-origin.ts`).
 
-Before committing, run `just web` and commit the rebuilt page with its
-source: `tests/test_page_build.py` fails on a source change without a
+Before committing, run `just web` and commit the rebuilt page and files
+with their source: `tests/test_page_build.py` fails on a source change without a
 rebuild, and CI fails when the committed page is not the build. The engine
 reads the page once per process, so restart it, then verify the built
 page: drive headless Playwright there, and sample the canvas with

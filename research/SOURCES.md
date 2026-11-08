@@ -5608,6 +5608,15 @@ is removed.
 - archive: https://web.archive.org/web/20251213004954/https://web-platform-dx.github.io/web-features-explorer/features/dialog-closedby/  # snapshot 2025-12-13 (predates accessed date; Safari unsupported there too)
 - relevance: `closedby="any"` "allows the dialog to be closed by clicking outside of it"; supported from Chrome 134 and Firefox 141; Safari and Safari on iOS "Not supported" on 2026-11-05 (Safari 27.2 current), so Baseline is "blocked since July 2025 by Safari".
 
+### [S1396] Vite — Backend Integration (v8 docs)
+- type: docs
+- url: https://vite.dev/guide/backend-integration
+- author: Vite team (VoidZero)
+- license: MIT (package vite)
+- accessed: 2026-11-08
+- archive: https://web.archive.org/web/20261002161049/https://vite.dev/guide/backend-integration  # snapshot 2026-10-02
+- relevance: for HTML served by a backend rather than Vite; `build.manifest` writes a manifest that "maps source files to their build outputs and dependencies", with each chunk's `imports` ("statically imported chunks"), `dynamicImports` ("dynamically imported chunks") and `css`, so a backend can tell which built files a page loads and which load on demand.
+
 ## Block S1400–S1449 — RA-25 Layered effects & effect programs
 
 ### [S1400] hydra-synth (Hydra live-coding video synth)

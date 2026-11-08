@@ -287,6 +287,15 @@ def _parts() -> tuple[bytes, bytes]:
     return raw, gzip.compress(raw, mtime=0)
 
 
+@functools.lru_cache(maxsize=64)  # bounded: a request can name any digest
+def _assembly(digest: str) -> tuple[bytes, bytes] | None:
+    """Assembly `digest`'s GLB as served: (raw bytes, gzipped bytes), or None when there is none."""
+    from pewpew.rig.parts import parts_view
+
+    raw = parts_view().glb(digest)
+    return None if raw is None else (raw, gzip.compress(raw, mtime=0))
+
+
 @functools.cache
 def page_build() -> str | None:
     """The served page's build stamp (tools/webhash.py), or None without one."""
@@ -630,21 +639,15 @@ class PreviewSink:
             return _zipped_response(conn, _parts(), accept, "application/json", "no-cache")
         assembly = _ASSEMBLY_PATH.fullmatch(path)
         if assembly is not None:
-            return self._assembly_response(conn, assembly.group(1))
+            glb = _assembly(assembly.group(1))
+            if glb is None:
+                return conn.respond(404, "no such assembly\n")
+            return _zipped_response(conn, glb, accept, "model/gltf-binary", IMMUTABLE)
         if path[1:] in web_files():
             kind = _FILE_TYPES.get(Path(path).suffix, "application/octet-stream")
             return _zipped_response(conn, _web_file(path[1:]), accept, kind, IMMUTABLE)
         # no-cache: a reload after an engine upgrade gets the new page.
         return _zipped_response(conn, _page(), accept, "text/html; charset=utf-8", "no-cache")
-
-    def _assembly_response(self, conn: ServerConnection, digest: str) -> Response:
-        """The GLB of assembly `digest`, or a 404."""
-        from pewpew.rig.parts import parts_view
-
-        glb = parts_view().glb(digest)
-        if glb is None:
-            return conn.respond(404, "no such assembly\n")
-        return _bytes_response(conn, glb, {"Content-Type": "model/gltf-binary", "Cache-Control": IMMUTABLE})
 
     def _plan_response(self, conn: ServerConnection) -> Response:
         """The floor-plan image, read fresh, or a 404 that names no path."""

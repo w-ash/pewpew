@@ -11,7 +11,8 @@ needs no manifold3d and does not import `pewpew.rig.geometry`.
 of the GLB, which is `<digest>.glb` beside the index. `source` is
 `source_hash` of the type when the GLB was built. A type whose `source`
 differs from its current `source_hash` has no assembly until the GLBs are
-built again.
+built again. `source` covers only catalog data: a change to the geometry
+code shows when `tests/test_rig_assemblies.py` rebuilds each GLB.
 """
 
 from __future__ import annotations

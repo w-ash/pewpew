@@ -132,16 +132,36 @@ function barOver(geometry: BufferGeometry, span: number): BufferGeometry {
   return bar;
 }
 
+/** An unlit part of a variant: one that spans the middle (y = 0) stretches along y by `stretch`; one on
+ * one side of it, such as an end cap, keeps its size and moves with its outer end. */
+function stretched(geometry: BufferGeometry, stretch: number): BufferGeometry {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const out = geometry.clone();
+  if (!box || (box.min.y < 0 && box.max.y > 0)) return out.scale(1, stretch, 1);
+  const outer = box.min.y >= 0 ? box.max.y : box.min.y;
+  return out.translate(0, outer * (stretch - 1), 0);
+}
+
 /**
  * The assembly of a dims variant of `count` pixels over `span`, from its base type's: no GLB is built
- * for a variant. A glowing part becomes one bar over the pixel span (its pixels are colored along it, as
- * on the base type), and every other part is stretched along y by `stretch`, the variant's length over
- * the base type's. Anchors move with the stretch. The base assembly is not changed.
+ * for a variant, so only its length is drawn. A `pixels` part (a diffuser, a tube) scales along y by the
+ * variant's span over the base type's; the discrete LEDs of a `pixel_nearest` part become one bar over
+ * the span, colored pixel by pixel as on the base type. An unlit part stretches along y by `stretch`, the
+ * variant's length over the base type's, except an end part, which keeps its size and moves to the new
+ * end (`stretched`). Anchors move with the stretch. A dim of the cross-section (`tube_d`, `housing_w`…)
+ * is not drawn: every part keeps the base type's x and z. The base assembly is not changed.
  */
 export function variantAssembly(base: Assembly, count: number, span: number, stretch: number): Assembly {
+  const scale = base.pixelAxis ? span / base.pixelAxis.span : stretch;
   const parts = base.parts.map((part) => ({
     ...part,
-    geometry: part.glow === "none" ? part.geometry.clone().scale(1, stretch, 1) : barOver(part.geometry, span),
+    geometry:
+      part.glow === "pixels"
+        ? part.geometry.clone().scale(1, scale, 1)
+        : part.glow === "pixel_nearest"
+          ? barOver(part.geometry, span)
+          : stretched(part.geometry, stretch),
   }));
   const anchors: Assembly["anchors"] = {};
   for (const [end, a] of Object.entries(base.anchors) as Array<[keyof Assembly["anchors"], AssemblyAnchor]>) {

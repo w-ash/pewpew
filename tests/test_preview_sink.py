@@ -523,6 +523,9 @@ def test_the_parts_catalog_and_each_assembly_are_served():
             assert (status, headers["content-type"]) == (200, "model/gltf-binary")
             assert headers["cache-control"] == "public, max-age=31536000, immutable"
             assert body[:4] == b"glTF" and body == parts_view().glb(t["digest"])
+            status, headers, body = fetch(sink.port, t["assembly_url"], accept="gzip")
+            assert (status, headers["content-encoding"], headers["vary"]) == (200, "gzip", "Accept-Encoding")
+            assert gzip.decompress(body) == parts_view().glb(t["digest"]) and len(body) < len(gzip.decompress(body))
         assert fetch(sink.port, "/assembly/0000000000000000.glb")[0] == 404
         # Not a digest: the page, as for any other path.
         assert fetch(sink.port, "/assembly/strip.glb")[2] == preview._page()[0]

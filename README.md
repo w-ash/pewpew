@@ -43,7 +43,8 @@ uv run just check                                          # every gate CI runs
 ```
 
 pnpm is the version the root `package.json` pins, and Node is in its
-`engines` range.
+`engines` range: 22.18 or later, which runs `web/scripts/gen-types.ts`
+without a flag (https://nodejs.org/en/blog/release/v22.18.0).
 
 ## Play a look
 

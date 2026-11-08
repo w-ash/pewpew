@@ -108,7 +108,8 @@ Status stays **Accepted**; the transport above is unchanged.
 - **One file, no lazy chunks.** No dynamic `import()` and no `public/`
   folder, since the plugin leaves both outside the HTML [S1369]. System
   fonts only. *(Superseded 2026-11-06: two subset fonts, inlined; see that
-  amendment.)*
+  amendment. Superseded 2026-11-08: the page and its own hashed files,
+  with the 3D view loaded on demand; see that amendment.)*
 - **The committed page cannot go stale silently.** `tools/webhash.py`
   hashes the `web/` sources, the lockfile and the config; the build stamps
   the hash into `<meta name="pewpew-build">`, and `tests/test_page_build.py`
@@ -401,7 +402,8 @@ Status stays **Accepted**; the transport above is unchanged.
 - **Inline, as everything else is.** `web/src/design/theme.css` declares the
   faces with `url(./fonts/*.woff2)`, which vite-plugin-singlefile turns into
   data URIs like every other asset [S1369]; the page stays one file with no
-  config change. Mono is declared twice: as itself, and as "Martian Figures"
+  config change. *(Since 2026-11-08 the fonts are inlined into the page's
+  stylesheet, one of its own files; see that amendment.)* Mono is declared twice: as itself, and as "Martian Figures"
   with a `unicode-range` of digits and value signs, so a live number gets
   fixed-width digits and Grotesk's letters.
 - **No render wait.** `font-display: swap`; the fallback stack is the system
@@ -445,3 +447,70 @@ Status stays **Accepted**; the transport above is unchanged.
 - **The Grotesk v1.0.0 release binaries:** they carry no licence string and
   point to a commercial EULA; the OFL sources on `main` at the pin do not
   [S1700].
+
+## Amendment (2026-11-08) — the Console is index.html and its own files
+
+The Console gains a 3D view of a rig (three.js and @react-three), about
+270 KB gzipped, which a run without a rig never shows. Inlined into the one
+file, every phone would load it on every page load. vite-plugin-singlefile
+cannot inline a chunk loaded by dynamic `import()`: it leaves such chunks
+outside the HTML [S1369].
+
+Status stays **Accepted**; the transport above is unchanged.
+
+### Decision
+
+- **The page and its own hashed files.** vite-plugin-singlefile is dropped.
+  Vite builds `src/pewpew/sinks/web/index.html` beside `assets/` with
+  content-hashed names: the page's script, one stylesheet, and the 3D
+  view's file, which the page imports with `import()` when the stage first
+  shows 3D (`web/src/app/App.tsx`). Vite's manifest records which chunk
+  imports which, statically or dynamically [S1396], and the build writes it
+  as `manifest.json`, with `files.json`, the list of files the engine
+  serves (`web/vite.config.ts`). Assets (the fonts) stay inline, now in the
+  stylesheet.
+- **Served by the engine, offline as before.** The engine serves each file
+  `files.json` lists, gzipped when the client allows, with `Cache-Control:
+  public, max-age=31536000, immutable`; the page stays `no-cache`, so a
+  reload after an upgrade gets the new names (`src/pewpew/sinks/preview.py`).
+  Every file comes from the package: no Node, no CDN, no internet at run
+  time, as before. The 3D view's parts catalog (`/parts.json`) and its
+  prebuilt GLBs (`/assembly/<digest>.glb`) are served the same way.
+- **Two budgets.** `tests/test_page_build.py` measures, gzipped file by
+  file, what the page always loads (the page and its static imports, from
+  the manifest [S1396]) against `GZIP_BUDGET`, 230,500 B as before, and
+  what the 3D view loads on demand against `THREE_D_BUDGET`, 271,584 B
+  measured on 2026-11-08 plus 3% (279,732 B). It also checks that three.js
+  is in no file the page always loads, and that every URL in the build is
+  a file the engine serves.
+
+### Consequences
+
+- A run without a rig, or a page that never shows 3D, fetches none of the
+  3D view's files.
+- The committed build is several files; `tests/test_page_build.py` still
+  catches a source change without a rebuild, and the build empties its
+  folder first, so no older file is left to be served.
+- A tab open across an engine upgrade reloads on the hello's build stamp
+  (2026-11-04 amendment), so it does not ask for files that are gone; a 3D
+  view that fails to load anyway shows a note with a retry
+  (`web/src/app/App.tsx`).
+
+### Evidence
+
+- [S1369] vite-plugin-singlefile: a dynamic `import()` or lazy route
+  leaves chunks outside the one HTML file.
+- [S1396] Vite's backend integration: a manifest that maps each source to
+  its built files, with the static and dynamic imports of each chunk, for a
+  page served by another server.
+- [S1367] Vite builds with Rolldown and needs Node only at build time.
+
+### Rejected alternatives
+
+- **Keep the one file and inline the 3D view.** Every load, on every phone,
+  would carry about 270 KB gzipped more than the page needs without a rig
+  (inference from the two budgets above); the plugin cannot keep a lazy
+  chunk inside the file [S1369].
+- **A second, separate page for 3D.** It would load React and the wire
+  store again and lose the Console's state on the switch; one page with an
+  on-demand file needs only the manifest Vite already writes [S1396].

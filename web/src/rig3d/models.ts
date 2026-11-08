@@ -4,9 +4,9 @@ import type { PartsCatalog } from "../rig/parts";
 import { assembliesFor, baseType, missingAssemblies, type ViewRig } from "./instances";
 
 /** The load state of a rig's GLBs, for a view's ErrorBoundary around them: `key` remounts it for a new
- * set of types or a retry, `onError` keeps what it threw, `retry` tries again, and `missing` names the
- * types with no assembly to draw. */
-export function useModels(rig: ViewRig | null, catalog: PartsCatalog | null) {
+ * set of types or a retry, `onError` keeps what it threw, `retry` tries again and calls `onRetry` (which
+ * can fetch the parts catalog again), and `missing` names the types with no assembly to draw. */
+export function useModels(rig: ViewRig | null, catalog: PartsCatalog | null, onRetry?: () => void) {
   const [error, setError] = useState<string | null>(null);
   // A new set of fixture types gets a fresh try at loading their GLBs.
   const types = useMemo(
@@ -38,6 +38,7 @@ export function useModels(rig: ViewRig | null, catalog: PartsCatalog | null) {
     setError(message);
   };
   const retry = () => {
+    onRetry?.();
     setError(null);
     setAttempt((a) => a + 1);
   };

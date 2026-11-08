@@ -1,18 +1,18 @@
 {
-  "_console-3d-Cmr1Ls2J.js": {
-    "file": "assets/console-3d-Cmr1Ls2J.js",
+  "_console-3d-C-ukCBsq.js": {
+    "file": "assets/console-3d-C-ukCBsq.js",
     "name": "console-3d",
     "imports": [
       "index.html"
     ]
   },
   "index.html": {
-    "file": "assets/index-DyX6tnQ7.js",
+    "file": "assets/index-B8mTaTiV.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
     "dynamicImports": [
-      "_console-3d-Cmr1Ls2J.js"
+      "_console-3d-C-ukCBsq.js"
     ]
   },
   "style.css": {

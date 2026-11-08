@@ -1,7 +1,9 @@
 """The prebuilt 3D assemblies in `pewpew.rig.assemblies` and the parts view that serves them.
 
-None of these tests needs manifold3d. A failure here after a catalog change
-means the committed GLBs are stale: run `just assemblies`.
+Only `test_each_glb_is_what_the_geometry_code_builds` needs manifold3d: it
+catches a change to `pewpew.rig.geometry` that the `source` hash, which covers
+only catalog data, cannot see. A failure here means the committed GLBs are
+stale: run `just assemblies`.
 """
 
 from __future__ import annotations
@@ -42,6 +44,17 @@ def test_each_glb_is_named_by_its_digest():
         glb = (FOLDER / f"{entry['digest']}.glb").read_bytes()
         assert glb[:4] == b"glTF", type_id
         assert hashlib.sha256(glb).hexdigest()[:16] == entry["digest"], type_id
+
+
+def test_each_glb_is_what_the_geometry_code_builds():
+    # The same bytes on macOS and Linux (tests/test_rig_geometry.py, DIGESTS).
+    pytest.importorskip("manifold3d")
+    from pewpew.rig.geometry import assembly_digest, build_glb
+
+    catalog = load_catalog()
+    for type_id, entry in INDEX.items():
+        assert assembly_digest(type_id, catalog) == entry["digest"], f"{type_id}: {STALE}"
+        assert build_glb(type_id, catalog) == (FOLDER / f"{entry['digest']}.glb").read_bytes(), type_id
 
 
 def test_no_stray_glb_files():

@@ -2,19 +2,22 @@ import { useGLTF } from "@react-three/drei";
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  type BufferAttribute,
   type Color,
   type DataTexture,
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   type Object3D,
+  Points,
 } from "three";
 import type { Frame } from "../wire/protocol";
 import type { WireStore } from "../wire/store";
 import type { PartsCatalog } from "../rig/parts";
 import { type Assembly, type AssemblyPart, readAssembly, variantAssembly } from "./assembly";
 import { dragPreview } from "./dragPreview";
-import { assembliesFor, baseType, buildBatches, type InstanceBatch, type ViewRig } from "./instances";
+import { type AssemblyRef, assembliesFor, baseType, buildBatches, type InstanceBatch, type ViewRig } from "./instances";
+import { createGlowMaterial, glowGeometry, glowPoints, placePoints, setGlowViewport } from "./ledGlow";
 import { createLedMaterial, setOthersLevel } from "./ledMaterial";
 import {
   createLedTexture,
@@ -28,10 +31,9 @@ const assemblyCache = new WeakMap<object, Assembly>();
 /** Glow scale for fixtures outside the selection, while one exists. */
 const DIM_UNSELECTED = 0.3;
 
-function assemblyOf(gltf: {
-  scene: Object3D;
-  userData?: Record<string, unknown>;
-}): Assembly {
+type Gltf = { scene: Object3D; userData?: Record<string, unknown> };
+
+function assemblyOf(gltf: Gltf): Assembly {
   let a = assemblyCache.get(gltf);
   if (!a) {
     a = readAssembly(gltf);
@@ -101,6 +103,33 @@ export function drawnAssemblies(
   return out;
 }
 
+/** What `drawnAssemblies` reads of a rig: each type placed, with its base type, dims, pixels and span.
+ * Rigs with the same key, such as a `layout` that only moves fixtures, draw with the same assemblies. */
+export function assembliesKey(rig: ViewRig): string {
+  const types = new Set<string>();
+  for (const f of rig.fixtures) {
+    const dims = f.dims ? Object.entries(f.dims).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)) : null;
+    types.add(JSON.stringify([f.type_id, baseType(f), dims, f.pixel_count, rig.types?.[f.type_id]?.span_m ?? null]));
+  }
+  return [...types].sort().join("\n");
+}
+
+interface Drawn {
+  readonly key: string;
+  readonly assemblies: Map<string, Assembly>;
+  /** The ids of the assemblies made here (the variants'), whose geometry is freed here. */
+  readonly made: readonly string[];
+}
+
+function drawnFor(key: string, rig: ViewRig, catalog: PartsCatalog, refs: AssemblyRef[], gltfs: Gltf[]): Drawn {
+  const loaded = new Map<string, Assembly>();
+  refs.forEach((r, i) => {
+    if (gltfs[i]) loaded.set(r.id, assemblyOf(gltfs[i]));
+  });
+  const assemblies = drawnAssemblies(rig, catalog, loaded);
+  return { key, assemblies, made: [...assemblies.keys()].filter((id) => !loaded.has(id)) };
+}
+
 interface RigProps {
   rig: ViewRig;
   /** Where the newest frame is read, each animation frame. */
@@ -117,23 +146,19 @@ export function Rig({ rig, frames, catalog, selected, accent, onPick }: RigProps
     refs.map((r) => r.url),
     false,
     false,
-  ) as unknown as Array<{
-    scene: Object3D;
-    userData?: Record<string, unknown>;
-  }>;
-  const assemblies = useMemo(() => {
-    const map = new Map<string, Assembly>();
-    refs.forEach((r, i) => {
-      if (gltfs[i]) map.set(r.id, assemblyOf(gltfs[i]));
-    });
-    return drawnAssemblies(rig, catalog, map);
-  }, [rig, catalog, refs, gltfs]);
+  ) as unknown as Gltf[];
+  // The assemblies follow the types placed, not the rig's identity: a `layout` that only moves fixtures
+  // keeps every variant's geometry, so nothing is made or uploaded again.
+  const drawnKey = `${catalog.digest ?? ""}|${refs.map((r) => r.url).join(",")}|${assembliesKey(rig)}`;
+  const [drawn, setDrawn] = useState(() => drawnFor(drawnKey, rig, catalog, refs, gltfs));
+  if (drawn.key !== drawnKey) setDrawn(drawnFor(drawnKey, rig, catalog, refs, gltfs));
+  const assemblies = drawn.assemblies;
   // A variant's geometry is made here, so it is freed here; a GLB's stays in the loader's cache.
   useEffect(
     () => () => {
-      for (const [id, a] of assemblies) if (!refs.some((r) => r.id === id)) for (const p of a.parts) p.geometry.dispose();
+      for (const id of drawn.made) for (const p of drawn.assemblies.get(id)?.parts ?? []) p.geometry.dispose();
     },
-    [assemblies, refs],
+    [drawn],
   );
 
   const layout = useMemo(() => ledLayout(rig.fixtures, rig.n, rig.total ?? rig.n), [rig]);
@@ -178,8 +203,49 @@ export function Rig({ rig, frames, catalog, selected, accent, onPick }: RigProps
           />
         )),
       )}
+      <LedGlow batches={batches} assemblies={assemblies} texture={texture} selected={selected} />
     </>
   );
+}
+
+interface GlowProps {
+  batches: readonly InstanceBatch[];
+  assemblies: ReadonlyMap<string, Assembly>;
+  texture: DataTexture;
+  selected: ReadonlySet<number>;
+}
+
+/** Every pixel's glow sprite, over the meshes (ledGlow.ts). */
+function LedGlow({ batches, assemblies, texture, selected }: GlowProps) {
+  const points = useMemo(() => glowPoints(batches, assemblies), [batches, assemblies]);
+  const material = useMemo(() => createGlowMaterial(texture), [texture]);
+  useEffect(() => () => material.dispose(), [material]);
+  const sprites = useMemo(() => {
+    const object = new Points(glowGeometry(points), material);
+    // Drawn after the meshes, which it reads the depth of; a drag moves it past its bounds.
+    object.renderOrder = 1;
+    object.frustumCulled = false;
+    return object;
+  }, [points, material]);
+  useEffect(() => () => sprites.geometry.dispose(), [sprites]);
+
+  useLayoutEffect(() => {
+    const attr = sprites.geometry.getAttribute("aSelected") as BufferAttribute;
+    for (let p = 0; p < points.count; p++) attr.array[p] = selected.has(points.fixture[p]!) ? 1 : 0;
+    attr.needsUpdate = true;
+    setOthersLevel(material, selected.size > 0 ? DIM_UNSELECTED : 1);
+  }, [sprites, points, selected, material]);
+
+  const seen = useRef(-1);
+  useFrame(({ gl }) => {
+    setGlowViewport(material, gl.domElement.height, gl.getPixelRatio());
+    if (dragPreview.version === seen.current) return;
+    seen.current = dragPreview.version;
+    placePoints(points, batches, dragPreview.delta, dragPreview.fixtures);
+    sprites.geometry.getAttribute("position").needsUpdate = true;
+  });
+
+  return <primitive object={sprites} />;
 }
 
 interface PartProps {
@@ -205,25 +271,17 @@ function PartInstances({
   );
   useEffect(() => () => material.dispose(), [material]);
 
+  // The mesh follows the part and the instance count: a new batch of the same size (a `layout` that
+  // moves fixtures) only refills the instance data below, and the part's vertices are not uploaded again.
+  const count = batch.count;
   const mesh = useMemo(() => {
     const geometry = part.geometry.clone();
-    geometry.setAttribute("aRow", new InstancedBufferAttribute(batch.rows, 1));
-    geometry.setAttribute(
-      "aAxisY",
-      new InstancedBufferAttribute(batch.axisY, 4),
-    );
-    geometry.setAttribute("aAxis", new InstancedBufferAttribute(batch.axis, 3));
-    geometry.setAttribute(
-      "aSelected",
-      new InstancedBufferAttribute(new Float32Array(batch.count), 1),
-    );
-    const m = new InstancedMesh(geometry, material, batch.count);
-    m.instanceMatrix.array.set(batch.matrices);
-    m.instanceMatrix.needsUpdate = true;
-    m.computeBoundingSphere();
-    m.computeBoundingBox();
-    return m;
-  }, [batch, part, material]);
+    geometry.setAttribute("aRow", new InstancedBufferAttribute(new Float32Array(count), 1));
+    geometry.setAttribute("aAxisY", new InstancedBufferAttribute(new Float32Array(count * 4), 4));
+    geometry.setAttribute("aAxis", new InstancedBufferAttribute(new Float32Array(count * 3), 3));
+    geometry.setAttribute("aSelected", new InstancedBufferAttribute(new Float32Array(count), 1));
+    return new InstancedMesh(geometry, material, count);
+  }, [part, material, count]);
   // R3F never disposes a <primitive>; the mesh's own dispose frees its instance buffer.
   useEffect(
     () => () => {
@@ -232,6 +290,19 @@ function PartInstances({
     },
     [mesh],
   );
+
+  const scratch = useMemo(() => ({ base: new Matrix4(), out: new Matrix4() }), []);
+  useLayoutEffect(() => {
+    const g = mesh.geometry;
+    for (const [name, data] of [["aRow", batch.rows], ["aAxisY", batch.axisY], ["aAxis", batch.axis]] as const) {
+      const attr = g.getAttribute(name) as InstancedBufferAttribute;
+      attr.array.set(data);
+      attr.needsUpdate = true;
+    }
+    followDrag(mesh, batch, scratch);
+    mesh.computeBoundingSphere();
+    mesh.computeBoundingBox();
+  }, [mesh, batch, scratch]);
 
   useLayoutEffect(() => {
     const attr = mesh.geometry.getAttribute(
@@ -245,10 +316,6 @@ function PartInstances({
   }, [mesh, batch, selected, material]);
 
   const seen = useRef(-1);
-  const scratch = useMemo(
-    () => ({ base: new Matrix4(), out: new Matrix4() }),
-    [],
-  );
   useFrame(() => {
     if (dragPreview.version === seen.current) return;
     seen.current = dragPreview.version;
