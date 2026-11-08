@@ -222,7 +222,8 @@ def _connect(url: str, *, tries: int, retry_s: float) -> ClientConnection:
             time.sleep(retry_s)
         try:
             # No proxy: an engine is on this machine or the private network.
-            return connect(url, open_timeout=OPEN_TIMEOUT_S, close_timeout=CLOSE_TIMEOUT_S, proxy=None)
+            # `legacy=True`: the caller owns the connection and closes it (websockets 17.1 deprecates the bare form).
+            return connect(url, open_timeout=OPEN_TIMEOUT_S, close_timeout=CLOSE_TIMEOUT_S, proxy=None, legacy=True)
         except (OSError, WebSocketException) as exc:
             failure = exc
     raise Unreachable(why_unreachable(url, failure, OPEN_TIMEOUT_S)) from failure

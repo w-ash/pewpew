@@ -208,7 +208,7 @@ def greet(sink: PreviewSink):
         kinds |= {"declare", "params", "mod", "aura", "catalog"}
         if control.health() is not None:
             kinds.add("health")
-    ws = connect(f"ws://127.0.0.1:{sink.port}/")
+    ws = connect(f"ws://127.0.0.1:{sink.port}/", legacy=True)
     greeting: dict[str, dict] = {}
     while set(greeting) != kinds:
         message = next_text(ws)
