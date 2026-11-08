@@ -14,8 +14,8 @@ reloads too, with its deprecation logged as a warning.
 `rebind` runs on a connection thread: it rewrites the controller's host
 (`pewpew.rig.runtime.rebind_host`) atomically, then queues a reload, where
 `apply` audits the new board set as a relayout before any frame goes
-there. It is refused on a room map file, and in a run that may not write
-its layout (`--unattended`). Refusals name no path.
+there. It works in an `--unattended` run too, audited the same way. It
+is refused on a room map file. Refusals name no path.
 
 The rig stack is imported only when a rig file is reloaded or rebound, so
 a run on a synthetic map never loads it.
@@ -26,7 +26,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
-import warnings
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -113,13 +112,12 @@ class RigLive:
     def apply(self, data: bytes) -> str:
         """The reload's apply step (the module docstring). Loop thread only;
         raises what a failed step raises, with no path in it."""
-        from pewpew.rig.runtime import RoomFormatWarning, ddp_targets, fixture_spans, parse_rig, stream_refusals
+        from pewpew.rig.runtime import ddp_targets, fixture_spans, parse_rig, stream_refusals
 
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always", RoomFormatWarning)
-            rig = parse_rig(data)
-        for warning in caught:
-            logger.warning("%s", warning.message)
+        notices: list[str] = []
+        rig = parse_rig(data, notices=notices)
+        for notice in notices:
+            logger.warning("%s", notice)
         old = self.rig
         layout = None
         boards: tuple[Board, ...] = ()

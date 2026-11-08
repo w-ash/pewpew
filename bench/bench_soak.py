@@ -50,7 +50,10 @@ Tiers (CLAUDE.md T-7): streaming to real boards is tier-1 bench actuation,
 so `--dry-run` prints the plan and sends nothing, and a real run appends a
 `bench-soak` audit record (`pewpew.audit`) before the rig starts (the rig
 then appends its own `ddp-stream` record). `--loopback` sends nothing off
-this machine; its audit records go to a log in the temp dir.
+this machine: each controller with pixels gets its own listener, by id,
+every other controller loses its host, and the run aborts unless every
+DDP target is a loopback address. Its audit records go to a log in the
+temp dir.
 
     uv run python -m bench.bench_soak --loopback --duration 1200 --label loopback-<host>
     uv run python -m bench.bench_soak --dry-run
@@ -65,6 +68,7 @@ from __future__ import annotations
 import argparse
 import collections
 import gc
+import ipaddress
 import itertools
 import json
 import logging
@@ -83,6 +87,7 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -295,11 +300,12 @@ def trend(rows: list[dict], key: str, after: float = WARMUP_S) -> dict | None:
 
 
 def board_summary(rows: list[dict], names: list[str]) -> list[dict]:
-    """Loopback: each board's delivered fps per sample window, from the
-    listener's PUSH counts (the first window is startup, and left out)."""
+    """Loopback: each board's delivered fps per sample window, from the PUSH
+    counts of the listener of that controller id (the first window is
+    startup, and left out)."""
     out = []
-    for i, name in enumerate(names):
-        seq = [r["boards"][i] for r in rows if r.get("boards")]
+    for name in names:
+        seq = [b for r in rows for b in r.get("boards") or () if b.get("board") == name]
         fps = [b["fps"] for b in seq[1:] if b.get("fps") is not None]
         last = seq[-1] if seq else {}
         out.append({"board": name, "fps": dist(fps), "frames": last.get("frames", 0),
@@ -471,18 +477,24 @@ def sample_row(rec: Recorder, since: tuple[int, int], gc_before: list[int],
 
 
 def prepare(args: argparse.Namespace, tmp: Path, ports: list[int] | None) -> tuple[Path, Path]:
-    """Write the looks file and (loopback) the arrangement with every
-    controller moved to its local listener. Returns (looks file, map file)."""
+    """Write the looks file and (loopback) the arrangement that streams to
+    the local listeners only (`loopback_hosts`, then `check_loopback`).
+    `ports` holds one listener port per DDP target of `args.map`, in
+    `target_names` order. Returns (looks file, map file)."""
     looks_dir = tmp / "looks"
     looks_dir.mkdir()
     looks = looks_dir / "looks.json"
     looks.write_text(json.dumps(looks_doc(), indent=2) + "\n")
     if ports is None:
         return looks, args.map
+    from pewpew.rig.runtime import load_rig, target_names
+
     doc = json.loads(args.map.read_text())
-    hosted = [c for c in doc["controllers"] if c.get("host")]
-    for controller, port in zip(hosted, ports):
-        controller["host"] = f"127.0.0.1:{port}"
+    if not isinstance(doc, dict) or not isinstance(doc.get("controllers"), list):
+        raise SystemExit("bench_soak: --loopback needs an arrangement file; convert a room map first with "
+                         "`python -m pewpew rig migrate-room`")
+    names = target_names(load_rig(args.map)[0])
+    loopback_hosts(doc, names, ports)
     plan = doc.get("plan")
     if isinstance(plan, dict) and isinstance(plan.get("image"), str):
         plan["image"] = str((args.map.parent / plan["image"]).resolve())
@@ -490,7 +502,48 @@ def prepare(args: argparse.Namespace, tmp: Path, ports: list[int] | None) -> tup
     rig_dir.mkdir()
     rig = rig_dir / "rig.arrangement.json"
     rig.write_text(json.dumps(doc, indent=2) + "\n")
+    check_loopback(rig, names, ports)
     return looks, rig
+
+
+def loopback_hosts(doc: dict, names: Sequence[str], ports: Sequence[int]) -> None:
+    """Set each controller in `names` to 127.0.0.1 at its port in `ports`, by
+    controller id, and remove every other controller's host, in place."""
+    if len(names) != len(ports):
+        raise SystemExit(f"bench_soak: {len(ports)} listener ports for {len(names)} DDP targets")
+    port_of = dict(zip(names, ports, strict=True))
+    for controller in doc["controllers"]:
+        if not isinstance(controller, dict):
+            continue
+        port = port_of.get(controller.get("id"))
+        if port is None:
+            controller.pop("host", None)
+        else:
+            controller["host"] = f"127.0.0.1:{port}"
+
+
+def _loopback(host: str | None) -> bool:
+    try:
+        return host is not None and ipaddress.ip_address(host).is_loopback
+    except ValueError:  # a name, which could resolve anywhere
+        return False
+
+
+def check_loopback(map_file: Path, names: Sequence[str], ports: Sequence[int]) -> None:
+    """Abort unless the rig in `map_file` streams to the listeners only: each
+    DDP target is a loopback address at its controller's port in `ports`,
+    and no controller has another host. The run reads this same file."""
+    from pewpew.rig.runtime import ddp_targets, load_rig, target_names
+
+    rig, _ = load_rig(map_file)
+    targets = list(zip(target_names(rig), ddp_targets(rig), strict=True))
+    bad = [f"{name} -> {b.host}:{b.port}" for name, b in targets if not _loopback(b.host)]
+    bad += [f"{c.id} -> {c.host}" for c in rig.controllers if c.host is not None and not _loopback(c.host)]
+    if [(name, b.port) for name, b in targets] != list(zip(names, ports, strict=True)):
+        bad.append(f"targets {[f'{n}:{b.port}' for n, b in targets]} are not the listeners "
+                   f"{[f'{n}:{p}' for n, p in zip(names, ports, strict=True)]}")
+    if bad:
+        raise SystemExit("bench_soak: the loopback rig would send off this machine: " + "; ".join(bad))
 
 
 def free_port() -> int:
@@ -554,6 +607,7 @@ def run(args: argparse.Namespace) -> None:
     }
     driver_cfg = {
         "packets_per_frame": [b.packets_per_frame for b in boards],
+        "boards": list(target_names(rig)),
         "schedule": schedule,
         "out_json": str(out_json), "meta": meta, "config": config, "parent_pid": os.getpid(),
     }
@@ -595,7 +649,7 @@ def soak(args, rig_argv: list[str], child: subprocess.Popen, meta: dict, config:
     from unittest import mock
 
     import pewpew.__main__ as cli
-    import pewpew.run as rig
+    from pewpew.aura import pipeline
 
     rec = Recorder(args.duration, args.fps)
     tap = LogTap(rec.t0)
@@ -647,7 +701,7 @@ def soak(args, rig_argv: list[str], child: subprocess.Popen, meta: dict, config:
     thread.start()
     started = time.perf_counter()
     try:
-        with mock.patch.object(rig, "PacedLoop", rec.probe_class()):
+        with mock.patch.object(pipeline, "PacedLoop", rec.probe_class()):
             cli.main(rig_argv)
     finally:
         gc.callbacks.remove(rec.gc_hook)
@@ -959,8 +1013,8 @@ def driver_main(cfg_path: Path) -> None:
             if listener is not None:
                 dt = now - last_t
                 row["boards"] = [
-                    {"packets": listener.packets[i], "bytes": listener.bytes[i], "frames": listener.frames[i],
-                     "incomplete": listener.incomplete[i],
+                    {"board": cfg["boards"][i], "packets": listener.packets[i], "bytes": listener.bytes[i],
+                     "frames": listener.frames[i], "incomplete": listener.incomplete[i],
                      "fps": round((listener.frames[i] - last[i]) / dt, 3) if dt > 0 else None}
                     for i in range(len(last))
                 ]

@@ -65,7 +65,6 @@ import re
 import shutil
 import sys
 import threading
-import warnings
 from collections import deque
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -500,14 +499,13 @@ def map_geometry(spec: str | None) -> Geometry:
     rig stack is imported only for a rig file, so a run on any other map
     never loads it."""
     spec = DEFAULT_MAP if spec is None else spec
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always", FutureWarning)  # a room map file's RoomFormatWarning
-        try:
-            geometry = parse_geometry(spec)
-        except ValueError as exc:
-            raise SystemExit(f"--map {exc}") from None
-    for warning in caught:
-        print(f"{spec}: warning: {warning.message}", file=sys.stderr, flush=True)
+    notices: list[str] = []
+    try:
+        geometry = parse_geometry(spec, notices=notices)
+    except ValueError as exc:
+        raise SystemExit(f"--map {exc}") from None
+    for notice in notices:
+        print(f"{spec}: warning: {notice}", file=sys.stderr, flush=True)
     for issue in geometry.rig.issues if geometry.rig is not None else ():
         where = f" ({issue.ref})" if issue.ref else ""
         print(f"{spec}: {issue.level}: {issue.message}{where}", file=sys.stderr, flush=True)
@@ -524,7 +522,10 @@ def rig_boards(spec: str, rig: CompiledRig, ddp: list[str]) -> tuple[Board, ...]
     if all(c.host is None for c in rig.controllers):
         return None
     if ddp:
-        raise SystemExit(f"--ddp: {spec} gives its controllers' hosts; drop --ddp, or add --no-ddp to send nothing")
+        raise SystemExit(
+            f"--ddp: {spec} gives its controllers' hosts; drop --ddp to stream to them, "
+            "or remove the hosts from the file to stream to the --ddp boards"
+        )
     if reasons := stream_refusals(rig):
         raise SystemExit(f"--map {spec}: the boards cannot take this map, so nothing streams: {'; '.join(reasons)}")
     return ddp_targets(rig)

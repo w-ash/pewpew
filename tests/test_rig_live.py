@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -25,11 +26,14 @@ from fakes import (
     run_main,
     source_op,
 )
+from pewpew.__main__ import main
 from pewpew.crossfade import Crossfader
 from pewpew.pace import Calls
 from pewpew.rig import RigError, load_catalog
+from pewpew.rig.models import MAX_FIXTURES
 from pewpew.rig.room_import import RoomError, room_to_arrangement
 from pewpew.rig.runtime import (
+    ROOM_DEPRECATED,
     RoomFormatWarning,
     compile_doc,
     ddp_targets,
@@ -178,6 +182,57 @@ def test_run_refuses_to_stream_a_rig_over_a_cap(tmp_path, audit_log, recorder):
     assert recorder.sent == [] and not audit_log.exists()
 
 
+def test_a_room_file_over_a_pixel_cap_runs_but_streams_nothing(tmp_path, audit_log, recorder, capsys):
+    path = tmp_path / "over.json"
+    write(path, room(bar("long", instances=33, step=[1.0, 0.0])))
+    with pytest.raises(SystemExit) as exc:
+        run_main(["run", looks_file(), "--room", str(path), "--frames", "1"])
+    message = str(exc.value)
+    assert "the boards cannot take this map, so nothing streams" in message and "2112 px" in message
+    assert recorder.sent == [] and not audit_log.exists()
+    rc, out = run_main(["run", looks_file(), "--room", str(path), "--no-ddp", "--ansi", "--frames", "1"])
+    assert rc == 0 and "\x1b[38;2;" in out
+    assert recorder.sent == [] and not audit_log.exists()
+
+
+# ---- a room file of more fixtures than the studio takes ------------------------------
+
+
+def room_of_240():
+    """A legacy room of 240 fixtures once its `instances` expand: two boards,
+    four outputs each, 30 short bars per output."""
+    return room(
+        *(
+            bar(f"r{b}{o}", pixels=4, start=[0.0, o * 0.1 + (b == "B")], end=[1.0, o * 0.1 + (b == "B")],
+                board=b, output=o, instances=30, step=[1.1, 0.0])
+            for b in "AB" for o in range(1, 5)
+        ),
+        boards={"A": "10.0.0.11", "B": "10.0.0.12"},
+    )
+
+
+def test_a_legacy_room_of_240_fixtures_loads_runs_reloads_and_migrates(tmp_path, audit_log, recorder, capsys):
+    assert MAX_FIXTURES >= 240
+    path = tmp_path / "big.json"
+    write(path, room_of_240())
+    notices: list[str] = []
+    rig, data = load_rig(path, notices=notices)
+    assert len(rig.fixtures) == 240 and rig.n == 960 and notices == [ROOM_DEPRECATED]
+
+    assert run_main(["run", looks_file(), "--room", str(path), "--dry-run"])[0] == 0
+    out = capsys.readouterr().out
+    assert "board A" in out and "board B" in out
+    assert recorder.sent == [] and not audit_log.exists()
+
+    rig_live = RigLive(path, rig, data, hosted(FLOW, rig.mapping), Calls().call_soon, ddp=None, argv=["run"])
+    assert "960 px in 240 fixtures on 2 controller(s)" in rig_live.apply(data)
+
+    out_file = tmp_path / "big.arrangement.json"
+    assert main(["rig", "migrate-room", str(path), "-o", str(out_file)]) == 0
+    migrated, _ = load_rig(out_file)
+    assert migrated.mapping.tobytes() == rig.mapping.tobytes()
+
+
 # ---- floor plan and the preview's description ----------------------------------
 
 
@@ -188,6 +243,17 @@ def test_plan_calibration_maps_image_pixels_to_rig_meters():
     assert view["unit"] == pytest.approx(2.0 / 400 * r.scale)
     assert len(view["corner"]) == 2
     assert plan_view(compiled(TWO_BARS))["plan"] is None
+
+
+def test_the_plan_draws_a_strip_its_physical_length_not_its_pixels_span():
+    """60 px at a 0.02 m pitch span 1.2 m of a 2 m strip: the strip is drawn 2 m long."""
+    r = compiled(arrangement(bar("s", pixels=60, end=[2.0, 0.0], pitch=0.02)))
+    (f,) = plan_view(r)["fixtures"]
+    assert (f["end"][0] - f["start"][0]) / r.scale == pytest.approx(2.0, abs=1e-5)
+    assert f["pitch"] == pytest.approx(0.02)
+    catalog_bar = compiled(arrangement(bar("t")))  # pitch length / pixels: the span is the length
+    (g,) = plan_view(catalog_bar)["fixtures"]
+    assert (g["end"][0] - g["start"][0]) / catalog_bar.scale == pytest.approx(1.0, abs=1e-5)
 
 
 # ---- live map reload ---------------------------------------------------------
@@ -292,10 +358,18 @@ def test_use_for_a_is_refused_on_a_legacy_room_file(tmp_path):
     assert path.read_bytes() == data
 
 
-def test_a_legacy_room_file_reloads_and_logs_the_deprecation(tmp_path, caplog):
+def test_a_legacy_room_file_reloads_and_logs_the_deprecation(tmp_path, caplog, monkeypatch):
     _path, data, renderer, rig_live = legacy_live(tmp_path)
+    filters = list(warnings.filters)
+
+    def global_state(*args, **kw):
+        raise AssertionError("a reload touched the process-wide warnings state")
+
+    monkeypatch.setattr(warnings, "warn", global_state)
+    monkeypatch.setattr(warnings, "catch_warnings", global_state)
     with caplog.at_level("WARNING", logger="pewpew.room.live"):
         status = rig_live.apply(data)
+    assert warnings.filters == filters
     assert status.startswith("map reloaded") and "3840 px in 60 fixtures on 3 controller(s)" in status
     assert any("migrate-room" in r.getMessage() for r in caplog.records)
     assert renderer.n == 3840
@@ -433,7 +507,26 @@ def test_run_rejects_options_a_rig_conflicts_with(extra, message, audit_log, rec
 def test_ddp_with_a_hosted_rig_is_refused_at_launch(audit_log, recorder):
     with pytest.raises(SystemExit) as exc:
         run_main(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--frames", "1", "--ddp", "10.0.0.11=0+8"])
-    assert "--ddp" in str(exc.value) and "drop --ddp" in str(exc.value)
+    message = str(exc.value)
+    assert "drop --ddp to stream to them" in message and "remove the hosts from the file" in message
+    assert "--no-ddp" not in message  # --ddp with --no-ddp is itself refused
+    assert recorder.sent == [] and not audit_log.exists()
+
+
+def test_room_is_always_a_file_path(tmp_path, monkeypatch, audit_log, recorder, capsys):
+    shutil.copy(LEGACY_ROOM, tmp_path / "myroom")
+    monkeypatch.chdir(tmp_path)
+    assert run_main(["run", looks_file(), "--room", "myroom", "--dry-run"])[0] == 0
+    assert "board A" in capsys.readouterr().out
+    with pytest.raises(SystemExit) as exc:
+        run_main(["run", looks_file(), "--room", "line:64", "--frames", "1"])
+    assert exc.value.code == 2 and "--room takes a file; 'line:64' is a synthetic map" in capsys.readouterr().err
+    assert recorder.sent == [] and not audit_log.exists()
+
+
+def test_an_arrangement_renders_to_the_terminal(audit_log, recorder):
+    rc, out = run_main(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--no-ddp", "--ansi", "--frames", "2"])
+    assert rc == 0 and out.count("\n\n") == 2 and "\x1b[38;2;" in out
     assert recorder.sent == [] and not audit_log.exists()
 
 

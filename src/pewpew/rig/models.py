@@ -50,8 +50,11 @@ Status = Literal["measured", "stated", "inferred", "derived", "assumed"]
 
 #: The largest arrangement `load_arrangement` accepts: free fixtures plus every
 #: group's member count. Checked before any group expands. It also caps the
-#: length of every list in an arrangement.
-MAX_FIXTURES = 200
+#: length of every list in an arrangement. 2048 is WLED's pixels per output,
+#: so even one output of 1 px fixtures fits; a compile of 2048 fixtures takes
+#: about 0.1 s. A file on the operator's own machine is not a public input:
+#: the hosted studio holds its own, lower cap (`pewpew.studio.limits`).
+MAX_FIXTURES = 2048
 
 #: The most pixels one fixture type may have. With MAX_FIXTURES it bounds
 #: what a compile allocates, now that a placement's `dims` can set a count.

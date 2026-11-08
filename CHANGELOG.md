@@ -783,7 +783,12 @@ series (batch mode).
   refused on a room file ("migrate it first"); it works under `--unattended`. The preview's
   `hello` and `layout` carry a `rig` object (null for other maps) for a 3D view.
   `fx render`, `look_render` and `boards backup|restore` take an arrangement
-  (`boards ... --map`).
+  (`boards ... --map`). The plan draws each strip its physical length, not the
+  span of its pixels.
+
+- An arrangement takes up to 2048 fixtures, and each of its lists up to 2048
+  items (was 200), so a room file with many `instances` still loads, runs,
+  reloads and migrates. The hosted studio keeps its own cap of 200 fixtures.
 
 - Run the L1 suite in parallel: `just test` and `just test-thorough` use pytest-xdist
   (`-n auto --dist loadfile`), about 35 s serial to 15 s. `-n 0` or bare `uv run pytest`
@@ -1307,6 +1312,8 @@ series (batch mode).
   old format. A room file given to `--map`, `--room`, `fx --map` or MCP is migrated in
   memory with a warning; the next release refuses both. Migrate once with
   `python -m pewpew rig migrate-room ROOM.json -o OUT.arrangement.json`.
+  `--room` always takes a file path (`--room myroom` is `./myroom`); a synthetic
+  map such as `line:64` is refused there.
 
 ### Removed
 
@@ -1343,6 +1350,17 @@ series (batch mode).
   `bench/authoring/`); its report stays in `bench/results/`.
 
 ### Fixed
+
+- `bench/bench_soak.py --loopback` gives each controller that receives DDP its own
+  listener by controller id, removes every other controller's host, and aborts
+  unless every DDP target is a loopback address; it gave listener ports by
+  position, so a hosted controller with no pixels left a later board streaming to
+  its real host. The soak runs again: it probes the aura's paced loop
+  (`pewpew.aura.pipeline`), and counts each listener's packets by controller id.
+- A rig reload reports a room file's deprecation without the process-wide
+  `warnings` state, which other threads share.
+- The refusal of `--ddp` with a hosted arrangement suggests what works: drop
+  `--ddp`, or remove the hosts from the file.
 
 - Test fixes: the audio clock-fit test's early-point bound is half a slot (a fixed
   1 ms that a valid fit could exceed), and a harness race that could drop sink

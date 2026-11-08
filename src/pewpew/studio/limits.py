@@ -14,8 +14,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from pewpew.rig.models import MAX_FIXTURES
-
+MAX_FIXTURES = 200  # fixtures of one arrangement, under the rig model's own MAX_FIXTURES
 MAX_BODY_BYTES = 256 * 1024  # HTTP request bodies and inbound websocket messages
 MAX_PIXELS = 16_384  # total pixels of one rig: bounds the mapping and frame memory. A single
 # fixture may have up to MAX_FIXTURE_PIXELS (4096), so this holds four of those.

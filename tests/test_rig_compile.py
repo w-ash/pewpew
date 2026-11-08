@@ -13,6 +13,7 @@ import pytest
 
 from pewpew.rig import EXAMPLES, RigError, compile_rig, load_arrangement, load_catalog, read_catalog
 from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
+from pewpew.rig.models import MAX_FIXTURES
 from pewpew.rig.pose import MVR_C, from_three, matrix_to_quat, quat_to_matrix
 
 BAR = "clen-rgbw-bar-1m"
@@ -371,17 +372,17 @@ def test_quaternions_are_stored_canonical():
 
 def test_oversize_arrangements_are_refused_before_expansion():
     ring = lambda gid, n: {"id": gid, "preset": "ring", "type": BAR, "count": n, "start_radius_m": 1}
-    grid = {"id": "g", "preset": "array", "type": BAR, "counts": [20, 20], "steps_m": [[1, 0, 0], [0, 1, 0]]}
+    grid = {"id": "g", "preset": "array", "type": BAR, "counts": [50, 50], "steps_m": [[1, 0, 0], [0, 1, 0]]}
     for obj in (
         arrangement(groups=[ring("r", 10**9)]),
-        arrangement(groups=[ring("a", 150), ring("b", 60)]),
+        arrangement(groups=[ring("a", MAX_FIXTURES - 50), ring("b", 60)]),
         arrangement(groups=[grid]),
-        arrangement(groups=[ring("a", 200)], fixtures=[{"id": "x", "type": BAR}]),
+        arrangement(groups=[ring("a", MAX_FIXTURES)], fixtures=[{"id": "x", "type": BAR}]),
     ):
         with pytest.raises(RigError) as exc:
             load_arrangement(obj)
         assert "too_many_fixtures" in {i.code for i in exc.value.issues}
-    assert compiled(arrangement(groups=[ring("a", 200)])).n == 200 * 64
+    assert compiled(arrangement(groups=[ring("a", MAX_FIXTURES)])).n == MAX_FIXTURES * 64
 
 
 def test_firmware_caps_are_violations_and_warnings():

@@ -16,7 +16,9 @@ render on a synthetic map never loads it.
 from __future__ import annotations
 
 import hashlib
+import os
 from dataclasses import dataclass
+from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -65,6 +67,26 @@ def is_file_spec(spec: str) -> bool:
     return "/" in spec or spec.endswith(".json")
 
 
+def file_spec(path: str | PathLike[str]) -> str:
+    """The map spec that names the file at `path`, also a path with no "/"
+    and no ".json" (`myroom` is `./myroom`)."""
+    text = os.fspath(path)
+    return text if is_file_spec(text) else os.path.join(".", text)
+
+
+def room_spec(text: str) -> str:
+    """`run --room`: the file spec of the file `text` (`file_spec`). Raises
+    ValueError when `text` is a synthetic map, which is `--map`'s alone."""
+    if not is_file_spec(text):
+        try:
+            parse_map(text)
+        except ValueError:
+            pass
+        else:
+            raise ValueError(f"--room takes a file; {text!r} is a synthetic map, so give --map {text}")
+    return file_spec(text)
+
+
 def check_spec(spec: str) -> str:
     """`spec` when it reads as a map spec, without opening a file: a rig
     file's name, or a synthetic map that parses. Raises ValueError."""
@@ -73,16 +95,17 @@ def check_spec(spec: str) -> str:
     return spec
 
 
-def parse_geometry(spec: str) -> Geometry:
+def parse_geometry(spec: str, *, notices: list[str] | None = None) -> Geometry:
     """The geometry the map spec `spec` names. Raises ValueError, saying
-    why; a room map file also warns (`pewpew.rig.runtime.RoomFormatWarning`)."""
+    why. A room map file's deprecation notice goes on `notices`, or
+    without it is a warning (`pewpew.rig.runtime.RoomFormatWarning`)."""
     if not is_file_spec(spec):
         return Geometry(spec, _synthetic(spec))
     from pewpew.rig import RigError
     from pewpew.rig.runtime import load_rig
 
     try:
-        rig, data = load_rig(Path(spec))
+        rig, data = load_rig(Path(spec), notices=notices)
     except RigError as exc:
         raise ValueError(f"{spec}: {exc}") from None
     if rig.n == 0:

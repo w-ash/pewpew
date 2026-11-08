@@ -154,6 +154,15 @@ def test_the_old_room_flag_still_works_with_a_warning(tmp_path, monkeypatch, cap
     assert (tmp_path / "new/10.0.0.11/cfg.json").exists()
 
 
+@pytest.mark.parametrize("flag", ["--map", "--room"])
+def test_a_rig_file_with_no_slash_and_no_json_is_still_a_file(flag, tmp_path, monkeypatch):
+    (tmp_path / "myroom").write_text(json.dumps(room(bar())))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(boards, "UrllibHttp", lambda: FakeHttp({"10.0.0.11": board_files()}))
+    assert main(["boards", "backup", "new", flag, "myroom"]) == 0
+    assert (tmp_path / "new/10.0.0.11/cfg.json").exists()
+
+
 @pytest.mark.parametrize("extra, message", [
     ([], "one of the arguments --map --room --board is required"),
     (["--map", "r.json", "--board", "10.0.0.11"], "argument --board: not allowed with argument --map"),

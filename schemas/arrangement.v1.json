@@ -134,7 +134,7 @@
             "type": "number"
           },
           "default": {},
-          "maxProperties": 200,
+          "maxProperties": 2048,
           "title": "Dims",
           "type": "object"
         },
@@ -144,7 +144,7 @@
             "minLength": 1,
             "type": "string"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "title": "Tags",
           "type": "array"
         }
@@ -253,7 +253,7 @@
           "items": {
             "type": "string"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "minItems": 1,
           "title": "Fixtures",
           "type": "array"
@@ -456,7 +456,7 @@
             "type": "number"
           },
           "default": {},
-          "maxProperties": 200,
+          "maxProperties": 2048,
           "title": "Dims",
           "type": "object"
         },
@@ -466,7 +466,7 @@
             "minLength": 1,
             "type": "string"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "title": "Tags",
           "type": "array"
         }
@@ -631,7 +631,7 @@
           "items": {
             "type": "string"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "title": "Powers",
           "type": "array"
         }
@@ -751,7 +751,7 @@
             "type": "number"
           },
           "default": {},
-          "maxProperties": 200,
+          "maxProperties": 2048,
           "title": "Dims",
           "type": "object"
         },
@@ -761,7 +761,7 @@
             "minLength": 1,
             "type": "string"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "title": "Tags",
           "type": "array"
         }
@@ -798,7 +798,7 @@
           "items": {
             "$ref": "#/$defs/Chain"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "title": "Chains",
           "type": "array"
         },
@@ -807,7 +807,7 @@
           "items": {
             "$ref": "#/$defs/Feed"
           },
-          "maxItems": 200,
+          "maxItems": 2048,
           "title": "Feeds",
           "type": "array"
         },
@@ -869,7 +869,7 @@
           }
         ]
       },
-      "maxItems": 200,
+      "maxItems": 2048,
       "title": "Groups",
       "type": "array"
     },
@@ -878,7 +878,7 @@
       "items": {
         "$ref": "#/$defs/FixturePlacement"
       },
-      "maxItems": 200,
+      "maxItems": 2048,
       "title": "Fixtures",
       "type": "array"
     },
@@ -887,7 +887,7 @@
       "items": {
         "$ref": "#/$defs/ControllerPlacement"
       },
-      "maxItems": 200,
+      "maxItems": 2048,
       "title": "Controllers",
       "type": "array"
     },
@@ -896,7 +896,7 @@
       "items": {
         "$ref": "#/$defs/PsuPlacement"
       },
-      "maxItems": 200,
+      "maxItems": 2048,
       "title": "Psus",
       "type": "array"
     },

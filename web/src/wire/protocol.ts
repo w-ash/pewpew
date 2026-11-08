@@ -277,8 +277,8 @@ export type ClientMessage =
   /** Look for WLED boards on the laptop's /24 (needs DDP). */
   | { readonly type: "scan" }
   /** Point a rig's controller (`board` is its id) at an address the last scan found, by rewriting
-   * the arrangement file: a tier-1 action. Needs DDP and an arrangement map, and is refused in an
-   * unattended run; a board named by mDNS is never rebound. */
+   * the arrangement file: a tier-1 action, audit-logged. Needs DDP and an arrangement map (a room
+   * map file is refused), and works in an unattended run; a board named by mDNS is never rebound. */
   | { readonly type: "rebind"; readonly board: string; readonly address: string }
   /** Flash a rig fixture white and off for a few seconds (needs an arrangement map). With DDP on,
    * this drives the real boards. */

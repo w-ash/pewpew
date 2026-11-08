@@ -144,9 +144,10 @@ def hosts_of(args: argparse.Namespace) -> list[str]:
         print("warning: --room is the old name of --map, and the next release drops it; use --map",
               file=sys.stderr, flush=True)
     if path is not None:
+        from pewpew.lab.geometry import file_spec
         from pewpew.run import map_geometry  # the rig stack loads only here
 
-        rig = map_geometry(str(path)).rig
+        rig = map_geometry(file_spec(path)).rig
         hosts = [c.host for c in rig.controllers if c.host is not None] if rig is not None else []
     else:
         hosts = []

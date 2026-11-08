@@ -31,11 +31,12 @@ from starlette.websockets import WebSocketDisconnect
 
 from fakes import FakeTime
 from pewpew.power import Limited, PowerCap, PowerLimiter
-from pewpew.rig import EXAMPLES, load_catalog
+from pewpew.rig import EXAMPLES, load_arrangement, load_catalog
+from pewpew.rig import models as rig_models
 from pewpew.sinks.preview import message, status_state
 from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
 from pewpew.studio.app import create_app
-from pewpew.studio.limits import Limits, RateLimiter, address_key, client_ip
+from pewpew.studio.limits import MAX_FIXTURES, Limits, RateLimiter, address_key, client_ip
 from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, example_looks, start_looks
 from pewpew.studio.store import SqliteStore, arrangement_id, canonical_json
 from pewpew.studio.transport import Outbox
@@ -880,6 +881,18 @@ def test_real_rig_refuses_a_huge_group_before_expanding(monkeypatch):
         r = c.post("/api/compile", json=ring(10_000_000))
         assert r.status_code == 422
         assert "too_many_fixtures" in {i["code"] for i in r.json()["issues"]}
+
+
+def test_the_studio_holds_its_own_fixture_cap_under_the_rig_files():
+    """A local rig file may have more fixtures than the public studio takes."""
+    assert Limits().max_fixtures == MAX_FIXTURES == 200 < rig_models.MAX_FIXTURES
+    free = [{"id": f"b{i}", "type": "clen-rgbw-bar-1m"} for i in range(MAX_FIXTURES + 1)]
+    doc = {"format": "pewpew.arrangement", "version": 1, "fixtures": free}
+    assert len(load_arrangement(doc).fixtures) == MAX_FIXTURES + 1
+    with TestClient(real_app()) as c:
+        r = c.post("/api/compile", json=doc)
+        assert r.status_code == 422 and r.json()["issues"][0]["code"] == "too_many_fixtures"
+        assert c.post("/api/compile", json={**doc, "fixtures": free[:MAX_FIXTURES]}).status_code == 200
 
 
 def test_pixel_cap():

@@ -2,8 +2,9 @@
 
 `load_rig` and `parse_rig` read an arrangement file. A room map file (the
 older format, `pewpew.rig.room_import`) is migrated in memory for one more
-release, with a `RoomFormatWarning` that names `python -m pewpew rig
-migrate-room`. Every load goes through `compile_doc`, the one checked
+release, with a deprecation notice that names `python -m pewpew rig
+migrate-room`: appended to the caller's `notices` list, or without one a
+`RoomFormatWarning`. Every load goes through `compile_doc`, the one checked
 compile that the run, the live reload and the studio share.
 
 What a run does with the rig:
@@ -69,21 +70,24 @@ def compile_doc(doc: Any, catalog: Catalog, max_pixels: int | None = None) -> Co
     return rig
 
 
-def load_rig(path: str | PathLike[str], catalog: Catalog | None = None) -> tuple[CompiledRig, bytes]:
-    """Read and compile the rig file at `path`; return the rig and the bytes
-    it came from. Raises RigError, also for a file it cannot read."""
+def load_rig(
+    path: str | PathLike[str], catalog: Catalog | None = None, *, notices: list[str] | None = None,
+) -> tuple[CompiledRig, bytes]:
+    """Read and compile the rig file at `path` (`parse_rig`); return the rig
+    and the bytes it came from. Raises RigError, also for a file it cannot read."""
     try:
         data = Path(path).read_bytes()
     except (OSError, ValueError) as exc:  # ValueError: a null byte in the path
         reason = (exc.strerror if isinstance(exc, OSError) else str(exc)) or type(exc).__name__
         raise RigError([Issue.error("unreadable_file", f"cannot read the file: {reason.lower()}")]) from None
-    return parse_rig(data, catalog), data
+    return parse_rig(data, catalog, notices=notices), data
 
 
-def parse_rig(data: bytes | str, catalog: Catalog | None = None) -> CompiledRig:
-    """Compile rig file text: an arrangement, or a room map with a
+def parse_rig(data: bytes | str, catalog: Catalog | None = None, *, notices: list[str] | None = None) -> CompiledRig:
+    """Compile rig file text: an arrangement, or a room map. A room map's
+    deprecation notice goes on `notices`, or without it is a
     `RoomFormatWarning`. Raises RigError."""
-    return compile_doc(_arrangement(read_doc(data)), catalog or load_catalog())
+    return compile_doc(_arrangement(read_doc(data), notices), catalog or load_catalog())
 
 
 def read_doc(data: bytes | str) -> Any:
@@ -100,11 +104,15 @@ def read_doc(data: bytes | str) -> Any:
         raise RigError([Issue.error("bad_json", str(exc))]) from None
 
 
-def _arrangement(doc: Any) -> Any:
-    """`doc` itself, or for a room map the arrangement it migrates to."""
+def _arrangement(doc: Any, notices: list[str] | None) -> Any:
+    """`doc` itself, or for a room map the arrangement it migrates to, with
+    its notice on `notices` or, without that list, warned."""
     if not is_room(doc):
         return doc
-    warnings.warn(ROOM_DEPRECATED, RoomFormatWarning, stacklevel=3)
+    if notices is None:
+        warnings.warn(ROOM_DEPRECATED, RoomFormatWarning, stacklevel=3)
+    else:
+        notices.append(ROOM_DEPRECATED)
     catalog = load_catalog()
     try:
         profile = catalog.get(DEFAULT_CONTROLLER, "controller")
@@ -201,13 +209,16 @@ def fixture_spans(rig: CompiledRig) -> tuple[tuple[str, int, int], ...]:
 
 
 def _ends(rig: CompiledRig) -> list[tuple[np.ndarray, np.ndarray]]:
-    """Each fixture's strip ends in plan-frame meters: its pixel 0 end, then the far end."""
+    """Each fixture's strip ends in plan-frame meters: its pixel 0 end, then
+    the far end. A strip is as long as its `length` dim, which a placement's
+    dims set (a variant type); any other type is as long as its pixels' span."""
+    lengths = {v.id: v.dims["length"] for v in rig.variants if "length" in v.dims}
     out = []
     for f in rig.fixtures:
         spec = rig.types[f.type_id]
         m = np.asarray(f.matrix, dtype=np.float64).reshape(4, 4, order="F")
         rot, origin = m[:3, :3], m[:3, 3] + spec.z_m * m[:3, 2]
-        half = spec.span_m / 2.0 * rot[:, 1]
+        half = lengths.get(f.type_id, spec.span_m) / 2.0 * rot[:, 1]
         out.append((MVR_C @ (origin - half), MVR_C @ (origin + half)))
     return out
 
@@ -247,6 +258,8 @@ def rig_view(rig: CompiledRig) -> dict[str, Any]:
     file's y-up meters to the plan frame the mapping is normalized from
     (`mapping = (C @ p) * scale + shift`). `plan` is the floor plan's
     top-left corner in plan-frame meters and its meters per image pixel."""
+    # pixel_start and pixel_count are full resolution, and no index is sent: a 3D view of a
+    # decimated hello (n < total) must map them through the same linspace as `pewpew.sinks.preview.View.of`.
     plan = None
     if rig.plan is not None:
         plan = {"corner_m": list(rig.plan.corner), "meters_per_pixel": rig.plan.meters_per_pixel}

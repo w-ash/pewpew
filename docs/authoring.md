@@ -112,8 +112,9 @@ on, the health button in the page's top bar opens one row per board with
 what is wrong and what to do, and a banner names a board that has gone bad.
 "Find boards" in that panel, or `uv run python -m pewpew boards scan` in a
 terminal, lists the WLED boards on the network. "use for A" there rewrites controller
-A's `host` in the arrangement file; it is refused on a room file (migrate it
-first) and in an `--unattended` run.
+A's `host` in the arrangement file, also in an `--unattended` run, and the
+new board set is audit-logged before any frame goes to it; it is refused on a
+room file (migrate it first).
 
 Coordinates are Contain-normalized: the rig's long axis spans 0–1 and the
 short axis is centred inside it, so (0.5, 0.5) is the middle of the rig but

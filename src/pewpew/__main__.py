@@ -38,7 +38,7 @@ from pewpew.audio.inputs import NET, REPLAY
 from pewpew.cli_args import add_allow_host, number, parsed_by, port, positive, whole
 from pewpew.fx import cli as fx_cli
 from pewpew.lab import cli as lab_cli
-from pewpew.lab.geometry import SPEC_RULE, check_spec, is_file_spec
+from pewpew.lab.geometry import SPEC_RULE, check_spec, is_file_spec, room_spec
 from pewpew.mapping import DEFAULT_MAP
 from pewpew.reload import Watch
 from pewpew.remote import control as remote_control
@@ -154,8 +154,8 @@ def _parser() -> argparse.ArgumentParser:
     where.add_argument("--map", type=parsed_by(check_spec), default=None, metavar="SPEC",
                        help=f"{SPEC_RULE}: an arrangement gives the mapping and the DDP boards (each controller "
                        f"with a host), and reloads on save (default {DEFAULT_MAP})")
-    where.add_argument("--room", type=parsed_by(check_spec), default=None, metavar="PATH",
-                       help="deprecated: the old name of --map, dropped in the next release")
+    where.add_argument("--room", type=parsed_by(room_spec), default=None, metavar="PATH",
+                       help="deprecated: the old name of --map for a file, dropped in the next release")
 
     out = run.add_argument_group("the outputs")
     out.add_argument("--ansi", action="store_true", help="terminal sink (the default sink)")
