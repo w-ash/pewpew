@@ -21,6 +21,7 @@
     "cap_t": {"v": 0.004, "status": "assumed", "src": "not found; Q-012, the maintainer's private notes"},
     "pigtail": {"v": 0.2, "status": "measured", "src": "measured by the maintainer, 2026-11-05: about 20 cm long"},
     "pigtail_inset": {"v": 0.15, "status": "measured", "src": "measured by the maintainer, 2026-11-05: each pigtail leaves the underside about 15 cm in from its end, at right angles to the bar"},
+    "m6_offset": {"v": 0.01, "status": "measured", "src": "measured by the maintainer: two metal sockets for M6 bolts on the bottom at mid-length, in line along the bar's axis, 10 mm either side of the center"},
     "led_w": {"v": 0.005, "status": "assumed", "src": "the CL05 package is not found (RES-008, the maintainer's private notes)"},
     "led_h": {"v": 0.0016, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:90)"},
     "strip_w": {"v": 0.01, "status": "assumed", "src": "modeling placeholder, not measured (docs/studio/domain-model.md:89)"},
@@ -53,7 +54,9 @@
     "end_b": {"at": [0, "length/2", 0], "dir": [0, 1, 0], "accepts": "diffuser_outer"},
     "in": {"at": [0, "pigtail_inset - length/2", "-axis_z"], "dir": [0, 0, -1], "connector": "clen-4pin", "gender": {"v": "male", "status": "inferred", "src": "RES-010, the maintainer's private notes"}, "pigtail_m": "pigtail"},
     "out": {"at": [0, "length/2 - pigtail_inset", "-axis_z"], "dir": [0, 0, -1], "connector": "clen-4pin", "gender": {"v": "female", "status": "inferred", "src": "RES-010, the maintainer's private notes"}, "pigtail_m": "pigtail"},
-    "tslot": {"at": [0, 0, "-axis_z"], "dir": [0, 0, -1], "src": "IMG-join, Clen's picture of bars joined end to end (not public)"}
+    "tslot": {"at": [0, 0, "-axis_z"], "dir": [0, 0, -1], "src": "IMG-join, Clen's picture of bars joined end to end (not public)"},
+    "m6_a": {"at": [0, "-m6_offset", "-axis_z"], "dir": [0, 0, -1], "src": "measured by the maintainer: a metal socket for an M6 bolt"},
+    "m6_b": {"at": [0, "m6_offset", "-axis_z"], "dir": [0, 0, -1], "src": "measured by the maintainer: a metal socket for an M6 bolt"}
   },
   "pixels": {
     "count": {"v": 64, "status": "stated", "src": "RES-038, the maintainer's private notes"},
