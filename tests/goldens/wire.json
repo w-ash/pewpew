@@ -789,6 +789,10 @@
             "fade": 0.0
           }
         ],
+        "favorites": [
+          "warm",
+          "cool"
+        ],
         "current": "warm",
         "changed": false,
         "fading": null,
@@ -1270,6 +1274,10 @@
             "fade": 0.0
           }
         ],
+        "favorites": [
+          "warm",
+          "cool"
+        ],
         "current": "warm",
         "changed": false,
         "fading": null,
@@ -1543,7 +1551,15 @@
     "delete": [
       "name"
     ],
+    "rename": [
+      "name",
+      "to"
+    ],
     "cycle": [
+      "name",
+      "on"
+    ],
+    "favorite": [
       "name",
       "on"
     ],

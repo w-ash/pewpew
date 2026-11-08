@@ -157,13 +157,19 @@ export type ClientMessage =
   /** Save the live state as look `name`, replacing one of that name. Null saves it under the name it offers
    * (the looks' `offered`: a surprise's or a vary's, "surprise 7", else "kept", with a number past the first
    * one taken) and with a made look's fade; it becomes the current look, and a save under another name and a
-   * delete rename it. `fade` is stored when given, else the replaced look's is kept; `master` false leaves the
+   * delete change it. `fade` is stored when given, else the replaced look's is kept; `master` false leaves the
    * master out, and null keeps the replaced look's choice. Needs a looks file. */
   | { readonly type: "save"; readonly name: string | null; readonly fade: number | null; readonly master: boolean | null }
   | { readonly type: "delete"; readonly name: string }
+  /** Rename saved look `name` to `to` (trimmed), keeping its place in the file and its settings; the
+   * answer is the next `aura` state. Refused for a name another look has, a bad name, or a look a trigger
+   * names; the same name is a no-op. Needs a looks file. */
+  | { readonly type: "rename"; readonly name: string; readonly to: string }
   /** Whether the idle cycle plays the look. */
   | { readonly type: "cycle"; readonly name: string; readonly on: boolean }
-  /** The look's own fade, stored alone: unsaved edits stay unsaved. This and the four above need a looks file. */
+  /** Whether the look is one of the favorites, the deck's row; refused for a 21st. */
+  | { readonly type: "favorite"; readonly name: string; readonly on: boolean }
+  /** The look's own fade, stored alone: unsaved edits stay unsaved. This and the six above need a looks file. */
   | { readonly type: "fade"; readonly name: string; readonly fade: number }
   /** Triggers fire only while armed; the switch starts off unless the run has `--armed`. */
   | { readonly type: "arm"; readonly on: boolean }

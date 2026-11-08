@@ -15,7 +15,7 @@ const aura = (patch: Partial<AuraState>): AuraState => ({
 });
 /** The looks: none current, made or waiting, idle cycle at its defaults, but for `patch`. */
 const looksOf = (patch: Partial<LooksState>): LooksState => ({
-  items: [], current: null, changed: false, fading: null, progress: null, pending: null, cycling: false, idle: 300, dwell: [60, 60],
+  items: [], favorites: [], current: null, changed: false, fading: null, progress: null, pending: null, cycling: false, idle: 300, dwell: [60, 60],
   made: null, offered: null, saved: null, ...patch,
 });
 /** A cue that holds look cool. */

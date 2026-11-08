@@ -137,8 +137,9 @@ renamed its server class to `MCPServer`.
     and the same JSON as text, as the spec asks of a tool that returns
     structured content [S1451]), `look_compare` (labeled A/B),
     `look_vary`, `engine_observe`, `fleet_status` (read-only), and at
-    tier 1 only `engine_apply` and `engine_set`, both with `dry_run` true
-    by default.
+    tier 1 only `engine_apply`, `engine_set` and `engine_rename`, each with
+    `dry_run` true by default. *(Added 2026-11-07: `engine_rename` renames
+    a saved look, keeping its place.)*
   - A tool that returns structured content and an image is annotated
     `-> Annotated[CallToolResult, <Result>]` and returns a
     `CallToolResult` whose `structured_content` is the result's
@@ -177,8 +178,9 @@ renamed its server class to `MCPServer`.
     `pewpew://render/{handle}/sheet.png`. Prompts: `design-look` and
     `critique-pair`. No Tasks extension: a render takes seconds.
 - **Tiers (ADR-018).** Every offline verb, `observe`, `engine_observe` and
-  `fleet_status` are tier 0. `push`, `engine_apply` and `engine_set` are
-  tier 1 under ADR-018's 2026-11-05 amendment: dry run first, an audit
+  `fleet_status` are tier 0. `push`, `engine_apply`, `engine_set` and
+  `engine_rename` (added 2026-11-07) are tier 1 under ADR-018's 2026-11-05
+  amendment: dry run first, an audit
   record before the first send, and only an engine whose every address is
   loopback (unless `--allow-host`) and whose hello lists `look`, which
   only `run --accept-looks` gives. No tool writes to the fleet. Live

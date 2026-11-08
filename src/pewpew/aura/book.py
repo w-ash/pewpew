@@ -32,6 +32,7 @@ boards: writing a WLED preset freezes the board's lights for seconds
                  "debounce": 0.05, "cooldown": 1.0},
         "door": {"look": null, "priority": "sensor"}
       },
+      "favorites": ["dusk"],
       "notes": "anything; kept as written"
     }
 
@@ -54,6 +55,12 @@ of `each` seconds (a number, or a range `[min, max]` it draws from); every
 slots as there are looks (0 is forever) it recalls `end` (null stays on
 the last). `seed` seeds its draws, so the same file plays the same order.
 `idle` null turns it off. Any operator input stops it.
+
+`favorites` lists the looks the page's main row shows (at most
+`MAX_FAVORITES`); the engine keeps them in file order and the page sorts them.
+A file with no `favorites` key means the first `DEFAULT_FAVORITES` looks in file
+order, and is written back without the key until a favorite is set; a list,
+even an empty one, is used exactly.
 
 `version` is required. A file of another version, or of none, is refused:
 move it aside and save the looks again from the page. There is no
@@ -95,12 +102,14 @@ from pewpew.jsonfile import ProblemsError, is_number, parse_json
 
 VERSION = 4
 MAX_LOOKS = 64
+MAX_FAVORITES = 20
+DEFAULT_FAVORITES = 9  # the looks a file with no "favorites" key shows
 MAX_NAME = 32  # characters in a look's name
 # Letters and digits first, then also space, "_" and "-": short enough for a
 # phone button, and nothing that reads as a path.
 _NAME = re.compile(rf"[A-Za-z0-9][A-Za-z0-9 _-]{{0,{MAX_NAME - 1}}}")
 
-_TOP_KEYS = {"version", "current", "looks", "cycle", "triggers", "notes"}
+_TOP_KEYS = {"version", "current", "looks", "cycle", "triggers", "favorites", "notes"}
 _CYCLE_KEYS = {"idle", "each", "rounds", "end", "seed", "window", "fresh", "weights"}
 _TRIGGER_KEYS = {"look", "hold", "priority", "debounce", "cooldown"}
 
@@ -184,6 +193,15 @@ class LookBook:
     cycle: CycleConfig = field(default_factory=CycleConfig)
     notes: Any = None  # the file's free "notes" value, written back unchanged
     triggers: Mapping[str, Trigger] = field(default_factory=dict)
+    favorites: tuple[str, ...] | None = None  # None: the first DEFAULT_FAVORITES looks
+
+    @property
+    def favorite_names(self) -> list[str]:
+        """The favorite looks: the list as stored, or by default the first
+        `DEFAULT_FAVORITES` in file order."""
+        if self.favorites is None:
+            return list(self.looks)[:DEFAULT_FAVORITES]
+        return list(self.favorites)
 
     @property
     def in_cycle(self) -> list[str]:
@@ -208,7 +226,23 @@ class LookBook:
         cycle = replace(self.cycle, end=None if self.cycle.end == name else self.cycle.end,
                         weights={k: w for k, w in self.cycle.weights.items() if k != name})
         current = None if self.current == name else self.current
-        return replace(self, looks=looks, current=current, cycle=cycle)
+        favorites = None if self.favorites is None else tuple(k for k in self.favorites if k != name)
+        return replace(self, looks=looks, current=current, cycle=cycle, favorites=favorites)
+
+    def renamed(self, old: str, new: str) -> LookBook:
+        """The book with look `old` named `new`, in the same place. Triggers
+        are not rewritten: a look a trigger names is not renamed."""
+        looks = {(new if k == old else k): v for k, v in self.looks.items()}
+        cycle = replace(self.cycle, end=new if self.cycle.end == old else self.cycle.end,
+                        weights={(new if k == old else k): w for k, w in self.cycle.weights.items()})
+        favorites = None if self.favorites is None else tuple(new if k == old else k for k in self.favorites)
+        return replace(self, looks=looks, current=new if self.current == old else self.current, cycle=cycle,
+                       favorites=favorites)
+
+    def with_favorite(self, name: str, on: bool) -> LookBook:
+        """The book with look `name` a favorite or not; a default list becomes the stored one."""
+        names = [k for k in self.favorite_names if k != name]
+        return replace(self, favorites=tuple([*names, name] if on else names))
 
     def with_current(self, name: str | None) -> LookBook:
         return replace(self, current=name)
@@ -222,6 +256,8 @@ class LookBook:
         }
         if self.triggers:
             doc["triggers"] = {name: trig.to_json() for name, trig in self.triggers.items()}
+        if self.favorites is not None:
+            doc["favorites"] = list(self.favorites)
         if self.notes is not None:
             doc["notes"] = self.notes
         return (json.dumps(doc, indent=2) + "\n").encode()
@@ -271,9 +307,10 @@ def parse_looks(data: bytes | str, *, cap: float = 1.0) -> LookBook:
         problems.append(f"'current' names {current!r}, which is not a look")
     cycle = _cycle(doc.get("cycle", {}), raw, problems)
     triggers = _triggers(doc.get("triggers", {}), raw, problems)
+    favorites = _favorites(doc.get("favorites"), raw, problems)
     if problems:
         raise LookError(problems)
-    return LookBook(looks, current, cycle, doc.get("notes"), triggers)
+    return LookBook(looks, current, cycle, doc.get("notes"), triggers, favorites)
 
 
 def route_reasons(book: LookBook) -> list[str]:
@@ -328,6 +365,22 @@ def _cycle(raw: Any, looks: Mapping[str, Any], problems: list[str]) -> CycleConf
         None if idle is None else float(idle), float(each) if is_number(each) else (float(each[0]), float(each[1])),
         int(rounds), end, weights={name: float(weight) for name, weight in weights.items()}, **counts,
     )
+
+
+def _favorites(raw: Any, looks: Mapping[str, Any], problems: list[str]) -> tuple[str, ...] | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        problems.append("'favorites' is a list of look names")
+        return None
+    if len(raw) > MAX_FAVORITES:
+        problems.append(f"{len(raw)} favorites; at most {MAX_FAVORITES}")
+    for i, name in enumerate(raw):
+        if not isinstance(name, str) or name not in looks:
+            problems.append(f"favorites: {name!r} is not a look")
+        elif name in raw[:i]:
+            problems.append(f"favorites: {name!r} is listed twice")
+    return tuple(raw)
 
 
 def _triggers(raw: Any, looks: Mapping[str, Any], problems: list[str]) -> dict[str, Trigger]:

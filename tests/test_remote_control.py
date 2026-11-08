@@ -31,7 +31,7 @@ from pewpew.aura.control import BUSY
 from pewpew.mapping import grid, line
 from pewpew.problems import Code, Refused
 from pewpew.remote.client import Client, Unreachable
-from pewpew.remote.control import Answer, Forbidden, push, set_value
+from pewpew.remote.control import Answer, Forbidden, push, rename_look, set_value
 
 # The aura runs a red `solid` until a look comes.
 pytestmark = pytest.mark.usefixtures("fake_ops")
@@ -390,6 +390,27 @@ def test_a_set_whose_address_has_no_knobs_form_is_refused_before_any_socket(path
     assert (problem.path, problem.code) == (path, Code.BAD_REF) and "is not a knob's address" in problem.reason
     for good in (SPEED, "layers.base.opacity", "signals.breath.rate", "layers.base.sparks.color.h"):
         assert set_value("ws://127.0.0.1:9/", good, 1, dry_run=True).ok
+
+
+def test_a_rename_dry_run_plans_the_message_with_the_new_name_as_given_and_opens_no_socket(monkeypatch, audit_log):
+    class NoSocket:
+        def __init__(self, *args, **kw):
+            raise AssertionError("a dry run opened a socket")
+
+    monkeypatch.setattr(socket, "socket", NoSocket)
+    pushed = rename_look("ws://127.0.0.1:9/", "dusk", "dusk slow ", dry_run=True)
+    assert pushed.ok and pushed.dry_run and pushed.answers == () and pushed.audit is None
+    assert pushed.messages == ({"type": "rename", "name": "dusk", "to": "dusk slow ", "id": "1"},)
+    assert not audit_log.exists()
+
+
+@pytest.mark.parametrize(("name", "to", "field"), [("dusk", "../looks.json", "to"), ("", "dusk", "name")])
+def test_a_rename_with_a_bad_name_is_refused_here_before_any_socket(name, to, field, audit_log):
+    with pytest.raises(Refused) as caught:
+        rename_look("ws://127.0.0.1:9/", name, to, dry_run=True)
+    (problem,) = caught.value.problems
+    assert (problem.path, problem.code) == (field, Code.BAD_REF) and "bad look name" in problem.reason
+    assert not audit_log.exists()
 
 
 def test_a_look_the_loop_takes_too_late_is_refused_and_never_starts():

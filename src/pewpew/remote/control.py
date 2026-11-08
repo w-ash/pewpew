@@ -24,7 +24,7 @@ amendment 2026-11-05) holds in this code, not in a tool's description:
 
 `Pushed` is frozen and not slotted, so an MCP tool can return it as
 structured content (pewpew.result): the tier-1 MCP tools are thin adapters
-over `push` and `set_value`.
+over `push`, `set_value` and `rename_look`.
 """
 
 from __future__ import annotations
@@ -42,6 +42,7 @@ from typing import Any, NoReturn
 from websockets.uri import parse_uri
 
 from pewpew import audit
+from pewpew.aura.book import check_name
 from pewpew.cli_args import GONE, OK, PROBLEMS, REFUSED, STDIN, add_allow_host, number, parsed_by
 from pewpew.compose import look_controls
 from pewpew.compose.controls import address_problem
@@ -163,6 +164,27 @@ def set_value(
     if (reason := address_problem(path)) is not None:
         raise Refused([Problem(path, Code.BAD_REF, reason)])
     message = {"type": "set", "name": path, "value": value}
+    return _write(url, [message], dry_run=dry_run, allow_hosts=allow_hosts, argv=argv, timeout=timeout)
+
+
+def rename_look(
+    url: str,
+    name: str,
+    to: str,
+    *,
+    dry_run: bool = False,
+    allow_hosts: Collection[str] = (),
+    argv: Sequence[str] = (),
+    timeout: float = TIMEOUT_S,
+) -> Pushed:
+    """Rename the saved look `name` of the engine at `url` to `to`. Both names are checked here for a look
+    name's form; the engine checks that `name` is a look it has, that `to`
+    is free and that no trigger names `name`. Raises as `push` does, but
+    for the names."""
+    for field, value in (("name", name), ("to", to)):
+        if (reason := check_name(value)) is not None:
+            raise Refused([Problem(field, Code.BAD_REF, reason)])
+    message = {"type": "rename", "name": name, "to": to}
     return _write(url, [message], dry_run=dry_run, allow_hosts=allow_hosts, argv=argv, timeout=timeout)
 
 

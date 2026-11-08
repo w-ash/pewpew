@@ -40,7 +40,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from pewpew.aura.book import MAX_LOOKS, MAX_NAME, LookBook, check_name
+from pewpew.aura.book import MAX_FAVORITES, MAX_LOOKS, MAX_NAME, LookBook, check_name
 from pewpew.aura.deck import Deck
 from pewpew.aura.director import Director, Slot
 from pewpew.aura.master import Master
@@ -206,6 +206,7 @@ class Looks:
         recalled = self._recalled
         return {
             "items": [{"name": name, "cycle": look.cycle, "fade": look.fade} for name, look in book.looks.items()],
+            "favorites": book.favorite_names,
             "current": book.current,
             "changed": self.changed(),
             "fading": fading,
@@ -355,11 +356,56 @@ class Looks:
                 self._recalled = None
         return reason
 
+    def rename(self, name: str, to: str) -> str | None:
+        """Rename look `name` to `to`, keeping its place, fade, cycle entry
+        and, if it is current, its state. Never replaces a look. Refused
+        while a trigger hold runs, and for a `to` with spaces at its ends.
+        Returns why not, or None."""
+        if name not in self._book.looks:
+            return self._unknown(name)
+        if to == name:
+            return None
+        if to != to.strip():
+            return "a look name has no spaces at its ends"
+        if (reason := check_name(to)) is not None:
+            return reason
+        if to in self._book.looks:
+            return f"a look is already named {to!r}"
+        if (held := self._hold) is not None:
+            return f"{held.trigger} is playing {held.look}: rename when it ends"
+        users = [t for t, trig in self._book.triggers.items() if trig.look == name]
+        if users:
+            return f"look {name!r} is held by trigger {', '.join(users)}; change the looks file to rename it"
+        pending = self._pending
+        if pending is not None and pending.name == name:
+            return f"look {name!r} is waiting for a fade; rename it when the fade ends"
+        # A restart look that is not current is kept on file under its new name.
+        restart = self._restart
+        if restart == name:
+            self._restart = to
+        reason = self._commit(self._book.renamed(name, to))
+        if reason is not None:
+            self._restart = restart
+        else:
+            self._director.rename(name, to)
+            if self._fading == name:
+                self._fading = to
+        return reason
+
     def set_cycle(self, name: str, on: bool) -> str | None:
         look = self._book.looks.get(name)
         if look is None:
             return self._unknown(name)
         return self._commit(self._book.with_look(name, replace(look, cycle=bool(on))))
+
+    def set_favorite(self, name: str, on: bool) -> str | None:
+        """Set whether look `name` is a favorite, one of the page's main row."""
+        if name not in self._book.looks:
+            return self._unknown(name)
+        names = self._book.favorite_names
+        if on and name not in names and len(names) >= MAX_FAVORITES:
+            return f"{MAX_FAVORITES} looks are favorites already; unfavorite one first"
+        return self._commit(self._book.with_favorite(name, bool(on)))
 
     def set_fade(self, name: str, fade: float) -> str | None:
         """Store `fade` as look `name`'s own fade, and nothing else: unsaved

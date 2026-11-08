@@ -1,5 +1,5 @@
 import { useId, useRef, type CSSProperties, type ReactNode, type Ref } from "react";
-import { edited, fadeSeconds, liveLook, lookStatus, unsaved, type LookItem, type LooksState } from "../aura/looks";
+import { edited, fadeSeconds, favoriteLooks, liveLook, lookStatus, unsaved, type LookItem, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useSender } from "../wire/store";
 import { Button } from "../design/Button";
@@ -50,7 +50,7 @@ export function MarkSign({ mark }: { mark: Pick<Mark, "icon" | "slashed"> }) {
 /** The id of the list of every look (`AllLooks`), which "all N ›" controls. */
 export const ALL_LOOKS = "all-looks";
 
-/** The keys that press the first nine looks, in file order: the deck shows those nine. */
+/** The keys that press the first nine favorites, in the page's order (`byName`). */
 export const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 /** What a second press of `pressed` (a look's name, or surprise me) does over unsaved edits: drops them.
@@ -85,6 +85,8 @@ interface LookTileProps {
   /** The key that plays it, 1–9, for assistive tech. */
   readonly hotkey?: string | undefined;
   readonly ref?: Ref<HTMLButtonElement> | undefined;
+  /** A favorite, which the list marks with a ★. */
+  readonly favorite?: boolean;
   /** Signs after the ones a look has: its key, in the list. */
   readonly children?: ReactNode;
 }
@@ -94,7 +96,7 @@ interface LookTileProps {
  * does, until it disarms. A look fading in fills a bar along its foot. While a cue holds a look, that one is
  * held, and ↩ marks the current one, which the aura returns to, in its corner: neither moves it. When some
  * are left out of shuffle, ↻ marks the fewer: those it plays, or, slashed, those it leaves out. */
-export function LookTile({ looks, play, triggers, item, note, flat, tabIndex, hotkey, ref, children }: LookTileProps) {
+export function LookTile({ looks, play, triggers, item, note, flat, favorite, tabIndex, hotkey, ref, children }: LookTileProps) {
   const st = lookStatus(looks, triggers, item.name);
   const marks = cycleMarks(looks);
   const marked = (marks === "in" && item.cycle) || (marks === "out" && !item.cycle);
@@ -118,10 +120,15 @@ export function LookTile({ looks, play, triggers, item, note, flat, tabIndex, ho
       data-fading={st.fading !== null || undefined}
       data-returns={st.returnsTo || undefined}
       style={{ "--progress": `${Math.round((st.fading ?? 0) * 100)}%` } as CSSProperties}
-      aria-label={[item.name, marked && (item.cycle ? "in shuffle" : "not in shuffle"), st.returnsTo && "returns here after the cue"].filter(Boolean).join(", ")}
+      aria-label={[item.name, favorite && "favorite", marked && (item.cycle ? "in shuffle" : "not in shuffle"), st.returnsTo && "returns here after the cue"].filter(Boolean).join(", ")}
       onPress={() => play(item.name)}
       name={item.name}
     >
+      {favorite && (
+        <span className="fav" aria-hidden="true">
+          <Icon name="star" />
+        </span>
+      )}
       {marked && <MarkSign mark={{ icon: "cycle", slashed: !item.cycle }} />}
       {st.returnsTo && (
         <span className="returns" aria-hidden="true">
@@ -133,25 +140,26 @@ export function LookTile({ looks, play, triggers, item, note, flat, tabIndex, ho
   );
 }
 
-/** The first nine saved looks, in file order, as tiles (`LookTile`), under the deck's "looks" caption
+/** The favorites, alphabetically (`favoriteLooks`), as tiles (`LookTile`), under the deck's "looks" caption
  * (`labelledBy`); the list of every look holds the rest. The row is a toolbar, one tab stop: the arrow keys,
- * Home and End move between its looks. 1–9 press a look as a tap does. */
+ * Home and End move between its looks. 1–9 press the first nine as a tap does. */
 export function Looks({ looks, play, triggers, note, labelledBy }: { looks: LooksState; play: PlayLook; triggers: TriggersState | null; note: Disclosure; labelledBy: string }) {
   const row = useRef<HTMLDivElement>(null);
   const liveName = liveLook(looks, triggers);
+  const shown = favoriteLooks(looks);
   const live = useInView<HTMLButtonElement>(liveName);
   const tiles = () => [...(row.current?.querySelectorAll<HTMLButtonElement>(":scope > button") ?? [])];
   useShortcuts(
     KEYS.map((key, i) => ({
       hotkey: key,
-      label: i === 0 ? "play one of the first nine looks (press twice to drop edits)" : "",
+      label: i === 0 ? "play one of the first nine favorites (press twice to drop edits)" : "",
       keys: "1–9",
       action: () => tiles()[i]?.click(),
-      enabled: () => i < looks.items.length && pressable(row.current),
+      enabled: () => i < shown.length && pressable(row.current),
     })),
   );
   if (!looks.items.length) return <p className="scroller empty note">No looks yet. Surprise me, then save one you like.</p>;
-  const shown = looks.items.slice(0, KEYS.length);
+  if (!shown.length) return <p className="scroller empty note">No favorites. Open a look's ⋯ to make it one.</p>;
   const stop = Math.max(shown.findIndex((item) => item.name === liveName), 0);
   return (
     <TileRow ref={row} className="looks" labelledBy={labelledBy}>
@@ -188,11 +196,11 @@ interface LooksGroupProps {
   readonly more?: ReactNode;
 }
 
-/** The looks as the deck shows them: a "looks" caption, the first nine as tiles (`Looks`), then "all N ›" to
- * the list of every look past nine, then `ending`, `more` under the row, and `note`. */
+/** The looks as the deck shows them: a "looks" caption, the favorites as tiles (`Looks`), then "all N ›" to
+ * the list of every look while some are not favorites, then `ending`, `more` under the row, and `note`. */
 export function LooksGroup({ looks, play, triggers, note, allOpen, onAll, ending, more }: LooksGroupProps) {
   const captionId = useId();
-  const hidden = looks.items.length - KEYS.length;
+  const hidden = looks.items.length - favoriteLooks(looks).length;
   return (
     <div className="deck-group looks-group">
       <span id={captionId} className="t-heading looks-caption">

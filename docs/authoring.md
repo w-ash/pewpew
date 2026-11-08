@@ -130,8 +130,9 @@ With two layers or more, the page lists them top first: a row turns its
 layer on or off, and the row picked opens to the layer's opacity, blend
 (`?` says what it does), ▲ ▼ (or Alt+↑ ↓ on the row) and remove, while the
 panel under the list shows that layer's knobs. These edit the running look,
-which a save keeps. A looks file holds layers too, version 4, played with
-`run LOOKS --map SPEC`. Give a map the file's looks suit (`grid:16x16`, the
+which a save keeps. A looks file holds layers too, version 4, and an optional
+`favorites` list of up to 20 looks for the page's row (absent: the first nine),
+played with `run LOOKS --map SPEC`. Give a map the file's looks suit (`grid:16x16`, the
 default, for a look that folds a plane). Sparks screened over a haze:
 
 ```json
@@ -472,7 +473,12 @@ saved looks, and the one `save` in the look's header, or the keys `s`, `m`
 and `k` (over unsaved edits, `surprise me` and `vary this` take two
 presses); the header names the made look with a draft badge, its `▾` opens
 `save as new…` to give it another name, and a press on one that is off says
-why.
+why. The same `⋯` holds `rename…`, which gives the look a new name in place
+(its place, fade and shuffle flag kept; a taken name is refused) and a
+`favorite` switch, which puts it in the row (at most 20; the row sorts them,
+and keys 1–9 press the first nine). The `all N ›` list is alphabetical, marks
+the favorites, and filters as you type: ↑ and ↓ move, Enter plays, Esc clears
+and then closes.
 
 The page calls a look's signals **modulators**, each by its kind: LFO,
 random (`walk`), beat, envelope (`env`), audio follower (`band`), macro
@@ -519,6 +525,7 @@ tools answer with the JSON the matching verb prints with `--json`:
 | `engine_observe` | `observe` | a running engine's state and approximate metrics, and a sheet |
 | `fleet_status` | `boards scan --json` | each WLED board on the network, with its health |
 | `engine_apply`, `engine_set` | `push`, `push --set` | tier 1 only (`mcp --tier 1`, `pewpew-live`): a dry run unless `dry_run` is false |
+| `engine_rename` | `rename` (control verb; no CLI verb) | tier 1 only, as above, and the engine runs with `--accept-looks`; refuses a taken or bad name, an unknown look, or a look a trigger names |
 
 A look is JSON over the built-in ops, so no tool runs a file or code. A refused look
 comes back as an error that lists each problem's code, path and fix. The

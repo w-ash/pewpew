@@ -19,7 +19,7 @@ import { MOCK_LOOKS } from "./looks";
 const FPS = 30;
 const PLACEHOLDER_N = 256;
 /** What a session without a looks file, boards or a room refuses. */
-const NO_FILE = ["recall", "save", "keep", "delete", "cycle", "fade"];
+const NO_FILE = ["recall", "save", "keep", "delete", "rename", "cycle", "favorite", "fade"];
 const NO_BOARDS = ["scan", "rebind", "blink"];
 
 const sessionLink = ws.link(/\/ws\/session$/);

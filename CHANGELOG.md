@@ -9,6 +9,15 @@ series (batch mode).
 
 ### Added
 
+- Rename a saved look in place: `rename…` in the look's `⋯` on the control page,
+  the `rename` control verb `{name, to}`, and the MCP tool `engine_rename` (tier 1,
+  with `--accept-looks`). The look keeps its place, fade, shuffle flag and favorite.
+  A taken or bad name, an unknown look and a look a trigger names are refused.
+- Favorites: the looks file's `favorites` list (at most 20; absent, the first nine
+  looks) sets the control page's row, set by a `favorite` switch in the `⋯` or the
+  `favorite` control verb `{name, on}`. The row is alphabetical, keys 1–9 press its
+  first nine, and the `all N ›` list marks favorites and has a search box (type to
+  filter, ↑/↓, Enter plays, Esc clears then closes).
 - Add a `shape` arg to `osc`: `saw` climbs from 0 to 1 and jumps back, so a palette
   over it wraps round (a rainbow that restarts at red) where the default `sine`
   plays it up and back. The sine renders as before.

@@ -14,6 +14,8 @@ export interface LookItem {
 export interface LooksState {
   /** In file order. */
   readonly items: readonly LookItem[];
+  /** The favorites: the looks the deck's row shows, by name (pewpew.aura.book; the page sorts them). */
+  readonly favorites: readonly string[];
   /** The look last recalled or saved. */
   readonly current: string | null;
   /** A layer, a param or a stored master has moved off `current`, or off the made look. */
@@ -82,6 +84,34 @@ export function varyReason(looks: LooksState): string | null {
 /** The most looks a looks file holds (pewpew.aura.book MAX_LOOKS). */
 export const MAX_LOOKS = 64;
 
+/** The most favorites (pewpew.aura.book MAX_FAVORITES). */
+export const MAX_FAVORITES = 20;
+
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+/** The one order looks show in: alphabetical, ignoring case, numbers by value ("surprise 2" before
+ * "surprise 10"). */
+export function byName(a: string, b: string): number {
+  return collator.compare(a, b);
+}
+
+/** Every look in the page's order (`byName`). */
+export function sortedLooks(looks: LooksState): LookItem[] {
+  return [...looks.items].sort((a, b) => byName(a.name, b.name));
+}
+
+/** The favorites as items in the page's order: the deck's tiles, of which the first nine have keys. */
+export function favoriteLooks(looks: LooksState): LookItem[] {
+  return sortedLooks(looks).filter((item) => looks.favorites.includes(item.name));
+}
+
+/** Why look `name` cannot become a favorite, or null: the row holds `MAX_FAVORITES`. */
+export function favoriteReason(looks: LooksState, name: string): string | null {
+  return looks.favorites.length >= MAX_FAVORITES && !looks.favorites.includes(name)
+    ? `${MAX_FAVORITES} looks are favorites already; unfavorite one first`
+    : null;
+}
+
 /** What the look header's one save does now (RA-27b §4 B, the save states): `over`, the edits into the
  * current look, changed since saved; `draft`, what plays and no saved look is (a made look), kept
  * under the name it offers, or, at MAX_LOOKS, off and `full` says why; else `none`, and
@@ -110,8 +140,18 @@ export function holdReason(triggers: TriggersState | null, verb: string): string
 /** Why look `name` cannot be deleted, or null: a cue plays it, and only the looks file can change that
  * (pewpew.aura.looks delete). */
 export function deleteReason(triggers: TriggersState | null, name: string): string | null {
+  return cueBlock(triggers, name, "delete");
+}
+
+function cueBlock(triggers: TriggersState | null, name: string, verb: string): string | null {
   const cues = Object.entries(triggers?.cues ?? {}).filter(([, cue]) => cue.look === name).map(([cue]) => cue);
-  return cues.length ? `${cues.join(", ")} plays ${name}: change the looks file to delete it` : null;
+  return cues.length ? `${cues.join(", ")} plays ${name}: change the looks file to ${verb} it` : null;
+}
+
+/** Why look `name` cannot be renamed, or null: a cue plays it, and only the looks file can change that
+ * (pewpew.aura.looks rename). */
+export function renameReason(triggers: TriggersState | null, name: string): string | null {
+  return cueBlock(triggers, name, "rename");
 }
 
 /** What waits while a recall waits for the running fade to end, or null: the look that comes next. The
@@ -216,6 +256,7 @@ export function fadeSeconds(choice: string): number | null {
 export function listedLooks(names: readonly string[], current: string | null, pending: string | null): LooksState {
   return {
     items: names.map((name) => ({ name, cycle: false, fade: 0 })),
+    favorites: names.slice(0, 9),
     current, changed: false, fading: null, progress: null, pending, cycling: false, idle: null, dwell: [0, 0],
     made: null, offered: null, saved: null,
   };

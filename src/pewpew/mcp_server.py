@@ -17,8 +17,9 @@ output schema is the result's class. Tools, in this order:
     fleet_status    boards scan     each WLED board on the network, and its health
     engine_apply    push            tier 1: send a look to an engine on this machine
     engine_set      push --set      tier 1: set one knob of that engine
+    engine_rename   rename          tier 1: rename a saved look on that engine
 
-The tier-0 tools only read (CLAUDE.md T-7). `--tier 1` adds the two
+The tier-0 tools only read (CLAUDE.md T-7). `--tier 1` adds the three
 writes, each a dry run unless `dry_run` is false; pewpew.remote.control
 holds tier 1 for them (an engine on this machine or an `--allow-host` IP,
 run with `--accept-looks`, an audit record before the first byte). No
@@ -78,7 +79,7 @@ from pewpew.lab.search import Detail, example_looks, index
 from pewpew.lab.variations import MAX_VARIANTS
 from pewpew.mapping import DEFAULT_MAP
 from pewpew.remote.client import Unreachable
-from pewpew.remote.control import Forbidden, Pushed, push, report, set_value
+from pewpew.remote.control import Forbidden, Pushed, push, rename_look, report, set_value
 from pewpew.remote.observe import WATCH_S, Observation, capture
 from pewpew.result import Result
 
@@ -175,6 +176,10 @@ Address = Annotated[str, Field(
 )]
 Value = Annotated[Any, Field(description="The knob's new value, as JSON: a number, a choice key, true or false",
                              examples=[0.4, "screen", True])]
+LookName = Annotated[str, Field(
+    description="A saved look's name: 1 to 32 letters, digits, spaces, '_' or '-', starting with a letter or digit",
+    examples=["dusk", "dusk slow"],
+)]
 
 
 def serve(tier: int, *, allow_hosts: Sequence[str] = (), argv: Sequence[str] = ()) -> None:
@@ -284,6 +289,18 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
                             argv=[*argv, "engine_apply"]))
 
     @_teaching
+    def engine_rename(
+        url: Url, name: LookName, to: LookName, dry_run: DryRun = True,
+    ) -> Annotated[CallToolResult, Pushed]:
+        """Rename a saved look in the looks file of an engine on this machine run with --preview --accept-looks;
+        the look keeps its place, and the engine refuses a name that is taken, an unknown look, or a look a
+        trigger names, and answers ack or refused. A dry run (the default) checks both names and that the engine
+        is on this machine, and shows the message; the engine's looks file is checked only on a send. Call again
+        with dry_run false to send it, which appends an audit record first."""
+        return _pushed(rename_look(url, name, to, dry_run=dry_run, allow_hosts=allow_hosts,
+                                   argv=[*argv, "engine_rename"]))
+
+    @_teaching
     def engine_set(url: Url, path: Address, value: Value, dry_run: DryRun = True) -> Annotated[CallToolResult, Pushed]:
         """Set one knob of the look an engine on this machine runs, by its address; the engine checks the knob
         and the value against its look and answers ack or refused. A dry run (the default) checks that the
@@ -307,6 +324,7 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
         tools += [
             _tool(engine_apply, WRITE, {"url": EXAMPLE_URL, "look": PROGRAM_LOOK, "fade": 2}),
             _tool(engine_set, WRITE, {"url": EXAMPLE_URL, "path": "layers.base.osc.freq", "value": 4}),
+            _tool(engine_rename, WRITE, {"url": EXAMPLE_URL, "name": "dusk", "to": "dusk slow"}),
         ]
     server = MCPServer("pewpew", version=version("pewpew"), instructions=INSTRUCTIONS, tools=tools,
                        log_level="WARNING")

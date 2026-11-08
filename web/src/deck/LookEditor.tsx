@@ -1,6 +1,6 @@
 import { Field } from "@ark-ui/react/field";
 import { useRef, useState } from "react";
-import { cycleText, deleteReason, FADE_SECONDS, findLook, freeName, holdReason, nameHint, ownFadeText, type LooksState } from "../aura/looks";
+import { cycleText, deleteReason, FADE_SECONDS, findLook, favoriteReason, freeName, holdReason, nameHint, ownFadeText, renameReason, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useRefusal, useSender, type Refusal } from "../wire/store";
 import { Button } from "../design/Button";
@@ -18,6 +18,7 @@ function useShown(refusal: Refusal | null, looks: LooksState, key: unknown): Ref
   useOnChange(refusal, () => setShown(refusal));
   // A save, delete or cycle that went through changes the list: the refusal is over.
   useOnChange(looks.items, () => setShown(null));
+  useOnChange(looks.favorites, () => setShown(null));
   useOnChange(key, () => setShown(null));
   return shown;
 }
@@ -94,18 +95,71 @@ export function LookEditor({ looks, triggers, master, onSave }: { looks: LooksSt
   );
 }
 
+/** "rename…": the current look's name in a box, its text selected; it says what a name needs as it is
+ * typed, and a name another look has. "rename" is off while the name is empty, unchanged or not one. Enter
+ * in the box presses it, and `onRename` gets what the rename waits for. The look keeps its place and its
+ * settings; a rename acts at once on the file alone, leaving unsaved edits unsaved. */
+export function LookRename({ looks, onRename }: { looks: LooksState; onRename(done: Awaited): void }) {
+  const sender = useSender();
+  // The look the form opened on: the panel closes the form if another look becomes current.
+  const [from] = useState(looks.current ?? "");
+  const [name, setName] = useState(from);
+  const rename = useRef<HTMLButtonElement>(null);
+  const trimmed = name.trim();
+  const refusal = useRefusal("rename");
+  const shown = useShown(refusal, looks, name);
+  const hint = nameHint(trimmed) ?? (trimmed !== from && findLook(looks, trimmed) ? "a look has that name" : null);
+  return (
+    <Field.Root className="look-editor fields look-form" aria-label="rename" invalid={shown !== null || hint !== null}>
+      <div className="row wrap">
+        <Field.Input
+          className="look-name"
+          value={name}
+          maxLength={32}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          aria-label="new name"
+          enterKeyHint="done"
+          onChange={(e) => {
+            disarmAll();
+            setName(e.currentTarget.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            rename.current?.click();
+          }}
+        />
+        <Button
+          ref={rename}
+          disabled={!trimmed || trimmed === from || hint !== null}
+          onPress={() => {
+            onRename((l) => (l.current === trimmed && !findLook(l, from) ? `renamed to ${trimmed}` : null));
+            sender.send({ type: "rename", name: from, to: trimmed });
+          }}
+        >
+          rename
+        </Button>
+      </div>
+      <Field.ErrorText>{shown?.reason ?? hint}</Field.ErrorText>
+    </Field.Root>
+  );
+}
+
 /** The current look's settings, behind its "⋯": its own fade, which a press at "fade: as saved" and shuffle
- * take into it, whether shuffle plays it (the "?" after its words says what shuffle is and its timings), then
+ * take into it, whether shuffle plays it (the "?" after its words says what shuffle is and its timings), whether it is a
+ * favorite, one of the deck's row (off at the most, with the reason), then
  * its actions on one row:
- * "save as new…" (`onSaveAs`), and at the column's edge revert, the saved look again with no fade, while it
+ * "save as new…" (`onSaveAs`), "rename…" (`onRename`), and at the column's edge revert, the saved look again with no fade, while it
  * is changed, and delete, last; each of those two in two presses. The fade, shuffle and delete act at once on the file alone, leaving unsaved edits unsaved;
- * while a cue holds a look, they wait and say why. Delete is off while a cue plays the look, and a press
+ * while a cue holds a look, they wait and say why. Rename and delete are off while a cue plays the look, and a press
  * says why at once. A revert or a delete gives `onDone` what it waits for. A refusal, or why delete is off,
  * is an alert: focus stays on what was pressed. */
-export function LookSettings({ looks, triggers, onSaveAs, onDone }: { looks: LooksState; triggers: TriggersState | null; onSaveAs(): void; onDone(done: Awaited): void }) {
+export function LookSettings({ looks, triggers, onSaveAs, onRename, onDone }: { looks: LooksState; triggers: TriggersState | null; onSaveAs(): void; onRename(): void; onDone(done: Awaited): void }) {
   const sender = useSender();
   const current = findLook(looks, looks.current ?? "");
-  const refusal = useRefusal("fade", "delete", "cycle");
+  const refusal = useRefusal("fade", "delete", "cycle", "favorite");
   const shown = useShown(refusal, looks, looks.current);
   const [told, setTold] = useState<string | null>(null);
   const about = useDisclosure();
@@ -114,7 +168,10 @@ export function LookSettings({ looks, triggers, onSaveAs, onDone }: { looks: Loo
   const { name } = current;
   const held = holdReason(triggers, "change it");
   const cued = deleteReason(triggers, name);
+  const named = renameReason(triggers, name);
   const reason = told ?? shown?.reason;
+  const favorite = looks.favorites.includes(name);
+  const full = favoriteReason(looks, name);
   const fades = FADE_SECONDS.includes(current.fade) ? FADE_SECONDS : [...FADE_SECONDS, current.fade].sort((a, b) => a - b);
   return (
     <div className="look-editor fields look-settings" role="group" aria-label={`${name} settings`}>
@@ -134,9 +191,16 @@ export function LookSettings({ looks, triggers, onSaveAs, onDone }: { looks: Loo
         <Icon name="cycle" /> {name} in shuffle
       </Switch>
       <DisclosureNote disclosure={about}>{cycleText(looks)}</DisclosureNote>
+      <Switch checked={favorite} disabled={held !== null || full !== null} onChange={(on) => sender.send({ type: "favorite", name, on })}>
+        <Icon name="star" /> {name} a favorite
+      </Switch>
+      {full && <p className="note">{full}</p>}
       <div className="row wrap look-lossy">
         <Button variant="tertiary" onPress={onSaveAs}>
           save as new…
+        </Button>
+        <Button variant="tertiary" disabled={held !== null} aria-disabled={named !== null || undefined} onPress={() => (named ? setTold(named) : onRename())}>
+          rename…
         </Button>
         {looks.changed && (
           <Button

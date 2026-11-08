@@ -2049,5 +2049,188 @@
       "idempotentHint": true,
       "openWorldHint": true
     }
+  },
+  {
+    "name": "engine_rename",
+    "description": "Rename a saved look in the looks file of an engine on this machine run with --preview --accept-looks; the look keeps its place, and the engine refuses a name that is taken, an unknown look, or a look a trigger names, and answers ack or refused. A dry run (the default) checks both names and that the engine is on this machine, and shows the message; the engine's looks file is checked only on a send. Call again with dry_run false to send it, which appends an audit record first.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "The engine's preview address, as its `preview at` line prints it",
+          "examples": [
+            "http://127.0.0.1:7447/"
+          ],
+          "title": "Url",
+          "type": "string"
+        },
+        "name": {
+          "description": "A saved look's name: 1 to 32 letters, digits, spaces, '_' or '-', starting with a letter or digit",
+          "examples": [
+            "dusk",
+            "dusk slow"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "to": {
+          "description": "A saved look's name: 1 to 32 letters, digits, spaces, '_' or '-', starting with a letter or digit",
+          "examples": [
+            "dusk",
+            "dusk slow"
+          ],
+          "title": "To",
+          "type": "string"
+        },
+        "dry_run": {
+          "default": true,
+          "description": "Check and show what would be sent, and send nothing; false to send",
+          "title": "Dry Run",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "name",
+        "to"
+      ],
+      "title": "engine_renameArguments",
+      "examples": [
+        {
+          "url": "http://127.0.0.1:7447/",
+          "name": "dusk",
+          "to": "dusk slow"
+        }
+      ]
+    },
+    "outputSchema": {
+      "$defs": {
+        "Answer": {
+          "description": "The engine's answer to one message: an `ack`, or a refusal with its\nreason and the address of what it refused (None when no one part is\nto blame).",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "control": {
+              "title": "Control",
+              "type": "string"
+            },
+            "ok": {
+              "title": "Ok",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Name"
+            }
+          },
+          "required": [
+            "id",
+            "control",
+            "ok"
+          ],
+          "title": "Answer",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "dry_run": {
+          "title": "Dry Run",
+          "type": "boolean"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "addresses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Addresses",
+          "type": "array"
+        },
+        "messages": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "answers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Answer"
+          },
+          "title": "Answers",
+          "type": "array"
+        },
+        "connected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connected"
+        },
+        "audit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audit"
+        }
+      },
+      "required": [
+        "url",
+        "dry_run",
+        "ok",
+        "addresses",
+        "messages"
+      ],
+      "title": "Pushed",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    }
   }
 ]

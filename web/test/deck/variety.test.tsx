@@ -193,7 +193,7 @@ test("save, in the look's header while a made look plays, keeps it in one press 
   await expect.element(save).toHaveAttribute("data-busy");
   await userEvent.keyboard("k");
   expect(sent).toHaveLength(1); // busy: no second save
-  receive(looks({ items: [...AURA.looks!.items, { name: "surprise 7", cycle: false, fade: 2 }], current: "surprise 7", made: null, offered: "surprise 8" }));
+  receive(looks({ items: [...AURA.looks!.items, { name: "surprise 7", cycle: false, fade: 2 }], favorites: ["warm", "cool", "surprise 7"], current: "surprise 7", made: null, offered: "surprise 8" }));
   await answer();
   await expect.element(screen.getByRole("button", { name: "surprise 7" })).toHaveAttribute("aria-pressed", "true");
   await expect.element(save).not.toBeInTheDocument(); // saved: nothing to save

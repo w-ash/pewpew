@@ -28,7 +28,7 @@ from fakes import (
 )
 from pewpew import wled
 from pewpew.aura import control
-from pewpew.aura.book import Trigger
+from pewpew.aura.book import Trigger, load_looks
 from pewpew.aura.control import MAKING, NO_LOOKS, OVERTAKEN, REQUESTS
 from pewpew.awake import KeepAwake
 from pewpew.compose import DEFAULT_FADE, Look
@@ -173,6 +173,15 @@ def test_a_request_is_its_controls_method_with_the_tables_defaults(tmp_path):
         unknown = Refusal("unknown look 'nosuch'; looks: blue")
         assert rig.control.request({"type": "recall", "name": "nosuch"}) == unknown
     assert rig.control.request({"type": "fire", "name": 7}) == Refusal("a trigger name is text, got 7")
+    assert rig.control.request({"type": "rename", "name": "blue"}) == Refusal("a look name is text, got None")
+    with LoopThread(rig.calls):
+        assert rig.control.request({"type": "rename", "name": "blue", "to": "navy"}) is None
+        assert list(load_looks(tmp_path / "looks.json").looks) == ["navy"]
+    assert rig.control.request({"type": "favorite", "name": "navy", "on": 1}) == Refusal(
+        "favorite takes true or false, got 1")
+    with LoopThread(rig.calls):
+        assert rig.control.request({"type": "favorite", "name": "navy", "on": False}) is None
+        assert load_looks(tmp_path / "looks.json").favorites == ()
     # A refused set names its knob, so a page can show the refusal there.
     assert rig.control.request({"type": "set", "name": "layers.base.osc.freq", "value": "x"}) == Refusal(
         "layers.base.osc.freq takes a number, got 'x'", "layers.base.osc.freq")
@@ -239,6 +248,8 @@ def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, m
         {"type": "add_layer", "layer": {"nodes": {"x": {"op": "pattern", "args": {"pattern": str(mine)}}}}},
         {"type": "add_layer", "layer": {"nodes": {"x": {"op": "osc", "args": {"freq": str(private / "broken.py")}}}}},
         {"type": "set", "name": "nosuch", "value": 1},
+        {"type": "rename", "name": "blue", "to": "red"}, {"type": "rename", "name": "blue", "to": "../looks.json"},
+        {"type": "rename", "name": "nosuch", "to": "red"}, {"type": "rename", "name": "blue", "to": 7},
     ]
     replies = refusals(ws, messages)
     monkeypatch.setattr(os, "replace", lambda src, dst: (_ for _ in ()).throw(OSError(28, "No space", str(private))))

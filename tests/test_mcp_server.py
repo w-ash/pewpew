@@ -28,6 +28,7 @@ from mcp.types import BlobResourceContents, TextContent, TextResourceContents
 
 from fakes import FLOW_LOOK, LoopThread, Pooled, aura_rig, instant_looks, preview_sink, run_python
 from pewpew import boards, lab, wled
+from pewpew.aura.book import load_looks
 from pewpew.fx import op as fx_op
 from pewpew.fx.types import Sig, Ty
 from pewpew.lab import search
@@ -119,11 +120,12 @@ async def test_the_tool_list_is_the_golden_in_a_fixed_order_with_every_output_sc
     if regen_goldens:
         GOLDEN.write_text(json.dumps(tools, indent=2, ensure_ascii=False) + "\n")
     assert json.loads(GOLDEN.read_text()) == tools, "run `uv run pytest --regen-goldens` and review the diff"
-    assert [t["name"] for t in tools] == [*TIER0, "engine_apply", "engine_set"]
+    assert [t["name"] for t in tools] == [*TIER0, "engine_apply", "engine_set", "engine_rename"]
     assert all(t["outputSchema"] for t in tools)
     hints = {t["name"]: t["annotations"] for t in tools}
     assert all(hints[name]["readOnlyHint"] for name in TIER0)
     assert not hints["engine_apply"]["readOnlyHint"] and hints["engine_set"]["destructiveHint"]
+    assert hints["engine_rename"]["destructiveHint"] and not hints["engine_rename"]["readOnlyHint"]
     assert [hints[name]["openWorldHint"] for name in TIER0] == [False] * 5 + [True] * 2
     assert all(t["inputSchema"]["examples"] for t in tools)
 
@@ -277,9 +279,10 @@ async def test_fleet_status_lists_each_board_with_its_health(client: Client, mon
 
 
 @contextlib.contextmanager
-def engine():
-    """An aura on a 4-pixel line that takes looks, behind a started preview."""
-    rig = aura_rig(FLOW_LOOK, mapping=line(4), accept_looks=True)
+def engine(**kw):
+    """An aura on a 4-pixel line that takes looks, behind a started preview.
+    `kw` go to `aura_rig`."""
+    rig = aura_rig(FLOW_LOOK, mapping=line(4), accept_looks=True, **kw)
     with preview_sink(line(4), control=rig.control) as sink, LoopThread(rig.calls):
         yield rig, f"ws://127.0.0.1:{sink.port}/"
 
@@ -299,6 +302,28 @@ async def test_engine_apply_and_set_dry_run_by_default_then_send_and_audit(clien
     records = [json.loads(line) for line in audit_log.read_text().splitlines()]
     assert [r["argv"][-1] for r in records] == ["engine_apply", "engine_set"]
     assert all(r["argv"][:-1] == ARGV for r in records)
+
+
+async def test_engine_rename_dry_run_by_default_then_send_and_audit(
+    client: Client, audit_log: Path, tmp_path: Path,
+) -> None:
+    path = tmp_path / "looks.json"
+    with engine(looks={"dusk": FLOW_LOOK}, path=path) as (_rig, url):
+        dry = payload(await client.call_tool("engine_rename", {"url": url, "name": "dusk", "to": "dusk slow"}))
+        assert dry["dry_run"] and dry["ok"] and dry["answers"] == []
+        assert not audit_log.exists() and not path.exists()
+        sent = payload(await client.call_tool(
+            "engine_rename", {"url": url, "name": "dusk", "to": "dusk slow", "dry_run": False}))
+        assert sent["ok"] and [a["ok"] for a in sent["answers"]] == [True]
+    assert list(load_looks(path).looks) == ["dusk slow"]
+    (record,) = [json.loads(line) for line in audit_log.read_text().splitlines()]
+    assert record["argv"][-1] == "engine_rename" and record["argv"][:-1] == ARGV
+
+
+@pytest.mark.parametrize("to", ["../looks.json", "", "x" * 33])
+async def test_engine_rename_refuses_a_bad_new_name_before_any_socket(client: Client, to: str) -> None:
+    result = await client.call_tool("engine_rename", {"url": LOCAL, "name": "dusk", "to": to, "dry_run": False})
+    assert result.is_error and "bad look name" in text(result.content[0])
 
 
 # ---- failures that teach -------------------------------------------------------------

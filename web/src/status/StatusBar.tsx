@@ -82,7 +82,7 @@ export function StatusBar({ planNote, coverRef }: { planNote: string | null; cov
   const last = useLastSet();
   const [errorAt, setErrorAt] = useState(0);
   useOnChange(error, () => setErrorAt(performance.now()));
-  const refusal = useRefusalExcept("set", "save", "delete", "cycle", "fade", "add_layer");
+  const refusal = useRefusalExcept("set", "save", "delete", "rename", "cycle", "favorite", "fade", "add_layer");
   const [shown, setShown] = useState<Refusal | null>(null);
   useOnChange(refusal, () => setShown(refusal));
   useEffect(() => {

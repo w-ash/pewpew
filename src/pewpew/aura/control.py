@@ -89,7 +89,9 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "keep": (),
     "save": (("name", None), ("fade", None), ("master", True)),
     "delete": (("name", None),),
+    "rename": (("name", None), ("to", None)),
     "cycle": (("name", None), ("on", None)),
+    "favorite": (("name", None), ("on", None)),
     "fade": (("name", None), ("fade", None)),
     "arm": (("on", None),),
     "fire": (("name", None), ("value", None)),
@@ -380,12 +382,28 @@ class AuraControl:
             lambda looks: looks.delete(name),  # type: ignore[arg-type]
         )
 
+    def rename(self, name: object, to: object) -> str | None:
+        """Rename a saved look, keeping its place."""
+        return self._look(
+            name, None, "is still being renamed",
+            lambda looks: looks.rename(name, to),  # type: ignore[arg-type]
+            check_name(to),
+        )
+
     def cycle(self, name: object, on: object) -> str | None:
         """Set whether the idle cycle plays a look."""
         return self._look(
             name, None, "is still changing",
             lambda looks: looks.set_cycle(name, on),  # type: ignore[arg-type]
             check_on_off("cycle", on),
+        )
+
+    def favorite(self, name: object, on: object) -> str | None:
+        """Set whether a look is one of the main row's favorites."""
+        return self._look(
+            name, None, "is still changing",
+            lambda looks: looks.set_favorite(name, on),  # type: ignore[arg-type]
+            check_on_off("favorite", on),
         )
 
     def fade(self, name: object, fade: object) -> str | None:

@@ -121,6 +121,13 @@ class Director:
         self._recent.append(name)
         return Slot(name)
 
+    def rename(self, old: str, new: str) -> None:
+        """Follow a rename of look `old` to `new` in the no-repeat window
+        and in the fresh slot's drawn look."""
+        self._recent = deque((new if n == old else n for n in self._recent), maxlen=MAX_LOOKS)
+        if self._fresh is not None and self._fresh[1] == old:
+            self._fresh = (self._fresh[0], new)
+
     def _rounds_done(self, names: Sequence[str], config: CycleConfig) -> bool:
         return bool(config.rounds) and self._count >= config.rounds * len(names)
 

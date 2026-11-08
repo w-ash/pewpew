@@ -1126,9 +1126,9 @@
 .look-name {
   flex: 1 0 8rem;
 }
-/* Its actions last: save as new… first, then revert and delete, which lose edits or the look, at the column's
+/* Its actions last: save as new… and rename… first, then revert and delete, which lose edits or the look, at the column's
    edge. */
-.look-lossy > :nth-child(2) {
+.look-lossy > :nth-child(3) {
   margin-left: auto;
 }
 
@@ -1801,6 +1801,30 @@
 }
 .all-looks .tile > :not(.tile-name, .key) {
   align-self: center;
+}
+/* The search box above the list: a field with a ⌕ before its text. The row the arrow keys have reached is
+   tinted, as a hovered row is. */
+.all-looks-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  color: var(--text-2);
+}
+.all-looks-search > input {
+  flex: 1;
+  min-width: 0;
+}
+/* Its ring inside the box: the pinned panel head, over the box's top edge, would cut an outer one. */
+.all-looks-search > input:focus-visible {
+  outline-offset: -2px;
+}
+.all-looks > li[data-active] > .tile {
+  background: var(--state-hover);
+}
+.all-looks .fav {
+  display: inline-flex;
+  color: var(--text-2);
 }
 .all-looks .key {
   order: 1;

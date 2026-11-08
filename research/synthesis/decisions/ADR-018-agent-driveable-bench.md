@@ -209,3 +209,11 @@ either. Backlog: `docs/backlog/v0.3.x.md`.
   test, never the only one.
 - **Testing the first resolved address only.** The connection may go to
   a later one [S1469].
+
+## Amendment (2026-11-07) — `engine_rename` is a tier-1 write
+
+ADR-023 adds the MCP tool `engine_rename`, which renames a saved look in a
+running engine's looks file. It is a tier-1 write like `engine_apply` and
+`engine_set`, and the 2026-11-05 amendment's rules apply to it unchanged: a
+loopback engine or `--allow-host`, an engine whose hello lists `look`,
+`dry_run` true by default, and an audit record before the first byte is sent.

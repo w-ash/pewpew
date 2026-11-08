@@ -12,11 +12,11 @@ import { useHeightVar } from "../design/useHeightVar";
 import { useOnChange } from "../design/useOnChange";
 import { LookKnobs, usePanel } from "../params/ParamPanel";
 import { failedText } from "../status/StatusBar";
-import { LookEditor, LookSettings } from "./LookEditor";
+import { LookEditor, LookRename, LookSettings } from "./LookEditor";
 
-type Open = "save" | "settings" | null;
+type Open = "save" | "rename" | "settings" | null;
 
-/** What a save or a delete waits for: the line that says it went through, once the looks show it, else null. */
+/** What a save, rename or delete waits for: the line that says it went through, once the looks show it, else null. */
 export type Awaited = (looks: LooksState) => string | null;
 
 /** Why a run without a looks file cannot save. */
@@ -31,10 +31,10 @@ const NO_LOOKS = "this run can't keep looks";
  * choice of holding the brightness. With MAX_LOOKS saved, a draft's save is off, and a press says why under
  * the header. While a layer fails, save says so and takes two, as the save keeps what fails. Its ▾ opens
  * "save as new…" in place; the look's "⋯" opens its settings: its own fade, whether shuffle plays it, then
- * save as new…, revert (while changed) and delete. Each form opens in view, and Esc closes it, focus back on its
- * opener; "save as new…" takes focus to the name box, its text selected, and while it is open, keys on it or
+ * save as new…, rename…, revert (while changed) and delete. Each form opens in view, and Esc closes it, focus back on its
+ * opener; "save as new…" and "rename…" take focus to the name box, its text selected, and while it is open, keys on it or
  * its opener are typing, never shortcuts. `k` presses save, or, with nothing to save, says why under the
- * header. Once the engine has made a save, a revert or a delete, it is announced and the open form closes.
+ * header. Once the engine has made a save, a rename, a revert or a delete, it is announced and the open form closes.
  * While a cue holds a look, or a recall waits for the running fade, the header says so and there is no save,
  * and what is under it waits, inert: edits there would be lost when the hold ends or the recall lands.
  * Without a looks file the header says the look cannot be saved, and on the laptop how to start a run that
@@ -58,13 +58,14 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   const ownTitle = useId();
   const titleId = given ?? ownTitle;
   const saveId = useId();
+  const renameId = useId();
   const settingsId = useId();
   const { view } = usePanel(null);
   const failing = useWire((s) => failedText(s.error, s.aura?.stack.layers ?? []));
   const refusal = useRefusal("save");
   const looks = aura?.looks ?? null;
   const save: Save = looks ? saveOf(looks, aura?.triggers ?? null) : { kind: "none", why: NO_LOOKS };
-  // Once made, a save, revert or delete closes the open form: what opened it (a draft's ▾) may be gone.
+  // Once made, a save, rename, revert or delete closes the open form: what opened it (a draft's ▾) may be gone.
   useOnChange(looks, () => {
     const line = looks && awaited?.(looks);
     if (!line) return;
@@ -72,7 +73,11 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
     setSaid(line);
     setOpen(null);
   });
-  useOnChange(useRefusal("save", "delete"), () => setAwaited(null));
+  useOnChange(useRefusal("save", "delete", "rename"), () => setAwaited(null));
+  // The rename form names the look it opened on; when another becomes current it closes.
+  useOnChange(looks?.current ?? null, () => {
+    if (open === "rename") setOpen(null);
+  });
   // A refusal of the header's save (64 looks, a file that cannot be written) shows under it; the form says
   // its own.
   useOnChange(refusal, () => {
@@ -91,10 +96,10 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
     const el = forms.current, slot = el?.closest<HTMLElement>(".slot");
     if (el && slot) slot.scrollTop += el.getBoundingClientRect().top - slot.getBoundingClientRect().top - (parseFloat(getComputedStyle(slot).scrollPaddingTop) || 0);
     if (!naming.current) return;
-    const box = forms.current?.querySelector<HTMLInputElement>(".look-name");
+    const box = forms.current?.querySelector<HTMLInputElement>(`#${CSS.escape(open === "rename" ? renameId : saveId)} .look-name`);
     box?.focus({ preventScroll: true });
     box?.select();
-  }, [open]);
+  }, [open, renameId, saveId]);
   if (!aura) return null;
   const { triggers } = aura;
   if (!looks && !view.front.length && !view.signals.length) return null;
@@ -104,7 +109,7 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   // Opens `which` from the button pressed, closing it when it is open; "save as new…" goes into the name box.
   const toggle = (which: Exclude<Open, null>) => (click?: MouseEvent<HTMLButtonElement>) => {
     opener.current = click?.currentTarget ?? opener.current;
-    naming.current = which === "save";
+    naming.current = which === "save" || which === "rename";
     setOpen(open === which ? null : which);
   };
   const expect = (done: Awaited) => {
@@ -137,7 +142,7 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
     opener.current?.focus();
     setOpen(null);
   };
-  const typing = open === "save" || undefined;
+  const typing = open === "save" || open === "rename" || undefined;
   return (
     <>
       <div ref={head} className="block-head look-head" onKeyDown={esc}>
@@ -212,6 +217,11 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
             </div>
           )}
           {looks && current !== null && (
+            <div id={renameId} hidden={open !== "rename"}>
+              {open === "rename" && <LookRename looks={looks} onRename={settled} />}
+            </div>
+          )}
+          {looks && current !== null && (
             <div id={settingsId} hidden={open !== "settings"}>
               <LookSettings
                 looks={looks}
@@ -219,6 +229,10 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
                 onSaveAs={() => {
                   naming.current = true;
                   setOpen("save");
+                }}
+                onRename={() => {
+                  naming.current = true;
+                  setOpen("rename");
                 }}
                 onDone={settled}
               />

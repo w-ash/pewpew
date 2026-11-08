@@ -161,7 +161,7 @@ test("the live look is scrolled into view in its row, and only the row moves", a
   const panel = document.querySelector<HTMLElement>(".panel")!;
   panel.scrollTop = panel.scrollHeight;
   const scrolled = panel.scrollTop;
-  receive(aura({ looks: { ...AURA.looks!, items, current: "look7" } })); // one look follows it: the deck shows nine
+  receive(aura({ looks: { ...AURA.looks!, items, favorites: items.map((i) => i.name), current: "look7" } })); // one look follows it: the deck shows nine
   const item = screen.getByRole("button", { name: "look7" }).element();
   const row = item.closest(".scroller")!;
   // Clear of the row's 16 px fade at its end, which more looks follow.
@@ -210,7 +210,7 @@ test("looks recall over the chosen fade, by tap and by number key", async () => 
   expect(sent.at(-1)).toEqual({ type: "recall", name: "cool", fade: null });
   await screen.getByRole("button", { name: MORE }).click();
   await screen.getByRole("combobox", { name: "fade into a look" }).selectOptions("fade: 2 s");
-  await userEvent.keyboard("1");
+  await userEvent.keyboard("2"); // alphabetical: cool is 1
   expect(sent.at(-1)).toEqual({ type: "recall", name: "warm", fade: 2 });
   // The fade chosen is the page's, not the deck's: the list of every look takes it too. Put it back.
   await screen.getByRole("combobox", { name: "fade into a look" }).selectOptions("fade: as saved");
@@ -223,9 +223,9 @@ test("the saved looks are one tab stop: the arrows move between them", async () 
   await expect.element(warm).toHaveAttribute("tabindex", "0");
   await expect.element(screen.getByRole("button", { name: "cool" })).toHaveAttribute("tabindex", "-1");
   warm.element().focus();
-  await userEvent.keyboard("{ArrowRight}");
+  await userEvent.keyboard("{ArrowLeft}");
   await expect.element(screen.getByRole("button", { name: "cool" })).toHaveFocus();
-  await userEvent.keyboard("{Home}");
+  await userEvent.keyboard("{End}");
   await expect.element(warm).toHaveFocus();
 });
 
@@ -250,7 +250,7 @@ test("arming cues and a cue's hold move no chip: ↩ lies in the current look's 
       <Played />
     </div>,
   );
-  receive(aura({ looks: { ...AURA.looks!, items, current: "look-0" } }));
+  receive(aura({ looks: { ...AURA.looks!, items, favorites: items.map((i) => i.name), current: "look-0" } }));
   const chips = () => [...document.querySelectorAll(".looks .tile")].map((b) => {
     const r = b.getBoundingClientRect();
     return `${r.left},${r.top},${r.width}`;
@@ -258,12 +258,12 @@ test("arming cues and a cue's hold move no chip: ↩ lies in the current look's 
   await expect.poll(() => chips().length).toBe(9);
   const unarmed = chips();
   const armed = { ...AURA.triggers!, armed: true };
-  receive(aura({ looks: { ...AURA.looks!, items, current: "look-0" }, triggers: armed }));
+  receive(aura({ looks: { ...AURA.looks!, items, favorites: items.map((i) => i.name), current: "look-0" }, triggers: armed }));
   await expect.poll(() => document.querySelectorAll(".cue").length).toBe(2);
   expect(chips()).toEqual(unarmed);
   const shape = () => [document.querySelector(".deck")!.getBoundingClientRect().height, ...chips()];
   const before = shape();
-  receive(aura({ looks: { ...AURA.looks!, items, current: "look-0" }, triggers: { ...armed, held: { trigger: "door", look: "look-3", until: 9 } } }));
+  receive(aura({ looks: { ...AURA.looks!, items, favorites: items.map((i) => i.name), current: "look-0" }, triggers: { ...armed, held: { trigger: "door", look: "look-3", until: 9 } } }));
   await expect.poll(() => document.querySelector(".tile[data-returns] .returns")).not.toBeNull();
   expect(document.querySelectorAll(".returns").length).toBe(1);
   expect(shape()).toEqual(before);
@@ -273,7 +273,7 @@ test("arming cues and a cue's hold move no chip: ↩ lies in the current look's 
 test("↻ marks the fewer: the looks shuffle plays, or, slashed, those it leaves out", async () => {
   const { screen, receive } = await renderWired(<Played />);
   const item = (name: string, cycle: boolean) => ({ name, cycle, fade: 2 });
-  receive(aura({ looks: { ...AURA.looks!, items: [item("warm", true), item("cool", false), item("tide", true)] } }));
+  receive(aura({ looks: { ...AURA.looks!, items: [item("warm", true), item("cool", false), item("tide", true)], favorites: ["warm", "cool", "tide"] } }));
   await expect.element(screen.getByRole("button", { name: "cool, not in shuffle" })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "tide" })).toBeVisible();
   expect(document.querySelectorAll(".looks .cyc").length).toBe(1);
@@ -416,6 +416,70 @@ test("save as new… closes once the engine has made its save, though the draft'
   await expect.element(caret).not.toBeInTheDocument();
   await expect.element(box).not.toBeInTheDocument(); // hidden
   await expect.element(screen.getByRole("button", { name: "look settings" })).toHaveAttribute("aria-expanded", "false");
+});
+
+test("rename… sends the trimmed name and closes once the engine has made it, announcing it; a refusal keeps the form", async () => {
+  const { screen, sent, receive } = await renderWired(<Editor />);
+  await screen.getByRole("button", { name: "look settings" }).click();
+  await screen.getByRole("button", { name: "rename…" }).click();
+  const box = screen.getByRole("textbox", { name: "new name" });
+  await expect.element(box).toHaveFocus();
+  await expect.element(box).toHaveValue("warm");
+  const go = screen.getByRole("button", { name: "rename", exact: true });
+  await expect.element(go).toBeDisabled(); // unchanged
+  await box.fill("  dusk  ");
+  box.element().focus();
+  await userEvent.keyboard("{Enter}");
+  expect(sent).toEqual([{ type: "rename", name: "warm", to: "dusk" }]);
+  receive(refused("rename", "a look is already named 'dusk'"));
+  await expect.element(screen.getByText("a look is already named 'dusk'")).toBeVisible();
+  await expect.element(box).toBeVisible(); // refused: the form stays, to try again
+  box.element().focus();
+  await userEvent.keyboard("{Enter}");
+  expect(sent).toHaveLength(2);
+  const items = AURA.looks!.items.map((i) => (i.name === "warm" ? { ...i, name: "dusk" } : i));
+  receive(aura({ looks: { ...AURA.looks!, items, current: "dusk" } }));
+  await expect.element(box).not.toBeInTheDocument();
+  await expect.poll(() => document.querySelector(".sr-only[role=status]:not(.variety *)")?.textContent).toBe("renamed to dusk");
+});
+
+test("rename is off for an empty, unchanged or taken name", async () => {
+  const { screen, sent } = await renderWired(<Editor />);
+  const other = AURA.looks!.items.find((i) => i.name !== "warm")!.name;
+  await screen.getByRole("button", { name: "look settings" }).click();
+  await screen.getByRole("button", { name: "rename…" }).click();
+  const box = screen.getByRole("textbox", { name: "new name" });
+  const go = screen.getByRole("button", { name: "rename", exact: true });
+  await box.fill(other);
+  await expect.element(screen.getByText("a look has that name")).toBeVisible();
+  await expect.element(go).toBeDisabled();
+  await box.fill("");
+  await expect.element(go).toBeDisabled();
+  await box.fill("Warm");
+  await expect.element(go).toBeEnabled(); // names are case-sensitive
+  expect(sent).toEqual([]);
+});
+
+test("rename is off while a cue plays the look, and a press says why at once, as an alert", async () => {
+  const { screen, sent, receive } = await renderWired(<Editor />);
+  receive(aura({ triggers: { ...AURA.triggers!, cues: { ...AURA.triggers!.cues, door: { look: "warm", hold: 20 } } } }));
+  await screen.getByRole("button", { name: "look settings" }).click();
+  const rename = screen.getByRole("button", { name: "rename…" });
+  await expect.element(rename).toHaveAttribute("aria-disabled", "true");
+  rename.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("door plays warm: change the looks file to rename it");
+  await expect.element(screen.getByRole("textbox", { name: "new name" })).not.toBeInTheDocument();
+  expect(sent).toEqual([]);
+});
+
+test("Esc closes rename…, focus back on what opened the settings", async () => {
+  const { screen } = await renderWired(<Editor />);
+  await screen.getByRole("button", { name: "look settings" }).click();
+  await screen.getByRole("button", { name: "rename…" }).click();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(screen.getByRole("textbox", { name: "new name" })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("button", { name: "look settings" })).toHaveFocus();
 });
 
 test("Esc closes save as new… and the look's settings, focus back on what opened them", async () => {
@@ -715,15 +779,15 @@ test("over unsaved edits a look recalls in two presses, by tap or key, and a not
   pastDoubleTap();
   await cool.click();
   expect(sent).toEqual([{ type: "recall", name: "cool", fade: null }]);
-  await userEvent.keyboard("1");
+  await userEvent.keyboard("2");
   expect(sent).toHaveLength(1);
   await expect.element(screen.getByText("press warm again to drop its edits")).toBeVisible();
   pastDoubleTap();
-  await userEvent.keyboard("1");
+  await userEvent.keyboard("2");
   expect(sent.at(-1)).toEqual({ type: "recall", name: "warm", fade: null });
   receive(aura({ looks: { ...AURA.looks!, changed: false } }));
   await expect.element(screen.getByText(/^press .* again to drop/)).not.toBeInTheDocument();
-  await userEvent.keyboard("2");
+  await userEvent.keyboard("1");
   expect(sent.at(-1)).toEqual({ type: "recall", name: "cool", fade: null });
 });
 
@@ -830,7 +894,7 @@ const twelve = Array.from({ length: 12 }, (_, i) => ({ name: `look ${i + 1}`, cy
 test("the looks are tiles under a quiet caption, the first nine; the make actions are a row of their own, outside the tiles", async () => {
   await page.viewport(1280, 800);
   const { screen, receive } = await renderWired(<Played />);
-  receive(aura({ looks: { ...AURA.looks!, items: twelve, current: "look 2" } }));
+  receive(aura({ looks: { ...AURA.looks!, items: twelve, favorites: twelve.slice(0, 9).map((l) => l.name), current: "look 2" } }));
   const tiles = screen.getByRole("toolbar", { name: "looks" });
   await expect.element(tiles).toBeVisible();
   const names = [...tiles.element().querySelectorAll("button")].map((b) => b.getAttribute("aria-label"));
@@ -853,7 +917,7 @@ test("the looks are tiles under a quiet caption, the first nine; the make action
 
 test("keys 1–9 play the first nine looks in file order; a tenth has no key", async () => {
   const { sent, receive } = await renderWired(<Played />);
-  receive(aura({ looks: { ...AURA.looks!, items: twelve, current: "look 1" } }));
+  receive(aura({ looks: { ...AURA.looks!, items: twelve, favorites: twelve.slice(0, 9).map((l) => l.name), current: "look 1" } }));
   await expect.poll(() => document.querySelectorAll(".looks .tile").length).toBe(9);
   await userEvent.keyboard("9");
   expect(sent.at(-1)).toEqual({ type: "recall", name: "look 9", fade: null });
@@ -867,7 +931,7 @@ test("past nine looks, all N › lists every look in the slot, the first nine wi
   const { screen, sent, receive } = await renderWired(<App />);
   const all = screen.getByRole("button", { name: "all 12 looks" });
   await expect.element(all).not.toBeInTheDocument(); // two looks: nothing more to list
-  receive(aura({ looks: { ...AURA.looks!, items: twelve, current: "look 1" } }));
+  receive(aura({ looks: { ...AURA.looks!, items: twelve, favorites: twelve.slice(0, 9).map((l) => l.name), current: "look 1" } }));
   await expect.element(all).toHaveTextContent("all 12 ›");
   await expect.element(all).toHaveAttribute("data-variant", "tertiary");
   await all.click();
@@ -878,7 +942,7 @@ test("past nine looks, all N › lists every look in the slot, the first nine wi
   expect(rows.elements()).toHaveLength(12);
   const keys = [...list.element().querySelectorAll("kbd")].map((k) => k.textContent);
   expect(keys).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
-  await expect.element(list.getByRole("button", { name: "look 1" })).toHaveAttribute("aria-pressed", "true"); // playing
+  await expect.element(list.getByRole("button", { name: "look 1, favorite" })).toHaveAttribute("aria-pressed", "true"); // playing
   await list.getByRole("button", { name: "look 11" }).click();
   expect(sent.at(-1)).toEqual({ type: "recall", name: "look 11", fade: null });
   await expect.element(list).toBeVisible(); // it stays, for the next
@@ -886,4 +950,125 @@ test("past nine looks, all N › lists every look in the slot, the first nine wi
   await expect.element(list).not.toBeInTheDocument();
   await expect.element(all).toHaveAttribute("aria-expanded", "false");
   await page.viewport(414, 896);
+});
+
+/** The deck's looks with `names` as saved looks and `favorites` the favorites. */
+const withLooks = (names: readonly string[], favorites: readonly string[], current: string | null = null) =>
+  aura({ looks: { ...AURA.looks!, items: names.map((name) => ({ name, cycle: true, fade: 2 })), favorites, current } });
+
+const NAMES = ["surprise 10", "Tide", "surprise 2", "amber", "Zinc", "surprise 1"];
+
+test("the tiles are the favorites in natural, case-blind alphabetical order, and keys 1–9 follow it", async () => {
+  const { sent, receive } = await renderWired(<Played />);
+  receive(withLooks(NAMES, ["surprise 10", "Tide", "surprise 2", "amber"]));
+  const tiles = () => [...document.querySelectorAll(".looks .tile")].map((b) => b.getAttribute("aria-label"));
+  await expect.poll(tiles).toEqual(["amber", "surprise 2", "surprise 10", "Tide"]);
+  await userEvent.keyboard("3");
+  expect(sent.at(-1)).toEqual({ type: "recall", name: "surprise 10", fade: null });
+  await userEvent.keyboard("5");
+  expect(sent).toHaveLength(1); // a fourth tile has no fifth key
+});
+
+test("all N › shows while a look is not a favorite, and the row says when there are no favorites", async () => {
+  const { screen, receive } = await renderWired(<App />);
+  receive(withLooks(["a", "b"], ["a", "b"]));
+  await expect.element(screen.getByRole("button", { name: "a", exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "all 2 looks" })).not.toBeInTheDocument();
+  receive(withLooks(["a", "b"], ["a"]));
+  await expect.element(screen.getByRole("button", { name: "all 2 looks" })).toBeVisible();
+  receive(withLooks(["a", "b"], []));
+  await expect.element(screen.getByText(/No favorites/)).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "all 2 looks" })).toBeVisible();
+});
+
+test("the favorite switch sends its message, and is off at 20 favorites for a look that is not one", async () => {
+  const { screen, sent, receive } = await renderWired(<Editor />);
+  await screen.getByRole("button", { name: "look settings" }).click();
+  const fav = screen.getByRole("switch", { name: "warm a favorite" });
+  await expect.element(fav).toBeChecked();
+  await fav.click();
+  expect(sent.at(-1)).toEqual({ type: "favorite", name: "warm", on: false });
+  const many = Array.from({ length: 21 }, (_, i) => `look ${i + 1}`);
+  receive(withLooks(many, many.slice(0, 20), "look 21"));
+  const full = screen.getByRole("switch", { name: "look 21 a favorite" });
+  await expect.element(full).toBeDisabled();
+  await expect.element(screen.getByText("20 looks are favorites already; unfavorite one first")).toBeVisible();
+  receive(withLooks(many, many.slice(0, 20), "look 20"));
+  await expect.element(screen.getByRole("switch", { name: "look 20 a favorite" })).toBeEnabled();
+});
+
+test("the all-looks list is alphabetical, marks favorites and searches by substring", async () => {
+  await page.viewport(1280, 800);
+  const { screen, sent, receive } = await renderWired(<App />);
+  receive(withLooks(NAMES, ["Zinc"]));
+  await screen.getByRole("button", { name: "all 6 looks" }).click();
+  const list = screen.getByRole("region", { name: "looks" });
+  const rows = () => [...list.element().querySelectorAll("li .tile")].map((b) => b.getAttribute("aria-label"));
+  expect(rows()).toEqual(["amber", "surprise 1", "surprise 2", "surprise 10", "Tide", "Zinc, favorite"]);
+  const box = screen.getByRole("combobox", { name: "search looks" });
+  expect(document.activeElement).toBe(box.element()); // opens with the box focused, so typing filters at once
+  await box.fill("SURP");
+  await expect.poll(rows).toEqual(["surprise 1", "surprise 2", "surprise 10"]);
+  await box.fill("zzz");
+  await expect.element(screen.getByText("no look matches")).toBeVisible();
+  await box.fill("surprise 2");
+  expect(rows()).toEqual(["surprise 2"]);
+  await box.fill("sur");
+  const active = () => box.element().getAttribute("aria-activedescendant");
+  const id = () => document.getElementById(active()!)?.textContent;
+  await expect.poll(id).toContain("surprise 1");
+  box.element().focus();
+  await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+  await expect.poll(id).toContain("surprise 10");
+  await userEvent.keyboard("{ArrowUp}");
+  await expect.poll(id).toContain("surprise 2");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "recall", name: "surprise 2", fade: null });
+  await expect.element(list).toBeVisible(); // playing leaves the list open
+  // Esc clears the box first, and a second one closes the list.
+  await userEvent.keyboard("{Escape}");
+  await expect.element(box).toHaveValue("");
+  expect(rows()).toHaveLength(6);
+  await expect.element(list).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(list).not.toBeInTheDocument();
+  await page.viewport(414, 896);
+});
+
+test("rename… closes when another look becomes current, so it cannot rename that one", async () => {
+  const { screen, sent, receive } = await renderWired(<Editor />);
+  await screen.getByRole("button", { name: "look settings" }).click();
+  await screen.getByRole("button", { name: "rename…" }).click();
+  const box = screen.getByRole("textbox", { name: "new name" });
+  await box.fill("dusk");
+  const other = AURA.looks!.items.find((i) => i.name !== "warm")!.name;
+  receive(aura({ looks: { ...AURA.looks!, current: other } }));
+  await expect.element(box).not.toBeInTheDocument();
+  expect(sent).toEqual([]);
+});
+
+test("the all-looks list scrolls to the highlight when it moves, not on unrelated aura messages", async () => {
+  await page.viewport(1280, 800);
+  const calls: string[] = [];
+  const real = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (this: Element) {
+    calls.push(this.id);
+  };
+  try {
+    const { screen, receive } = await renderWired(<App />);
+    const state = { ...AURA.looks!, items: twelve, favorites: twelve.slice(0, 9).map((l) => l.name), current: "look 1" };
+    receive(aura({ looks: state }));
+    await screen.getByRole("button", { name: "all 12 looks" }).click();
+    await expect.poll(() => calls.length).toBeGreaterThan(0);
+    const before = calls.length;
+    receive(aura({ looks: { ...state } }));
+    receive(aura({ looks: { ...state, changed: true } }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls).toHaveLength(before);
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => calls.length).toBe(before + 1);
+  } finally {
+    Element.prototype.scrollIntoView = real;
+    await page.viewport(414, 896);
+  }
 });

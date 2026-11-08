@@ -34,10 +34,12 @@ from fakes import (
     wait_until,
 )
 from pewpew.aura.book import (
+    MAX_FAVORITES,
     VERSION,
     CycleConfig,
     LookBook,
     LookError,
+    Trigger,
     load_looks,
     parse_looks,
     route_reasons,
@@ -61,9 +63,10 @@ CALM = {"h": 30.0, "s": 1.0, "v": 1.0}
 CALM_LOOK = look("zoo_test", {"color": CALM})
 
 
-def make_rig(tmp_path, looks, mapping=None, current=None, cycle=None, start=None):
+def make_rig(tmp_path, looks, mapping=None, current=None, cycle=None, start=None, favorites=None):
     """An aura over a book of test looks, with no loop and no sinks."""
-    return aura_rig(start, mapping=mapping, looks=looks, current=current, cycle=cycle, path=tmp_path / "looks.json")
+    return aura_rig(start, mapping=mapping, looks=looks, current=current, cycle=cycle, favorites=favorites,
+                    path=tmp_path / "looks.json")
 
 
 def knobs(source, nid: str = "solid") -> ParamSet:
@@ -703,6 +706,157 @@ def test_delete_and_the_cycle_flag_persist(tmp_path):
     book = load_looks(rig.path)
     assert list(book.looks) == ["b"] and book.current is None and book.cycle.end is None
     assert rig.looks.delete("a").startswith("unknown look 'a'")
+
+
+def test_rename_keeps_place_and_moves_current_the_cycle_end_and_weights(tmp_path):
+    rig = make_rig(tmp_path, {"a": solid(), "b": solid(1.0, fade=2.0, cycle=True), "c": solid()}, current="b",
+                   cycle=CycleConfig(end="b", weights={"b": 3.0, "c": 1.0}))
+    assert rig.looks.rename("b", "Dusk 2") is None
+    for book in (rig.looks.book, load_looks(rig.path)):
+        assert list(book.looks) == ["a", "Dusk 2", "c"]
+        assert book.looks["Dusk 2"] == solid(1.0, fade=2.0, cycle=True)
+        assert book.current == "Dusk 2" and book.cycle.end == "Dusk 2"
+        assert book.cycle.weights == {"Dusk 2": 3.0, "c": 1.0}
+
+
+def test_rename_to_the_same_name_is_a_no_op_and_a_case_change_is_allowed(tmp_path):
+    rig = make_rig(tmp_path, {"dusk": solid()})
+    assert rig.looks.rename("dusk", "dusk") is None and not rig.path.exists()
+    assert rig.looks.rename("dusk", "Dusk") is None
+    assert list(load_looks(rig.path).looks) == ["Dusk"]
+
+
+def test_rename_refuses_a_taken_name_a_bad_name_and_an_unknown_look(tmp_path):
+    rig = make_rig(tmp_path, {"a": solid(), "b": solid()})
+    assert rig.looks.rename("a", "b") == "a look is already named 'b'"
+    assert rig.looks.rename("a", "../x").startswith("bad look name '../x'")
+    assert rig.looks.rename("nosuch", "c").startswith("unknown look 'nosuch'")
+    assert not rig.path.exists() and list(rig.looks.book.looks) == ["a", "b"]
+
+
+def test_rename_refuses_a_look_a_trigger_names(tmp_path):
+    rig = aura_rig(looks={"a": solid(), "b": solid()}, triggers={"cue": Trigger(look="a")},
+                   path=tmp_path / "looks.json")
+    assert rig.looks.rename("a", "c") == (
+        "look 'a' is held by trigger cue; change the looks file to rename it")
+    assert rig.looks.rename("b", "c") is None
+
+
+def test_rename_refuses_a_look_whose_recall_waits_for_a_fade(tmp_path):
+    rig = make_rig(tmp_path, {"blue": solid(0.0, 0.0, 1.0, fade=1.0), "green": solid(0.0, 1.0, 0.0, fade=1.0)})
+    rig.looks.recall("blue")
+    rig.frame(0.5)
+    assert rig.looks.recall("green") is None
+    assert rig.looks.rename("green", "lime") == "look 'green' is waiting for a fade; rename it when the fade ends"
+    assert rig.looks.rename("blue", "navy") is None
+    assert rig.looks.state()["fading"] == "navy"
+
+
+def test_rename_refuses_spaces_at_either_end_of_the_new_name(tmp_path):
+    rig = make_rig(tmp_path, {"a": solid()})
+    for to in ("b ", " b"):
+        assert rig.looks.rename("a", to) == "a look name has no spaces at its ends"
+    assert not rig.path.exists() and list(rig.looks.book.looks) == ["a"]
+
+
+def test_rename_is_refused_during_a_trigger_hold(tmp_path):
+    rig = make_rig(tmp_path, {"calm": solid(fade=0.0), "cue": solid(1.0, fade=0.0)}, current="calm")
+    assert rig.looks.recall("calm") is None
+    rig.frame(1 / 60)
+    assert rig.looks.hold("door", "cue", 0.5, 0, rig.fader.t) is None
+    rig.frame(2 / 60)
+    assert rig.looks.held is not None
+    before = rig.path.read_bytes() if rig.path.exists() else None
+    assert rig.looks.rename("calm", "dusk") == "door is playing cue: rename when it ends"
+    assert (rig.path.read_bytes() if rig.path.exists() else None) == before
+    rig.frame(1.0)
+    assert rig.looks.held is None and rig.looks.book.current == "calm"
+    assert rig.looks.rename("calm", "dusk") is None
+
+
+def test_a_rename_moves_the_directors_no_repeat_window(tmp_path):
+    rig = make_rig(tmp_path, {"a": solid(), "b": solid(1.0)}, current="a",
+                   cycle=CycleConfig(idle=1.0, each=2.0, window=1, seed=1))
+    director = rig.looks._director
+    config = rig.looks.book.cycle
+    first = director.tick(1.0, ["a", "b"], config)
+    assert first is not None and first.name is not None
+    old, other = first.name, ("b" if first.name == "a" else "a")
+    assert rig.looks.rename(old, "z") is None
+    nxt = director.tick(10.0, ["z", other] if old == "a" else [other, "z"], rig.looks.book.cycle)
+    assert nxt is not None and nxt.name == other
+
+
+def test_a_failed_write_refuses_a_rename_and_changes_nothing(tmp_path, monkeypatch):
+    rig = make_rig(tmp_path, {"a": solid(1.0)}, current="a")
+    monkeypatch.setattr(os, "replace", lambda src, dst: (_ for _ in ()).throw(OSError("disk full")))
+    assert rig.looks.rename("a", "b") == "cannot write the looks file; nothing was saved"
+    assert list(rig.looks.book.looks) == ["a"] and rig.looks.book.current == "a"
+
+
+def test_rename_keeps_unsaved_edits_unsaved(tmp_path):
+    rig = make_rig(tmp_path, {"a": solid(1.0)}, current="a")
+    assert restore(rig) is None
+    knobs(rig).set("green", 0.5)
+    assert rig.looks.changed()
+    assert rig.looks.rename("a", "b") is None
+    assert rig.looks.book.current == "b" and rig.looks.changed()
+
+
+def test_a_restart_look_with_none_current_follows_a_rename(tmp_path):
+    """After a leave the file still names the last look, so a restart returns to it."""
+    rig = make_rig(tmp_path, {"a": solid(), "b": solid()}, current="a")
+    assert restore(rig) is None
+    rig.looks.leave()
+    assert rig.looks.book.current is None and load_looks(rig.path).current == "a"
+    assert rig.looks.rename("a", "z") is None
+    assert load_looks(rig.path).current == "z"
+
+
+def test_favorites_round_trip_and_an_absent_key_means_the_first_nine(tmp_path):
+    names = [f"look {i}" for i in range(12)]
+    rig = make_rig(tmp_path, {n: solid() for n in names})
+    assert rig.looks.state()["favorites"] == names[:9]
+    assert rig.looks.book.favorites is None and b"favorites" not in rig.looks.book.to_bytes()
+    assert rig.looks.set_favorite("look 11", True) is None
+    for book in (rig.looks.book, load_looks(rig.path)):
+        assert book.favorites == (*names[:9], "look 11")
+    assert rig.looks.state()["favorites"] == [*names[:9], "look 11"]
+    assert rig.looks.set_favorite("look 0", False) is None
+    assert load_looks(rig.path).favorites == (*names[1:9], "look 11")
+    (tmp_path / "two").mkdir()
+    empty = make_rig(tmp_path / "two", {"a": solid()}, favorites=())
+    assert empty.looks.state()["favorites"] == []
+    assert empty.looks.set_favorite("a", True) is None and empty.looks.set_favorite("a", False) is None
+    assert load_looks(empty.path).favorites == () and b'"favorites": []' in empty.path.read_bytes()
+
+
+def test_the_loader_refuses_a_bad_favorites_list():
+    looks = {"a": {"layers": []}, "b": {"layers": []}}
+    for favorites, text in [
+        (["nosuch"], "'nosuch' is not a look"), (["a", "a"], "'a' is listed twice"), ("a", "list of look names"),
+        ([f"l{i}" for i in range(MAX_FAVORITES + 1)], f"at most {MAX_FAVORITES}"),
+    ]:
+        with pytest.raises(LookError) as err:
+            parse_looks(looks_file(looks=looks, favorites=favorites))
+        assert any(text in p for p in err.value.problems)
+
+
+def test_the_favorite_cap_refuses_a_21st_but_not_an_unfavorite(tmp_path):
+    names = [f"l{i}" for i in range(MAX_FAVORITES + 1)]
+    rig = make_rig(tmp_path, {n: solid() for n in names}, favorites=tuple(names[:MAX_FAVORITES]))
+    assert rig.looks.set_favorite(names[-1], True) == "20 looks are favorites already; unfavorite one first"
+    assert rig.looks.set_favorite(names[0], True) is None  # already one
+    assert rig.looks.set_favorite("nosuch", True).startswith("unknown look 'nosuch'")
+    assert rig.looks.set_favorite(names[0], False) is None and rig.looks.set_favorite(names[-1], True) is None
+
+
+def test_rename_keeps_the_favorite_and_delete_drops_it(tmp_path):
+    rig = make_rig(tmp_path, {"a": solid(), "b": solid(), "c": solid()}, favorites=("a", "b"))
+    assert rig.looks.rename("b", "z") is None
+    assert load_looks(rig.path).favorites == ("a", "z")
+    assert rig.looks.delete("a") is None
+    assert load_looks(rig.path).favorites == ("z",)
 
 
 def test_a_look_s_own_fade_is_stored_alone_and_edits_stay_unsaved(tmp_path):

@@ -570,7 +570,7 @@ def layer_renderer(aura, lid: str = "base") -> Renderer:
 
 def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
              looks: Mapping[str, Look] | None = None, current: str | None = None, cycle=None,
-             triggers: Mapping | None = None, path=None, timeout: float = 5.0,
+             triggers: Mapping | None = None, favorites=None, path=None, timeout: float = 5.0,
              log=None, blink=None, boards=None, health=None, accept_looks: bool = False,
              max_making: int | None = None, variety=None, submit=None) -> SimpleNamespace:
     """An aura without a loop or sinks: a stack running `start` (default a
@@ -585,7 +585,9 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
     renderer layer `lid` runs now."""
     r = SimpleNamespace()
     r.path = path
-    r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {}) if looks is not None else None
+    r.book = None
+    if looks is not None:
+        r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {}, favorites=favorites)
     aura = build_aura_pipeline(
         start or solid(1.0), line(4) if mapping is None else mapping, master_cap=cap, looks_path=path, book=r.book,
         trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
