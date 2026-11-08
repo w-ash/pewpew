@@ -1,7 +1,7 @@
 import { Splitter } from "@ark-ui/react/splitter";
 import { useEffect, useId, useState } from "react";
 import { useStandingAura, useWire } from "../wire/store";
-import { onEngineHost } from "../design/engineHost";
+import { Banner } from "../design/Banner";
 import { Panel } from "../design/Panel";
 import { StepStatus } from "../design/StepStatus";
 import { ArmStatus } from "../design/press";
@@ -15,17 +15,17 @@ import { LookPanel } from "../deck/LookPanel";
 import { useRecall } from "../deck/Looks";
 import { LayoutProvider, useLayoutMode } from "../layout/LayoutMode";
 import { LayoutTools } from "../layout/LayoutTools";
-import { LookSignals } from "../params/ParamPanel";
 import { AddLayerPanel } from "../stack/AddLayer";
-import { LayerList } from "../stack/LayerList";
 import { ADD, useLayerSelection } from "../stack/selection";
 import { usePlanImage } from "../stage/plan";
 import { Stage, useCover } from "../stage/Stage";
 import { BoardBanner } from "../status/BoardBanner";
+import { connectionText, linkOf } from "../status/connection";
 import { HealthPanel } from "../status/HealthPanel";
 import { ShortcutHelp } from "../status/ShortcutHelp";
 import { StatusBar } from "../status/StatusBar";
 import { TopBar } from "../status/TopBar";
+import { Slot } from "./Slot";
 
 export function App() {
   return (
@@ -52,13 +52,6 @@ const LOST_HINT_MS = 5000;
 /** The panel a top-bar or deck button opens in the slot, in place of the editor; null for none. */
 type SlotPanel = "health" | "looks" | null;
 
-/** What the banner says while the connection is lost: on the laptop pewpew runs on, pewpew stopped, and
- * once it has been `long`, what to do; elsewhere, maybe this device left the private Wi-Fi. */
-function lostText(long: boolean): string {
-  if (!onEngineHost()) return "Lost the pewpew laptop. Retrying… Is this device on the private Wi-Fi?";
-  return `Lost pewpew. Retrying…${long ? " Stopped? Start the run again: this page reconnects on its own." : ""}`;
-}
-
 /** Phone: the canvas on top, a scrolling slot, the deck pinned at the bottom.
  * Wide: the canvas beside a side panel, the deck at the top of it over the
  * slot. The slot shows the editor (the look and its main knobs, the layers,
@@ -73,10 +66,10 @@ function Shell() {
   const fine = useMedia(FINE_POINTER);
   const mode = useLayoutMode();
   const plan = usePlanImage(useWire((s) => s.map));
-  const connected = useWire((s) => s.connected);
+  const link = useWire(linkOf);
   const blackout = useWire((s) => !!s.aura?.blackout);
   const held = useWire((s) => !!s.aura?.triggers?.held || !!s.aura?.looks?.pending);
-  const lost = useWire((s) => !s.connected && s.session > 0);
+  const lost = link === "lost";
   // The health panel and the list of every look take the slot in turn: opening one closes the other.
   const [slotPanel, setSlotPanel] = useState<SlotPanel>(null);
   const toggle = (which: Exclude<SlotPanel, null>) => () => setSlotPanel(slotPanel === which ? null : which);
@@ -110,16 +103,12 @@ function Shell() {
             blackout
           </p>
         )}
-        {!connected && !lost && (
-          <p className="stage-note">
-            Waiting for the pewpew laptop at {location.host}. Is pewpew running with --preview?
-          </p>
-        )}
+        {link === "waiting" && <p className="stage-note">{connectionText(link, "stage")}</p>}
       </div>
       {lost && (
-        <p ref={measureCover} className="banner lost" role="alert">
-          {lostText(lostLong)}
-        </p>
+        <Banner tone="lost" ref={measureCover}>
+          {connectionText(link, "stage", lostLong)}
+        </Banner>
       )}
     </div>
   );
@@ -145,24 +134,16 @@ function Shell() {
       }}
     />
   ) : null;
-  // The editor stays mounted under a panel: a typed look name, its toggles
-  // and a refusal that comes meanwhile are still there when it closes. While
-  // a cue holds a look or a recall waits, its layers wait, inert, as its
-  // knobs do (LookPanel). For assistive tech the look is one region, named by
-  // its title, its blocks headed a level under it.
+  // While a cue holds a look or a recall waits, the layers wait, inert, as the knobs do (LookPanel).
   const slot = (
-    <>
-      {panel}
-      <div hidden={panel !== null}>
-        <section className="look-region" aria-labelledby={lookTitle}>
-          <LookPanel titleId={lookTitle} />
-          <div className="rest" inert={held}>
-            <LayerList selection={selection} onAdd={() => setAdding(true)} />
-            <LookSignals />
-          </div>
-        </section>
-      </div>
-    </>
+    <Slot
+      panel={panel}
+      head={<LookPanel titleId={lookTitle} />}
+      labelledBy={lookTitle}
+      held={held}
+      selection={selection}
+      onAdd={() => setAdding(true)}
+    />
   );
   const deck = <Deck allOpen={slotPanel === "looks"} onAll={toggle("looks")} />;
   return (

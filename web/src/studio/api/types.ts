@@ -142,7 +142,7 @@ export interface PresetInfo {
   params: Array<{ name: string; required: boolean; default?: unknown }>;
 }
 
-export interface Catalog {
+export interface PartsCatalog {
   digest?: string;
   fixture_types: CatalogFixtureType[];
   attachment_types: CatalogAttachmentType[];

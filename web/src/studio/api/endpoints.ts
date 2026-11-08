@@ -10,7 +10,7 @@
 import * as api from "./generated";
 import type {
   Arrangement,
-  Catalog,
+  PartsCatalog,
   CompiledRig,
   LookDocument,
   SavedArrangement,
@@ -18,8 +18,8 @@ import type {
 
 type Body = Record<string, unknown>;
 
-export async function getCatalog(): Promise<Catalog> {
-  return (await api.getCatalog()).data as unknown as Catalog;
+export async function getCatalog(): Promise<PartsCatalog> {
+  return (await api.getCatalog()).data as unknown as PartsCatalog;
 }
 
 export async function compileArrangement(

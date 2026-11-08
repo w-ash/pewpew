@@ -5,7 +5,6 @@ import describe from "../../../tests/goldens/describe.json";
 /** Every built-in op's param records, as the engine's describe golden holds them, and `zoo_test`, an
  * op with one param of each kind. */
 export const OPS = describe.ops as Record<string, Record<string, unknown>[]>;
-export const DISPLAY_GAMMA: number = describe.display_gamma;
 
 export function record(op: string, name: string): Record<string, unknown> {
   const r = OPS[op]?.find((x) => x.name === name);

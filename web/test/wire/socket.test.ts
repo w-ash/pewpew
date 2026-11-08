@@ -5,7 +5,7 @@ import { RECONNECT_MS, Socket } from "../../src/wire/socket";
 import { WireStore } from "../../src/wire/store";
 import { record } from "../fixtures/describe";
 import { FakeWebSocket } from "../fixtures/fakeWebSocket";
-import { hello } from "../fixtures/messages";
+import { hello, SESSION_GREETING, SESSION_POWER, SESSION_REFUSED } from "../fixtures/messages";
 
 function setup(build: string | null = null, reload = () => {}) {
   FakeWebSocket.made = [];
@@ -159,32 +159,33 @@ test("an ask the socket cannot send settles at once, not taken", async () => {
   expect(ws.sent).toEqual([]);
 });
 
-test("a page's own messages: its types go to it, not the store; it sends its own; opens and closes are told", () => {
+test("a page's own requests go out on the same socket; opens are told", () => {
   FakeWebSocket.made = [];
   const store = new WireStore();
-  const own: unknown[] = [];
   const told: string[] = [];
   const socket = new Socket<{ type: "bind"; arrangement: string }>(store, {
     url: "ws://test/ws/session",
     WebSocket: FakeWebSocket as unknown as typeof WebSocket,
     build: null,
-    ownTypes: ["hello", "bound"],
-    onOwnMessage: (msg) => own.push(msg),
     onOpen: () => told.push("open"),
-    onClose: () => told.push("close"),
   });
   socket.start();
   const ws = FakeWebSocket.made[0]!;
   ws.open();
-  ws.onmessage!({ data: JSON.stringify({ type: "hello", n: 64, fps: 30, capabilities: [] }) });
-  ws.onmessage!({ data: JSON.stringify({ type: "bound", n: 64 }) });
-  ws.onmessage!({ data: JSON.stringify({ type: "status", error: "x", source: "bind", path: null }) });
-  expect(own).toEqual([{ type: "hello", n: 64, fps: 30, capabilities: [] }, { type: "bound", n: 64 }]);
-  expect(store.getState()).toMatchObject({ connected: false, session: 0, error: { text: "x", source: "bind" } });
+  for (const msg of SESSION_GREETING) ws.onmessage!({ data: JSON.stringify(msg) });
+  ws.onmessage!({ data: JSON.stringify(SESSION_POWER) });
+  ws.onmessage!({ data: JSON.stringify(SESSION_REFUSED.bind) });
+  expect(store.getState()).toMatchObject({
+    connected: true,
+    session: 1,
+    power: { watts: SESSION_POWER.watts, uncapped_watts: SESSION_POWER.uncapped_watts },
+    refusals: { bind: { reason: SESSION_REFUSED.bind.reason } },
+  });
   socket.send({ type: "bind", arrangement: "rig" });
   expect(ws.sent).toEqual([{ type: "bind", arrangement: "rig" }]);
   ws.close();
-  expect(told).toEqual(["open", "close"]);
+  expect(told).toEqual(["open"]);
+  expect(store.getState().power).toBeNull();
 });
 
 test("the wait before a reconnect is the page's to give, and a stopped socket stays closed", () => {

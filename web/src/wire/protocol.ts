@@ -90,8 +90,19 @@ interface CatalogMessage extends Catalog {
   readonly type: "catalog";
 }
 
+/** The estimated draw of the frame last streamed, under the power cap and without it. Sent only by the studio. */
+interface PowerMessage {
+  readonly type: "power";
+  readonly watts: number;
+  readonly uncapped_watts: number;
+}
+
 /** A request's `id`, as a client outside the package sent it; it comes back as sent. */
 export type RequestId = string | number;
+
+/** The studio's own requests and refusals: a `bind` the rig fails, a session the server has no room for,
+ * a message it cannot read. */
+export type RefusedControl = Control | "bind" | "session" | "message";
 
 /** A declined request, to the client that sent it. The reason names the param,
  * op, look, fixture or cap, never a path, and carries no hint: the port has no login. */
@@ -99,7 +110,7 @@ interface RefusedMessage {
   readonly type: "refused";
   /** The request's type; for a request with an `id`, maybe one the engine does not know, or
    * null when its `type` is not text. */
-  readonly control: Control | null;
+  readonly control: RefusedControl | null;
   /** The address of what was refused: the param of a `set`, or the part of a `look`
    * (`layers.base.osc.freq`, `master`); null when no one part is to blame. */
   readonly name: string | null;
@@ -117,7 +128,7 @@ interface AckMessage {
 
 export type ServerMessage =
   | HelloMessage | LayoutMessage | StatusMessage | ParamsMessage | ModMessage | DeclareMessage
-  | AuraMessage | HealthMessage | CatalogMessage | RefusedMessage | AckMessage;
+  | AuraMessage | HealthMessage | CatalogMessage | PowerMessage | RefusedMessage | AckMessage;
 
 /** What a client may send. The engine checks every field and refuses a bad one with its
  * reason. Without an `id`, only a message that is not an object, has no known `type`, or is
@@ -221,10 +232,20 @@ export function parseFrame(data: ArrayBuffer): Frame {
   return { t: view.getFloat32(0, true), seq: view.getUint32(4, true), rgb: new Uint8Array(data, HEADER) };
 }
 
+/** A frame's bytes, as `parseFrame` reads them; for tests. */
+export function encodeFrame(t: number, seq: number, rgb: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(HEADER + rgb.length);
+  const view = new DataView(buffer);
+  view.setFloat32(0, t, true);
+  view.setUint32(4, seq >>> 0, true);
+  new Uint8Array(buffer, HEADER).set(rgb);
+  return buffer;
+}
+
 // Every server message type: a new member of ServerMessage fails to compile until it is listed.
 const TYPES: Readonly<Record<ServerMessage["type"], true>> = {
   hello: true, layout: true, status: true, params: true, mod: true, declare: true, aura: true, health: true,
-  catalog: true, refused: true, ack: true,
+  catalog: true, power: true, refused: true, ack: true,
 };
 
 /** A JSON object with a text `type`: any message, before it is known to be the wire's. */

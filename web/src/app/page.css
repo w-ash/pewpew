@@ -183,35 +183,12 @@
   }
 }
 
-/* A bad board under the top bar; a lost connection over the stage alone, so nothing moves when it comes or
-   goes. */
-.banner {
-  font: inherit;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  width: 100%;
-  margin: 0;
-  padding: var(--space-xs) var(--space-md);
-  border: none;
-  border-radius: 0;
-  background: var(--surface-region);
-  color: var(--danger-fg);
-  text-align: left;
-  cursor: pointer;
-}
-.banner:hover {
-  background-image: linear-gradient(var(--state-hover), var(--state-hover));
-}
-.banner.lost {
+/* The connection's banner lies over the stage alone, so nothing moves when it comes or goes. */
+.stage-area > .banner {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 3;
-  background: var(--danger-fill);
-  color: var(--on-danger);
-  cursor: default;
 }
 
 /* Phone: the canvas, the slot scrolling, then the deck. */

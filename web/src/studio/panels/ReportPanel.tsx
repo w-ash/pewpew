@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import type { Issue, IssueLevel, RigReport } from "../api/types";
 import { powerOf, setPower } from "../editor/arrangement";
 import { useDoc } from "../store/doc";
-import { useSession } from "../store/session";
+import { useWire } from "../../wire/store";
 
 const fixed = (digits: number) =>
   new Intl.NumberFormat(LOCALE, {
@@ -386,8 +386,8 @@ export function ReportPanel({
   issues: readonly Issue[];
   stale: boolean;
 }) {
-  const watts = useSession((s) => s.watts);
-  const uncapped = useSession((s) => s.uncappedWatts);
+  const watts = useWire((s) => s.power?.watts ?? null);
+  const uncapped = useWire((s) => s.power?.uncapped_watts ?? null);
   const totals = (report?.totals ?? {}) as Totals;
   const psus = rows<PsuRow>(report?.psus);
   const outputs = rows<OutputRow>(report?.outputs);

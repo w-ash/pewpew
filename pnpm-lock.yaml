@@ -65,9 +65,6 @@ importers:
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
-      msw:
-        specifier: 3.0.3
-        version: 3.0.3(@types/node@26.6.6)(graphql@16.15.0)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
       orval:
         specifier: 8.46.0
         version: 8.46.0(@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1))(msw@3.0.3(@types/node@26.6.6)(graphql@16.15.0)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))(zod@4.6.7)
@@ -2800,7 +2797,8 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@inquirer/ansi@2.0.10': {}
+  '@inquirer/ansi@2.0.10':
+    optional: true
 
   '@inquirer/confirm@6.3.5(@types/node@26.6.6)':
     dependencies:
@@ -2808,6 +2806,7 @@ snapshots:
       '@inquirer/type': 4.2.1(@types/node@26.6.6)
     optionalDependencies:
       '@types/node': 26.6.6
+    optional: true
 
   '@inquirer/core@12.0.6(@types/node@26.6.6)':
     dependencies:
@@ -2820,12 +2819,15 @@ snapshots:
       signal-exit: 4.1.0
     optionalDependencies:
       '@types/node': 26.6.6
+    optional: true
 
-  '@inquirer/figures@2.0.10': {}
+  '@inquirer/figures@2.0.10':
+    optional: true
 
   '@inquirer/type@4.2.1(@types/node@26.6.6)':
     optionalDependencies:
       '@types/node': 26.6.6
+    optional: true
 
   '@internationalized/date@3.12.4':
     dependencies:
@@ -2856,7 +2858,8 @@ snapshots:
       promise-worker-transferable: 1.0.4
       three: 0.187.0
 
-  '@msw/url@0.1.2': {}
+  '@msw/url@0.1.2':
+    optional: true
 
   '@mswjs/interceptors@0.45.10':
     dependencies:
@@ -2868,8 +2871,10 @@ snapshots:
       rettime: 0.11.12
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
-  '@open-draft/until@3.0.1': {}
+  '@open-draft/until@3.0.1':
+    optional: true
 
   '@orval/angular@8.46.0':
     dependencies:
@@ -3259,6 +3264,7 @@ snapshots:
   '@types/debug@4.1.13':
     dependencies:
       '@types/ms': 2.1.0
+    optional: true
 
   '@types/deep-eql@4.0.2': {}
 
@@ -3270,7 +3276,8 @@ snapshots:
 
   '@types/jsesc@2.5.1': {}
 
-  '@types/ms@2.1.0': {}
+  '@types/ms@2.1.0':
+    optional: true
 
   '@types/node@26.6.6':
     dependencies:
@@ -3293,6 +3300,7 @@ snapshots:
   '@types/set-cookie-parser@2.4.10':
     dependencies:
       '@types/node': 26.6.6
+    optional: true
 
   '@types/stats.js@0.17.4': {}
 
@@ -4039,9 +4047,11 @@ snapshots:
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
-  ansi-regex@6.5.0: {}
+  ansi-regex@6.5.0:
+    optional: true
 
-  ansi-styles@6.2.3: {}
+  ansi-styles@6.2.3:
+    optional: true
 
   argparse@2.0.1: {}
 
@@ -4086,13 +4096,15 @@ snapshots:
     dependencies:
       readdirp: 5.1.1
 
-  cli-width@4.1.0: {}
+  cli-width@4.1.0:
+    optional: true
 
   cliui@9.0.1:
     dependencies:
       string-width: 7.2.0
       strip-ansi: 7.2.0
       wrap-ansi: 9.0.2
+    optional: true
 
   commander@15.0.0: {}
 
@@ -4100,7 +4112,8 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  cookie@2.0.1: {}
+  cookie@2.0.1:
+    optional: true
 
   cross-env@7.0.3:
     dependencies:
@@ -4131,6 +4144,7 @@ snapshots:
   debug@4.4.3:
     dependencies:
       ms: 2.1.3
+    optional: true
 
   decimal.js@10.6.0:
     optional: true
@@ -4145,7 +4159,8 @@ snapshots:
 
   electron-to-chromium@1.5.478: {}
 
-  emoji-regex@10.6.0: {}
+  emoji-regex@10.6.0:
+    optional: true
 
   empathic@2.1.0: {}
 
@@ -4210,17 +4225,20 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
-  fast-string-truncated-width@3.0.3: {}
+  fast-string-truncated-width@3.0.3:
+    optional: true
 
   fast-string-width@3.0.2:
     dependencies:
       fast-string-truncated-width: 3.0.3
+    optional: true
 
   fast-uri@3.1.9: {}
 
   fast-wrap-ansi@0.2.2:
     dependencies:
       fast-string-width: 3.0.2
+    optional: true
 
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
@@ -4243,9 +4261,11 @@ snapshots:
 
   gensync@1.0.0-beta.2: {}
 
-  get-caller-file@2.0.5: {}
+  get-caller-file@2.0.5:
+    optional: true
 
-  get-east-asian-width@1.7.0: {}
+  get-east-asian-width@1.7.0:
+    optional: true
 
   get-stream@9.0.1:
     dependencies:
@@ -4267,6 +4287,7 @@ snapshots:
     dependencies:
       '@types/set-cookie-parser': 2.4.10
       set-cookie-parser: 3.2.2
+    optional: true
 
   hls.js@1.7.4: {}
 
@@ -4285,7 +4306,8 @@ snapshots:
 
   import-meta-resolve@4.2.0: {}
 
-  is-node-process@1.2.0: {}
+  is-node-process@1.2.0:
+    optional: true
 
   is-plain-obj@4.1.0: {}
 
@@ -4423,7 +4445,8 @@ snapshots:
 
   mrmime@2.0.1: {}
 
-  ms@2.1.3: {}
+  ms@2.1.3:
+    optional: true
 
   msw@3.0.3(@types/node@26.6.6)(graphql@16.15.0)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)):
     dependencies:
@@ -4446,8 +4469,10 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
       - supports-color
+    optional: true
 
-  mute-stream@3.0.0: {}
+  mute-stream@3.0.0:
+    optional: true
 
   nanoid@3.3.20: {}
 
@@ -4503,7 +4528,8 @@ snapshots:
       - swr
       - zod
 
-  outvariant@1.4.3: {}
+  outvariant@1.4.3:
+    optional: true
 
   oxlint-tsgolint@7.0.2005:
     optionalDependencies:
@@ -4609,7 +4635,8 @@ snapshots:
 
   resolve-pkg-maps@1.0.0: {}
 
-  rettime@0.11.12: {}
+  rettime@0.11.12:
+    optional: true
 
   rolldown@1.2.16:
     dependencies:
@@ -4639,7 +4666,8 @@ snapshots:
 
   scheduler@0.28.0: {}
 
-  set-cookie-parser@3.2.2: {}
+  set-cookie-parser@3.2.2:
+    optional: true
 
   shebang-command@2.0.0:
     dependencies:
@@ -4673,15 +4701,18 @@ snapshots:
       emoji-regex: 10.6.0
       get-east-asian-width: 1.7.0
       strip-ansi: 7.2.0
+    optional: true
 
   string-width@8.3.0:
     dependencies:
       get-east-asian-width: 1.7.0
       strip-ansi: 7.2.0
+    optional: true
 
   strip-ansi@7.2.0:
     dependencies:
       ansi-regex: 6.5.0
+    optional: true
 
   strip-final-newline@4.0.0: {}
 
@@ -4718,17 +4749,20 @@ snapshots:
 
   tinyrainbow@3.2.0: {}
 
-  tldts-core@7.4.20: {}
+  tldts-core@7.4.20:
+    optional: true
 
   tldts@7.4.19:
     dependencies:
       tldts-core: 7.4.20
+    optional: true
 
   totalist@3.0.1: {}
 
   tough-cookie@6.0.2:
     dependencies:
       tldts: 7.4.19
+    optional: true
 
   tr46@7.0.0:
     dependencies:
@@ -4794,7 +4828,8 @@ snapshots:
 
   unicorn-magic@0.3.0: {}
 
-  until-async@3.0.2: {}
+  until-async@3.0.2:
+    optional: true
 
   update-browserslist-db@1.3.4(browserslist@4.29.5):
     dependencies:
@@ -4899,6 +4934,7 @@ snapshots:
       ansi-styles: 6.2.3
       string-width: 7.2.0
       strip-ansi: 7.2.0
+    optional: true
 
   ws@8.22.1: {}
 
@@ -4908,11 +4944,13 @@ snapshots:
   xmlchars@2.2.0:
     optional: true
 
-  y18n@5.0.8: {}
+  y18n@5.0.8:
+    optional: true
 
   yaml@2.9.1: {}
 
-  yargs-parser@22.0.0: {}
+  yargs-parser@22.0.0:
+    optional: true
 
   yargs@18.2.0:
     dependencies:
@@ -4922,6 +4960,7 @@ snapshots:
       string-width: 8.3.0
       y18n: 5.0.8
       yargs-parser: 22.0.0
+    optional: true
 
   yoctocolors@2.2.0: {}
 

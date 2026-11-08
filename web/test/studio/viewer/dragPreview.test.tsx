@@ -6,7 +6,7 @@ import { createQueryClient, useCompiled } from "../../../src/studio/api/queries"
 import type { Arrangement } from "../../../src/studio/api/types";
 import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
 import { dragPreview, useSettledPreview } from "../../../src/studio/viewer/dragPreview";
-import { mockApi } from "../mockApi";
+import { stubApi } from "../fixtures/api";
 
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={createQueryClient()}>{children}</QueryClientProvider>;
@@ -22,7 +22,7 @@ function useView(arrangement: Arrangement) {
 const refused: Arrangement = { ...DEFAULT_ARRANGEMENT, fixtures: [{ id: "x", type: "no-such-type" }] };
 
 test("a drag whose commit does not compile, then undone, leaves no preview over the last good rig", async () => {
-  mockApi();
+  stubApi();
   const { result, rerender } = await renderHook((props?: { arrangement: Arrangement }) => useView(props!.arrangement), {
     wrapper,
     initialProps: { arrangement: DEFAULT_ARRANGEMENT },
@@ -47,7 +47,7 @@ test("a drag whose commit does not compile, then undone, leaves no preview over 
 });
 
 test("a drag's preview holds until the compile of its commit arrives", async () => {
-  mockApi();
+  stubApi();
   const { result, rerender } = await renderHook((props?: { arrangement: Arrangement }) => useView(props!.arrangement), {
     wrapper,
     initialProps: { arrangement: DEFAULT_ARRANGEMENT },

@@ -1,35 +1,25 @@
-import type { Frame } from "../../../src/wire/protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { frameGap, STALE_MS } from "../../../src/health/health";
 import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
-import { initialSession, type SessionState } from "../../../src/studio/store/session";
-import { BIND_DEBOUNCE_MS, SessionClient, STALL_MS } from "../../../src/studio/session/client";
-import { encodeFrame } from "../../../src/studio/session/protocol";
+import { BIND_DEBOUNCE_MS, SessionClient } from "../../../src/studio/session/client";
+import { encodeFrame } from "../../../src/wire/protocol";
 import { FakeWebSocket } from "../../fixtures/fakeWebSocket";
+import { first, SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER } from "../../fixtures/messages";
 
 function harness(hidden = false) {
-  let state: SessionState = { ...initialSession };
-  const store = {
-    getState: () => state,
-    setState: (patch: Partial<SessionState>) => {
-      state = { ...state, ...patch };
-    },
-  };
   const listeners = new Set<() => void>();
   const visibility = {
     hidden,
     addEventListener: (_: string, fn: () => void) => listeners.add(fn),
     removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
   } as unknown as Document;
-  const frames: Frame[] = [];
   const held: (() => void)[] = [];
   const activity = new EventTarget();
   const client = new SessionClient({
     url: "ws://test/ws/session",
     WebSocket: FakeWebSocket as unknown as typeof WebSocket,
-    store,
     visibility,
     activity,
-    onFrame: (f) => frames.push(f),
     requestFrame: (cb) => held.push(cb),
   });
   const setHidden = (h: boolean) => {
@@ -38,36 +28,17 @@ function harness(hidden = false) {
   };
   return {
     client,
-    store,
-    frames,
+    wire: client.wire,
     setHidden,
     flush: () => {
       for (const cb of held.splice(0)) cb();
     },
     press: () => activity.dispatchEvent(new Event("pointerdown")),
     socket: () => FakeWebSocket.made.at(-1)!,
-  };
-}
-
-/** The engine's hello, sent on connect: the placeholder rig. */
-const hello = (n: number) => ({
-  type: "hello",
-  ...shape(n),
-  display_gamma: 2.2,
-  build: null,
-  capabilities: ["ack", "look"],
-});
-
-/** The layout after a bind: the bound rig. */
-const bound = (n: number) => ({ type: "layout", ...shape(n) });
-
-function shape(n: number) {
-  return {
-    n,
-    total: n,
-    positions: Array.from({ length: n }, (_, i) => [i / n, 0, 0]),
-    is3d: false,
-    room: null,
+    /** The engine's greeting on the placeholder rig, as a new session sends it. */
+    greet: () => {
+      for (const msg of SESSION_GREETING) FakeWebSocket.made.at(-1)!.receive(msg);
+    },
   };
 }
 
@@ -117,87 +88,46 @@ describe("SessionClient", () => {
     expect(h.socket().types()).toEqual(["bind", "bind"]);
   });
 
-  it("flags frames that stop while the tab shows, and resumes on the next press", () => {
+  it("resumes on the first press after frames stop, once a spell", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
-    h.socket().receive(hello(256));
-    h.socket().receive(bound(1));
-    h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(3)));
-    vi.advanceTimersByTime(STALL_MS);
-    expect(h.store.getState().stalled).toBe(false);
+    h.greet();
+    h.socket().receive(SESSION_LAYOUT);
+    // The fake clock starts at 0, which the store reads as no frame yet.
+    vi.advanceTimersByTime(10);
+    h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(SESSION_LAYOUT.n * 3)));
+    vi.advanceTimersByTime(STALE_MS - 1);
     h.press();
-    vi.advanceTimersByTime(STALL_MS);
-    expect(h.store.getState().stalled).toBe(true);
     expect(h.socket().types()).toEqual([]);
+    vi.advanceTimersByTime(2);
+    expect(frameGap(performance.now(), h.wire.lastFrameAt)).toBeGreaterThan(0);
+    h.press();
     h.press();
     expect(h.socket().types()).toEqual(["resume"]);
-    h.socket().receive(encodeFrame(0.2, 2, new Uint8Array(3)));
-    expect(h.store.getState().stalled).toBe(false);
-  });
-
-  it("drops frames until bound, then those of the wrong length", () => {
-    const h = harness();
-    h.client.start();
-    h.socket().open();
-    h.socket().receive(hello(64));
-    h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(64 * 3)));
-    expect(h.frames).toHaveLength(0);
-    h.socket().receive(bound(128));
-    h.socket().receive(encodeFrame(0.2, 2, new Uint8Array(64 * 3)));
-    h.socket().receive(encodeFrame(0.3, 3, new Uint8Array(128 * 3)));
-    expect(h.frames.map((f) => f.seq)).toEqual([3]);
-    expect(h.store.getState().boundN).toBe(128);
+    h.socket().receive(encodeFrame(0.2, 2, new Uint8Array(SESSION_LAYOUT.n * 3)));
+    expect(frameGap(performance.now(), h.wire.lastFrameAt)).toBe(0);
   });
 
   it("opens the wire on the engine's hello, which a layout leaves open", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
-    expect(h.client.wire.getState().connected).toBe(false);
-    h.socket().receive(hello(256));
-    expect(h.client.wire.getState()).toMatchObject({
-      connected: true,
-      gamma: 2.2,
-      session: 1,
-    });
-    expect(h.store.getState().boundN).toBeNull();
-    h.socket().receive({
-      type: "declare",
-      params: [
-        {
-          name: "layers.base.waves.freq",
-          kind: "float",
-          label: "Freq",
-          default: 3,
-          lo: 0,
-          hi: 10,
-          step: 0.1,
-          decimals: 1,
-          layer: "base",
-          node: "waves",
-        },
-      ],
-    });
-    h.socket().receive({
-      type: "params",
-      values: { "layers.base.waves.freq": 4 },
-    });
-    // The layout after a bind leaves every state as it is.
-    h.socket().receive(bound(64));
-    const wire = h.client.wire;
-    expect(wire.getState().session).toBe(1);
-    const [freq] = wire.getState().params;
-    expect(freq && wire.value(freq)).toBe(4);
-    h.socket().receive({ type: "power", watts: 42, uncapped_watts: 84 });
-    h.socket().receive({
-      type: "status",
-      error: "ZeroDivisionError",
-      source: "render",
-      path: "layers.base",
-    });
-    expect(h.store.getState()).toMatchObject({ watts: 42, uncappedWatts: 84 });
-    expect(wire.getState().error?.text).toBe("ZeroDivisionError");
+    expect(h.wire.getState().connected).toBe(false);
+    h.greet();
+    const hello = first("hello", SESSION_GREETING);
+    expect(h.wire.getState()).toMatchObject({ connected: true, gamma: hello.display_gamma, session: 1 });
+    expect(h.wire.getState().map?.n).toBe(hello.n);
+    const [knob] = h.wire.getState().params;
+    const value = knob && h.wire.value(knob);
+    expect(value).not.toBeUndefined();
+    // The layout after a bind replaces the map and leaves every state as it is.
+    h.socket().receive(SESSION_LAYOUT);
+    expect(h.wire.getState().session).toBe(1);
+    expect(h.wire.getState().map?.n).toBe(SESSION_LAYOUT.n);
+    expect(knob && h.wire.value(knob)).toBe(value);
+    h.socket().receive(SESSION_POWER);
+    expect(h.wire.getState().power).toEqual({ watts: SESSION_POWER.watts, uncapped_watts: SESSION_POWER.uncapped_watts });
   });
 
   it("sends the editor's requests on the same socket, a drag's on the next frame", () => {
@@ -239,16 +169,11 @@ describe("SessionClient", () => {
     h.client.start();
     const first = h.socket();
     first.open();
-    first.receive(hello(256));
-    first.receive(bound(64));
-    first.receive({ type: "power", watts: 1, uncapped_watts: 2 });
+    h.greet();
+    first.receive(SESSION_LAYOUT);
+    first.receive(SESSION_POWER);
     first.close();
-    expect(h.client.wire.getState().connected).toBe(false);
-    expect(h.store.getState()).toMatchObject({
-      boundN: null,
-      watts: null,
-      uncappedWatts: null,
-    });
+    expect(h.wire.getState()).toMatchObject({ connected: false, power: null });
     vi.advanceTimersByTime(999);
     expect(FakeWebSocket.made).toHaveLength(1);
     vi.advanceTimersByTime(1);
@@ -261,6 +186,22 @@ describe("SessionClient", () => {
     expect(FakeWebSocket.made).toHaveLength(3);
     h.socket().open();
     expect(h.socket().types()).toEqual(["bind"]);
+  });
+
+  it("starts the backoff over once a bind works", () => {
+    const h = harness();
+    h.client.start();
+    for (const wait of [1000, 2000]) {
+      h.socket().close();
+      vi.advanceTimersByTime(wait);
+    }
+    h.socket().open();
+    h.greet();
+    h.socket().receive(SESSION_LAYOUT);
+    h.socket().close();
+    const count = FakeWebSocket.made.length;
+    vi.advanceTimersByTime(1000);
+    expect(FakeWebSocket.made).toHaveLength(count + 1);
   });
 
   it("backs off when sessions open but never bind", () => {

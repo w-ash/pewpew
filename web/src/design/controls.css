@@ -319,3 +319,45 @@
 [data-scope="accordion"][data-part="item-indicator"][data-state="closed"] > .icon {
   transform: rotate(-90deg);
 }
+
+/* ---- banners -------------------------------------------------------------------------------- */
+
+/* A strip of words: a bad board under the top bar, a lost connection, a notice. */
+.banner {
+  font: inherit;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  margin: 0;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: 0;
+  background: var(--surface-region);
+  color: var(--danger-fg);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+button.banner {
+  cursor: pointer;
+}
+button.banner:hover {
+  background-image: linear-gradient(var(--state-hover), var(--state-hover));
+}
+.banner[data-tone="info"],
+.banner[data-tone="warning"] {
+  border-radius: var(--radius-inset);
+  background: var(--surface-raised);
+  color: var(--text-1);
+}
+.banner[data-tone="warning"] {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.banner[data-tone="lost"] {
+  background: var(--danger-fill);
+  color: var(--on-danger);
+}
+.banner > .button {
+  margin: calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs)) auto;
+}

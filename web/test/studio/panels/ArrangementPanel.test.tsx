@@ -1,18 +1,17 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { mockCatalog } from "../../../src/studio/mocks/catalog";
 import { ArrangementPanel } from "../../../src/studio/panels/ArrangementPanel";
 import { DEFAULT_ARRANGEMENT, useDoc } from "../../../src/studio/store/doc";
 import type { Arrangement, CompiledRig } from "../../../src/studio/api/types";
-import { threeBarRig } from "../fixtures/rig";
-import { mockApi } from "../mockApi";
+import { partsCatalog, threeBarRig } from "../fixtures/rig";
+import { stubApi } from "../fixtures/api";
 
 test("an import the server rejects is refused, and the page and the draft stay", async () => {
-  mockApi();
+  stubApi();
   useDoc.getState().load(DEFAULT_ARRANGEMENT, { mode: "draft" });
   const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-  const screen = await render(<ArrangementPanel catalog={mockCatalog} rig={null} rigIsCurrent={false} />);
+  const screen = await render(<ArrangementPanel catalog={partsCatalog} rig={null} rigIsCurrent={false} />);
   const input = screen.container.querySelector<HTMLInputElement>('input[type="file"]');
   if (!input) throw new Error("no file input");
   const body = JSON.stringify({ format: "pewpew.arrangement", version: 1, groups: [{ id: "g", preset: "array" }] });
@@ -33,10 +32,10 @@ test("an aimed fixture's pose comes from the compile of this arrangement only, n
   useDoc.getState().load(aimed, { mode: "draft" });
   useDoc.getState().select({ kind: "fixture", id: "a" });
   const rig: CompiledRig = { ...threeBarRig, fixtures: [{ ...threeBarRig.fixtures[1]!, id: "a", group: null }] };
-  const screen = await render(<ArrangementPanel catalog={mockCatalog} rig={rig} rigIsCurrent={false} />);
+  const screen = await render(<ArrangementPanel catalog={partsCatalog} rig={rig} rigIsCurrent={false} />);
   await expect.element(screen.getByRole("button", { name: "Flip" })).toBeDisabled();
   await expect.element(screen.getByText(/This fixture's rotation is an/)).toBeInTheDocument();
-  await screen.rerender(<ArrangementPanel catalog={mockCatalog} rig={rig} rigIsCurrent />);
+  await screen.rerender(<ArrangementPanel catalog={partsCatalog} rig={rig} rigIsCurrent />);
   await expect.element(screen.getByRole("button", { name: "Flip" })).toBeEnabled();
   await expect.element(screen.getByRole("spinbutton", { name: "y" })).toHaveValue("1.2000");
 });
@@ -46,7 +45,7 @@ test("a group explodes into the members the compile names by id, with or without
   useDoc.getState().select({ kind: "group", id: "inner" });
   const { group: _group, ...member } = threeBarRig.fixtures[0]!;
   const rig: CompiledRig = { ...threeBarRig, fixtures: [{ ...member, id: "inner/0" }] };
-  const screen = await render(<ArrangementPanel catalog={mockCatalog} rig={rig} rigIsCurrent />);
+  const screen = await render(<ArrangementPanel catalog={partsCatalog} rig={rig} rigIsCurrent />);
   await screen.getByRole("button", { name: "Explode" }).click();
   const present = useDoc.getState().history.present;
   expect(present.groups.map((g) => g.id)).toEqual(["outer"]);

@@ -1,3 +1,4 @@
+import session from "../../../tests/goldens/session.json";
 import wire from "../../../tests/goldens/wire.json";
 import type { BoardHealth, HealthState } from "../../src/health/health";
 import type { AuraState } from "../../src/aura/aura";
@@ -11,6 +12,16 @@ export const GREETING = wire.greeting as unknown as readonly ServerMessage[];
 /** The golden's later messages: a held trigger, a refusal, a look and a layer refused with their
  * ids, an ack, a render error, a scan and a room layout. */
 export const LATER = wire.later as unknown as readonly ServerMessage[];
+
+/** What a studio session sends a new client (tests/goldens/session.json): the engine's greeting on the
+ * placeholder rig. */
+export const SESSION_GREETING = session.greeting as unknown as readonly ServerMessage[];
+/** The layout after a bind: the bound rig of 16 pixels. */
+export const SESSION_LAYOUT = session.layout as unknown as Message<"layout">;
+/** The power reading of a streamed frame. */
+export const SESSION_POWER = session.power as unknown as Message<"power">;
+/** The session's refusals: of a bind, of the session, of a binary message, and of a request while paused. */
+export const SESSION_REFUSED = session.refused as unknown as Readonly<Record<"bind" | "session" | "message" | "paused", Message<"refused">>>;
 
 /** The first message of `type` in `messages`. */
 export function first<T extends ServerMessage["type"]>(type: T, messages: readonly ServerMessage[] = GREETING): Message<T> {

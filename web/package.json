@@ -8,7 +8,6 @@
   "scripts": {
     "dev": "vite",
     "dev:studio": "vite --mode studio",
-    "dev:mock": "vite --mode mock",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "oxlint",
     "test": "vitest run",
@@ -37,7 +36,6 @@
     "@vitejs/plugin-react": "6.2.1",
     "@vitest/browser-playwright": "5.1.0",
     "babel-plugin-react-compiler": "1.0.0",
-    "msw": "3.0.3",
     "orval": "8.46.0",
     "oxlint": "1.90.0",
     "oxlint-tsgolint": "7.0.2005",

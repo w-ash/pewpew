@@ -18,9 +18,11 @@ import { nowOf } from "../../src/aura/aura";
 import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/stack/catalog";
 import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/stack/stack";
 import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/stack/stack";
-import { asServerMessage, parseTyped, type ClientMessage, type Control, type ServerMessage } from "../../src/wire/protocol";
+import { asServerMessage, encodeFrame, parseFrame, parseTyped, type ClientMessage, type Control, type ServerMessage } from "../../src/wire/protocol";
 import { WireStore } from "../../src/wire/store";
-import { first, GREETING, LATER } from "../fixtures/messages";
+import {
+  first, GREETING, LATER, SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, SESSION_REFUSED,
+} from "../fixtures/messages";
 
 type Message<T extends ServerMessage["type"]> = Extract<ServerMessage, { type: T }>;
 
@@ -121,6 +123,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
       blends: { keys: keys<BlendNote>({ name: true, label: true, doc: true, black: true }) },
     },
   },
+  power: { keys: keys<Message<"power">>({ type: true, watts: true, uncapped_watts: true }) },
   refused: { keys: keys<Message<"refused">>({ type: true, control: true, name: true, id: true, reason: true }) },
   ack: { keys: keys<Message<"ack">>({ type: true, id: true, control: true }) },
 };
@@ -169,14 +172,32 @@ function allShapes(shape: Shape): Shape[] {
   return [shape, ...Object.values(shape.fields ?? {}).flatMap(allShapes)];
 }
 
-test("every message in wire.json has the keys the page's types give, and every shape is in it", () => {
-  const messages = [...GREETING, ...LATER];
+test("every message in wire.json and the session's power has the keys the page's types give, and every shape is in it", () => {
+  const messages = [...GREETING, ...LATER, SESSION_POWER];
   const seen = new Set<Shape>();
   const found = messages.flatMap((msg, i) => mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], seen));
   expect(found).toEqual([]);
   const types = new Set(messages.map((m) => m.type));
   expect(Object.keys(SHAPES).filter((t) => !types.has(t as ServerMessage["type"]))).toEqual([]);
   expect(Object.values(SHAPES).flatMap(allShapes).filter((s) => !seen.has(s))).toEqual([]);
+});
+
+test("every message of a studio session has the keys the page's types give, a refused bind with its issues besides", () => {
+  const { bind, ...others } = SESSION_REFUSED;
+  const { issues, ...plain } = bind as typeof bind & { issues: unknown };
+  expect(Array.isArray(issues)).toBe(true);
+  const found = [...SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, plain, ...Object.values(others)].flatMap((msg, i) =>
+    mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], new Set()),
+  );
+  expect(found).toEqual([]);
+  expect(Object.values(SESSION_REFUSED).map((r) => r.control)).toEqual(["bind", "session", "message", "look"]);
+});
+
+test("a frame's bytes are the <fI header, little-endian, then the RGB the wire reads", () => {
+  const frame = parseFrame(encodeFrame(2.25, 0x01020304, new Uint8Array([1, 2, 3, 4, 5, 6])));
+  expect(frame.t).toBe(2.25);
+  expect(frame.seq).toBe(0x01020304);
+  expect([...frame.rgb]).toEqual([1, 2, 3, 4, 5, 6]);
 });
 
 test("every control the engine takes is a message the page can send, with the same fields", () => {
@@ -187,7 +208,7 @@ test("every control the engine takes is a message the page can send, with the sa
 
 test("every message decodes through the wire and the store, and reads through the domain", () => {
   const store = new WireStore();
-  for (const msg of [...GREETING, ...LATER]) {
+  for (const msg of [...GREETING, ...LATER, SESSION_POWER]) {
     const parsed = asServerMessage(parseTyped(JSON.stringify(msg)));
     expect(parsed).toEqual(msg);
     store.receive(parsed!);
@@ -219,6 +240,7 @@ test("every message decodes through the wire and the store, and reads through th
   expect(store.getState().refusals.set).toMatchObject({
     name: "layers.base.zoo.level", reason: "layers.base.zoo.level must be within 0.0..1.0, got 3.0",
   });
+  expect(store.getState().power).toEqual({ watts: SESSION_POWER.watts, uncapped_watts: SESSION_POWER.uncapped_watts });
   expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.osc.freq" });
   expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.osc.osc.freq" });
 

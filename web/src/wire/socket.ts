@@ -1,9 +1,9 @@
 // A page's one connection to the engine. Engine restarts are routine, so a
 // closed socket reconnects after a second; one that answers with another page
 // build (an upgrade) reloads the tab, since this page cannot drive its wire.
-// A page whose server speaks more than the wire (the studio's `bind`, `power`)
-// sends and reads its own messages through the same connection.
-import { asServerMessage, parseFrame, parseTyped, type ClientMessage, type RequestId, type Sender, type TypedMessage } from "./protocol";
+// A page whose server reads more than the wire (the studio's `bind`) sends its own
+// messages through the same connection.
+import { asServerMessage, parseFrame, parseTyped, type ClientMessage, type RequestId, type Sender } from "./protocol";
 import type { WireStore } from "./store";
 
 export const RECONNECT_MS = 1000;
@@ -18,12 +18,6 @@ export interface SocketOptions {
   readonly reload?: () => void;
   /** Called as each connection opens, before any message on it. */
   readonly onOpen?: () => void;
-  /** The message types the page reads itself, in place of the store: its own (the studio's `power`). */
-  readonly ownTypes?: readonly string[];
-  /** Reads a message of `ownTypes`. */
-  readonly onOwnMessage?: (msg: TypedMessage) => void;
-  /** Called as each connection closes, after the store hears of it. */
-  readonly onClose?: () => void;
   /** The wait before a reconnect, asked at each close; RECONNECT_MS by default. */
   readonly reconnectMs?: () => number;
 }
@@ -82,10 +76,8 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
     ws.onmessage = (ev: MessageEvent) => {
       if (this.ws !== ws) return;
       if (typeof ev.data === "string") {
-        const typed = parseTyped(ev.data);
-        const msg = asServerMessage(typed);
-        if (typed && this.options.ownTypes?.includes(typed.type)) this.options.onOwnMessage?.(typed);
-        else if (msg?.type === "hello" && this.build && msg.build && msg.build !== this.build) this.reload();
+        const msg = asServerMessage(parseTyped(ev.data));
+        if (msg?.type === "hello" && this.build && msg.build && msg.build !== this.build) this.reload();
         else if (msg) {
           this.store.receive(msg);
           if ((msg.type === "ack" || msg.type === "refused") && msg.id !== null) this.answered(msg.id, msg.type === "ack");
@@ -101,7 +93,6 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
       for (const settle of this.asked.values()) settle(false);
       this.asked.clear();
       this.store.disconnected();
-      this.options.onClose?.();
       if (!this.stopped) this.retry = setTimeout(() => this.start(), this.options.reconnectMs?.() ?? RECONNECT_MS);
     };
   }

@@ -3,16 +3,15 @@ import { LooksGroup } from "../../deck/Looks";
 import { listedLooks } from "../../aura/looks";
 import { MadeRow } from "../../deck/Variety";
 import { useDisclosure } from "../../design/Disclosure";
-import { LookKnobs, LookSignals } from "../../params/ParamPanel";
+import { Slot } from "../../app/Slot";
+import { LookKnobs } from "../../params/ParamPanel";
 import { ADD, useLayerSelection } from "../../stack/selection";
 import { AddLayerPanel } from "../../stack/AddLayer";
-import { LayerList } from "../../stack/LayerList";
 import type { ClientMessage, Sender } from "../../wire/protocol";
 import { useStandingAura, useWire, WireContext } from "../../wire/store";
 import { useOnChange } from "../../design/useOnChange";
 import { useContext, useState } from "react";
 import { useLooks } from "../api/queries";
-import { useSession } from "../store/session";
 import { formatW } from "./ReportPanel";
 
 /** The look each session starts in (docs/studio/contracts.md, "WebSocket"). */
@@ -35,7 +34,7 @@ export function EffectPanel() {
   const { store, sender } = wire;
   const aura = useStandingAura();
   const examples = useLooks();
-  const watts = useSession((s) => s.watts);
+  const watts = useWire((s) => s.power?.watts ?? null);
   const session = useWire((s) => s.session);
   const selection = useLayerSelection();
   const [adding, setAdding] = useState(false);
@@ -77,6 +76,22 @@ export function EffectPanel() {
     },
   };
   const looks = listedLooks(Object.keys(examples.data ?? {}), current, pending);
+  const panel = allOpen ? (
+    <AllLooks looks={looks} play={play} triggers={null} onClose={() => setAllOpen(false)} />
+  ) : adding ? (
+    <AddLayerPanel
+      above={selection.id}
+      onClose={() => {
+        setAdding(false);
+        selection.focusOn(ADD);
+      }}
+      onAdded={(id) => {
+        setAdding(false);
+        selection.select(id);
+        selection.focusOn(id);
+      }}
+    />
+  ) : null;
 
   return (
     <div className="studio-panel">
@@ -112,42 +127,20 @@ export function EffectPanel() {
         )}
       </div>
 
-      {allOpen && (
-        <AllLooks
-          looks={looks}
-          play={play}
-          triggers={null}
-          onClose={() => setAllOpen(false)}
+      {aura ? (
+        <Slot
+          panel={panel}
+          head={<LookKnobs />}
+          label="Look editor"
+          selection={selection}
+          onAdd={() => setAdding(true)}
         />
-      )}
-      {adding && !allOpen && (
-        <AddLayerPanel
-          above={selection.id}
-          onClose={() => {
-            setAdding(false);
-            selection.focusOn(ADD);
-          }}
-          onAdded={(id) => {
-            setAdding(false);
-            selection.select(id);
-            selection.focusOn(id);
-          }}
-        />
-      )}
-      {/* The editor stays mounted under a panel, so what is open in it stays open. */}
-      <div hidden={adding || allOpen}>
-        {aura ? (
-          <section className="look-region" aria-label="Look editor">
-            <LookKnobs />
-            <div className="rest">
-              <LayerList selection={selection} onAdd={() => setAdding(true)} />
-              <LookSignals />
-            </div>
-          </section>
-        ) : (
+      ) : (
+        <>
+          {panel}
           <p className="note">Connecting to the engine…</p>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

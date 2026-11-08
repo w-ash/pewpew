@@ -3,12 +3,14 @@ import { ErrorBoundary } from "../../design/ErrorBoundary";
 import { Segments } from "../../design/Segments";
 import type { SelectItem } from "../../design/Select";
 import { useMedia } from "../../design/useMedia";
-import { useWire } from "../../wire/store";
+import { StatusBar } from "../../status/StatusBar";
+import { useConnectionText } from "../../status/connection";
+import { useFrameGap, useFrameValue, useWire, useWireContext } from "../../wire/store";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Color, type PerspectiveCamera, Vector3 } from "three";
-import type { Catalog, CompiledRig } from "../api/types";
+import type { PartsCatalog, CompiledRig } from "../api/types";
 import { entityOf, fixturesOf, poseOf, setPose } from "../editor/arrangement";
 import {
   Gizmo,
@@ -17,7 +19,6 @@ import {
   gizmoActivity,
 } from "../editor/Gizmo";
 import { useDoc } from "../store/doc";
-import { useSession } from "../store/session";
 import { assembliesFor, missingAssemblies } from "./instances";
 import { Rig } from "./Rig";
 import {
@@ -143,10 +144,11 @@ function CameraRig({
 
 interface StageProps {
   rig: CompiledRig | null;
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
 }
 
 export function Stage({ rig, catalog }: StageProps) {
+  const { store } = useWireContext();
   const arrangement = useDoc((s) => s.history.present);
   const selection = useDoc((s) => s.selection);
   const select = useDoc((s) => s.select);
@@ -263,6 +265,7 @@ export function Stage({ rig, catalog }: StageProps) {
             {rig && catalog && (
               <Rig
                 rig={rig}
+                frames={store}
                 catalog={catalog}
                 selected={selected}
                 accent={accent}
@@ -329,6 +332,7 @@ export function Stage({ rig, catalog }: StageProps) {
           </ToggleButton>
         </div>
       </div>
+      <StatusBar planNote={null} />
       <StageStatus
         rig={rig}
         modelError={modelError}
@@ -350,31 +354,19 @@ function StageStatus({
   onRetry: () => void;
   missing: readonly string[];
 }) {
-  const connected = useWire((s) => s.connected);
-  const everOpened = useWire((s) => s.session > 0);
-  const engineError = useWire((s) => s.error?.text ?? null);
-  const boundN = useSession((s) => s.boundN);
-  const t = useSession((s) => s.t);
-  const stalled = useSession((s) => s.stalled);
+  const down = useConnectionText("status");
+  const n = useWire((s) => s.map?.n);
+  const t = useFrameValue((f) => f?.t.toFixed(1) ?? null);
+  const stalled = useFrameGap() > 0;
   return (
     <div className="studio-status t-caption">
       <span data-testid="stage-status">
-        {connected
-          ? boundN !== null
-            ? stalled
-              ? "paused while idle · tap to resume"
-              : `live · ${boundN} px${t !== null ? ` · t=${t.toFixed(1)} s` : ""}`
-            : "binding…"
-          : everOpened
-            ? "disconnected, retrying…"
-            : "connecting…"}
+        {down ??
+          (stalled
+            ? "paused while idle · tap to resume"
+            : `live · ${n} px${t !== null ? ` · t=${t} s` : ""}`)}
         {rig ? ` · ${rig.fixtures.length} fixtures` : ""}
       </span>
-      {engineError && (
-        <span data-tone="error" role="alert">
-          {engineError}
-        </span>
-      )}
       {modelError && (
         <span data-tone="error" role="alert">
           <span>Fixture models did not load: {modelError}</span>

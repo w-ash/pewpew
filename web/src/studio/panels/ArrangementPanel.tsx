@@ -11,7 +11,7 @@ import type {
   Arrangement,
   ArrayGroup,
   AttachmentRef,
-  Catalog,
+  PartsCatalog,
   CompiledRig,
   DataIn,
   Group,
@@ -75,7 +75,7 @@ const count = (hi: number): NumberRange => ({
   periodic: false,
 });
 
-function fixtureTypes(catalog: Catalog | null) {
+function fixtureTypes(catalog: PartsCatalog | null) {
   const list = catalog?.fixture_types ?? [];
   return list.length ? list : [{ id: DEFAULT_TYPE, name: "1M LED Pixel Bar" }];
 }
@@ -85,7 +85,7 @@ export function ArrangementPanel({
   rig,
   rigIsCurrent,
 }: {
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
   rig: CompiledRig | null;
   rigIsCurrent: boolean;
 }) {
@@ -323,7 +323,7 @@ function SelectionEditor({
 }: {
   arrangement: Arrangement;
   selection: Selection;
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
   rig: CompiledRig | null;
   rigIsCurrent: boolean;
   edit: (next: Arrangement, key?: string) => void;
@@ -515,7 +515,7 @@ function Ends({
   ends,
   onChange,
 }: {
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
   ends: Array<[End | RingEnd, string, AttachmentRef]>;
   onChange: (end: End | RingEnd, id: AttachmentRef) => void;
 }) {
@@ -545,7 +545,7 @@ function TypeSelect({
   value,
   onChange,
 }: {
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -568,7 +568,7 @@ function RingEditor({
   onChange,
 }: {
   group: RingGroup;
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
   onChange: (patch: Partial<Group>, key: string) => void;
 }) {
   return (
@@ -631,7 +631,7 @@ function ArrayEditor({
   onChange,
 }: {
   group: ArrayGroup;
-  catalog: Catalog | null;
+  catalog: PartsCatalog | null;
   onChange: (patch: Partial<Group>, key: string) => void;
 }) {
   const [n, m] = group.counts;

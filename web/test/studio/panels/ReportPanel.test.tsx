@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { WireContext, WireStore } from "../../../src/wire/store";
 import { DEFAULT_ARRANGEMENT, useDoc } from "../../../src/studio/store/doc";
 import {
   formatA,
@@ -82,9 +84,14 @@ const report = {
   ],
 };
 
+const wire = { store: new WireStore(), sender: { send() {}, sendLatest() {}, ask: () => Promise.resolve(true) } };
+
+/** The panel on a wire that has sent no power reading. */
+const wired = (ui: ReactNode) => render(<WireContext.Provider value={wire}>{ui}</WireContext.Provider>);
+
 describe("ReportPanel", () => {
   it("leads with the summary, unrounded", async () => {
-    const screen = await render(<ReportPanel stale={false} issues={[]} report={report} />);
+    const screen = await wired(<ReportPanel stale={false} issues={[]} report={report} />);
     const summary = screen.getByRole("region", { name: "Summary" });
     await expect.element(summary.getByText("1,228.8 W")).toBeInTheDocument();
     await expect.element(summary.getByText("51.2 A")).toBeInTheDocument();
@@ -96,7 +103,7 @@ describe("ReportPanel", () => {
   });
 
   it("collapses every section and the warnings by default", async () => {
-    await render(
+    await wired(
       <ReportPanel
         stale={false}
         issues={[
@@ -129,7 +136,7 @@ describe("ReportPanel", () => {
   });
 
   it("says when there is no report", async () => {
-    const screen = await render(<ReportPanel stale={false} issues={[]} report={null} />);
+    const screen = await wired(<ReportPanel stale={false} issues={[]} report={null} />);
     await expect.element(screen.getByText("The server sent no report for this rig.")).toBeInTheDocument();
   });
 });

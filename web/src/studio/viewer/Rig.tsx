@@ -9,10 +9,11 @@ import {
   Matrix4,
   type Object3D,
 } from "three";
-import type { Catalog, CompiledRig } from "../api/types";
+import type { Frame } from "../../wire/protocol";
+import type { WireStore } from "../../wire/store";
+import type { PartsCatalog, CompiledRig } from "../api/types";
 import { type Assembly, type AssemblyPart, readAssembly } from "./assembly";
 import { dragPreview } from "./dragPreview";
-import { frameBus } from "./frameBus";
 import { assembliesFor, buildBatches, type InstanceBatch } from "./instances";
 import { createLedMaterial, setOthersLevel } from "./ledMaterial";
 import {
@@ -55,9 +56,9 @@ function followDrag(mesh: InstancedMesh, batch: InstanceBatch, scratch: { base: 
 }
 
 /** A texture for `layout`, holding the latest frame. */
-function textureFor(layout: LedLayout) {
+function textureFor(layout: LedLayout, frames: WireStore) {
   const texture = createLedTexture(layout);
-  const f = frameBus.frame;
+  const f = frames.getFrame();
   if (f) uploadFrame(texture, layout, f.rgb);
   return texture;
 }
@@ -68,13 +69,15 @@ function layoutKey(layout: LedLayout): string {
 
 interface RigProps {
   rig: CompiledRig;
-  catalog: Catalog;
+  /** Where the newest frame is read, each animation frame. */
+  frames: WireStore;
+  catalog: PartsCatalog;
   selected: ReadonlySet<number>;
   accent: Color;
   onPick: (fixtureIndex: number) => void;
 }
 
-export function Rig({ rig, catalog, selected, accent, onPick }: RigProps) {
+export function Rig({ rig, frames, catalog, selected, accent, onPick }: RigProps) {
   const refs = useMemo(() => assembliesFor(rig, catalog), [rig, catalog]);
   const gltfs = useGLTF(
     refs.map((r) => r.url),
@@ -95,8 +98,8 @@ export function Rig({ rig, catalog, selected, accent, onPick }: RigProps) {
   const layout = useMemo(() => ledLayout(rig.fixtures, rig.n), [rig]);
   // The texture follows the layout's shape, not its identity: a new compile of the same shape keeps it.
   const key = layoutKey(layout);
-  const [shaped, setShaped] = useState(() => ({ key, texture: textureFor(layout) }));
-  if (shaped.key !== key) setShaped({ key, texture: textureFor(layout) });
+  const [shaped, setShaped] = useState(() => ({ key, texture: textureFor(layout, frames) }));
+  if (shaped.key !== key) setShaped({ key, texture: textureFor(layout, frames) });
   const texture = shaped.texture;
   useEffect(() => () => texture.dispose(), [texture]);
 
@@ -104,11 +107,11 @@ export function Rig({ rig, catalog, selected, accent, onPick }: RigProps) {
     () => buildBatches(rig, assemblies),
     [rig, assemblies],
   );
-  const seen = useRef(-1);
+  const seen = useRef<Frame | null>(null);
   useFrame(() => {
-    if (frameBus.version === seen.current) return;
-    seen.current = frameBus.version;
-    const f = frameBus.frame;
+    const f = frames.getFrame();
+    if (f === seen.current) return;
+    seen.current = f;
     if (f) uploadFrame(texture, layout, f.rgb);
   });
 

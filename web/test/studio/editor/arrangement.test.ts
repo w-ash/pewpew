@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Arrangement, RingGroup } from "../../../src/studio/api/types";
-import { mockCompile } from "../../../src/studio/mocks/compile";
-import { threeBarRig } from "../fixtures/rig";
+import { stubCompile, threeBarRig } from "../fixtures/rig";
 import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
 import {
   addFixture,
@@ -35,7 +34,7 @@ const withBar = (): Arrangement => ({
 describe("selection mapping", () => {
   it("maps compiled fixtures to free fixtures and to their groups", () => {
     const a = withBar();
-    const rig = mockCompile(a);
+    const rig = stubCompile(a);
     expect(entityOf(a, rig.fixtures[48]!)).toEqual({
       kind: "fixture",
       id: "bar-1",
@@ -53,7 +52,7 @@ describe("selection mapping", () => {
   });
 
   it("finds every compiled member of a group", () => {
-    const rig = mockCompile(withBar());
+    const rig = stubCompile(withBar());
     expect(
       fixturesOf(rig.fixtures, { kind: "group", id: "outer" }),
     ).toHaveLength(24);
@@ -200,7 +199,7 @@ describe("edits", () => {
 
 describe("explodeGroup", () => {
   it("replaces a group with free fixtures at the server's member poses", () => {
-    const rig = mockCompile(DEFAULT_ARRANGEMENT);
+    const rig = stubCompile(DEFAULT_ARRANGEMENT);
     const next = explodeGroup(DEFAULT_ARRANGEMENT, "inner", rig.fixtures);
     expect(next?.groups.map((g) => g.id)).toEqual(["outer"]);
     expect(next?.fixtures).toHaveLength(24);
@@ -209,7 +208,7 @@ describe("explodeGroup", () => {
     expect(first?.attach).toEqual({ end_a: "point-v0", end_b: "eye-v0" });
     expect(first?.pose).toEqual(matrixPose(rig.fixtures[0]!.matrix));
     // The exploded rig draws the same bars in the same places.
-    const again = mockCompile(next as Arrangement);
+    const again = stubCompile(next as Arrangement);
     const before = rig.fixtures.filter((f) => f.id.startsWith("inner/"));
     const after = again.fixtures.filter((f) => f.id.startsWith("inner-"));
     after.forEach((f, k) => {

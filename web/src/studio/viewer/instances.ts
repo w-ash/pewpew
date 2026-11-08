@@ -9,7 +9,7 @@
  * of its own, because one file serves both ends.
  */
 import { Matrix4 } from "three";
-import type { Catalog, CompiledFixture, CompiledRig } from "../api/types";
+import type { PartsCatalog, CompiledFixture, CompiledRig } from "../api/types";
 import type { Assembly, AssemblyAnchor, PixelAxis } from "./assembly";
 
 export type End = "end_a" | "end_b";
@@ -40,7 +40,7 @@ const baseType = (f: CompiledFixture) => f.base_type_id ?? f.type_id;
 
 function typesFor(
   rig: CompiledRig,
-  catalog: Catalog,
+  catalog: PartsCatalog,
 ): Array<Omit<AssemblyRef, "url"> & { url: string | null }> {
   const out = new Map<
     string,
@@ -66,7 +66,7 @@ function typesFor(
 /** The GLBs a rig needs, fixture types first, in first-use order. */
 export function assembliesFor(
   rig: CompiledRig,
-  catalog: Catalog,
+  catalog: PartsCatalog,
 ): AssemblyRef[] {
   return typesFor(rig, catalog).filter((r): r is AssemblyRef => r.url !== null);
 }
@@ -74,7 +74,7 @@ export function assembliesFor(
 /** The types a rig uses that the server sent no `assembly_url` for, so they are not drawn. */
 export function missingAssemblies(
   rig: CompiledRig,
-  catalog: Catalog,
+  catalog: PartsCatalog,
 ): string[] {
   return typesFor(rig, catalog)
     .filter((r) => r.url === null)

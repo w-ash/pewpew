@@ -9,10 +9,10 @@ import { offSaved } from "../aura/looks";
 import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
 import type { LayerItem } from "../stack/stack";
-import type { Control, ErrorSource, Frame, Sender, ServerMessage } from "./protocol";
+import type { ErrorSource, Frame, RefusedControl, Sender, ServerMessage } from "./protocol";
 
 export interface Refusal {
-  readonly control: Control;
+  readonly control: RefusedControl;
   readonly name: string | null;
   readonly reason: string;
   /** Counts refusals, so the same reason twice is still news. */
@@ -26,6 +26,11 @@ export interface EngineError {
   readonly path: string | null;
 }
 
+export interface PowerState {
+  readonly watts: number;
+  readonly uncapped_watts: number;
+}
+
 export interface WireState {
   readonly connected: boolean;
   /** The engine's display gamma, from the hello; null before one. */
@@ -37,10 +42,12 @@ export interface WireState {
   readonly health: HealthState | null;
   /** What a layer can run; null before the engine sends it. */
   readonly catalog: Catalog | null;
+  /** The streamed frame's estimated draw (the studio's); null before a reading. */
+  readonly power: PowerState | null;
   /** The engine's error, which outlives a refusal. */
   readonly error: EngineError | null;
   /** The latest refusal per control, and per param for a refused `set`. */
-  readonly refusals: Readonly<Partial<Record<Control, Refusal>>>;
+  readonly refusals: Readonly<Partial<Record<RefusedControl, Refusal>>>;
   readonly paramRefusals: Readonly<Record<string, Refusal>>;
   /** Counts hellos: state a page held for the last connection is dropped on a new one. */
   readonly session: number;
@@ -50,7 +57,7 @@ type Listener = () => void;
 
 const INITIAL: WireState = {
   connected: false, gamma: null, map: null, params: [], aura: null, health: null, catalog: null,
-  error: null, refusals: {}, paramRefusals: {}, session: 0,
+  power: null, error: null, refusals: {}, paramRefusals: {}, session: 0,
 };
 
 /** `next`, reusing every part of `prev` that is equal to it, so a message
@@ -174,7 +181,7 @@ export class WireStore {
     this.clearFrame();
     this.update({
       connected: true, gamma, map, params: this.declare([]), aura: null, catalog: null,
-      error: null, refusals: {}, paramRefusals: {}, session: this.state.session + 1,
+      power: null, error: null, refusals: {}, paramRefusals: {}, session: this.state.session + 1,
     });
   }
 
@@ -218,6 +225,11 @@ export class WireStore {
         this.update({ catalog: share(this.state.catalog, catalog) });
         break;
       }
+      case "power": {
+        const { type: _, ...power } = msg;
+        this.update({ power });
+        break;
+      }
       case "refused": {
         if (msg.control === null) break; // a request whose `type` is not text, which this page never sends
         const refusal: Refusal = { control: msg.control, name: msg.name ?? null, reason: msg.reason, seq: ++this.seq };
@@ -250,7 +262,7 @@ export class WireStore {
   /** The socket closed: the engine's error and health died with it, and the next engine sends its own. */
   disconnected(): void {
     this.lastFrameAt = 0;
-    this.update({ connected: false, error: null, health: null });
+    this.update({ connected: false, power: null, error: null, health: null });
   }
 }
 
@@ -354,19 +366,19 @@ export function useFrameValue<T>(select: (f: Frame | null) => T): T {
   return useSyncExternalStore(store.subscribeFrame, () => select(store.getFrame()));
 }
 
-function latest(s: WireState, pick: (c: Control) => boolean): Refusal | null {
+function latest(s: WireState, pick: (c: RefusedControl) => boolean): Refusal | null {
   let found: Refusal | null = null;
   for (const r of Object.values(s.refusals)) if (r && pick(r.control) && (!found || r.seq > found.seq)) found = r;
   return found;
 }
 
 /** The latest refusal of any of `controls`, or null. */
-export function useRefusal(...controls: Control[]): Refusal | null {
+export function useRefusal(...controls: RefusedControl[]): Refusal | null {
   return useWire((s) => latest(s, (c) => controls.includes(c)));
 }
 
 /** The latest refusal of any control but `controls`, or null. */
-export function useRefusalExcept(...controls: Control[]): Refusal | null {
+export function useRefusalExcept(controls: readonly RefusedControl[]): Refusal | null {
   return useWire((s) => latest(s, (c) => !controls.includes(c)));
 }
 

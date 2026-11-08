@@ -1,7 +1,6 @@
 import { BoxGeometry, Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { mockCatalog } from "../../../src/studio/mocks/catalog";
-import { threeBarRig } from "../fixtures/rig";
+import { partsCatalog, threeBarRig } from "../fixtures/rig";
 import type { Assembly } from "../../../src/studio/viewer/assembly";
 import {
   anchorMatrix,
@@ -43,18 +42,18 @@ const assemblies = new Map([
 
 describe("assembliesFor", () => {
   it("lists each GLB a rig needs once, fixture types first", () => {
-    expect(assembliesFor(threeBarRig, mockCatalog).map((r) => r.id)).toEqual([
+    expect(assembliesFor(threeBarRig, partsCatalog).map((r) => r.id)).toEqual([
       "clen-rgbw-bar-1m",
       "point-v0",
       "eye-v0",
     ]);
-    expect(missingAssemblies(threeBarRig, mockCatalog)).toEqual([]);
+    expect(missingAssemblies(threeBarRig, partsCatalog)).toEqual([]);
   });
 
   it("leaves out a type the server has no assembly for, and names it", () => {
     const catalog = {
-      ...mockCatalog,
-      attachment_types: mockCatalog.attachment_types.map((a) =>
+      ...partsCatalog,
+      attachment_types: partsCatalog.attachment_types.map((a) =>
         a.id === "eye-v0" ? { ...a, digest: null, assembly_url: null } : a,
       ),
     };

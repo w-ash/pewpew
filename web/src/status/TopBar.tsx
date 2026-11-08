@@ -7,12 +7,12 @@ import type { IconName } from "../design/Icon";
 import { Blackout } from "../deck/Blackout";
 import { CUES_ABOUT } from "../deck/Triggers";
 import { useLayoutMode } from "../layout/LayoutMode";
+import { useConnectionText } from "./connection";
 import { HealthChip } from "./HealthChip";
 
 /** The connection while there is none: the look's header names what plays once there is. */
 function Connection() {
-  const word = useWire((s) => (s.connected ? null : s.session ? "offline" : "connecting…"));
-  return <span className="connection">{word}</span>;
+  return <span className="connection">{useConnectionText("chip")}</span>;
 }
 
 /** A mode the aura is in, as a badge, then the "?" that opens what it means. */

@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-// The studio's end-to-end tests, against the studio page in mock mode.
+// The end-to-end tests, against the studio's dev server.
 const PORT = 5179;
 
 export default defineConfig({
@@ -12,7 +12,7 @@ export default defineConfig({
     browserName: "chromium",
   },
   webServer: {
-    command: `pnpm exec vite --mode mock --port ${PORT} --strictPort --host 127.0.0.1`,
+    command: `pnpm exec vite --mode studio --port ${PORT} --strictPort --host 127.0.0.1`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: false,
     timeout: 60_000,

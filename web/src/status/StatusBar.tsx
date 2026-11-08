@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatValue } from "../params/kinds";
 import { caption } from "../params/schema";
 import { layerOf, nodeAt, type LayerItem } from "../stack/stack";
 import { setParam } from "../wire/protocol";
-import { useLayers, useRefusalExcept, useSender, useWire, type EngineError, type Refusal } from "../wire/store";
+import { useLayers, useSender, useWire, type EngineError, type Refusal } from "../wire/store";
 import { Button } from "../design/Button";
 import { Details } from "../design/Details";
 import { focusParam } from "../design/useFocusKeeper";
 import { FINE_POINTER, useMedia } from "../design/useMedia";
 import { useOnChange } from "../design/useOnChange";
 import { EDIT_MS, useLastSet, type LastSet } from "../params/lastSet";
-
-const REFUSAL_MS = 4000;
+import { useShownRefusal } from "./refusal";
 
 /** The bar's lines: a refusal, else the engine's error, else the plan note.
  * A layer that raises gets what the room shows and what to do first, then
@@ -64,8 +63,7 @@ function blamed(last: LastSet | null, error: EngineError | null, errorAt: number
 }
 
 /** The engine's error, which persists until the engine clears it, the plan
- * note, and a refusal, which borrows the bar for REFUSAL_MS. A param, the
- * look editor and the add-layer panel show their own refusals instead. The
+ * note, and a refusal, which borrows the bar (`useShownRefusal`). The
  * engine's own text follows the lead, folded under "details", so the bar
  * leaves the stage in view. A render error just after a knob of the node
  * that raised was set names the knob, and offers its value back; putting
@@ -82,14 +80,7 @@ export function StatusBar({ planNote, coverRef }: { planNote: string | null; cov
   const last = useLastSet();
   const [errorAt, setErrorAt] = useState(0);
   useOnChange(error, () => setErrorAt(performance.now()));
-  const refusal = useRefusalExcept("set", "save", "delete", "rename", "cycle", "favorite", "fade", "add_layer");
-  const [shown, setShown] = useState<Refusal | null>(null);
-  useOnChange(refusal, () => setShown(refusal));
-  useEffect(() => {
-    if (!shown) return;
-    const id = setTimeout(() => setShown(null), REFUSAL_MS);
-    return () => clearTimeout(id);
-  }, [shown]);
+  const shown = useShownRefusal();
   const edit = shown ? null : blamed(last, error, errorAt);
   const value = (v: unknown) => (edit ? formatValue(edit.p, v as never) : "");
   const [lead, detail] = barLines(shown, error, layers, looks, planNote, edit && `${caption(edit.p).toLowerCase()} went to ${value(edit.to)}`);

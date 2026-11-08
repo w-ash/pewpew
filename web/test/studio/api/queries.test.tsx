@@ -5,7 +5,7 @@ import { renderHook } from "vitest-browser-react";
 import { createQueryClient, useCompiled } from "../../../src/studio/api/queries";
 import type { Arrangement } from "../../../src/studio/api/types";
 import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
-import { mockApi } from "../mockApi";
+import { stubApi } from "../fixtures/api";
 
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={createQueryClient()}>{children}</QueryClientProvider>;
@@ -18,7 +18,7 @@ const renderCompiled = () =>
   });
 
 test("useCompiled keeps the last good rig after the server rejects an edit", async () => {
-  mockApi();
+  stubApi();
   const { result, rerender } = await renderCompiled();
   await vi.waitFor(() => expect(result.current.current).toBe(true));
   const good = result.current.rig;
@@ -31,7 +31,7 @@ test("useCompiled keeps the last good rig after the server rejects an edit", asy
 });
 
 test("useCompiled compiles once after a run of quick edits", async () => {
-  const asked = mockApi();
+  const asked = stubApi();
   const { result, rerender } = await renderCompiled();
   await vi.waitFor(() => expect(result.current.current).toBe(true));
   for (const level of [0.2, 0.4, 0.6, 0.8]) {
@@ -42,7 +42,7 @@ test("useCompiled compiles once after a run of quick edits", async () => {
 });
 
 test("useCompiled compiles nothing for a new name: the compile never reads it", async () => {
-  const asked = mockApi();
+  const asked = stubApi();
   const { result, rerender } = await renderCompiled();
   await vi.waitFor(() => expect(result.current.current).toBe(true));
   const rig = result.current.rig;

@@ -7,22 +7,14 @@ import { createQueryClient } from "./api/queries";
 import "../styles.css";
 import "./studio.css";
 
-async function start() {
-  if (import.meta.env.MODE === "mock") {
-    const { worker } = await import("./mocks/browser");
-    await worker.start({ onUnhandledFrame: "bypass", quiet: true });
-  }
-  const root = document.getElementById("root");
-  if (!root) throw new Error("Root element not found");
-  createRoot(root).render(
-    <StrictMode>
-      <QueryClientProvider client={createQueryClient()}>
-        <AppBoundary>
-          <App />
-        </AppBoundary>
-      </QueryClientProvider>
-    </StrictMode>,
-  );
-}
-
-void start();
+const root = document.getElementById("root");
+if (!root) throw new Error("Root element not found");
+createRoot(root).render(
+  <StrictMode>
+    <QueryClientProvider client={createQueryClient()}>
+      <AppBoundary>
+        <App />
+      </AppBoundary>
+    </QueryClientProvider>
+  </StrictMode>,
+);

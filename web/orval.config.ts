@@ -1,8 +1,7 @@
 import { defineConfig } from "orval";
 
 // ../openapi.json is written by `scripts/export_openapi.py`; `pnpm generate`
-// rewrites it and src/studio/api/generated. The studio's msw mocks live in
-// src/studio/mocks.
+// rewrites it and src/studio/api/generated.
 export default defineConfig({
   studio: {
     input: { target: "../openapi.json" },

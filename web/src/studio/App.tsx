@@ -1,10 +1,10 @@
 import { ArmStatus } from "../design/press";
 import { Badge } from "../design/Badge";
-import { IconButton } from "../design/Button";
+import { Banner } from "../design/Banner";
 import { StepStatus } from "../design/StepStatus";
 import { useShortcuts } from "../design/shortcuts";
-import { useMedia } from "../design/useMedia";
-import { useRefusalExcept, WireContext } from "../wire/store";
+import { useMedia, WIDE } from "../design/useMedia";
+import { WireContext } from "../wire/store";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api/fetch";
 import { getArrangement } from "./api/endpoints";
@@ -27,10 +27,6 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "report", label: "Report" },
   { id: "share", label: "Share" },
 ];
-
-/** Where the stage sits beside the side card (studio.css), so the page's parts lay out as on a wide
- * control page (`data-wide`). */
-const WIDE = "(min-width: 1024px)";
 
 const SHARE_PATH = /^\/a\/([A-Za-z0-9_-]{22})\/?$/;
 
@@ -119,9 +115,6 @@ function Studio({ session }: { session: SessionClient }) {
     current,
     answered,
   } = useCompiled(arrangement, share.mode !== "loading");
-  // The editor shows a refused knob and a refused layer in place.
-  const refusal = useRefusalExcept("set", "add_layer");
-  const [showRefusal, setShowRefusal] = useState(false);
 
   useSettledPreview(answered);
   useSharedLink(setNotice);
@@ -137,14 +130,6 @@ function Studio({ session }: { session: SessionClient }) {
     if (current) session.bind(arrangement);
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- bind follows each accepted compile, not each edit
   }, [rig, current]);
-
-  useEffect(() => {
-    if (!refusal) return;
-    // oxlint-disable-next-line react/set-state-in-effect -- a refusal shows its banner for 4 s, then hides it by timer
-    setShowRefusal(true);
-    const timer = setTimeout(() => setShowRefusal(false), 4000);
-    return () => clearTimeout(timer);
-  }, [refusal]);
 
   const compileError =
     compiled.error instanceof ApiError ? compiled.error : null;
@@ -206,9 +191,6 @@ function Studio({ session }: { session: SessionClient }) {
             {rig && " The view shows the last one that did."}
           </Banner>
         )}
-        {showRefusal && refusal && (
-          <Banner tone="warning">{refusal.reason}</Banner>
-        )}
 
         <div
           role="tablist"
@@ -263,29 +245,6 @@ function Studio({ session }: { session: SessionClient }) {
       </aside>
       <ArmStatus />
       <StepStatus />
-    </div>
-  );
-}
-
-function Banner({
-  children,
-  tone,
-  onDismiss,
-}: {
-  children: React.ReactNode;
-  tone: "info" | "warning" | "error";
-  onDismiss?: () => void;
-}) {
-  return (
-    <div
-      role={tone === "info" ? "status" : "alert"}
-      className="studio-banner"
-      data-tone={tone}
-    >
-      <span>{children}</span>
-      {onDismiss && (
-        <IconButton icon="close" label="Dismiss" onPress={onDismiss} />
-      )}
     </div>
   );
 }
