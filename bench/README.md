@@ -135,8 +135,8 @@ appends an audit record (`pewpew.audit`, `$PEWPEW_AUDIT_LOG`). A run writes
 ## bench_soak.py — the live rig soak and ADR-010's GC retest
 
 Runs the whole live rig as `python -m pewpew run` wires it, for hours: the
-60-bar example room (or `--room`), DDP to its boards (or `--loopback`, a
-local UDP listener per board), the preview with a control client and a
+60-bar example canopy arrangement (or `--map`), DDP to its controllers (or
+`--loopback`, a local UDP listener per controller), the preview with a control client and a
 churn client that connects, drags a slider and disconnects, look recalls
 with fades, armed trigger fires, and several hot reloads of a pattern copy
 it edits. All schedules come from `--seed`. It records GC collections per

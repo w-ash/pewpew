@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from fakes import bar, room
+from fakes import arrangement, bar, room
 from pewpew import boards
 from pewpew.__main__ import main
 
@@ -137,16 +137,26 @@ def test_the_command_takes_boards_from_a_list_or_a_room(tmp_path, monkeypatch, c
     assert rc == 0 and http.uploads == []
     assert capsys.readouterr().out.count("would upload") == 4
 
+    rig_file = tmp_path / "rig.arrangement.json"
+    rig_file.write_text(json.dumps(arrangement(bar())))
+    monkeypatch.setattr(boards, "UrllibHttp", lambda: FakeHttp({"10.0.0.11": board_files()}))
+    assert main(["boards", "backup", str(tmp_path / "new"), "--map", str(rig_file)]) == 0
+    assert (tmp_path / "new/10.0.0.11/cfg.json").exists()
+
+
+def test_the_old_room_flag_still_works_with_a_warning(tmp_path, monkeypatch, capsys):
     room_file = tmp_path / "room.json"
     room_file.write_text(json.dumps(room(bar())))
     monkeypatch.setattr(boards, "UrllibHttp", lambda: FakeHttp({"10.0.0.11": board_files()}))
     assert main(["boards", "backup", str(tmp_path / "new"), "--room", str(room_file)]) == 0
+    err = capsys.readouterr().err
+    assert "--room is the old name of --map" in err and "this is a room map" in err
     assert (tmp_path / "new/10.0.0.11/cfg.json").exists()
 
 
 @pytest.mark.parametrize("extra, message", [
-    ([], "one of the arguments --room --board is required"),
-    (["--room", "r.json", "--board", "10.0.0.11"], "argument --board: not allowed with argument --room"),
+    ([], "one of the arguments --map --room --board is required"),
+    (["--map", "r.json", "--board", "10.0.0.11"], "argument --board: not allowed with argument --map"),
 ])
 def test_a_board_list_needs_exactly_one_source(tmp_path, extra, message, capsys):
     with pytest.raises(SystemExit) as exc:

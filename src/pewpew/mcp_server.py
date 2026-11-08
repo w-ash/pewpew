@@ -135,7 +135,7 @@ Cursor = Annotated[str | None, Field(description="The next_cursor of the page be
 Explain = Annotated[bool, Field(description="Also describe the look in words, knob by knob; each look of a "
                                             "looks file")]
 MapArg = Annotated[str, Field(
-    description="Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
+    description="Where it renders: line:N, grid:WxH, lattice:N, or an arrangement file (.json)",
     examples=["grid:16x16", "line:64"],
 )]
 Seconds = Annotated[float, Field(gt=0, le=MAX_SECONDS, description="Seconds to render; flashing needs at least 1")]

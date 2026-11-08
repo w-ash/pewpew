@@ -7,10 +7,10 @@ with hand-written patterns, ADR-025). This bench runs the whole aura rig as `pyt
 (`pewpew.__main__.main`, called in-process), and drives it the way an operator
 does:
 
-  room      the 60-bar example room (`examples/room-60-bars.json`) or `--room`;
-            DDP to its boards at `--ddp-fps`, or with `--loopback` to a local
-            UDP listener per board that counts packets and PUSH frames, so it
-            runs without hardware
+  rig       the 60-bar example canopy (`examples/canopy-60-bars.arrangement.json`)
+            or `--map`; DDP to its controllers at `--ddp-fps`, or with
+            `--loopback` to a local UDP listener per controller that counts
+            packets and PUSH frames, so it runs without hardware
   preview   the control page server, with two scripted websocket clients: a
             control client connected for the whole run, and a churn client
             that connects, drags a slider (`set` at 20 Hz for 5 s, which the
@@ -92,7 +92,7 @@ from bench.common import gather_meta
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = Path(__file__).parent / "results"
-DEFAULT_ROOM = ROOT / "examples" / "room-60-bars.json"
+DEFAULT_MAP = ROOT / "examples" / "canopy-60-bars.arrangement.json"
 
 
 def shown(path: Path) -> str:
@@ -471,24 +471,26 @@ def sample_row(rec: Recorder, since: tuple[int, int], gc_before: list[int],
 
 
 def prepare(args: argparse.Namespace, tmp: Path, ports: list[int] | None) -> tuple[Path, Path]:
-    """Write the looks file and (loopback) the room with every board moved
-    to its local listener. Returns (looks file, room file)."""
+    """Write the looks file and (loopback) the arrangement with every
+    controller moved to its local listener. Returns (looks file, map file)."""
     looks_dir = tmp / "looks"
     looks_dir.mkdir()
     looks = looks_dir / "looks.json"
     looks.write_text(json.dumps(looks_doc(), indent=2) + "\n")
     if ports is None:
-        return looks, args.room
-    doc = json.loads(args.room.read_text())
-    doc["boards"] = {name: f"127.0.0.1:{port}" for name, port in zip(doc["boards"], ports)}
+        return looks, args.map
+    doc = json.loads(args.map.read_text())
+    hosted = [c for c in doc["controllers"] if c.get("host")]
+    for controller, port in zip(hosted, ports):
+        controller["host"] = f"127.0.0.1:{port}"
     plan = doc.get("plan")
     if isinstance(plan, dict) and isinstance(plan.get("image"), str):
-        plan["image"] = str((args.room.parent / plan["image"]).resolve())
-    room_dir = tmp / "room"
-    room_dir.mkdir()
-    room = room_dir / "room.json"
-    room.write_text(json.dumps(doc, indent=2) + "\n")
-    return looks, room
+        plan["image"] = str((args.map.parent / plan["image"]).resolve())
+    rig_dir = tmp / "rig"
+    rig_dir.mkdir()
+    rig = rig_dir / "rig.arrangement.json"
+    rig.write_text(json.dumps(doc, indent=2) + "\n")
+    return looks, rig
 
 
 def free_port() -> int:
@@ -499,19 +501,20 @@ def free_port() -> int:
 
 def run(args: argparse.Namespace) -> None:
     from pewpew import audit
-    from pewpew.room.map import load_room
+    from pewpew.rig.runtime import ddp_targets, load_rig, target_names, wled_plan
 
-    room, _ = load_room(args.room)
+    rig, _ = load_rig(args.map)
+    boards = ddp_targets(rig)
     schedule = build_schedule(args.duration, args.seed)
     kinds = collections.Counter(e["kind"] for e in schedule)
     port = args.port or free_port()
-    print(f"room {args.room}: {room.n} px on {len(room.boards)} boards; "
+    print(f"rig {args.map}: {rig.n} px on {len(boards)} boards; "
           f"render {args.fps:g} fps, DDP {args.ddp_fps:g} fps; {args.duration:g} s "
           f"({args.duration / 3600:.2f} h), seed {args.seed}")
     if args.loopback:
         print("  loopback: every board moves to a local UDP listener; nothing leaves this machine")
     else:
-        for line in room.plan(args.ddp_fps):
+        for line in wled_plan(rig, args.ddp_fps):
             print(f"  {line}")
     print(f"  preview on 127.0.0.1:{port}; scripted: "
           + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
@@ -537,12 +540,12 @@ def run(args: argparse.Namespace) -> None:
     if args.loopback:
         os.environ[audit.ENV_VAR] = str(tmp / "audit.jsonl")  # loopback is not hardware
     else:
-        log = audit.record("bench-soak", argv=sys.argv, targets=[b.spec for b in room.boards],
-                           fps=args.ddp_fps, duration_s=args.duration, room=shown(args.room))
+        log = audit.record("bench-soak", argv=sys.argv, targets=[b.spec for b in boards],
+                           fps=args.ddp_fps, duration_s=args.duration, map=shown(args.map))
         print(f"audit record appended to {log}")
 
     config = {
-        "mode": meta["mode"], "room": shown(args.room), "boards": list(room.board_names),
+        "mode": meta["mode"], "map": shown(args.map), "boards": list(target_names(rig)),
         "fps": args.fps, "ddp_fps": args.ddp_fps, "duration_s": args.duration,
         "sample_s": SAMPLE_S, "seed": args.seed, "preview_port": port,
         "master_cap": args.master_cap, "looks": looks_doc(),
@@ -550,7 +553,7 @@ def run(args: argparse.Namespace) -> None:
         "recall_every_s": RECALL_EVERY_S, "fire_every_s": FIRE_EVERY_S,
     }
     driver_cfg = {
-        "packets_per_frame": [b.packets_per_frame for b in room.boards],
+        "packets_per_frame": [b.packets_per_frame for b in boards],
         "schedule": schedule,
         "out_json": str(out_json), "meta": meta, "config": config, "parent_pid": os.getpid(),
     }
@@ -560,13 +563,13 @@ def run(args: argparse.Namespace) -> None:
         cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
     )
     try:
-        # The child binds the loopback listeners first; their ports go in the room.
+        # The child binds the loopback listeners first; their ports go in the arrangement.
         ready = _last_json(child.stdout.readline(), "ready")
         if not ready or (args.loopback and not ready.get("ports")):
             raise SystemExit("bench_soak: the driver process did not start")
-        looks, room_file = prepare(args, tmp, ready.get("ports"))
+        looks, map_file = prepare(args, tmp, ready.get("ports"))
         rig_argv = [
-            "run", str(looks), "--room", str(room_file),
+            "run", str(looks), "--map", str(map_file),
             "--fps", f"{args.fps:g}", "--ddp-fps", f"{args.ddp_fps:g}",
             "--preview", "--port", str(port), "--trigger-log", str(tmp / "triggers.jsonl"),
             "--armed", "--keep-awake", "--master-cap", f"{args.master_cap:g}",
@@ -1011,7 +1014,7 @@ def _dist_row(label: str, d: dict | None, fmt: str = ".2f") -> str:
 
 
 LOOPBACK_NOTE = """\
-**Loopback run: no Wi-Fi, no WLED.** Every board in the room was moved to a
+**Loopback run: no Wi-Fi, no WLED.** Every controller of the rig was moved to a
 UDP listener on 127.0.0.1 in the driver process, which counts packets and
 PUSH frames. What this answers for ADR-010: how often the collector runs
 and how long it pauses with the real rig's allocations in play (DDP sink,
@@ -1039,7 +1042,7 @@ def render_md(doc: dict, json_name: str) -> str:
          f"GC thresholds {tuple(meta['gc_thresholds'])}"),
         f"- rig: `python -m pewpew {' '.join(cfg.get('rig_argv', []))}`" if cfg.get("rig_argv") else "- rig: -",
         (f"- mode: {'loopback (local UDP listeners)' if loopback else 'DDP to the real boards'}; "
-         f"room `{Path(cfg['room']).name}`, boards {', '.join(cfg['boards'])}; "
+         f"map `{Path(cfg.get('map') or cfg['room']).name}`, boards {', '.join(cfg['boards'])}; "
          f"render {cfg['fps']:g} fps, DDP {cfg['ddp_fps']:g} fps"),
         f"- run: {p['span_s'] / 60:.1f} min of {cfg['duration_s'] / 60:.1f} planned"
         + ("; **stopped early**" if s["stopped_early"] else "")
@@ -1159,7 +1162,8 @@ def render_md(doc: dict, json_name: str) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--room", type=Path, default=DEFAULT_ROOM, help="room map file (default: the 60-bar example)")
+    ap.add_argument("--map", type=Path, default=DEFAULT_MAP,
+                    help="arrangement file whose controllers have hosts (default: the 60-bar example canopy)")
     ap.add_argument("--loopback", action="store_true", help="send DDP to local UDP listeners, not the boards")
     ap.add_argument("--duration", type=float, default=DURATION_S, help=f"seconds (default {DURATION_S:g})")
     ap.add_argument("--fps", type=float, default=FPS, help=f"render rate (default {FPS:g})")

@@ -2,13 +2,14 @@
 board's config: `python -m pewpew boards`.
 
     python -m pewpew boards scan [--subnet 192.168.8.0/24] [--json]
-    python -m pewpew boards backup DIR --room ROOM.json
-    python -m pewpew boards restore DIR --room ROOM.json --dry-run
+    python -m pewpew boards backup DIR --map RIG.arrangement.json
+    python -m pewpew boards restore DIR --map RIG.arrangement.json --dry-run
     python -m pewpew boards restore DIR --board 10.0.0.11 --board 10.0.0.12
 
-The boards come from `--room` (its `boards`) or from `--board`, given as
-HOST[:PORT] or as `run --ddp`'s HOST[:PORT]=START+COUNT; only the host is
-used.
+The boards come from `--map`, an arrangement (each controller's `host`;
+`--room` is its old name, for one more release), or from `--board`, given
+as HOST[:PORT] or as `run --ddp`'s HOST[:PORT]=START+COUNT; only the host
+is used.
 Files go to DIR/<host>/cfg.json and DIR/<host>/presets.json.
 
 Backup is tier 0 (read-only): `GET /cfg.json` and `GET /presets.json`,
@@ -65,9 +66,8 @@ from pewpew import audit, wled
 from pewpew.audio.net import NodeInfo, node_lines
 from pewpew.cli_args import parsed_by
 from pewpew.health import BoardHealth, extract
-from pewpew.jsonfile import loads, read_or_exit
+from pewpew.jsonfile import loads
 from pewpew.result import Result
-from pewpew.room.map import load_room
 from pewpew.sinks.ddp import parse_board, parse_target
 
 FILES = ("presets.json", "cfg.json")  # restore order: cfg.json reboots the board
@@ -127,7 +127,10 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
         p = actions.add_parser(name, help=text)
         p.add_argument("dir", type=Path, metavar="DIR", help="the backup folder, one DIR/<host>/ per board")
         given = p.add_mutually_exclusive_group(required=True)
-        given.add_argument("--room", type=Path, default=None, metavar="PATH", help="take the boards from a room map")
+        given.add_argument("--map", type=Path, default=None, metavar="PATH",
+                           help="take the boards from an arrangement: each controller's host")
+        given.add_argument("--room", type=Path, default=None, metavar="PATH",
+                           help="deprecated: the old name of --map, dropped in the next release")
         given.add_argument("--board", action="append", default=[], metavar="BOARD",
                            help="a board, as HOST[:PORT] or HOST[:PORT]=START+COUNT; repeat once per board")
         if name == "restore":
@@ -135,10 +138,16 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def hosts_of(args: argparse.Namespace) -> list[str]:
-    """The board hosts from `--room` or `--board`, in order, each once."""
+    """The board hosts from `--map` or `--board`, in order, each once."""
+    path = args.map if args.map is not None else args.room
     if args.room is not None:
-        room, _ = read_or_exit(args.room, "room map", lambda: load_room(args.room))
-        hosts = [b.host for b in room.boards]
+        print("warning: --room is the old name of --map, and the next release drops it; use --map",
+              file=sys.stderr, flush=True)
+    if path is not None:
+        from pewpew.run import map_geometry  # the rig stack loads only here
+
+        rig = map_geometry(str(path)).rig
+        hosts = [c.host for c in rig.controllers if c.host is not None] if rig is not None else []
     else:
         hosts = []
         for spec in args.board:
@@ -147,7 +156,7 @@ def hosts_of(args: argparse.Namespace) -> list[str]:
             except ValueError as exc:
                 raise SystemExit(f"--board: {exc}") from None
     if not hosts:
-        raise SystemExit("the room map names no boards")
+        raise SystemExit("the arrangement gives no controller a host")
     return list(dict.fromkeys(hosts))
 
 

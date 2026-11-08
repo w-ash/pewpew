@@ -2,7 +2,7 @@
 one frame per slot.
 
 A `Compositor` is a `pewpew.render.Live` source, so the loop, the
-crossfader and a room map reload drive it as they would one `Renderer`.
+crossfader and a rig reload drive it as they would one `Renderer`.
 Its layers run bottom to top (`layers[0]` is the bottom). Each is a full
 `Renderer` that runs the layer's program bound to the map
 (`pewpew.fx.bound_program.BoundProgram`), seeded by `layer_seed` from the

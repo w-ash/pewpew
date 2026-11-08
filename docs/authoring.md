@@ -9,12 +9,12 @@ check and play it the same way.
 ```
 $ uv run python -m pewpew run examples/tide.look.json --preview
 $ uv run python -m pewpew run mine.look.json --map line:64 --preview
-$ uv run python -m pewpew run looks.json --room room.json
+$ uv run python -m pewpew run looks.json --map examples/canopy-60-bars.arrangement.json
 ```
 
 `run LOOKS` plays a looks file, a version-4 book of looks (a `.look.json`
 file is one), starting in its `current` look. The control page's saves go
-to that same file. With no `--map` and no `--room` the map is `grid:16x16`.
+to that same file. With no `--map` the map is `grid:16x16`.
 The other flags are in `run --help`.
 
 You change a look with the control page, the `fx` verbs (§6) or an agent
@@ -88,26 +88,35 @@ open tab follows whichever one moved last.
 ## 3. Rooms and maps
 
 `--map SPEC` is `line:64`, `grid:16x16`, `lattice:8` or an arrangement
-`.json`. `--room PATH` runs a look on a room map file: straight fixtures in
-meters, each with its board, output and chain position
-(`examples/room-60-bars.json`; the format is in `src/pewpew/room/map.py`).
-The room gives the mapping and the DDP boards; `--dry-run` prints the plan,
-`--no-ddp --preview` simulates without sending, and saving the file applies
-it live (a bad save keeps the last good map and shows why). Every layer
-renders per pixel; the room's fixtures give wiring, power limits and DDP
-(ADR-007).
+`.json`. An arrangement is the one way to run a real rig
+(`examples/canopy-60-bars.arrangement.json`): its fixtures give the mapping,
+its controllers give the DDP boards (each with a `host`), and its floor plan
+is drawn in the preview. `--dry-run` prints the plan, `--no-ddp --preview`
+simulates without sending, and saving the file applies it live (a bad save
+keeps the last good map and shows why). Every layer renders per pixel; the
+fixtures give wiring, power limits and DDP (ADR-007). `--max-watts` works on
+any arrangement. `--ddp` is refused with controllers that have hosts. A run
+refuses to stream when the arrangement breaks a firmware pixel cap
+(`output_over_cap`, `controller_over_cap`) or a wired controller has no host.
 
-A board in the room's `boards` is an IPv4 address or the board's mDNS name,
-such as `"A": "pewpew-1.local"`. Use the name on a network without DHCP
+A room map file (the old format) passed to `--map` is migrated in memory with
+a warning. `--room PATH` is the old name of `--map` and goes in the next
+release, as does reading a room file. Migrate once:
+`python -m pewpew rig migrate-room ROOM.json -o OUT.arrangement.json`.
+
+A controller's `host` is an IPv4 address or the board's mDNS name,
+such as `"host": "pewpew-1.local"`. Use the name on a network without DHCP
 reservations: pewpew looks it up again when the board stops answering, so a
 board that comes back on a new address keeps getting frames. While DDP is
 on, the health button in the page's top bar opens one row per board with
 what is wrong and what to do, and a banner names a board that has gone bad.
 "Find boards" in that panel, or `uv run python -m pewpew boards scan` in a
-terminal, lists the WLED boards on the network.
+terminal, lists the WLED boards on the network. "use for A" there rewrites controller
+A's `host` in the arrangement file; it is refused on a room file (migrate it
+first) and in an `--unattended` run.
 
-Coordinates are Contain-normalized: the room's long axis spans 0–1 and the
-short axis is centred inside it, so (0.5, 0.5) is the middle of the room but
+Coordinates are Contain-normalized: the rig's long axis spans 0–1 and the
+short axis is centred inside it, so (0.5, 0.5) is the middle of the rig but
 `y` may run only from, say, 0.12 to 0.88. Don't assume both axes reach 0 and 1.
 
 An op declares the maps it takes. A look that uses a plane op is refused on
@@ -393,8 +402,8 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   starts in that look, `SPEC` the map `fx render` names. `--seed` is `run
   --seed`: it seeds the stand-in features and the looks made in the run, and the
   look's own `seed` seeds its layers. `--map` takes `line:64`, `grid:16x16`,
-  `lattice:8` or a room map file (default `grid:16x16`, the map `run` uses
-  without `--map` or `--room`). A program the map does not support is
+  `lattice:8` or an arrangement `.json` (default `grid:16x16`, the map `run` uses
+  without `--map`). A program the map does not support is
   refused before it renders (`wrong-dims`: `kaleid` on a strip).
 - A render prints a **handle**, `r1-` and 20 hex digits, that `fx sheet`,
   `fx metrics` and `fx compare` take in place of a file. The same look,
@@ -721,8 +730,8 @@ state (`below`, `prev`).
 | `ctx.buffer(name, shape, dtype, fill)` | `BindCtx.buffer`, in `setup` | declare an op's persistent state (§9.2) |
 | `ctx.rng()` | `FrameCtx.rng`, in `advance` | this node's random stream for this frame (§9.4) |
 | `Float`, `Int`, `Bool`, `Choice`, `Color`, `Palette` | `pewpew.params`; `Float(default, lo, hi, unit)` | declare an arg; ranges and kinds are enforced (§2) |
-| `uv run python -m pewpew run LOOKS` | looks file; `--map SPEC` or `--room PATH`, default `grid:16x16` | play a looks file live, starting in its `current` look; saves go to the same file (intro, §4) |
-| `run LOOKS --room PATH` | room map JSON; `--no-ddp`, `--dry-run` | run on a room's fixtures and boards; the map reloads on save (§3) |
+| `uv run python -m pewpew run LOOKS` | looks file; `--map SPEC`, default `grid:16x16` | play a looks file live, starting in its `current` look; saves go to the same file (intro, §4) |
+| `run LOOKS --map RIG.arrangement.json` | arrangement JSON; `--no-ddp`, `--dry-run` | run on a rig's fixtures and controllers; the map reloads on save (§3) |
 | `run LOOKS --audio NAME` | an input's name, `FILE.wav` or `replay:PATH`; `--audio-channel N`, `--audio-delay MS`, `--feature-log PATH` | real sound in the audio signals: a line-in or a microphone (needs pewpew[audio]), a WAV file analysed on a loop, or a feature log played back (§8, docs/audio.md) |
 | `uv run python -m pewpew audio analyse FILE` | a WAV file; `--json`, `--fps`, `--feature-log PATH` | the tempo, confidence, beat times and levels pewpew hears in a file (§8) |
 | `uv run python -m pewpew audio list` | `--json` | this computer's inputs by the exact names `run --audio` takes; opens none (§8) |

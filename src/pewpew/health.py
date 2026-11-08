@@ -56,9 +56,9 @@ carry it.
 
 Find boards. `scan` asks every address of this laptop's /24 for
 `/json/info` (`pewpew.wled.sweep`) and lists the WLED boards that answer;
-`rebind` hands one of them to `on_rebind`, which writes it into the room
-file as a board's host (`pewpew.room.live`). A board named by mDNS is not
-rebound: the name already follows it.
+`rebind` hands one of them to `on_rebind`, which writes it into the
+arrangement file as a controller's host (`pewpew.room.live`). A board
+named by mDNS is not rebound: the name already follows it.
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ def _band(found: list[_Found], rank: int, value: float, warn: float, bad: float,
 # that runs it under launchd, or the terminal app that started it. A name,
 # never a path: the sentence crosses the preview socket.
 _APP = f"{Path(sys.executable).resolve().name if sys.executable else 'Python'} (or the terminal app that runs it)"
-_FIX_MDNS = "name it by its mDNS name in the room file (\"pewpew-1.local\") so pewpew follows it."
+_FIX_MDNS = "give its controller its mDNS name as host in the arrangement (\"pewpew-1.local\") so pewpew follows it."
 _FIX_MOVED_NAMED = ("{host} still resolves to this address; pewpew looks it up again on "
                     "every poll and follows the board once its new address is known.")
 _FIX_MOVED = "The board moved and another device took its address. {find}, or " + _FIX_MDNS
@@ -222,7 +222,7 @@ _FIX_NODE_OVERFLOW = ("The node's I2S reader fell behind and dropped samples, wh
 
 def _find(board: str | None, lost: bool) -> str:
     """How the page finds a board's new address: the scan, then the "use
-    for" button it offers a lost room board (`BoardHealth.lost`); before
+    for" button it offers a lost rig board (`BoardHealth.lost`); before
     that, the scan is only the next step if it stays away."""
     if board is None:
         return 'Tap "find boards" for its new address, then run with that address'
@@ -257,7 +257,7 @@ class BoardHealth:
     @property
     def lost(self) -> bool:
         """Another device answers at its address, or two polls in a row went
-        unanswered: the page offers to point the room board elsewhere."""
+        unanswered: the page offers to point the rig's controller elsewhere."""
         return self.foreign is not None or self.failures >= 2
 
     def is_foreign(self, info: dict) -> bool:
@@ -476,16 +476,17 @@ class HealthMonitor:
     sleep state every `STEP_S`; `state()` is the latest snapshot.
 
     `ddp` is the DDP sink, or None without one. Its boards are read every
-    step, so a room map reload that changes the boards changes what is
-    polled; `names` gives the room's name for each, in the same order. Its
+    step, so a rig reload that changes the boards changes what is
+    polled; `names` gives the controller id of each, in the same order. Its
     frame counter gives the sent rate, and its address table where frames
     go, which the monitor writes for a board named by mDNS (after the audit
     record `record` writes). `stats` is the loop's counters and `target` its
     rate.
     `fetch`, `sender` and `resolve` default to `pewpew.wled`'s `fetch_info`,
     `sender_address` and `resolve_name`, looked up at call time.
-    `on_rebind(board, address)` writes a room board's new host to the room
-    file and returns a refusal or None; without it, `rebind` is refused.
+    `on_rebind(board, address)` writes a controller's new host to the
+    arrangement file and returns a refusal or None; without it, `rebind` is
+    refused.
     `audio` is the audio features' `state`, or None without `--audio`: the
     snapshot has an `audio` row only with it.
     """
@@ -768,17 +769,17 @@ class HealthMonitor:
         self._state = self._compose()
 
     def rebind(self, board: object, address: object) -> str | None:
-        """Point room board `board` at `address`, one the last scan found,
-        by rewriting the room file. Returns a refusal or None."""
+        """Point the controller `board` at `address`, one the last scan
+        found, by rewriting the arrangement file. Returns a refusal or None."""
         if self._on_rebind is None:
-            return "rebinding a board needs a room map (run --room)"
+            return "rebinding a board needs an arrangement map (run --map RIG.arrangement.json)"
         names = self._room_names()
         if not isinstance(board, str) or board not in names:
             return unknown("board", board, names)
         host = self._boards()[names.index(board)].host
         if not is_ipv4(host):
             return (f"board {board} is named {host}, which pewpew follows; "
-                    "to give it a fixed address instead, edit the room file")
+                    "to give it a fixed address instead, edit the arrangement file")
         found = (self._scan or {}).get("found") or []
         if not isinstance(address, str) or address not in [item["address"] for item in found]:
             return "that address was not in the last scan; scan again"

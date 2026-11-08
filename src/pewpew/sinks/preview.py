@@ -6,7 +6,8 @@ no asyncio. One port serves the page (any HTTP GET), the floor plan
 
 Wire protocol. web/src/wire/protocol.ts types every message and says
 what its fields mean. Each message has one source here: `hello` and
-`layout` are `View.of` (`room` is `RoomMap.describe()`), `status` is the
+`layout` are `View.of` (on a rig, `room` is `pewpew.rig.runtime.plan_view`
+and `rig` is `rig_view`, both null on any other map), `status` is the
 `status` supplier, and `declare`, `params`, `mod`, `aura`, `health` and
 `catalog` are the control's states (`pewpew.aura.control.wire_states`),
 made text by `StateTexts`, which the studio uses too; `power`, the
@@ -168,31 +169,34 @@ class View:
         plan_image: Path | None = None,
         capabilities: tuple[str, ...] = (),
         build: str | None = None,
+        rig: dict | None = None,
     ) -> View:
-        """The view of `mapping`, decimated to `max_pixels`. `build` is the
-        page's build stamp, which the hello carries."""
+        """The view of `mapping`, decimated to `max_pixels`. `room` is the
+        flat drawing and `rig` the fixtures for a 3D view, on a rig; each
+        plan gets the URL of `plan_image`, or why it is not served. `build`
+        is the page's build stamp, which the hello carries."""
         mapping = np.asarray(mapping, dtype=np.float32)
         n = len(mapping)
         idx = np.linspace(0.0, n - 1, max_pixels).round().astype(np.int64) if n > max_pixels else None
         sent = mapping if idx is None else mapping[idx]
-        served = None
+        served = plan_image if plan_image is not None and plan_image.is_file() else None
+        # The generation busts the browser cache after a reload.
+        where = {"url": f"{PLAN_URL}?v={generation}"} if served is not None else None
         if room is not None:
             room = dict(room)
             if idx is not None:
                 room["fixture_of"] = [room["fixture_of"][i] for i in idx.tolist()]
             if room.get("plan") is not None:
-                if plan_image is not None and plan_image.is_file():
-                    served = plan_image
-                    # The generation busts the browser cache after a reload.
-                    room["plan"] = {**room["plan"], "url": f"{PLAN_URL}?v={generation}"}
-                else:
-                    room["plan"] = {"error": _PLAN_MISSING}
+                room["plan"] = {**room["plan"], **where} if where else {"error": _PLAN_MISSING}
+        if rig is not None and rig.get("plan") is not None:
+            rig = {**rig, "plan": {**rig["plan"], **where} if where else {"error": _PLAN_MISSING}}
         shape = {
             "n": len(sent),
             "total": n,
             "positions": np.round(sent.astype(np.float64), 4).tolist(),
             "is3d": bool(np.ptp(mapping[:, 2]) > 1e-6),
             "room": room,
+            "rig": rig,
         }
         return cls(
             generation, n, idx,
@@ -432,13 +436,14 @@ class PreviewSink:
         control: Control | None = None,
         room: dict | None = None,
         plan_image: Path | None = None,
+        rig: dict | None = None,
         now: Callable[[], float] = time.perf_counter,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._max_pixels = max_pixels
         # A client's `id` is answered only when there is a control to ask.
         self._capabilities = ("ack", *control.capabilities) if control is not None else ()
-        self._view = View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities, page_build())
+        self._view = View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities, page_build(), rig)
         self._control = control
         self._states = StateTexts(control, now)
         self._gate = RateGate(max_fps, now=now, sleep=sleep)
@@ -515,13 +520,17 @@ class PreviewSink:
 
     # -- engine side ----------------------------------------------------------
 
-    def remap(self, mapping: np.ndarray, room: dict | None = None, plan_image: Path | None = None) -> None:
-        """Draw later frames at `mapping`'s positions, with `room` and
-        `plan_image` as the constructor takes them. Every open page gets a
-        `layout` message before the first such frame. Call it after the
-        renderer was rebound, from the thread that feeds `send`'s frames."""
+    def remap(
+        self, mapping: np.ndarray, room: dict | None = None, plan_image: Path | None = None, rig: dict | None = None,
+    ) -> None:
+        """Draw later frames at `mapping`'s positions, with `room`,
+        `plan_image` and `rig` as the constructor takes them. Every open
+        page gets a `layout` message before the first such frame. Call it
+        after the renderer was rebound, from the thread that feeds `send`'s
+        frames."""
         self._view = View.of(
             mapping, self._max_pixels, self._view.generation + 1, room, plan_image, self._capabilities, page_build(),
+            rig,
         )
 
     def send(self, t: float, frame: np.ndarray) -> None:

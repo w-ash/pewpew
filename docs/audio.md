@@ -53,7 +53,7 @@ would open, and opens nothing. The examples here play
 knobs with the sound; any look with those signals reacts the same way:
 
 ```sh
-uv run python -m pewpew run examples/warp-lane.look.json --room room.json --audio "Scarlett 2i2 USB" --dry-run
+uv run python -m pewpew run examples/warp-lane.look.json --map examples/canopy-60-bars.arrangement.json --audio "Scarlett 2i2 USB" --dry-run
 ```
 
 An input that is not plugged in at launch is not refused: the run starts

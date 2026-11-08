@@ -2,8 +2,8 @@
 
 `FileReloader` watches one file, skips unchanged bytes, applies new bytes
 on the loop thread, and keeps the last good version on failure.
-`pewpew.room.live` builds on it for a room map (`--room`), whose apply
-step rebinds the renderer and relays out the sinks.
+`pewpew.room.live` builds on it for a rig file (an arrangement `--map`),
+whose apply step rebinds the renderer and relays out the sinks.
 
 Threading. A daemon thread blocks in the watcher and hands every change
 batch to the loop thread through `call_soon`. `reload()` runs on the loop

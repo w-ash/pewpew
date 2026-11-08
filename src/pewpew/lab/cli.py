@@ -60,8 +60,8 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
                       help="the look of a looks file to use (default: its only look, else its 'current' one)")
     span = _options()
     span.add_argument("--map", type=_map, default=DEFAULT_MAP, metavar="SPEC",
-                      help=f"line:64, grid:16x16, lattice:8 or a room map file (default {DEFAULT_MAP}, the map "
-                      "`run` uses without --map or --room)")
+                      help=f"line:64, grid:16x16, lattice:8 or an arrangement file (.json) (default {DEFAULT_MAP}, "
+                      "the map `run` uses without --map)")
     span.add_argument("--seconds", type=positive("seconds", MAX_SECONDS), default=DEFAULT_SECONDS, metavar="S",
                       help=f"how long to render (default {DEFAULT_SECONDS:g})")
     span.add_argument("--fps", type=positive("frames per second", MAX_FPS), default=DEFAULT_FPS,

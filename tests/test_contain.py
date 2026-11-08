@@ -1,18 +1,20 @@
-"""`pewpew.mapping.contain` keeps room mappings bit-identical."""
+"""`pewpew.mapping.contain` keeps mappings bit-identical to the original arithmetic."""
 
 from __future__ import annotations
+
+import json
 
 import numpy as np
 from hypothesis import given
 from hypothesis import strategies as st
 
-from fakes import EXAMPLE_ROOM
+from fakes import EXAMPLE_RIG, LEGACY_ROOM, room_meters
 from pewpew.mapping import contain, pixel_offsets
-from pewpew.room.map import _compile, _Spec, load_room
+from pewpew.rig.runtime import load_rig
 
 
 def _reference(meters: np.ndarray):
-    """The room compiler's arithmetic before `contain` was shared."""
+    """The arithmetic of the room compiler before `contain` was shared."""
     lo, hi = meters.min(axis=0), meters.max(axis=0)
     extent = hi - lo
     longest = float(extent.max()) or 1.0
@@ -23,44 +25,32 @@ def _reference(meters: np.ndarray):
     return mapping, tuple(float(s) for s in span), tuple(float(e) for e in extent), 1.0 / longest, shift
 
 
-def _same(meters: np.ndarray, room) -> None:
+def _same(meters: np.ndarray) -> None:
     mapping, span, extent, scale, shift = _reference(meters)
-    assert room.mapping.tobytes() == mapping.tobytes()
-    assert (room.span, room.extent, room.scale, room.shift) == (span, extent, scale, shift)
     got = contain(meters)
     assert got.mapping.tobytes() == mapping.tobytes()
     assert (got.span, got.extent, got.scale, got.shift) == (span, extent, scale, shift)
 
 
 def test_room_example_mapping_is_bit_equal():
-    room, _ = load_room(EXAMPLE_ROOM)
-    _same(room.meters, room)
+    _same(room_meters(json.loads(LEGACY_ROOM.read_text())))
+
+
+def test_the_canopy_rig_mapping_is_the_contained_room():
+    meters = room_meters(json.loads(LEGACY_ROOM.read_text()))
+    rig, _ = load_rig(EXAMPLE_RIG)
+    assert np.abs(rig.mapping.astype(np.float64) - contain(meters).mapping).max() <= 1e-7
 
 
 _coord = st.floats(-20, 20, allow_nan=False, allow_infinity=False, width=32)
 
 
-@st.composite
-def _rooms(draw):
-    n = draw(st.integers(1, 5))
-    specs = []
-    for i in range(n):
-        start = np.array([draw(_coord), draw(_coord), draw(st.sampled_from([0.0, draw(_coord)]))])
-        delta = np.array([draw(_coord), draw(_coord), 0.0]) + np.array([0.5, 0.0, 0.0])
-        specs.append(
-            _Spec(
-                id=f"f{i}", pixels=draw(st.integers(1, 30)), start=start, end=start + delta,
-                pitch=draw(st.floats(0.005, 0.1)), input=draw(st.sampled_from(["start", "end"])),
-                board="b", output=i, chain=0,
-            )
-        )
-    return specs
+_point = st.tuples(_coord, _coord, st.sampled_from([0.0, 1.5, -3.0]))
 
 
-@given(_rooms())
-def test_generated_room_mapping_is_bit_equal(specs):
-    room = _compile(specs, {"b": ("10.0.0.1", 4048)})
-    _same(room.meters, room)
+@given(st.lists(_point, min_size=1, max_size=60))
+def test_generated_point_mapping_is_bit_equal(points):
+    _same(np.array(points, dtype=np.float64))
 
 
 def test_contain_edge_cases():

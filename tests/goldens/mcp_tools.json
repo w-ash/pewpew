@@ -460,7 +460,7 @@
         },
         "map": {
           "default": "grid:16x16",
-          "description": "Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
+          "description": "Where it renders: line:N, grid:WxH, lattice:N, or an arrangement file (.json)",
           "examples": [
             "grid:16x16",
             "line:64"
@@ -811,7 +811,7 @@
         },
         "map": {
           "default": "grid:16x16",
-          "description": "Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
+          "description": "Where it renders: line:N, grid:WxH, lattice:N, or an arrangement file (.json)",
           "examples": [
             "grid:16x16",
             "line:64"
@@ -1040,7 +1040,7 @@
         },
         "map": {
           "default": "grid:16x16",
-          "description": "Where it renders: line:N, grid:WxH, lattice:N, or a room map file",
+          "description": "Where it renders: line:N, grid:WxH, lattice:N, or an arrangement file (.json)",
           "examples": [
             "grid:16x16",
             "line:64"

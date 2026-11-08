@@ -21,7 +21,7 @@ import math
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar, cast
 
 import numpy as np
 from pydantic import (
@@ -40,6 +40,9 @@ from pydantic_core import PydanticCustomError
 from pewpew.floorplan import PLAN_SCHEMA, Plan, parse_plan
 from pewpew.power import MAX_CAP_W, EffectPower, PowerCap, PowerLimiter
 from pewpew.sinks.ddp import parse_target
+
+if TYPE_CHECKING:
+    from pewpew.rig.catalog import FixtureSpec
 
 # ---- shared ------------------------------------------------------------------
 
@@ -1007,6 +1010,8 @@ class CompiledRig:
     is the arrangement's cap. `issues` holds at most MAX_ISSUES issues and
     one count of the rest. `controllers` holds the declared and the
     auto-wired ones, in data order; `variants` the types `dims` made.
+    `types` holds the resolved numbers of each fixture type it places,
+    variants included.
     """
 
     mapping: np.ndarray
@@ -1028,6 +1033,7 @@ class CompiledRig:
     shift: tuple[float, float, float] = (0.0, 0.0, 0.0)
     plan: Plan | None = None
     variants: tuple[Variant, ...] = ()
+    types: Mapping[str, FixtureSpec] = field(default_factory=dict)
 
     @property
     def n(self) -> int:

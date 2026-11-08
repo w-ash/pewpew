@@ -9,7 +9,7 @@ session run (ADR-025):
 and `AuraPipeline.loop` puts it under a `PacedLoop`: the triggers, then
 the looks, before each frame renders; the blink, the master, then the
 caller's stages (a power limit) after it. What a run adds around it (DDP,
-a room map, the health monitor, the watchdog, the sinks) stays with the
+a rig and its reload, the health monitor, the watchdog, the sinks) stays with the
 caller, which passes the blink, the boards and the health snapshot that
 the control offers.
 """

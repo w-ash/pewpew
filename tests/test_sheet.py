@@ -9,9 +9,9 @@ import hashlib
 import numpy as np
 import pytest
 
-from fakes import EXAMPLE_ROOM
+from fakes import EXAMPLE_RIG
 from pewpew.mapping import dimensions, grid, lattice, line
-from pewpew.room.map import load_room
+from pewpew.rig.runtime import load_rig
 from pewpew.sheet import (
     GUTTER,
     INK,
@@ -105,7 +105,7 @@ def _drawn(rgb: np.ndarray) -> tuple[list[int], list[int]]:
         (np.zeros((0, 3), np.float32), "strip"),
         (grid(8, 8), "grid"),
         (_holey_grid(), "grid"),
-        (load_room(EXAMPLE_ROOM)[0].mapping, "grid"),  # the canopy's bars fill a lattice
+        (load_rig(EXAMPLE_RIG)[0].mapping, "grid"),  # the canopy's bars fill a lattice
         (lattice(4), "splat"),
         (_sparse_room(), "splat"),
     ],

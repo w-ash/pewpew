@@ -191,7 +191,8 @@ def test_a_control_the_run_does_not_have_says_so_and_one_it_does_not_know_is_ign
     rig = osc_rig()  # no boards, no room
     for message, reason in (({"type": "scan"}, "this run streams to no boards"),
                             ({"type": "rebind", "board": "A", "address": "1.2.3.4"}, "this run streams to no boards"),
-                            ({"type": "blink", "fixture": "a"}, "blink needs a room map (run --room)"),
+                            ({"type": "blink", "fixture": "a"},
+                              "blink needs an arrangement map (run --map RIG.arrangement.json)"),
                             ({"type": "look", "look": {}}, NO_LOOKS)):
         assert rig.control.request(message) == Refusal(reason)
     for message in ({"type": "launch"}, {"type": 7}, {}):

@@ -2,8 +2,8 @@
 
 A mapping is the coordinate table a program binds to (architecture §3:
 normalized 0-1 world units). `line`, `grid` and `lattice` are the
-authoring study's fixtures (bench/results/authoring-2026-07-16.md); a room
-map file (`pewpew.room.map`) gives a real one, and `parse_map` reads the
+authoring study's fixtures (bench/results/authoring-2026-07-16.md); an
+arrangement file (`pewpew.rig`) gives a real one, and `parse_map` reads the
 command line's names for the synthetic ones. `dimensions` tells a strip from a panel from a volume, by the axes a
 mapping spreads along (`spanned`).
 """

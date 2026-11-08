@@ -18,6 +18,7 @@
       ],
       "is3d": false,
       "room": null,
+      "rig": null,
       "display_gamma": 2.2,
       "build": "0123456789abcdef",
       "capabilities": [
@@ -1475,14 +1476,14 @@
             "id": "b",
             "pitch": 0.5,
             "start": [
-              0.0,
-              1.0
-            ],
-            "end": [
               1.0,
               1.0
             ],
-            "input": "end"
+            "end": [
+              0.0,
+              1.0
+            ],
+            "input": "start"
           }
         ],
         "fixture_of": [
@@ -1499,6 +1500,170 @@
           "unit": 0.01,
           "url": "/plan?v=1"
         }
+      },
+      "rig": {
+        "catalog_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "frame": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "scale": 1.0,
+        "shift": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "plan": {
+          "corner_m": [
+            0.0,
+            0.0
+          ],
+          "meters_per_pixel": 0.01,
+          "url": "/plan?v=1"
+        },
+        "fixtures": [
+          {
+            "id": "a",
+            "type_id": "strip.df063945",
+            "base_type_id": "strip",
+            "group": null,
+            "matrix": [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.5,
+              0.0,
+              0.0,
+              1.0
+            ],
+            "pixel_start": 0,
+            "pixel_count": 2,
+            "controller": "A",
+            "output": "rmt0",
+            "tags": [],
+            "dims": {
+              "pixels": 2.0,
+              "length": 1.0,
+              "pitch": 0.5
+            }
+          },
+          {
+            "id": "b",
+            "type_id": "strip.df063945",
+            "base_type_id": "strip",
+            "group": null,
+            "matrix": [
+              0.0,
+              0.0,
+              -1.0,
+              0.0,
+              -1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.5,
+              0.0,
+              -1.0,
+              1.0
+            ],
+            "pixel_start": 2,
+            "pixel_count": 2,
+            "controller": "A",
+            "output": "rmt0",
+            "tags": [],
+            "dims": {
+              "pixels": 2.0,
+              "length": 1.0,
+              "pitch": 0.5
+            }
+          }
+        ],
+        "types": {
+          "strip.df063945": {
+            "count": 2,
+            "span_m": 1.0,
+            "z_m": 0.0,
+            "facing": null
+          }
+        },
+        "controllers": [
+          {
+            "id": "A",
+            "profile": "esp32s3-devkitc1-ahct125",
+            "host": "192.168.1.50",
+            "port": 4048
+          }
+        ],
+        "slices": [
+          {
+            "controller": "A",
+            "output": "rmt0",
+            "chain": "A-1",
+            "start": 0,
+            "count": 4,
+            "led_type": 22,
+            "color_order": "GRB"
+          }
+        ],
+        "controller_slices": [
+          {
+            "controller": "A",
+            "start": 0,
+            "count": 4
+          }
+        ],
+        "issues": [
+          {
+            "level": "warning",
+            "code": "unfed",
+            "message": "2 chained fixtures are on no feed, so their power is not checked; add feeds to check them",
+            "ref": null
+          },
+          {
+            "level": "warning",
+            "code": "rests_on_assumed",
+            "message": "controller A.position_m = [0.0, 0.0, 0.0] is assumed, and these results rest on it: leads",
+            "ref": "controller A.position_m"
+          },
+          {
+            "level": "warning",
+            "code": "rests_on_assumed",
+            "message": "fixture_type/strip.df063945.dims.w_per_px = 0.24 is assumed, and these results rest on it: effect power, totals",
+            "ref": "fixture_type/strip.df063945.dims.w_per_px"
+          },
+          {
+            "level": "warning",
+            "code": "rests_on_assumed",
+            "message": "fixture_type/strip.df063945.power.model = 'linear' is assumed, and these results rest on it: PSU sizing, effect power",
+            "ref": "fixture_type/strip.df063945.power.model"
+          }
+        ]
       }
     }
   ],

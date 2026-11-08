@@ -104,7 +104,7 @@ test("a close drops the engine's error, health and frame clock", () => {
 test("a layout replaces the map and drops the old frame", () => {
   const { store } = storeWithZoo();
   store.receiveFrame({ t: 1, seq: 1, rgb: new Uint8Array(6) }, 1);
-  store.receive({ type: "layout", n: 1, total: 1, positions: [[0, 0, 0]], is3d: false, room: null });
+  store.receive({ type: "layout", n: 1, total: 1, positions: [[0, 0, 0]], is3d: false, room: null, rig: null });
   expect(store.getState().map?.n).toBe(1);
   expect(store.getFrame()).toBeNull();
 });

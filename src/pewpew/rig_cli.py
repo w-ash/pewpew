@@ -24,6 +24,7 @@ from pewpew.jsonfile import parse_json, read_or_exit
 if TYPE_CHECKING:
     from pewpew.rig.models import Issue
 
+# Also what a room map file read in place migrates to (pewpew.rig.runtime).
 DEFAULT_CONTROLLER = "esp32s3-devkitc1-ahct125"
 DEFAULT_TYPE = "strip"
 
@@ -51,8 +52,7 @@ def migrate_room(room: Path, output: Path, *, controller: str, fixture_type: str
     """Migrate the room file `room` to `output`; returns the exit status."""
     # Imported here: a `run` never loads the rig stack.
     from pewpew.rig import RigError, compile_rig, load_arrangement, load_catalog
-    from pewpew.rig.room_import import room_to_arrangement
-    from pewpew.room.map import RoomError
+    from pewpew.rig.room_import import RoomError, room_to_arrangement
 
     doc = read_or_exit(room, "room map", lambda: parse_json(room.read_bytes(), RoomError))
     catalog = load_catalog()

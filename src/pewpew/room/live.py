@@ -1,18 +1,24 @@
-"""The room map while the aura runs: a save reloads it, and the page's
-"use for A" rewrites one board's host in the file.
+"""The rig file while the aura runs: a save reloads it, and the page's
+"use for A" rewrites one controller's host in the file.
 
-`RoomLive.apply` is the reload's apply step, on the loop thread. It
-checks everything that can fail before it changes anything: the map
-compiles, the DDP sink accepts the new boards, and the audit record of a
-changed board set is written (no packet goes to a target without one).
-Then the running look is rebound; if a program's `setup` raises on the new
-geometry, the last good geometry is bound again and the reload fails. Only
-then do the sinks, the blink and each listener take the new map.
+`RigLive.apply` is the reload's apply step, on the loop thread. It
+checks everything that can fail before it changes anything: the file
+compiles, the rig may stream (`pewpew.rig.runtime.stream_refusals`), the
+DDP sink accepts the new boards, and the audit record of a changed board
+set is written (no packet goes to a target without one). Then the running
+look is rebound; if a program's `setup` raises on the new geometry, the
+last good geometry is bound again and the reload fails. Only then do the
+sinks, the blink and each listener take the new rig. A room map file
+reloads too, with its deprecation logged as a warning.
 
-`rebind` runs on a connection thread: it rewrites the board's entry
-(`pewpew.room.map.rebind_text`) atomically, then queues a reload, where
+`rebind` runs on a connection thread: it rewrites the controller's host
+(`pewpew.rig.runtime.rebind_host`) atomically, then queues a reload, where
 `apply` audits the new board set as a relayout before any frame goes
-there. Refusals name no path.
+there. It is refused on a room map file, and in a run that may not write
+its layout (`--unattended`). Refusals name no path.
+
+The rig stack is imported only when a rig file is reloaded or rebound, so
+a run on a synthetic map never loads it.
 """
 
 from __future__ import annotations
@@ -20,8 +26,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
+import warnings
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pewpew import audit
 from pewpew.errors import scrub
@@ -29,19 +37,29 @@ from pewpew.jsonfile import write_atomic
 from pewpew.reload import CallSoon, FileReloader, Watch
 from pewpew.render import Live
 from pewpew.room.blink import Blink
-from pewpew.room.map import RoomError, RoomMap, parse_room, rebind_text
-from pewpew.sinks.ddp import DdpSink
+from pewpew.sinks.ddp import Board, DdpSink
+
+if TYPE_CHECKING:
+    from pewpew.rig import CompiledRig
 
 logger = logging.getLogger(__name__)
 
+UNATTENDED_WRITE = "an unattended run (--unattended) never rewrites its arrangement; point the board in an attended run"
 
-class RoomLive:
-    """One room file, its compiled map, and its watch."""
+
+class RigLive:
+    """One rig file, its compiled rig, and its watch.
+
+    With `follow`, the DDP sink streams to the rig's controllers and takes
+    each reload's (`ddp_targets`); without it, the sink keeps its own
+    boards (`run --ddp`). `writes` is False when the run may not rewrite
+    its layout, which refuses `rebind`.
+    """
 
     def __init__(
         self,
         path: Path,
-        room: RoomMap,
+        rig: CompiledRig,
         data: bytes,
         live: Live,
         call_soon: CallSoon,
@@ -50,14 +68,20 @@ class RoomLive:
         argv: list[str],
         blink: Blink | None = None,
         watch: Watch | None = None,
+        follow: bool = True,
+        writes: bool = True,
     ) -> None:
         self.path = Path(path)
-        self.room = room
-        # Called with each new map once it is live, on the loop thread.
-        self.listeners: list[Callable[[RoomMap], None]] = []
+        self.rig = rig
+        # Called with each new rig once it is live, on the loop thread.
+        self.listeners: list[Callable[[CompiledRig], None]] = []
         self._live = live
         self._call_soon = call_soon
         self._ddp = ddp
+        self._follow = follow
+        self._writes = writes
+        self._targets: tuple[tuple[str, ...], tuple[Board, ...]] = ((), ())
+        self._take(rig)
         self._argv = argv
         self._blink = blink
         self._lock = threading.Lock()
@@ -77,58 +101,84 @@ class RoomLive:
         self.reloader.stop()
 
     def board_names(self) -> tuple[str, ...]:
-        """The room's board names, or none while a reload has given the
-        sink boards the room does not have yet: a name must never label
-        another board."""
-        room = self.room
-        return room.board_names if self._ddp is not None and room.boards == self._ddp.boards else ()
+        """The controller id of each of the sink's boards, or none while
+        the sink has other boards (`run --ddp`, or between a reload's checks
+        and its commit): a name must never label another board."""
+        names, boards = self._targets
+        return names if self._ddp is not None and boards == tuple(self._ddp.boards) else ()
+
+    def _take(self, rig: CompiledRig) -> None:
+        """Hold `rig` and, with `follow`, the names and boards it streams to."""
+        from pewpew.rig.runtime import ddp_targets, target_names
+
+        self.rig = rig
+        if self._follow:
+            self._targets = (target_names(rig), ddp_targets(rig))
 
     def apply(self, data: bytes) -> str:
         """The reload's apply step (the module docstring). Loop thread only;
         raises what a failed step raises, with no path in it."""
-        room = parse_room(data)
-        old = self.room
+        from pewpew.rig.runtime import RoomFormatWarning, ddp_targets, fixture_spans, parse_rig, stream_refusals
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", RoomFormatWarning)
+            rig = parse_rig(data)
+        for warning in caught:
+            logger.warning("%s", warning.message)
+        old = self.rig
         layout = None
+        boards: tuple[Board, ...] = ()
         if self._ddp is not None:
-            layout = self._ddp.prepare(room.boards, room.n)
-            if room.boards != old.boards:
+            if self._follow:
+                if reasons := stream_refusals(rig):
+                    raise ValueError("the boards cannot take this map: " + "; ".join(reasons))
+                boards = ddp_targets(rig)
+            else:
+                boards = tuple(self._ddp.boards)
+            layout = self._ddp.prepare(boards, rig.n)
+            if boards != tuple(self._ddp.boards):
                 audit.record(
-                    "ddp-relayout", argv=self._argv, targets=[b.spec for b in room.boards], fps=self._ddp.max_fps,
+                    "ddp-relayout", argv=self._argv, targets=[b.spec for b in boards], fps=self._ddp.max_fps,
                 )
         try:
-            self._live.rebind(room.mapping)
+            self._live.rebind(rig.mapping)
         except Exception:
             self._live.rebind(old.mapping)
             raise
         if self._ddp is not None and layout is not None:
             self._ddp.commit(layout)
         if self._blink is not None:
-            self._blink.rebind(room)
-        self.room = room
+            self._blink.rebind(fixture_spans(rig))
+        self._take(rig)
         for listener in self.listeners:
-            listener(room)
+            listener(rig)
         return (
-            f"room map reloaded (t={self._live.t:.3f}): {room.n} px in "
-            f"{len(room.fixtures)} fixtures on {len(room.boards)} board(s)"
+            f"map reloaded (t={self._live.t:.3f}): {rig.n} px in "
+            f"{len(rig.fixtures)} fixtures on {len(rig.controllers)} controller(s)"
         )
 
-    def rebind(self, board: str, address: str) -> str | None:
-        """Point room board `board` at `address` by rewriting its entry in
-        the file, then reload it on the loop thread.
+    def rebind(self, controller: str, address: str) -> str | None:
+        """Point controller `controller` at `address` by rewriting its host
+        in the file, then reload it on the loop thread.
         Any thread; returns a refusal that names no path, or None."""
+        if not self._writes:
+            return UNATTENDED_WRITE
+        from pewpew.rig import RigError
+        from pewpew.rig.runtime import rebind_host
+
         with self._lock:
             try:
                 data = self.path.read_bytes()
             except OSError:
-                return "could not read the room file"
+                return "could not read the map file"
             try:
-                new = rebind_text(data, board, address)
-            except RoomError as exc:
+                new = rebind_host(data, controller, address)
+            except RigError as exc:
                 return scrub(str(exc))
             try:
                 write_atomic(self.path, new)  # a watcher and a reader never see half a file
             except OSError:
-                return "could not write the room file"
-        logger.info("board %s: room file now gives %s", board, address)
+                return "could not write the map file"
+        logger.info("controller %s: map file now gives %s", controller, address)
         self._call_soon(self.reloader.reload)
         return None

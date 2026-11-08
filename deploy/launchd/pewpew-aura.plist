@@ -30,8 +30,8 @@
     <string>pewpew</string>
     <string>run</string>
     <string>__LOOKS__</string>
-    <string>--room</string>
-    <string>__ROOM__</string>
+    <string>--map</string>
+    <string>__MAP__</string>
     <string>--preview</string>
     <string>--host</string>
     <string>__HOST__</string>

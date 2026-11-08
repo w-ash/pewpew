@@ -30,7 +30,7 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TextIO
+from typing import TextIO
 
 from pewpew import boards, mcp_cli, provision, rig_cli, studio
 from pewpew.audio import cli as audio_cli
@@ -38,15 +38,13 @@ from pewpew.audio.inputs import NET, REPLAY
 from pewpew.cli_args import add_allow_host, number, parsed_by, port, positive, whole
 from pewpew.fx import cli as fx_cli
 from pewpew.lab import cli as lab_cli
-from pewpew.mapping import DEFAULT_MAP, parse_map
+from pewpew.lab.geometry import SPEC_RULE, check_spec, is_file_spec
+from pewpew.mapping import DEFAULT_MAP
 from pewpew.reload import Watch
 from pewpew.remote import control as remote_control
 from pewpew.remote import observe
 from pewpew.run import Launch, Run
 from pewpew.watchdog import TIMEOUT_S as WATCHDOG_S
-
-if TYPE_CHECKING:
-    import numpy as np
 
 PREVIEW_PORT = 7447
 
@@ -78,6 +76,10 @@ def parse(argv: list[str] | None = None) -> argparse.Namespace:
     problem = _conflict(args)
     if problem is not None:
         parser.error(problem)
+    if args.cmd == "run" and args.room is not None:
+        print("warning: --room is the old name of --map, and the next release drops it; use --map",
+              file=sys.stderr, flush=True)
+        args.map, args.room = args.room, None
     if args.cmd == "run" and args.preview and args.port is None:
         args.port = PREVIEW_PORT
     return args
@@ -100,23 +102,20 @@ def _conflict(args: argparse.Namespace) -> str | None:
         return "--accept-looks lets any client of the preview change the look, which --unattended refuses"
     if (problem := _audio_conflict(args)) is not None:
         return problem
-    if args.max_watts is not None and not isinstance(args.map, Path):
+    if args.room is not None and args.map is not None:
+        return "--room is the old name of --map; give --map only"
+    spec = args.map if args.room is None else args.room
+    rig = spec is not None and is_file_spec(spec)
+    if args.max_watts is not None and not rig:
         return "--max-watts needs --map with an arrangement .json, whose fixtures give the power model"
-    if args.room is None:
-        if args.no_ddp:
-            return "--no-ddp only applies with --room"
-        if args.dry_run and not args.ddp and not (args.audio or "").startswith(NET):
-            return f"--dry-run needs at least one --ddp target, a --room or --audio {NET}NODE"
-        return None
-    for flag, given in (("--map", args.map is not None), ("--ddp", bool(args.ddp))):
-        if given:
-            return f"--room supplies the mapping and the DDP boards; drop {flag}"
-    if args.ansi:
-        return "--ansi cannot draw a room map; use --preview"
+    if args.no_ddp and not rig:
+        return "--no-ddp only applies with an arrangement --map, whose controllers' hosts it leaves unused"
+    if args.no_ddp and args.ddp:
+        return "--no-ddp sends nothing to the boards; drop --ddp"
     if args.no_ddp and args.dry_run:
         return "--dry-run prints the DDP plan, which --no-ddp turns off"
-    if args.no_ddp and not args.preview:
-        return "--room --no-ddp sends nothing to the boards; add --preview to see it"
+    if args.dry_run and not args.ddp and not rig and not (args.audio or "").startswith(NET):
+        return f"--dry-run needs at least one --ddp target, an arrangement --map or --audio {NET}NODE"
     return None
 
 
@@ -152,11 +151,11 @@ def _parser() -> argparse.ArgumentParser:
                        "own seed seeds its layers")
 
     where = run.add_argument_group("the geometry")
-    where.add_argument("--map", type=parsed_by(_map_spec), default=None, metavar="SPEC",
-                       help="line:64, grid:16x16, lattice:8 or an arrangement .json "
-                       f"(default {DEFAULT_MAP})")
-    where.add_argument("--room", type=Path, default=None, metavar="PATH",
-                       help="room map file: the mapping and the DDP boards, reloaded on save")
+    where.add_argument("--map", type=parsed_by(check_spec), default=None, metavar="SPEC",
+                       help=f"{SPEC_RULE}: an arrangement gives the mapping and the DDP boards (each controller "
+                       f"with a host), and reloads on save (default {DEFAULT_MAP})")
+    where.add_argument("--room", type=parsed_by(check_spec), default=None, metavar="PATH",
+                       help="deprecated: the old name of --map, dropped in the next release")
 
     out = run.add_argument_group("the outputs")
     out.add_argument("--ansi", action="store_true", help="terminal sink (the default sink)")
@@ -170,8 +169,9 @@ def _parser() -> argparse.ArgumentParser:
                      "never with --unattended")
     out.add_argument("--ddp", action="append", default=[], metavar="HOST=START+COUNT",
                      help="stream DDP to a WLED board (HOST or HOST:PORT, HOST an IPv4 address or NAME.local); "
-                     "repeat once per board")
-    out.add_argument("--no-ddp", action="store_true", help="with --room: simulate only, send nothing to the boards")
+                     "repeat once per board; not with an arrangement whose controllers have hosts")
+    out.add_argument("--no-ddp", action="store_true",
+                     help="with an arrangement --map: simulate only, send nothing to the boards")
     out.add_argument("--ddp-fps", type=positive("a rate in frames per second"), default=40.0, metavar="FPS",
                      help="DDP output rate, at most --fps (default 40)")
     out.add_argument("--dry-run", action="store_true", help="print the DDP plan and exit without sending")
@@ -253,12 +253,6 @@ def _milliseconds(text: str) -> float:
     if not (math.isfinite(value) and abs(value) <= 10_000.0):
         raise argparse.ArgumentTypeError(f"expected milliseconds from -10000 to 10000, got {text!r}")
     return value
-
-
-def _map_spec(spec: str) -> np.ndarray | Path:
-    """The `--map` value: the path of an arrangement `.json`, which
-    `pewpew.run.rig_map` compiles, or a synthetic mapping (`parse_map`)."""
-    return Path(spec) if spec.endswith(".json") else parse_map(spec)
 
 
 def _fraction(text: str) -> float:

@@ -10,11 +10,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from fakes import LEGACY_ROOM, room_meters
 from pewpew.__main__ import main
+from pewpew.mapping import contain
 from pewpew.rig import RigError, compile_rig, load_arrangement, load_catalog
 from pewpew.rig.pose import MVR_C
-from pewpew.rig.room_import import room_to_arrangement
-from pewpew.room.map import RoomError, compile_room
+from pewpew.rig.room_import import RoomError, _parse, room_to_arrangement
+from pewpew.rig.runtime import RoomFormatWarning, ddp_targets, load_rig, parse_rig, wled_plan
+from pewpew.sinks.ddp import Board, parse_target
 
 ROOT = Path(__file__).resolve().parent.parent
 ROOM_FILE = ROOT / "examples" / "room-60-bars.json"
@@ -30,44 +33,90 @@ def migrate(doc):
 
 def assert_equivalent(doc):
     """The room and its migration give one mapping, order, id set and address table."""
-    room = compile_room(doc)
+    names, wired, _ = _parse(doc)
     arrangement = migrate(doc)
     rig = compile_rig(load_arrangement(arrangement), CATALOG)
     assert not [i for i in rig.issues if i.level in ("error", "violation")]
 
-    assert rig.mapping.shape == room.mapping.shape
-    assert np.abs(rig.mapping.astype(np.float64) - room.mapping).max() <= 1e-7
-    assert np.abs(rig.positions_m @ MVR_C.T - room.meters).max() <= 1e-9 * max(1.0, max(room.extent))
+    meters = room_meters(doc)
+    extent = np.ptp(meters, axis=0)
+    assert np.abs(rig.positions_m @ MVR_C.T - meters).max() <= 1e-9 * max(1.0, float(extent.max()))
+    expected = contain(meters).mapping
+    assert rig.mapping.shape == expected.shape
+    assert np.abs(rig.mapping.astype(np.float64) - expected).max() <= 1e-7
 
-    assert [(f.id, f.first, f.pixels) for f in room.fixtures] == [
+    firsts = np.cumsum([0, *(s.pixels for s in wired)])
+    assert [(s.id, int(first), s.pixels) for s, first in zip(wired, firsts)] == [
         (f.id, f.pixel_start, f.pixel_count) for f in rig.fixtures
     ]
 
-    # DDP: one target per board, its host, port and pixel range.
-    by_controller = {s.controller: s for s in rig.controller_slices}
-    targets = {c.id: c for c in rig.controllers}
-    assert [(b.host, b.port, b.start, b.count) for b in room.boards] == [
-        (targets[name].host, targets[name].port, by_controller[name].start, by_controller[name].count)
-        for name in room.board_names
-    ]
+    # DDP: one target per board, its host and port, its contiguous pixel range.
+    expected_boards, start = [], 0
+    for name in names:
+        count = sum(s.pixels for s in wired if s.board == name)
+        host, port = parse_target(doc["boards"][name])
+        expected_boards.append(Board(host, start, count, port))
+        start += count
+    assert ddp_targets(rig) == tuple(expected_boards)
 
     # WLED's LED settings: each output's start (from its board's pixel 0) and length.
-    # The rig has no WLED plan line yet, so the per-output counts and starts are compared.
+    by_controller = {s.controller: s for s in rig.controller_slices}
     outputs = [o.id for o in CATALOG.get(PROFILE, "controller").outputs]
-    assert [(o.board, o.output, o.start, o.count) for o in room.outputs] == [
+    per_output: dict[tuple[str, int], int] = {}
+    for s in wired:
+        per_output[s.board, s.output] = per_output.get((s.board, s.output), 0) + s.pixels
+    expected_outputs, board_start = [], {}
+    for name in names:
+        board_start[name] = 0
+    for (board, output), count in per_output.items():
+        expected_outputs.append((board, output, board_start[board], count))
+        board_start[board] += count
+    assert expected_outputs == [
         (s.controller, outputs.index(s.output) + 1, s.start - by_controller[s.controller].start, s.count)
         for s in rig.slices
     ]
-    return room, arrangement, rig
+    return wired, arrangement, rig
 
 
 def test_the_example_room_migrates_equivalently():
     doc = json.loads(ROOM_FILE.read_text())
-    room, arrangement, _ = assert_equivalent(doc)
+    wired, arrangement, _ = assert_equivalent(doc)
     assert arrangement["name"] == doc["label"] and arrangement["notes"] == doc["notes"]
     assert {t for f in arrangement["fixtures"] for t in f["tags"]} == {"canopy"}
-    assert [f["id"] for f in arrangement["fixtures"]] == [f.id for f in room.fixtures]
-    assert room.fixtures[0].id == "row01.1"
+    assert [f["id"] for f in arrangement["fixtures"]] == [s.id for s in wired]
+    assert wired[0].id == "row01.1"
+
+
+WLED_PLAN = """\
+ddp 10.0.0.11:4048  pixels 0-1279 (1280)  3 packets/frame  154,800 B/s at 40 fps  board A
+  output 1  start 0  length 320  fixtures row01.1..row01.5 (5)
+  output 2  start 320  length 320  fixtures row02.1..row02.5 (5)
+  output 3  start 640  length 320  fixtures row03.1..row03.5 (5)
+  output 4  start 960  length 320  fixtures row04.1..row04.5 (5)
+ddp 10.0.0.12:4048  pixels 1280-2559 (1280)  3 packets/frame  154,800 B/s at 40 fps  board B
+  output 1  start 0  length 320  fixtures row05.1..row05.5 (5)
+  output 2  start 320  length 320  fixtures row06.1..row06.5 (5)
+  output 3  start 640  length 320  fixtures row07.1..row07.5 (5)
+  output 4  start 960  length 320  fixtures row08.1..row08.5 (5)
+ddp 10.0.0.13:4048  pixels 2560-3839 (1280)  3 packets/frame  154,800 B/s at 40 fps  board C
+  output 1  start 0  length 320  fixtures row09.1..row09.5 (5)
+  output 2  start 320  length 320  fixtures row10.1..row10.5 (5)
+  output 3  start 640  length 320  fixtures row11.1..row11.5 (5)
+  output 4  start 960  length 320  fixtures row12.1..row12.5 (5)
+""".splitlines()
+
+
+def test_the_canopy_prints_the_plan_the_room_compiler_printed():
+    rig, _ = load_rig(ARRANGEMENT_FILE)
+    assert wled_plan(rig, 40.0) == WLED_PLAN
+
+
+def test_the_legacy_room_read_in_place_gives_the_same_rig():
+    rig, _ = load_rig(ARRANGEMENT_FILE)
+    with pytest.warns(RoomFormatWarning):
+        legacy, _ = load_rig(LEGACY_ROOM)
+    assert legacy.mapping.tobytes() == rig.mapping.tobytes()
+    assert wled_plan(legacy, 40.0) == WLED_PLAN
 
 
 def test_the_checked_in_example_is_what_the_verb_writes():
@@ -164,7 +213,10 @@ def rooms(draw):
 
 @given(rooms())
 def test_generated_rooms_migrate_equivalently(doc):
-    assert_equivalent(doc)
+    *_, rig = assert_equivalent(doc)
+    with pytest.warns(RoomFormatWarning):
+        in_place = parse_rig(json.dumps(doc))
+    assert in_place.to_json() == rig.to_json()
 
 
 def test_the_migration_is_deterministic():

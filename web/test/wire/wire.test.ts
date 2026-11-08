@@ -18,7 +18,10 @@ import { nowOf } from "../../src/aura/aura";
 import { newLayer, offReason, shelve, type BlendNote, type Card, type Example, type Shelf } from "../../src/stack/catalog";
 import { frontFirst, isSignal, movedBy, sectionOf } from "../../src/stack/stack";
 import type { LayerItem, NodeItem, RouteItem, SignalItem, StackState } from "../../src/stack/stack";
-import { asServerMessage, encodeFrame, parseFrame, parseTyped, type ClientMessage, type Control, type ServerMessage } from "../../src/wire/protocol";
+import {
+  asServerMessage, encodeFrame, parseFrame, parseTyped, type ClientMessage, type Control, type RigController, type RigControllerSlice,
+  type RigFixture, type RigIssue, type RigPlan, type RigShape, type RigSlice, type ServerMessage,
+} from "../../src/wire/protocol";
 import { WireStore } from "../../src/wire/store";
 import {
   first, GREETING, LATER, SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, SESSION_REFUSED,
@@ -42,14 +45,37 @@ const ROOM: Shape = {
     plan: { keys: keys<Extract<RoomPlan, { url: string }>>({ corner: true, unit: true, url: true }) },
   },
 };
-const MAP = { n: true, total: true, positions: true, is3d: true, room: true } as const;
+const MAP = { n: true, total: true, positions: true, is3d: true, room: true, rig: true } as const;
+const RIG: Shape = {
+  keys: keys<RigShape>({
+    catalog_digest: true, frame: true, scale: true, shift: true, plan: true, fixtures: true, types: true,
+    controllers: true, slices: true, controller_slices: true, issues: true,
+  }),
+  fields: {
+    plan: { keys: keys<Extract<RigPlan, { url: string }>>({ corner_m: true, meters_per_pixel: true, url: true }) },
+    fixtures: {
+      keys: keys<RigFixture>({
+        id: true, type_id: true, base_type_id: true, group: true, matrix: true, pixel_start: true,
+        pixel_count: true, controller: true, output: true, tags: true, dims: true,
+      }),
+    },
+    controllers: { keys: keys<RigController>({ id: true, profile: true, host: true, port: true }) },
+    slices: {
+      keys: keys<RigSlice>({
+        controller: true, output: true, chain: true, start: true, count: true, led_type: true, color_order: true,
+      }),
+    },
+    controller_slices: { keys: keys<RigControllerSlice>({ controller: true, start: true, count: true }) },
+    issues: { keys: keys<RigIssue>({ level: true, code: true, message: true, ref: true }) },
+  },
+};
 
 const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
   hello: {
     keys: keys<Message<"hello">>({ type: true, ...MAP, display_gamma: true, build: true, capabilities: true }),
-    fields: { room: ROOM },
+    fields: { room: ROOM, rig: RIG },
   },
-  layout: { keys: keys<Message<"layout">>({ type: true, ...MAP }), fields: { room: ROOM } },
+  layout: { keys: keys<Message<"layout">>({ type: true, ...MAP }), fields: { room: ROOM, rig: RIG } },
   status: { keys: keys<Message<"status">>({ type: true, error: true, source: true, path: true }) },
   declare: { keys: keys<Message<"declare">>({ type: true, params: true }) },
   params: { keys: keys<Message<"params">>({ type: true, values: true }) },

@@ -1,11 +1,12 @@
-"""What pewpew's JSON files share: the room map (`pewpew.room.map`),
+"""What pewpew's JSON files share: the rig file (`pewpew.rig.runtime`),
 the saved looks (`pewpew.aura.book`), and the JSONL logs of runs (the
 trigger log, `pewpew.aura.triggers`, and the feature log,
 `pewpew.audio.features`).
 
 Each loader collects every problem before it refuses, and no message names
 a path, so the same text can cross the preview socket as a reload status.
-Every rewrite goes through `write_atomic`.
+Every rewrite goes through `write_atomic`; `replace_string` changes one
+string value of a hand-formatted file and keeps every other byte.
 
 Every parse of untrusted JSON goes through `loads`, which refuses nesting
 past `MAX_DEPTH` before the parser runs. Python's C parser stops only when
@@ -188,6 +189,22 @@ def write_atomic(path: Path, data: bytes, *, mode: int = 0o666) -> None:
         except OSError:
             pass
         raise
+
+
+def replace_string(data: bytes, old: str, new: str, expected: Any) -> bytes:
+    """`data`, JSON text, with its one string value `old` changed to `new`;
+    every other byte is kept, so a hand-formatted file keeps its layout.
+    `expected` is the parsed document the change must give. Raises
+    ProblemsError when `old` is not a string of the text exactly once, or
+    when the change gives another document."""
+    text = data.decode("utf-8")
+    needle = json.dumps(old, ensure_ascii=False)
+    if text.count(needle) != 1:
+        raise ProblemsError([f"{needle} is not in the file exactly once; edit the file by hand"])
+    out = text.replace(needle, json.dumps(new, ensure_ascii=False)).encode("utf-8")
+    if parse_json(out, ProblemsError) != expected:
+        raise ProblemsError([f"changing {needle} changes more than that value; edit the file by hand"])
+    return out
 
 
 def read_run(path: Path, run: int = -1) -> list[dict]:

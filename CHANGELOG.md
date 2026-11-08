@@ -772,6 +772,19 @@ series (batch mode).
 
 ### Changed
 
+- Run a real rig from an arrangement: `run --map RIG.arrangement.json` gives the
+  mapping, the DDP boards (each controller's `host`, unless `--no-ddp`), the blink,
+  the preview's room drawing and live reload on save. The room compiler is gone;
+  `--dry-run` prints the same WLED plan for the migrated canopy as the room file did.
+  A run refuses to stream when the arrangement breaks a firmware pixel cap
+  (`output_over_cap`, `controller_over_cap`) or a wired controller has no host, and
+  `--ddp` is refused with controllers that have hosts. `--max-watts` works on any
+  arrangement. "use for A" on the page rewrites that controller's `host`; it is
+  refused on a room file ("migrate it first") and under `--unattended`. The preview's
+  `hello` and `layout` carry a `rig` object (null for other maps) for a 3D view.
+  `fx render`, `look_render` and `boards backup|restore` take an arrangement
+  (`boards ... --map`).
+
 - Run the L1 suite in parallel: `just test` and `just test-thorough` use pytest-xdist
   (`-n auto --dist loadfile`), about 35 s serial to 15 s. `-n 0` or bare `uv run pytest`
   runs it serially; `-n` alone defaults to `--dist loadfile`. Under xdist the process
@@ -1287,6 +1300,13 @@ series (batch mode).
   announced; the look is one region, its blocks `h3`, its rows `h4`.
   Help says what a person sees (`fall back`, `which way the bands cross`),
   freq has no `/unit`, and strip refusals drop `(u)`.
+
+### Deprecated
+
+- `--room` (`run`, `boards`) is the old name of `--map`, and a room map file is the
+  old format. A room file given to `--map`, `--room`, `fx --map` or MCP is migrated in
+  memory with a warning; the next release refuses both. Migrate once with
+  `python -m pewpew rig migrate-room ROOM.json -o OUT.arrangement.json`.
 
 ### Removed
 

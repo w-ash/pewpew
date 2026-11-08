@@ -112,7 +112,7 @@ LAYER = "layer"
 
 class Boards(Protocol):
     """The two board fixes: find the boards on the network, and point a
-    room board at one. `pewpew.health.HealthMonitor` implements it."""
+    rig's controller at one. `pewpew.health.HealthMonitor` implements it."""
 
     def scan(self) -> str | None: ...
 
@@ -430,16 +430,16 @@ class AuraControl:
         return self._boards.scan()
 
     def rebind(self, board: object, address: object) -> str | None:
-        """Point a room board at an address the last scan found."""
+        """Point a rig's controller at an address the last scan found."""
         if self._boards is None:
             return "this run streams to no boards"
         return self._boards.rebind(board, address)
 
     def blink(self, fixture: object) -> str | None:
-        """Flash one room fixture white and off (pewpew.room.blink)."""
+        """Flash one rig fixture white and off (pewpew.room.blink)."""
         blink = self._blink
         if blink is None:
-            return "blink needs a room map (run --room)"
+            return "blink needs an arrangement map (run --map RIG.arrangement.json)"
         reason = blink.check(fixture)
         if reason is None:
             self._calls.call_soon(lambda: blink.start(fixture))  # type: ignore[arg-type]

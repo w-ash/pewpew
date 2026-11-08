@@ -26,7 +26,7 @@ pytest.importorskip("mcp")
 from mcp import Client, MCPError
 from mcp.types import BlobResourceContents, TextContent, TextResourceContents
 
-from fakes import FLOW_LOOK, LoopThread, Pooled, aura_rig, instant_looks, preview_sink, run_python
+from fakes import EXAMPLE_RIG, FLOW_LOOK, LoopThread, Pooled, aura_rig, instant_looks, preview_sink, run_python
 from pewpew import boards, lab, wled
 from pewpew.aura.book import load_looks
 from pewpew.fx import op as fx_op
@@ -204,6 +204,12 @@ async def test_look_render_gives_the_render_a_sheet_and_the_same_json(client: Cl
     detailed = await client.call_tool("look_render", {"look": FIRST, **FAST, "sheet": False,
                                                       "response_format": "detailed"})
     assert payload(detailed) == rendered.to_json() and len(detailed.content) == 1
+
+
+async def test_look_render_takes_an_arrangement(client: Client) -> None:
+    spec = {**FAST, "map": str(EXAMPLE_RIG), "sheet": False, "response_format": "detailed"}
+    rendered = payload(await client.call_tool("look_render", {"look": FIRST, **spec}))
+    assert rendered["spec"]["map"] == str(EXAMPLE_RIG) and rendered["spec"]["points"] == 3840
 
 
 async def test_look_render_moves_a_knob_by_its_route(client: Client) -> None:

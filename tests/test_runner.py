@@ -16,8 +16,21 @@ import pytest
 
 import pewpew.run as run_module
 import pewpew.watchdog as watchdog_module
+from fakes import (
+    EXAMPLE_RIG,
+    LEGACY_ROOM,
+    FakeTime,
+    build,
+    filed,
+    frames,
+    hosted,
+    layered,
+    looks_file,
+    program_of,
+    run_main,
+    wait_until,
+)
 from fakes import EXAMPLES as EXAMPLE_LOOKS
-from fakes import FakeTime, build, filed, frames, hosted, layered, looks_file, program_of, run_main, wait_until
 from pewpew.__main__ import main
 from pewpew.aura.master import Master
 from pewpew.compose import layer_seed
@@ -85,7 +98,7 @@ def test_run_rejects_a_bad_looks_file_and_a_bad_map(tmp_path, capsys):
     # The gallery's `pattern` op is gone: a look that names it is refused as any unknown op is.
     with pytest.raises(SystemExit, match=r"layers.base.pattern: unknown op 'pattern'; ops: add, "):
         main(["run", unknown_op(tmp_path, "pattern"), "--frames", "1"])
-    assert "argument --map: expected line:64, grid:16x16 or lattice:8, sizes at least 1; got 'torus:9'" in usage_error(
+    assert "expected line:64, grid:16x16, lattice:8 or an arrangement file (.json); got 'torus:9'" in usage_error(
         ["run", looks_file(), "--map", "torus:9", "--frames", "1"], capsys)
     for flag in (["--param", "speed=1"], ["--units", "pixel"], ["--pattern-dir", "."], ["--no-reload"],
                  ["--looks", unknown]):
@@ -304,10 +317,10 @@ def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
     ("--seed", "-1", "argument --seed: expected a seed, a whole number of at least 0, got '-1'"),
     ("--frames", "-5", "argument --frames: expected a frame count, a whole number of at least 1, got '-5'"),
     ("--frames", "0", "argument --frames: expected a frame count, a whole number of at least 1, got '0'"),
-    ("--map", "line:0", "argument --map: expected line:64, grid:16x16 or lattice:8, sizes at least 1; got 'line:0'"),
-    ("--map", "grid:0x4", "sizes at least 1; got 'grid:0x4'"),
-    ("--map", "lattice:0", "sizes at least 1; got 'lattice:0'"),
-    ("--map", "grid:4", "sizes at least 1; got 'grid:4'"),
+    ("--map", "line:0", "argument --map: expected line:64, grid:16x16, lattice:8 or an arrangement"),
+    ("--map", "grid:0x4", "(.json); got 'grid:0x4'"),
+    ("--map", "lattice:0", "(.json); got 'lattice:0'"),
+    ("--map", "grid:4", "(.json); got 'grid:4'"),
 ])
 def test_a_bad_value_is_a_usage_error_naming_its_flag(flag, value, message, capsys):
     assert message in usage_error(["run", looks_file(), "--map", "line:8", "--frames", "1", flag, value], capsys)
@@ -331,9 +344,47 @@ def test_cli_rejects_bad_targets_with_one_line(extra, message, audit_log, record
 
 
 def test_a_dry_run_with_nothing_to_stream_is_a_usage_error(capsys, audit_log):
-    assert "--dry-run needs at least one --ddp target, a --room or --audio net:NODE" in usage_error(
+    assert "--dry-run needs at least one --ddp target, an arrangement --map or --audio net:NODE" in usage_error(
         ["run", looks_file(), "--map", "line:8", "--dry-run"], capsys)
     assert not audit_log.exists()
+
+
+def test_a_canopy_dry_run_prints_the_same_plan_by_map_and_by_room(audit_log, recorder, capsys):
+    rc, _ = run_main(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--dry-run"])
+    by_map = capsys.readouterr()
+    rc_room, _ = run_main(["run", looks_file(), "--room", str(LEGACY_ROOM), "--dry-run"])
+    by_room = capsys.readouterr()
+    assert rc == rc_room == 0 and by_map.out and by_room.out == by_map.out
+    assert recorder.sent == [] and not audit_log.exists()
+    assert "--room is the old name of --map" in by_room.err and "this is a room map" in by_room.err
+    assert "--room" not in by_map.err and "this is a room map" not in by_map.err
+
+
+def test_the_canopy_takes_a_power_cap_but_no_ddp_list(capsys):
+    assert build(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--max-watts", "5000", "--frames", "1",
+                  "--no-ddp"]).launch.limiter is not None
+    message = usage_error_or_exit(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--ddp", "10.0.0.11=0+8",
+                                   "--dry-run"])
+    assert "--ddp" in message and "drop --ddp" in message and "\n" not in message
+
+
+def test_a_dry_run_of_an_arrangement_without_hosts_is_refused_with_one_line(audit_log):
+    message = usage_error_or_exit(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--dry-run"])
+    assert "no controller" in message and "has a host" in message and "\n" not in message
+    assert not audit_log.exists()
+
+
+def test_fx_render_accepts_an_arrangement_map(capsys):
+    assert main(["fx", "render", looks_file(), "--map", str(EXAMPLE_RIG), "--seconds", "0.1", "--fps", "10",
+                 "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["spec"]["points"] == 3840
+
+
+def usage_error_or_exit(argv) -> str:
+    """The one-line message of the SystemExit that `argv` raises."""
+    with pytest.raises(SystemExit) as exc:
+        run_main(argv)
+    return str(exc.value)
 
 
 # -- the control page: --host, master, blackout ------
@@ -593,12 +644,12 @@ def test_a_run_on_any_other_map_never_imports_the_rig_stack():
 
 
 def test_a_failing_rig_compile_cannot_break_a_run_on_another_map(monkeypatch):
-    import pewpew.rig
+    import pewpew.rig.runtime
 
     def boom(*args, **kwargs):
         raise RuntimeError("rig compile broke")
 
-    monkeypatch.setattr(pewpew.rig, "compile_rig", boom)
+    monkeypatch.setattr(pewpew.rig.runtime, "compile_rig", boom)
     assert run_main(["run", looks_file(), "--map", "line:8", "--frames", "1"])[0] == 0
     with pytest.raises(RuntimeError, match="rig compile broke"):
         run_main(["run", looks_file(), "--map", str(GOLDEN_RINGS), "--frames", "1"])
@@ -631,8 +682,8 @@ def test_the_power_limit_runs_after_the_master():
     run.aura.master.set(0.5)
     frame = np.ones((3072, 3), np.float32)
     stages = run.loop._after
-    assert stages[0] == run.aura.master.apply and len(stages) == 2
-    out = stages[1](0.0, stages[0](0.0, frame))
+    assert stages[1] == run.aura.master.apply and len(stages) == 3  # the blink, the master, the limit
+    out = stages[2](0.0, stages[1](0.0, stages[0](0.0, frame)))
     watts = run.launch.limiter.model.watts(out)  # type: ignore[union-attr]
     assert watts == pytest.approx(50.0, rel=1e-3) and (frame == 1.0).all()
 

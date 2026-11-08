@@ -131,6 +131,7 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
         shift=contained.shift,
         plan=arrangement.plan,
         variants=tuple(Variant(id=v.id, type=base, dims=dict(catalog.dims(v.id))) for base, v in variants),
+        types={tid: catalog.spec(tid) for tid in dict.fromkeys(f.type_id for f in fixtures)},
     )
 
 

@@ -14,16 +14,19 @@ agents only read (CLAUDE.md T-7).
 
 ## 1. Before setup
 
-- [ ] Copy the looks file, the room file and the room file's plan image to
-      the laptop (the plan image path is relative to the room file).
-- [ ] Name each board `pewpew-N.local` in the room file, so pewpew follows a
+- [ ] Copy the looks file, the arrangement file and its plan image to
+      the laptop (the plan image path is relative to the arrangement file). A room
+      file is migrated first: `uv run python -m pewpew rig migrate-room ROOM.json -o
+      ROOM.arrangement.json`; `run` reads a room file for one more release, with a
+      warning.
+- [ ] Name each board `pewpew-N.local` as the controller `host` in the arrangement, so pewpew follows a
       board to a new DHCP address (ADR-004, 2026-11-04 amendment;
       `src/pewpew/health.py`). Backups are filed by these names
       (`src/pewpew/boards.py`).
 - [ ] Back up every board into a new directory outside the repo: a backup
       is each board's `cfg.json` and `presets.json` (`src/pewpew/boards.py`),
       which hold its network settings (inference).
-      `uv run python -m pewpew boards backup ~/pewpew-backups/$(date +%Y-%m-%dT%H%M) --room <room.json>`.
+      `uv run python -m pewpew boards backup ~/pewpew-backups/$(date +%Y-%m-%dT%H%M) --map <rig.arrangement.json>`.
       If the backup notes "skip out-of-sequence" is on, turn it off (§3).
 - [ ] Pre-flash a spare board with the same WLED version and join it to the
       private router (`.claude/skills/setting-up-wled-boards/SKILL.md`; wiring
@@ -35,13 +38,13 @@ agents only read (CLAUDE.md T-7).
       (inference: untested).
 - [ ] Apply the macOS settings (§4).
 - [ ] Gate the looks on the room:
-      `uv run python -m pewpew verify looks <looks.json> --map <room.json>`.
+      `uv run python -m pewpew verify looks <looks.json> --map <rig.arrangement.json>`.
       Every look must PASS: it checks, flashes at most 3 times a second
       (WCAG 2.3.1), is not black, and every knob changes the picture
       (`docs/authoring.md` §6, `src/pewpew/lab/verify.py`).
 - [ ] Dry-run the unattended run command and check the per-board plan (backlog, DDP
       sink notes):
-      `uv run python -m pewpew run <looks.json> --room <room.json>
+      `uv run python -m pewpew run <looks.json> --map <rig.arrangement.json>
       --ddp-fps <rate> --dry-run`. It also reads the looks file, so a
       refused file stops here rather than in launchd's restarts
       (`src/pewpew/run.py`).
@@ -61,7 +64,7 @@ agents only read (CLAUDE.md T-7).
       uv sync                                  # the template runs .venv/bin/python
       mkdir -p ~/Library/Logs/pewpew
       sed -e "s|__REPO__|$PWD|g" \
-          -e "s|__ROOM__|/path/to/room.json|g" -e "s|__LOOKS__|/path/to/looks.json|g" \
+          -e "s|__MAP__|/path/to/rig.arrangement.json|g" -e "s|__LOOKS__|/path/to/looks.json|g" \
           -e "s|__HOST__|<the laptop's address on the private router>|g" \
           -e "s|__LOGS__|$HOME/Library/Logs/pewpew|g" -e "s|__FPS__|40|g" \
           deploy/launchd/pewpew-aura.plist > ~/Library/LaunchAgents/local.pewpew.aura.plist
@@ -107,7 +110,7 @@ the admin panel does not show are in LuCI, under Advanced Settings
       found (watts per bar not measured yet, backlog).
 - [ ] Auto-white "Accurate" on every RGBW bar output: pewpew sends RGB and
       WLED makes W from this mode [S1250:wled00/bus_manager.cpp#L275].
-- [ ] Bar outputs on the RMT outputs, with LED counts matching the room file
+- [ ] Bar outputs on the RMT outputs, with LED counts matching the arrangement
       (backlog, Wi-Fi test notes; [S1256]).
 - [ ] DMX start address 1. WLED adds `DMXAddress / channelsPerLed` to the
       DDP start pixel, so 3 or more shifts the pixels (backlog, DDP sink notes).
@@ -229,7 +232,7 @@ Things a restart or a trigger changes:
 Tier 2: agents read the page, the logs and `/json/info` only. A board
 restore or any config write is tier 1 and runs only in an attended session
 (backlog, Aura health notes), `--dry-run` first:
-`uv run python -m pewpew boards restore <backup dir> --room <room.json> --dry-run`.
+`uv run python -m pewpew boards restore <backup dir> --map <rig.arrangement.json> --dry-run`.
 
 The health panel shows a problem and a fix sentence for each board, the
 render loop and the sleep assertion (`src/pewpew/health.py`); the v16

@@ -6,7 +6,7 @@ them (`aura.stack`, the signals' knobs, and the `mod` readout). It holds a
 new client's greeting, its `catalog` cut to two cards (`CARDS`), then one
 example of each message whose fields the greeting leaves empty (a held
 trigger, a refusal, a look and a layer refused with their ids, an ack, a
-render error, a scan, a room layout), and the controls a client may send.
+render error, a scan, the layout of a rig with a floor plan), and the controls a client may send.
 The page builds its test messages from it and checks every key against
 its types (web/test/wire/wire.test.ts), so a renamed key fails both
 suites.
@@ -24,6 +24,7 @@ import pytest
 from fakes import (
     FakeTime,
     LoopThread,
+    arrangement,
     aura_rig,
     bar,
     ddp_sink,
@@ -33,7 +34,6 @@ from fakes import (
     next_text,
     preview_sink,
     restore,
-    room,
     wait_until,
 )
 from params_zoo import ZOO
@@ -44,7 +44,8 @@ from pewpew.fx.graph import Graph, Node
 from pewpew.health import HealthMonitor
 from pewpew.mapping import line
 from pewpew.pace import PaceStats
-from pewpew.room.map import compile_room
+from pewpew.rig import load_catalog
+from pewpew.rig.runtime import compile_doc, plan_view, rig_view
 from pewpew.run import status_line
 from pewpew.sinks.ddp import Board
 
@@ -52,6 +53,8 @@ GOLDEN = Path(__file__).parent / "goldens" / "wire.json"
 PAGE_SOURCE = Path(__file__).resolve().parents[1] / "web" / "src"
 # The hello's build stamp follows the page source; the golden holds this one.
 BUILD = "0123456789abcdef"
+# The layout's catalog digest follows every catalog entry; the golden holds this one.
+DIGEST = "0" * 64
 HOST, US = "192.168.1.50", "192.168.1.2"
 pytestmark = pytest.mark.usefixtures("fake_ops")
 # A look whose one knob is out of its range, which the aura refuses.
@@ -121,14 +124,17 @@ def capture(folder: Path) -> dict:
             scan = later("health")
             plan = folder / "plan.png"
             plan.write_bytes(b"\x89PNG\r\n\x1a\n")
-            doc = room(bar("a", pixels=2), bar("b", pixels=2, start=[0.0, 1.0], end=[1.0, 1.0], input="end", chain=2),
-                       boards={"A": HOST})
+            doc = arrangement(
+                bar("a", pixels=2), bar("b", pixels=2, start=[0.0, 1.0], end=[1.0, 1.0], input="end", chain=2),
+                boards={"A": HOST},
+            )
             doc["plan"] = {"image": "plan.png", "points": [[0, 0], [100, 0]], "meters": 1.0}
-            layout_room = compile_room(doc)
-            sink.remap(layout_room.mapping, layout_room.describe(), plan)
-            sink.send(rig.clock.t, np.zeros((layout_room.n, 3), dtype=np.float32))
+            bars = compile_doc(doc, load_catalog())
+            sink.remap(bars.mapping, plan_view(bars), plan, rig_view(bars))
+            sink.send(rig.clock.t, np.zeros((bars.n, 3), dtype=np.float32))
             layout = next_text(ws)
     greeting[0]["build"] = BUILD
+    layout["rig"]["catalog_digest"] = DIGEST
     catalog = by_type["catalog"]
     catalog["cards"] = [card for card in catalog["cards"] if card["name"] in CARDS]
     return {

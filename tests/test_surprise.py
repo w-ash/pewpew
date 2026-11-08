@@ -24,7 +24,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fakes import EXAMPLE_ROOM, FLOW_LOOK, aura_rig, filed, in_new_process, solid
+from fakes import EXAMPLE_RIG, FLOW_LOOK, aura_rig, filed, in_new_process, solid
 from pewpew import lab
 from pewpew.aura.variety import in_background
 from pewpew.color import PRESETS
@@ -75,10 +75,10 @@ def _made(spec: str, seed: int, budget: float = surprise.BUDGET_US) -> dict[str,
 
 def _made_for_the_room(seed: int) -> dict[str, Any]:
     """A look made for the example room, rendered there for a second."""
-    geometry = parse_geometry(str(EXAMPLE_ROOM))
+    geometry = parse_geometry(str(EXAMPLE_RIG))
     look = surprise.generate(seed, geometry.mapping)
     with tempfile.TemporaryDirectory() as folder:
-        rendered = lab.render(look, str(EXAMPLE_ROOM), 1.0, 30.0, cache=Cache(Path(folder)))
+        rendered = lab.render(look, str(EXAMPLE_RIG), 1.0, 30.0, cache=Cache(Path(folder)))
     return {"look": json.dumps(encode_look(look)), "warnings": rendered.warnings, "dims": geometry.dims,
             "checks": lab.check_look(look).ok}
 

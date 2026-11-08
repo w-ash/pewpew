@@ -17,8 +17,93 @@ import type { MapShape } from "../room/layout";
 import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
 
+/** A fixture of a rig, as compiled (pewpew.rig.runtime.rig_view), in data order. */
+export interface RigFixture {
+  readonly id: string;
+  /** With `dims`, the variant type they made; else `base_type_id`. */
+  readonly type_id: string;
+  readonly base_type_id: string;
+  readonly group: string | null;
+  /** Its pose: 16 numbers in three.js `Matrix4.elements` order, in the file's y-up meters. */
+  readonly matrix: readonly number[];
+  readonly pixel_start: number;
+  readonly pixel_count: number;
+  /** Null for a fixture no chain wires. */
+  readonly controller: string | null;
+  readonly output: string | null;
+  readonly tags: readonly string[];
+  readonly dims: Readonly<Record<string, number>>;
+}
+
+/** A fixture type's pixels: `count` along its local y over `span_m`, centred, `z_m` off its local
+ * z; `facing` is the light's local direction, null for one that faces every way. */
+export interface RigType {
+  readonly count: number;
+  readonly span_m: number;
+  readonly z_m: number;
+  readonly facing: readonly number[] | null;
+}
+
+export interface RigController {
+  readonly id: string;
+  readonly profile: string;
+  /** Where DDP reaches it; null without a host. */
+  readonly host: string | null;
+  readonly port: number | null;
+}
+
+/** The pixels one controller output drives. */
+export interface RigSlice {
+  readonly controller: string;
+  readonly output: string;
+  readonly chain: string;
+  readonly start: number;
+  readonly count: number;
+  readonly led_type: number | null;
+  readonly color_order: string;
+}
+
+/** The pixels one controller receives. */
+export interface RigControllerSlice {
+  readonly controller: string;
+  readonly start: number;
+  readonly count: number;
+}
+
+export interface RigIssue {
+  readonly level: "error" | "violation" | "warning";
+  readonly code: string;
+  readonly message: string;
+  readonly ref: string | null;
+}
+
+export type RigPlan =
+  /** The image's top-left corner in plan-frame meters, and meters per image pixel. */
+  | { readonly corner_m: readonly number[]; readonly meters_per_pixel: number; readonly url: string }
+  /** The rig names an image the engine cannot find. */
+  | { readonly error: string };
+
+/** What a 3D view needs of a rig (`run --map` with an arrangement); null on any other map.
+ * `frame` is C, which takes the y-up meters to the plan frame: a pixel's mapping is
+ * `(C @ p) * scale + shift`. */
+export interface RigShape {
+  readonly catalog_digest: string;
+  readonly frame: readonly (readonly number[])[];
+  readonly scale: number;
+  readonly shift: readonly number[];
+  readonly plan: RigPlan | null;
+  readonly fixtures: readonly RigFixture[];
+  readonly types: Readonly<Record<string, RigType>>;
+  readonly controllers: readonly RigController[];
+  readonly slices: readonly RigSlice[];
+  readonly controller_slices: readonly RigControllerSlice[];
+  readonly issues: readonly RigIssue[];
+}
+
 export interface HelloMessage extends MapShape {
   readonly type: "hello";
+  /** Null unless the map is a rig. */
+  readonly rig: RigShape | null;
   /** The gamma the frames are encoded with, so a swatch can match them. */
   readonly display_gamma: number;
   /** The build stamp of the page the engine serves; a tab built otherwise reloads. Null without one. */
@@ -29,9 +114,11 @@ export interface HelloMessage extends MapShape {
   readonly capabilities: readonly string[];
 }
 
-/** A new map (a room map reload), sent before the first frame drawn on it. */
+/** A new map (a rig reload), sent before the first frame drawn on it. */
 interface LayoutMessage extends MapShape {
   readonly type: "layout";
+  /** Null unless the map is a rig. */
+  readonly rig: RigShape | null;
 }
 
 /** The part of the engine an error comes from. On "render" a layer of the running look raises: it
@@ -189,10 +276,11 @@ export type ClientMessage =
   | { readonly type: "fire"; readonly name: string; readonly value: number | null }
   /** Look for WLED boards on the laptop's /24 (needs DDP). */
   | { readonly type: "scan" }
-  /** Point a room board at an address the last scan found, by rewriting the room file: a
-   * tier-1 action. Needs DDP and a room map; a board named by mDNS is never rebound. */
+  /** Point a rig's controller (`board` is its id) at an address the last scan found, by rewriting
+   * the arrangement file: a tier-1 action. Needs DDP and an arrangement map, and is refused in an
+   * unattended run; a board named by mDNS is never rebound. */
   | { readonly type: "rebind"; readonly board: string; readonly address: string }
-  /** Flash a room fixture white and off for a few seconds (needs a room map). With DDP on,
+  /** Flash a rig fixture white and off for a few seconds (needs an arrangement map). With DDP on,
    * this drives the real boards. */
   | { readonly type: "blink"; readonly fixture: string };
 

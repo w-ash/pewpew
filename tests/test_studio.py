@@ -883,14 +883,15 @@ def test_real_rig_refuses_a_huge_group_before_expanding(monkeypatch):
 
 
 def test_pixel_cap():
-    with TestClient(make_app(limits=Limits(max_pixels=10))) as c:
-        r = c.post("/api/compile", json={"n": 16})
+    """The default compile (`compile_doc`) holds the pixel limit: one 64 px bar fits 64, two do not."""
+    with TestClient(real_app(limits=Limits(max_pixels=64))) as c:
+        r = c.post("/api/compile", json=ring(2))
         assert r.status_code == 422 and r.json()["issues"][0]["code"] == "too_many_pixels"
-        assert c.post("/api/compile", json={"n": 10}).status_code == 200
+        assert c.post("/api/compile", json=ring(1)).status_code == 200
         with c.websocket_connect("/ws/session") as ws:
             ws.receive_text()
-            ws.send_text(json.dumps({"type": "bind", "arrangement": {"n": 16}}))
-            assert "10 pixels" in read_until(ws, is_type("refused"))["reason"]
+            ws.send_text(json.dumps({"type": "bind", "arrangement": ring(2)}))
+            assert "64 pixels" in read_until(ws, is_type("refused"))["reason"]
 
 
 # -- websocket message size (finding 4) ----------------------------------------------
@@ -1023,11 +1024,11 @@ def test_nesting_past_the_limit_never_reaches_the_rig():
 
 
 def test_only_dicts_reach_the_rig(monkeypatch):
-    import pewpew.studio.app as app_module
+    from pewpew.rig import runtime
 
     seen = []
-    real = app_module.load_arrangement
-    monkeypatch.setattr(app_module, "load_arrangement", lambda obj: seen.append(type(obj)) or real(obj))
+    real = runtime.load_arrangement
+    monkeypatch.setattr(runtime, "load_arrangement", lambda obj: seen.append(type(obj)) or real(obj))
     with TestClient(real_app()) as c:
         assert c.post("/api/compile", json="/etc/passwd").status_code == 422
         assert c.post("/api/compile", json=GOLDEN).status_code == 200

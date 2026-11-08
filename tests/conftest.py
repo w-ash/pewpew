@@ -15,10 +15,9 @@ import websockets.sync.server
 from hypothesis import settings
 
 from fake_sounddevice import FakeSoundDevice, laptop
-from fakes import EXAMPLE_ROOM, STATE_FILES, FakeProcess, Pooled, UdpRecorder, strict_worker, with_test_ops
+from fakes import EXAMPLE_RIG, STATE_FILES, FakeProcess, Pooled, UdpRecorder, strict_worker, with_test_ops
 from pewpew import audit, awake, watchdog, wled
 from pewpew.fx.bound_program import BoundProgram
-from pewpew.room.map import load_room
 from pewpew.sinks import ddp
 
 # Property tests draw the same examples on every run and keep no database of
@@ -191,8 +190,10 @@ def sd(monkeypatch: pytest.MonkeyPatch) -> FakeSoundDevice:
 
 @pytest.fixture(scope="session")
 def example():
-    """The example room, compiled once: tests only read it."""
-    return load_room(EXAMPLE_ROOM)[0]
+    """The example canopy rig, compiled once: tests only read it."""
+    from pewpew.rig.runtime import load_rig
+
+    return load_rig(EXAMPLE_RIG)[0]
 
 
 @pytest.fixture

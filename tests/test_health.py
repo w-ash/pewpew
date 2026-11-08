@@ -578,7 +578,8 @@ def test_scan_matches_boards_by_mac_and_rebind_takes_only_a_scanned_address():
 
 def test_rebind_is_refused_without_a_room_and_for_a_name_pewpew_follows():
     plain, *_ = named_rig([Board("10.0.0.11", 0, 1280)], {}, {})
-    assert plain.rebind("A", "10.0.0.12") == "rebinding a board needs a room map (run --room)"
+    assert plain.rebind("A", "10.0.0.12") == (
+        "rebinding a board needs an arrangement map (run --map RIG.arrangement.json)")
     named, *_ = named_rig([Board("pewpew-1.local", 0, 1280)], {}, {}, on_rebind=lambda b, a: None)
     assert named.rebind("A", "10.0.0.12").startswith("board A is named pewpew-1.local, which pewpew follows")
 

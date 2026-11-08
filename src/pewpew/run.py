@@ -3,27 +3,29 @@ build the aura in dependency order, start it, and tear it down.
 
 `Launch.read` turns the parsed command line into everything a run needs
 and refuses what it cannot run with one clean exit line (a bad looks
-file, a look it cannot start, a bad room map, arrangement, power cap,
-`--ddp` or `--audio`); `--dry-run` stops there with `Launch.plan`. `Run`
-builds the parts, each from the ones before it:
+file, a look it cannot start, a bad map, power cap, `--ddp` or
+`--audio`, or a rig whose boards cannot take it); `--dry-run` stops there
+with `Launch.plan`. `Run` builds the parts, each from the ones before it:
 
     stats -> features -> DDP sink, blink -> watchdog, keep-awake, health
-    -> the aura (pewpew.aura.pipeline) -> room -> sinks -> the paced loop
+    -> the aura (pewpew.aura.pipeline) -> rig reload -> sinks -> the paced loop
 
 so every part gets what it needs at construction. The health monitor
-reaches the room, built after the aura, only once the run starts. The
+reaches the rig reload, built after the aura, only once the run starts. The
 watchdog is armed before the aura is built, so a look that hangs while it
 builds still ends the run. The run starts in the looks file's current
 look (else its first), and saves go to the same file; after a stall it
-starts in the next look the stall marker does not name instead (`after_stall`). The map is `--map`, the
-room's, or `DEFAULT_MAP`. An arrangement `--map` (`pewpew.rig`) gives the
-mapping and a power model. Its `power` block,
-with `--max-watts` and `--max-brightness` replacing its values, is the
-power limit: the loop's last `after` stage, behind the master, so every
-sink gets the capped frame. The one exception is
-the preview's view of the room: the room reload pushes a new map to the
-preview, and the preview reads the room reload's status, so the preview
-subscribes to the room after both exist (`RoomLive.listeners`).
+starts in the next look the stall marker does not name instead (`after_stall`). The map is `--map`
+(`pewpew.lab.geometry.parse_geometry`), else `DEFAULT_MAP`. An arrangement
+`--map` (a rig, `pewpew.rig.runtime`) gives the mapping, a power model,
+the DDP boards (each controller with a host, unless `--no-ddp`), the
+blink's fixtures and the preview's drawing, and reloads on save. Its
+`power` block, with `--max-watts` and `--max-brightness` replacing its
+values, is the power limit: the loop's last `after` stage, behind the
+master, so every sink gets the capped frame. The one exception is the
+preview's view of the rig: the rig reload pushes a new map to the
+preview, and the preview reads the reload's status, so the preview
+subscribes to the reload after both exist (`RigLive.listeners`).
 
 The features are the seeded stand-in, or with `--audio` the analysis of
 one of this computer's inputs, a capture node or a WAV file
@@ -63,6 +65,7 @@ import re
 import shutil
 import sys
 import threading
+import warnings
 from collections import deque
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -73,7 +76,7 @@ import numpy as np
 
 from pewpew import audit
 from pewpew.audio import AudioFeatures, AudioSource, FeatureLog, LiveSource, ReplayFeatures
-from pewpew.audio.inputs import read_input
+from pewpew.audio.inputs import NET, read_input
 from pewpew.aura.book import LookBook, load_looks, route_reasons
 from pewpew.aura.looks import Looks
 from pewpew.aura.pipeline import build_aura_pipeline
@@ -83,16 +86,16 @@ from pewpew.features import EventFeatures, FakeFeatures, FeatureSource
 from pewpew.health import HealthMonitor
 from pewpew.jsonfile import read_or_exit
 from pewpew.lab.check import dims_reasons
-from pewpew.mapping import DEFAULT_MAP, dimensions, parse_map
+from pewpew.lab.geometry import Geometry, parse_geometry
+from pewpew.mapping import DEFAULT_MAP, dimensions
 from pewpew.pace import PaceStats
 from pewpew.power import PowerCap, PowerLimiter, power_stage
 from pewpew.reload import Watch
 from pewpew.render import RenderFailure
 from pewpew.room.blink import Blink
-from pewpew.room.live import RoomLive
-from pewpew.room.map import RoomMap, load_room
+from pewpew.room.live import RigLive
 from pewpew.sinks.ansi import AnsiSink
-from pewpew.sinks.ddp import DdpSink, parse_board
+from pewpew.sinks.ddp import Board, DdpSink, parse_board
 from pewpew.sinks.preview import PreviewSink
 from pewpew.sinks.sink import Sink, SinkDriver
 from pewpew.watchdog import TIMEOUT_S as WATCHDOG_S
@@ -110,22 +113,30 @@ PREVIEW_RETRY_S = 5.0  # how often a preview that cannot listen tries again
 @dataclass(frozen=True)
 class Launch:
     """Everything a run reads and checks before anything starts: the
-    looks file, with the look the run starts in current, the room map,
-    the mapping, the power limit,
-    the DDP sink and the `--audio` input. `read` refuses a launch it
-    cannot run with one clean exit line, before a dry run returns, so the
+    looks file, with the look the run starts in current, the map (a
+    synthetic one, or a rig and the bytes of its file), the power limit,
+    the DDP sink and the `--audio` input. `follow` is whether the DDP sink
+    streams to the rig's controllers. `read` refuses a launch it cannot
+    run with one clean exit line, before a dry run returns, so the
     unattended checklist's attended dry run refuses what launchd's
     restarts would."""
 
     args: argparse.Namespace
     argv: list[str]  # the command line, as the audit log records it
     book: LookBook
-    room: RoomMap | None
-    room_bytes: bytes
-    mapping: np.ndarray
+    geometry: Geometry
     limiter: PowerLimiter | None
     ddp: DdpSink | None
+    follow: bool
     audio: AudioSource | ReplayFeatures | None
+
+    @property
+    def mapping(self) -> np.ndarray:
+        return self.geometry.mapping
+
+    @property
+    def rig(self) -> CompiledRig | None:
+        return self.geometry.rig
 
     @classmethod
     def read(
@@ -133,28 +144,23 @@ class Launch:
         now: Callable[[], float], sleep: Callable[[float], None],
     ) -> Launch:
         book = looks_book(args.looks, args.master_cap)
-        room, room_bytes = (None, b"") if args.room is None else read_or_exit(
-            args.room, "room map", lambda: load_room(args.room)
-        )
-        rig = None
-        if isinstance(args.map, Path):
-            rig = rig_map(args.map)
-            mapping = rig.mapping
-        elif room is not None:
-            mapping = room.mapping
-        else:
-            mapping = parse_map(DEFAULT_MAP) if args.map is None else args.map
+        geometry = map_geometry(args.map)
+        rig, mapping = geometry.rig, geometry.mapping
         book = start_look(args.looks, book, mapping)
         limiter = power_limiter(args.max_watts, args.max_brightness, rig)
-        streams = bool(args.ddp) or (room is not None and not args.no_ddp)
+        boards = rig_boards(geometry.spec, rig, args.ddp) if rig is not None and not args.no_ddp else None
+        follow = boards is not None
         ddp = None
-        if streams:
+        if follow or args.ddp:
             try:
-                boards = room.boards if room is not None else [parse_board(spec) for spec in args.ddp]
+                boards = boards if boards is not None else [parse_board(spec) for spec in args.ddp]
                 # The loop feeds the sink at most `--fps` frames a second.
                 ddp = DdpSink(boards, len(mapping), max_fps=min(args.fps, args.ddp_fps), now=now, sleep=sleep)
             except ValueError as exc:
                 raise SystemExit(str(exc)) from None
+        elif args.dry_run and not (args.audio or "").startswith(NET):
+            raise SystemExit(f"--dry-run: no controller of {geometry.spec} has a host, so nothing would stream; "
+                             "give each a host, or add --ddp")
         if args.trigger_log is not None:
             check_log(args.trigger_log, "trigger log")
         audio = None
@@ -166,13 +172,20 @@ class Launch:
                 raise SystemExit(f"--audio {args.audio}: {exc}") from None
         if args.feature_log is not None:
             check_log(args.feature_log, "feature log")
-        return cls(args, argv, book, room, room_bytes, mapping, limiter, ddp, audio)
+        return cls(args, argv, book, geometry, limiter, ddp, follow, audio)
 
     def plan(self) -> list[str]:
-        """The per-board DDP plan and the input to open, as `--dry-run` prints them."""
+        """The per-board DDP plan and the input to open, as `--dry-run`
+        prints them: for a rig's controllers, also each output as WLED's
+        LED settings take it (`pewpew.rig.runtime.wled_plan`)."""
         lines: list[str] = []
-        if self.ddp is not None:
-            lines += self.room.plan(self.ddp.max_fps) if self.room is not None else self.ddp.plan()
+        if self.ddp is not None and self.follow:
+            from pewpew.rig.runtime import wled_plan
+
+            assert self.rig is not None
+            lines += wled_plan(self.rig, self.ddp.max_fps)
+        elif self.ddp is not None:
+            lines += self.ddp.plan()
         if isinstance(self.audio, LiveSource):
             lines.append(self.audio.describe())
         return lines
@@ -214,8 +227,12 @@ class Run:
         # Opened once every argument has passed, so a refused launch leaves no file behind.
         self.trigger_log = open_log(args.trigger_log, "trigger log") if args.trigger_log is not None else None
         self.ddp = launch.ddp
-        room = launch.room
-        self.blink = Blink(room) if room is not None else None
+        rig = launch.rig
+        self.blink = None
+        if rig is not None:
+            from pewpew.rig.runtime import fixture_spans
+
+            self.blink = Blink(fixture_spans(rig))
         # `--watchdog`, else on for an unattended run only, so a debugger stopped at
         # a breakpoint in a dev run is not killed; 0 is off.
         watchdog_s = (args.watchdog if args.watchdog is not None else WATCHDOG_S if args.unattended else 0.0) or None
@@ -231,8 +248,8 @@ class Run:
         if args.preview or self.ddp is not None or self.awake is not None:
             self.monitor = HealthMonitor(
                 self.ddp, stats=self.stats, target=args.fps, awake=self.awake, watchdog=watchdog_s,
-                names=self._board_names if room is not None else None,
-                argv=launch.argv, on_rebind=self._rebind_board if room is not None else None,
+                names=self._board_names if rig is not None else None,
+                argv=launch.argv, on_rebind=self._rebind_board if rig is not None else None,
                 audio=self.audio.state if self.audio is not None else None,
             )
         # Armed before the stack is built, so a look that hangs in its setup or
@@ -264,12 +281,14 @@ class Run:
             self.looks.error = stalled
         if args.armed:
             self.aura.triggers.arm(True, "launch")  # applied and logged at the first tick
-        self.room = None if room is None else RoomLive(
-            args.room, room, launch.room_bytes, self.aura.fader, self.aura.calls.call_soon,
-            ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch,
+        # A layout write under --unattended needs --accept-looks, which --unattended refuses.
+        self.rig = None if rig is None else RigLive(
+            Path(args.map), rig, launch.geometry.data, self.aura.fader, self.aura.calls.call_soon,
+            ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch, follow=launch.follow,
+            writes=not args.unattended or args.accept_looks,
         )
         sources: list[tuple[Source, Any]] = [
-            ("reload", self.room), ("render", self.aura.fader), ("looks", self.looks),
+            ("reload", self.rig), ("render", self.aura.fader), ("looks", self.looks),
         ]
         status = status_line(*(source for source in sources if source[1] is not None))
         # Each output and how it starts, in start order.
@@ -291,14 +310,11 @@ class Run:
         if args.preview:
             self.preview = PreviewSink(
                 launch.mapping, host=args.host or "127.0.0.1", port=args.port, status=status,
-                control=self.aura.control,
-                room=room.describe() if room is not None else None,
-                plan_image=room.plan_file(args.room) if room is not None else None,
-                now=now, sleep=sleep,
+                control=self.aura.control, now=now, sleep=sleep, **self._drawing(rig),
             )
             self.outputs.append((self.preview, self._start_preview))
-            if self.room is not None:
-                self.room.listeners.append(self._show_room)
+            if self.rig is not None:
+                self.rig.listeners.append(self._show_rig)
         if self.ddp is not None:
             self.outputs.append((self.ddp, self._start_ddp))
         self.drivers = [SinkDriver(sink.send, name=type(sink).__name__) for sink, _ in self.outputs]
@@ -363,8 +379,8 @@ class Run:
             self.feature_log.start()
         if self.capture is not None:
             self._start_capture()
-        if self.room is not None:
-            self.room.start()
+        if self.rig is not None:
+            self.rig.start()
         for service in services:  # started last and stopped first
             service.start()
 
@@ -384,8 +400,8 @@ class Run:
                 self.trigger_log.close()
         if self.feature_log is not None:
             self.feature_log.close()
-        if self.room is not None:
-            self.room.stop()
+        if self.rig is not None:
+            self.rig.stop()
         if self.preview_retry is not None:
             self.preview_retry.join()  # so no listener opens after the teardown
         teardown(self.drivers, [sink for sink, _ in self.outputs])
@@ -430,7 +446,7 @@ class Run:
         packet goes out unless the record was written first."""
         ddp = self.ddp
         assert ddp is not None
-        extra = {} if self.args.room is None else {"room": str(self.args.room)}
+        extra = {} if self.rig is None else {"map": str(self.args.map)}
         try:
             path = audit.record(
                 "ddp-stream", argv=self.launch.argv, targets=[b.spec for b in ddp.boards], fps=ddp.max_fps, **extra,
@@ -456,38 +472,64 @@ class Run:
               flush=True)
 
     def _board_names(self) -> tuple[str, ...]:
-        """The room's board names, for the health monitor (`RoomLive.board_names`)."""
-        return self.room.board_names() if self.room is not None else ()
+        """The controller ids of the sink's boards, for the health monitor (`RigLive.board_names`)."""
+        return self.rig.board_names() if self.rig is not None else ()
 
-    def _rebind_board(self, board: str, address: str) -> str | None:
-        """Point a room board at `address`, for the health monitor (`RoomLive.rebind`)."""
-        assert self.room is not None, "only a run with a room map rebinds a board"
-        return self.room.rebind(board, address)
+    def _rebind_board(self, controller: str, address: str) -> str | None:
+        """Point a controller at `address`, for the health monitor (`RigLive.rebind`)."""
+        assert self.rig is not None, "only a run on a rig rebinds a board"
+        return self.rig.rebind(controller, address)
 
-    def _show_room(self, room: RoomMap) -> None:
-        """Draw a reloaded room map on the preview. Loop thread."""
+    def _drawing(self, rig: CompiledRig | None) -> dict[str, Any]:
+        """The preview's `room`, `rig` and `plan_image` for `rig`, or none."""
+        if rig is None:
+            return {}
+        from pewpew.rig.runtime import plan_view, rig_view
+
+        image = None if rig.plan is None else Path(self.args.map).parent / rig.plan.image  # beside the rig file
+        return {"room": plan_view(rig), "rig": rig_view(rig), "plan_image": image}
+
+    def _show_rig(self, rig: CompiledRig) -> None:
+        """Draw a reloaded rig on the preview. Loop thread."""
         assert self.preview is not None
-        self.preview.remap(room.mapping, room.describe(), room.plan_file(self.args.room))
+        self.preview.remap(rig.mapping, **self._drawing(rig))
 
 
-def rig_map(path: Path) -> CompiledRig:
-    """Compile the arrangement file at `path` into a `CompiledRig`, with one
-    clean exit line for a file that does not compile or has no pixels. Its
-    warnings go to stderr. `pewpew.rig` and pydantic, a base dependency,
-    are imported here, so a run on any other map loads neither."""
-    from pewpew.rig import RigError, compile_rig, load_arrangement, load_catalog
-
-    try:
-        # A missing, unreadable or non-UTF-8 file is a RigError too.
-        rig = compile_rig(load_arrangement(path), load_catalog())
-    except RigError as exc:
-        raise SystemExit(f"--map {path}: {exc}") from None
-    for issue in rig.issues:
+def map_geometry(spec: str | None) -> Geometry:
+    """The geometry of `--map` (`parse_geometry`), else `DEFAULT_MAP`, with
+    one clean exit line for a file that does not compile or has no pixels.
+    A rig's issues, and the warning of a room map file, go to stderr. The
+    rig stack is imported only for a rig file, so a run on any other map
+    never loads it."""
+    spec = DEFAULT_MAP if spec is None else spec
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", FutureWarning)  # a room map file's RoomFormatWarning
+        try:
+            geometry = parse_geometry(spec)
+        except ValueError as exc:
+            raise SystemExit(f"--map {exc}") from None
+    for warning in caught:
+        print(f"{spec}: warning: {warning.message}", file=sys.stderr, flush=True)
+    for issue in geometry.rig.issues if geometry.rig is not None else ():
         where = f" ({issue.ref})" if issue.ref else ""
-        print(f"{path}: {issue.level}: {issue.message}{where}", file=sys.stderr, flush=True)
-    if rig.n == 0:
-        raise SystemExit(f"--map {path}: the arrangement has no pixels")
-    return rig
+        print(f"{spec}: {issue.level}: {issue.message}{where}", file=sys.stderr, flush=True)
+    return geometry
+
+
+def rig_boards(spec: str, rig: CompiledRig, ddp: list[str]) -> tuple[Board, ...] | None:
+    """The DDP boards of `rig`'s controllers (`ddp_targets`), or None when
+    no controller has a host. One clean exit line when `--ddp` (`ddp`) is
+    given too, or the rig breaks a pixel cap or has a wired controller
+    with no host (`stream_refusals`)."""
+    from pewpew.rig.runtime import ddp_targets, stream_refusals
+
+    if all(c.host is None for c in rig.controllers):
+        return None
+    if ddp:
+        raise SystemExit(f"--ddp: {spec} gives its controllers' hosts; drop --ddp, or add --no-ddp to send nothing")
+    if reasons := stream_refusals(rig):
+        raise SystemExit(f"--map {spec}: the boards cannot take this map, so nothing streams: {'; '.join(reasons)}")
+    return ddp_targets(rig)
 
 
 def power_limiter(
@@ -602,7 +644,7 @@ def map_hint(reason: str) -> str:
 def status_line(*sources: tuple[Source, Any]) -> Callable[[], Status | None]:
     """The `status` supplier: the `Status` of the first `.error` that is
     set, in the order given, each source as (tag, object), or None. The run
-    puts the room map's reload first: its outcome is the freshest thing the
+    puts the rig file's reload first: its outcome is the freshest thing the
     operator acted on. A render error, which the room shows, goes before a
     failed look recall.
 

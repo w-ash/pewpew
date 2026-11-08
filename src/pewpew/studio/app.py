@@ -1,8 +1,9 @@
 """The studio FastAPI app: HTTP API, websocket sessions, and the built SPA.
 
 `create_app` takes its collaborators as arguments so tests can inject fakes.
-The defaults are the real rig: `pewpew.rig.load_catalog` and `compile_rig`
-for arrangements, `pewpew.rig.geometry` for the GLBs, and the example looks
+The defaults are the real rig: `pewpew.rig.load_catalog` and
+`pewpew.rig.runtime.compile_doc` (under `Limits.max_pixels`) for
+arrangements, `pewpew.rig.geometry` for the GLBs, and the example looks
 of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another folder), which
 `GET /api/looks` lists and every session starts in one of (`START`). The geometry module
 is imported on first use. While it or manifold3d is missing, catalog entries
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import functools
 import importlib
 import json
 import logging
@@ -48,7 +50,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import HTTPConnection
 
 from pewpew.jsonfile import TooDeep, loads
-from pewpew.rig import Catalog, CompiledRig, compile_rig, load_arrangement, load_catalog
+from pewpew.rig import load_catalog
+from pewpew.rig.runtime import compile_doc
 from pewpew.sinks.preview import answer_request, refusal, unanswered
 from pewpew.studio.limits import (
     Admission,
@@ -165,10 +168,6 @@ def _address(conn: HTTPConnection) -> str:
     return address_key(client_ip(conn.headers, conn.client.host if conn.client else None))
 
 
-def _default_compile(arrangement: dict, catalog: Catalog) -> CompiledRig:
-    return compile_rig(load_arrangement(arrangement), catalog)
-
-
 def _geometry() -> Builders | None:
     """`pewpew.rig.geometry`'s builders, or None while that module is missing."""
     try:
@@ -246,7 +245,7 @@ def create_app(
     compile_limiter = RateLimiter(limits.compiles_per_minute, limits.compile_burst)
     compile_slots = threading.BoundedSemaphore(limits.max_concurrent_compiles)
     registry = SessionRegistry()
-    compile_fn = compile or _default_compile
+    compile_fn = compile or functools.partial(compile_doc, max_pixels=limits.max_pixels)
     view: _CatalogView | None = None
     view_lock = threading.Lock()
     if examples is None:
@@ -290,15 +289,12 @@ def create_app(
         if not compile_slots.acquire(timeout=limits.compile_wait_s):
             raise Busy(503, "the server is busy compiling; try again shortly", 1.0)
         try:
-            rig = compile_fn(arrangement, catalog_of())
+            return compile_fn(arrangement, catalog_of())
         except (ValueError, OverflowError) as exc:  # RigError and ValidationError are ValueErrors
             issues = [_issue(i) for i in getattr(exc, "issues", ())]
             raise CompileFailure(issues or [_error("invalid", _unreadable(exc))]) from None
         finally:
             compile_slots.release()
-        if rig.n > limits.max_pixels:
-            raise CompileFailure([_error("too_many_pixels", f"limit of {limits.max_pixels} pixels per arrangement")])
-        return rig
 
     def bind_args(arrangement: Any, key: str) -> dict[str, Any]:
         """Compile for a websocket bind and return `Session.bind`'s arguments.

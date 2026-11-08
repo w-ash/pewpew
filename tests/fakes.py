@@ -1,6 +1,6 @@
 """What the tests share: fakes of time, sockets, processes and the loop's
-call queue; a recorded DDP sink; socket helpers for the preview; room
-documents; and the test ops test looks run (`fake_ops`). Imported by test
+call queue; a recorded DDP sink; socket helpers for the preview; rig
+documents (room-style bars, migrated to an arrangement); and the test ops test looks run (`fake_ops`). Imported by test
 modules; conftest.py holds only hooks and fixtures."""
 
 from __future__ import annotations
@@ -59,7 +59,9 @@ from pewpew.sinks.sink import SinkDriver
 T = TypeVar("T")
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
-EXAMPLE_ROOM = EXAMPLES / "room-60-bars.json"
+EXAMPLE_RIG = EXAMPLES / "canopy-60-bars.arrangement.json"
+# The same canopy as a room map file, the older format: read with a warning for one release.
+LEGACY_ROOM = EXAMPLES / "room-60-bars.json"
 
 
 class FakeProcess:
@@ -283,6 +285,34 @@ def room(*fixtures: dict, boards: Mapping[str, str] | None = None) -> dict:
     """A room document of `fixtures`, on board A at 10.0.0.11 unless
     `boards` says otherwise."""
     return {"boards": dict(boards or {"A": "10.0.0.11"}), "fixtures": list(fixtures)}
+
+
+def arrangement(*fixtures: dict, boards: Mapping[str, str] | None = None) -> dict:
+    """The arrangement document the room of `fixtures` migrates to
+    (`room` and `bar` describe them; `pewpew.rig.room_import`)."""
+    from pewpew.rig import load_catalog
+    from pewpew.rig.room_import import room_to_arrangement
+    from pewpew.rig_cli import DEFAULT_CONTROLLER, DEFAULT_TYPE
+
+    profile = load_catalog().get(DEFAULT_CONTROLLER, "controller")
+    return room_to_arrangement(room(*fixtures, boards=boards), controller_profile=profile, fixture_type=DEFAULT_TYPE)
+
+
+def room_meters(doc: Any) -> np.ndarray:
+    """The pixel centres of the room document `doc` in wire order, in plan
+    meters, as the room compiler placed them: the oracle a migrated rig's
+    `positions_m @ MVR_C.T` must equal. Each strip's pixels sit `pitch`
+    apart, centred on it, pixel 0 at its input end."""
+    from pewpew.rig.room_import import _parse
+
+    _, wired, _ = _parse(doc)
+    points = []
+    for spec in wired:
+        direction = (spec.end - spec.start) / np.linalg.norm(spec.end - spec.start)
+        offsets = (np.arange(spec.pixels, dtype=np.float64) - (spec.pixels - 1) / 2.0) * spec.pitch
+        line = (spec.start + spec.end) / 2.0 + offsets[:, None] * direction
+        points.append(line if spec.input == "start" else line[::-1])
+    return np.concatenate(points)
 
 
 # ---- the test ops ------------------------------------------------------------------------

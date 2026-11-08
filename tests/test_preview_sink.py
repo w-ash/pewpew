@@ -24,12 +24,13 @@ import pytest
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
-from fakes import FakeTime, bar, client_for, greet, next_of, next_text, peers, preview_sink, room, wait_until
+from fakes import FakeTime, arrangement, bar, client_for, greet, next_of, next_text, peers, preview_sink, wait_until
 from pewpew.aura.master import Master
 from pewpew.errors import Refusal
 from pewpew.mapping import grid, line
 from pewpew.params import HSV, Bool, Color, Float, Int, ParamSet
-from pewpew.room.map import compile_room
+from pewpew.rig import load_catalog
+from pewpew.rig.runtime import compile_doc, plan_view, rig_view
 from pewpew.sinks import preview
 from pewpew.sinks.preview import PreviewSink
 from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
@@ -687,11 +688,12 @@ def room_sink(tmp_path, *, image=True, plan=True, **kw):
     folder.mkdir(exist_ok=True)
     if image:
         (folder / "plan.png").write_bytes(PNG)
-    doc = room(bar("a", pixels=8), bar("b", pixels=8, start=[0.0, 1.0], end=[2.0, 1.0], input="end", chain=2))
+    doc = arrangement(bar("a", pixels=8), bar("b", pixels=8, start=[0.0, 1.0], end=[2.0, 1.0], input="end", chain=2))
     if plan:
         doc["plan"] = {"image": "plan.png", "points": [[0, 0], [100, 0]], "meters": 1.0}
-    r = compile_room(doc)
-    return r, preview_sink(r.mapping, room=r.describe(), plan_image=folder / "plan.png" if plan else None, **kw)
+    r = compile_doc(doc, load_catalog())
+    image = folder / "plan.png" if plan else None
+    return r, preview_sink(r.mapping, room=plan_view(r), rig=rig_view(r), plan_image=image, **kw)
 
 
 def get(sink, path):
@@ -713,13 +715,29 @@ def test_hello_carries_each_fixtures_pitch_and_the_meters_scale(tmp_path):
             assert room["scale"] == pytest.approx(1 / 1.8125) == r.scale
             assert [f["pitch"] for f in room["fixtures"]] == [pytest.approx(1 / 8), pytest.approx(2 / 8)]
             assert room["fixture_of"] == [0] * 8 + [1] * 8
-            assert [f["input"] for f in room["fixtures"]] == ["start", "end"]
+            # A rig's strips are drawn from their input end, so each input is its "start".
+            assert [f["input"] for f in room["fixtures"]] == ["start", "start"]
+            a, b = room["fixtures"]
+            assert a["start"][0] < a["end"][0] and b["start"][0] > b["end"][0]
             assert room["plan"] is None
-    # Maps without a room carry none.
+    # Maps without a rig carry neither a room nor a rig.
     with preview_sink(line(4)) as sink:
         ws, hello = client_for(sink)
         with ws:
-            assert hello["room"] is None
+            assert hello["room"] is None and hello["rig"] is None
+
+
+def test_hello_of_a_rig_carries_the_rig_for_a_3d_view(tmp_path):
+    r, sink = room_sink(tmp_path, plan=False)
+    with sink:
+        ws, hello = client_for(sink)
+        with ws:
+            assert set(hello["rig"]) == {
+                "catalog_digest", "frame", "scale", "shift", "plan", "fixtures", "types", "controllers",
+                "slices", "controller_slices", "issues",
+            }
+            assert hello["rig"]["scale"] == pytest.approx(r.scale)
+            assert [f["id"] for f in hello["rig"]["fixtures"]] == ["a", "b"] and hello["rig"]["plan"] is None
 
 
 def test_decimation_keeps_fixture_of_aligned_with_the_positions(tmp_path):
@@ -739,6 +757,8 @@ def test_plan_is_served_at_a_fixed_url_that_names_no_path(tmp_path):
             plan = hello["room"]["plan"]
             assert plan["url"] == "/plan?v=0"
             assert plan["unit"] == pytest.approx(0.01 * r.scale)
+            assert hello["rig"]["plan"]["url"] == "/plan?v=0"
+            assert hello["rig"]["plan"]["meters_per_pixel"] == pytest.approx(0.01)
             text = json.dumps(hello)
             assert "private-folder" not in text and "plan.png" not in text and str(tmp_path) not in text
         assert get(sink, plan["url"]) == (200, "image/png", PNG)
@@ -757,6 +777,7 @@ def test_a_missing_plan_image_explains_itself_and_404s(tmp_path):
             plan = hello["room"]["plan"]
             assert set(plan) == {"error"} and "floor plan image was not found" in plan["error"]
             assert "/" not in plan["error"] and "plan.png" not in plan["error"]
+            assert hello["rig"]["plan"] == plan
         status, _, body = get(sink, "/plan")
         assert status == 404 and body == b"no floor plan image\n"
     with preview_sink(line(4)) as sink:  # no room at all
@@ -768,10 +789,11 @@ def test_remap_with_a_new_plan_busts_the_image_url(tmp_path):
     with sink:
         ws, _ = client_for(sink)
         with ws:
-            sink.remap(r.mapping, r.describe(), tmp_path / "private-folder" / "plan.png")
+            sink.remap(r.mapping, plan_view(r), tmp_path / "private-folder" / "plan.png", rig_view(r))
             sink.send(0.0, np.zeros((r.n, 3), dtype=np.float32))
             layout = next_text(ws)
             assert layout["type"] == "layout" and layout["room"]["plan"]["url"] == "/plan?v=1"
+            assert layout["rig"]["plan"]["url"] == "/plan?v=1"
 
 
 def test_health_goes_out_on_connect_and_then_only_on_change():

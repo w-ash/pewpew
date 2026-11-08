@@ -17,16 +17,22 @@ it. The rest of the frame keeps the look.
 Thread discipline as for `Master`: `check` runs anywhere; `start`, `stop`,
 `rebind` and `apply` belong to the loop thread (reach them through
 `pewpew.pace.Calls.call_soon`).
+
+The fixtures are (id, first pixel, pixel count) triples
+(`pewpew.rig.runtime.fixture_spans`), so this module, which the aura
+imports at start, never loads the rig stack.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 
 import numpy as np
 
 from pewpew.errors import unknown
-from pewpew.room.map import RoomMap
+
+Span = tuple[str, int, int]  # a fixture's id, first pixel and pixel count
 
 RATE = 2.0  # flashes per second
 DURATION = 4.0  # seconds
@@ -35,8 +41,8 @@ DURATION = 4.0  # seconds
 class Blink:
     """At most one fixture blinking at a time; `apply` overrides one frame."""
 
-    def __init__(self, room: RoomMap) -> None:
-        self._room = room
+    def __init__(self, fixtures: Sequence[Span]) -> None:
+        self._fixtures = tuple(fixtures)
         self._span: tuple[int, int] | None = None  # (first, count) of the blinking fixture
         self._t0: float | None = None  # engine time of its first frame
 
@@ -48,7 +54,7 @@ class Blink:
         """
         if not isinstance(fixture, str):
             return f"blink takes a fixture id, got {fixture!r}"
-        ids = [f.id for f in self._room.fixtures]
+        ids = [fid for fid, _, _ in self._fixtures]
         if fixture not in ids:
             return unknown("fixture", fixture, ids)
         return None
@@ -56,9 +62,9 @@ class Blink:
     def start(self, fixture: str) -> None:
         """Blink `fixture` from the next frame, replacing any blink running.
         Loop thread only; a fixture a reload removed is ignored."""
-        for f in self._room.fixtures:
-            if f.id == fixture:
-                self._span = (f.first, f.pixels)
+        for fid, first, count in self._fixtures:
+            if fid == fixture:
+                self._span = (first, count)
                 self._t0 = None
                 return
 
@@ -66,10 +72,10 @@ class Blink:
         self._span = None
         self._t0 = None
 
-    def rebind(self, room: RoomMap) -> None:
-        """Take a reloaded room map. A blink in progress ends: its pixel
-        range belongs to the old map."""
-        self._room = room
+    def rebind(self, fixtures: Sequence[Span]) -> None:
+        """Take a reloaded map's fixtures. A blink in progress ends: its
+        pixel range belongs to the old map."""
+        self._fixtures = tuple(fixtures)
         self.stop()
 
     def apply(self, t: float, frame: np.ndarray) -> np.ndarray:

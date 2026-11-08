@@ -55,7 +55,7 @@ uv run python -m pewpew run examples/tide.look.json --map line:64 --ansi  # in t
 ```
 
 The run starts in the file's `current` look, on a 16x16 grid unless
-`--map` or `--room` says otherwise. `--preview` serves
+`--map` says otherwise. `--preview` serves
 http://127.0.0.1:7447/ — positions once over websocket, then display-ready
 color frames; `--ansi` renders truecolor half-blocks for ssh/CI.
 
