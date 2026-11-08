@@ -144,7 +144,7 @@ def test_run_plays_layered_looks_and_an_unattended_run_leaves_a_failing_layer_ou
         run = build([*argv, *extra])
         assert [layer.id for layer in run.aura.fader.current.layers] == ["base", "top"]
         runs.append(np.stack([run.aura.fader.advance_to(i / 60).copy() for i in range(1, 30)]))
-        assert run.aura.fader.error is not None and run.aura.fader.error.pattern == "layers.top"
+        assert run.aura.fader.error is not None and run.aura.fader.error.layer == "layers.top"
         if run.watchdog is not None:
             run.watchdog.stop()  # armed as the run was built; it is never served
     dev, unattended = runs

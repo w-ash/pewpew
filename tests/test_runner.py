@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 import pewpew.run as run_module
+import pewpew.watchdog as watchdog_module
 from fakes import EXAMPLES as EXAMPLE_LOOKS
 from fakes import FakeTime, build, filed, frames, hosted, layered, looks_file, program_of, run_main, wait_until
 from pewpew.__main__ import main
@@ -28,6 +29,8 @@ from pewpew.rig import EXAMPLES
 from pewpew.run import preview_url, status_line
 from pewpew.sinks import ddp, preview
 from pewpew.sinks.sink import to_linear_u8
+from pewpew.testing.clock import FakeClock
+from pewpew.watchdog import Watchdog
 
 # A program that keeps a trail: what it renders next depends on what it rendered.
 TRAIL = 'osc(2, 0.4).trails(0.8).palette("ember")'
@@ -113,7 +116,7 @@ def test_a_look_the_map_cannot_run_is_refused_with_a_map_that_can(tmp_path):
 
 class _HealingRenderer:
     """A renderer whose error clears between two reads of the attribute —
-    the interleaving the loop thread really produces when a pattern recovers
+    the interleaving the loop thread really produces when a layer recovers
     while a SinkDriver worker is formatting the status line."""
 
     def __init__(self) -> None:
@@ -166,7 +169,7 @@ def test_a_preview_that_cannot_listen_leaves_the_room_running_and_tries_again(au
 
 
 def test_log_records_are_deferred_while_the_ansi_sink_owns_the_terminal(monkeypatch):
-    r"""A pattern that raises logs a traceback, and stderr and stdout are the
+    r"""A layer that raises logs a traceback, and stderr and stdout are the
     same device in a terminal. That text landing between frames would desync
     the sink's `\x1b[nF` rewind from the block it rewinds over, so every later
     frame scribbles on the wrong rows. Records are held and replayed once the
@@ -221,7 +224,7 @@ def test_ctrl_c_ends_the_run_through_the_whole_teardown(recorder, monkeypatch):
     assert recorder.sent == [] and recorder.closed == 1  # the DDP sink stopped and closed its socket
 
 
-def test_status_prefers_the_reload_error_over_the_pattern_error():
+def test_status_prefers_the_reload_error_over_the_render_error():
     class Src:
         def __init__(self, error):
             self.error = error
@@ -480,6 +483,28 @@ def test_triggers_start_disarmed_without_armed(tmp_path):
     log = tmp_path / "events.jsonl"
     assert run_main(["run", looks_file(), "--map", "line:8", "--frames", "2", "--trigger-log", str(log)])[0] == 0
     assert [json.loads(line).get("run", {}).get("armed") for line in log.read_text().splitlines()] == [False]
+
+
+def test_a_look_that_hangs_while_it_is_built_is_named_in_the_stall_marker(monkeypatch, tmp_path):
+    marker = tmp_path / "stalled"
+    clock = FakeClock()
+    dogs: list[Watchdog] = []
+
+    def watchdog(*args, **kw):
+        dogs.append(Watchdog(*args, **kw, now=lambda: clock.t))
+        return dogs[-1]
+
+    def hang(*args, **kw):
+        dogs[0]._fire(clock.tick(60.0))  # the stall comes while the build is under way
+        raise ValueError("hung")
+
+    monkeypatch.setattr(run_module, "marker_path", lambda: marker)
+    monkeypatch.setattr(watchdog_module, "_exit", lambda code: None)
+    monkeypatch.setattr(run_module, "Watchdog", watchdog)
+    monkeypatch.setattr(run_module, "build_aura_pipeline", hang)
+    with pytest.raises(SystemExit):
+        build(["run", looks_file(), "--map", "line:8", "--unattended"])
+    assert json.loads(marker.read_text())["looks"] == ["look"]
 
 
 def test_an_unattended_run_holds_the_sleep_assertion_and_arms_the_watchdog():

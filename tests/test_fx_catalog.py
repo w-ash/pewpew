@@ -1,4 +1,4 @@
-"""The catalog: one record per op (and pattern, blend, palette, kind), held
+"""The catalog: one record per op (and blend, palette, kind), held
 by a golden, and the files made from it (the reference page, the
 builder's stub), each checked for drift; and the `fx` verbs that print
 it."""

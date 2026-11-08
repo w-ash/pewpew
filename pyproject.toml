@@ -88,8 +88,9 @@ extend-select = ["E501"]
 ".claude/hooks/gate_mask_check.py" = ["BLE001", "EXE001"]
 
 [tool.basedpyright]
-# tests/ is checked too; .basedpyright/baseline.json holds the debt its
-# files carried before the layered-effects work, to fix, never to add to.
+# tests/ is checked too; .basedpyright/baseline.json holds the debt in some
+# test files (Optional narrowing, mostly), to fix, never to add to. Fixed
+# entries drop out of it on the next run.
 include = ["src", "tests"]
 typeCheckingMode = "standard"
 strict = ["src/pewpew/params"]

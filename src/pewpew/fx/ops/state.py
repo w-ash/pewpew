@@ -25,9 +25,8 @@ from pewpew.fx.op import BindCtx, Cost, FrameCtx, Op
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import noise as prim
 from pewpew.fx.prims.sample import sample
-from pewpew.fx.prims.vec import F32, Vec
+from pewpew.fx.prims.vec import F32, Vec, fade
 from pewpew.fx.types import SAME, Coords, Fn, Port, Sig
-from pewpew.kit import fade
 from pewpew.params import Float
 
 # Feedback lattice nodes per point spacing, by the lattice's axes: a field

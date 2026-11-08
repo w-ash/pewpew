@@ -156,7 +156,7 @@ class LayerEdits(RuleBasedStateMachine):
                    if layer.program.output.op == "raises_test" and layer.enabled]
         error = self.rendered.stack.error
         if raising:
-            assert error is not None and error.pattern == f"layers.{raising[0]}"
+            assert error is not None and error.layer == f"layers.{raising[0]}"
         else:
             assert error is None
 

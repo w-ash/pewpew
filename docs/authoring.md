@@ -682,14 +682,14 @@ of drawing only when a condition holds.
 ### 9.5 Decay is `fade(dt, tau)`, not a per-frame multiplier
 
 `v *= 0.94` assumes a fixed frame rate; at another rate the same constant
-decays over a different time. `from pewpew.kit import fade`, then
+decays over a different time. `from pewpew.fx.prims.vec import fade`, then
 `v *= fade(ctx.dt, tau)` with `tau` a time constant in seconds. `fade` is
 `exp(-dt / tau)` as a Python float, computed once per frame.
 
 ### 9.6 Coordinates are float32
 
 Binning: `int(x * n)` puts `x == 1.0`, the map's last point, in bin `n`,
-one past the end. Use `pewpew.kit.bins(x, n)`, which clamps to `[0, n-1]`,
+one past the end. Use `pewpew.color.bins(x, n)`, which clamps to `[0, n-1]`,
 and clamp a float before an `int32` cast by hand, as `bins` does.
 
 Hash thresholds: a hash in `float32` disagrees with the same expression in
@@ -708,9 +708,9 @@ state (`below`, `prev`).
 
 | Helper | Signature | What it's for |
 |---|---|---|
-| `fade(dt, tau)` | `pewpew.kit.fade(dt, tau) -> float` | frame-rate-independent decay keep-factor (§9.5) |
-| `bins(x, n)` | `pewpew.kit.bins(x, n) -> int array` | coordinate → bin index, edge-clamped (§9.6) |
-| `wave(p)` | `pewpew.kit.wave(p) -> array` | 0–1 phase → 0–1 sine |
+| `fade(dt, tau)` | `pewpew.fx.prims.vec.fade(dt, tau) -> float` | frame-rate-independent decay keep-factor (§9.5) |
+| `bins(x, n)` | `pewpew.color.bins(x, n) -> int array` | coordinate → bin index, edge-clamped (§9.6) |
+| `wave(p)` | `pewpew.fx.prims.vec.wave(p) -> array` | 0–1 phase → 0–1 sine |
 | `ctx.buffer(name, shape, dtype, fill)` | `BindCtx.buffer`, in `setup` | declare an op's persistent state (§9.2) |
 | `ctx.rng()` | `FrameCtx.rng`, in `advance` | this node's random stream for this frame (§9.4) |
 | `Float`, `Int`, `Bool`, `Choice`, `Color`, `Palette` | `pewpew.params`; `Float(default, lo, hi, unit)` | declare an arg; ranges and kinds are enforced (§2) |

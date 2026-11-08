@@ -451,7 +451,7 @@ def test_a_raising_layer_draws_its_error_frame_in_its_place():
     comp = stack(solid("base", GREEN), Layer("top", one_node("raises_test"), blend="add"))
     frame = comp.advance_to(0.3)
     np.testing.assert_array_equal(frame, comp.error_frame(0.3) + np.array([0.0, 1.0, 0.0], np.float32))
-    assert comp.error is not None and comp.error.pattern == "layers.top"
+    assert comp.error is not None and comp.error.layer == "layers.top"
     assert str(comp.error).startswith(
         "layers.top.render raised: RuntimeError: broken render (in node layers.top.raises (raises_test))")
     comp.controls.set("layers.top.enabled", False)
@@ -461,7 +461,7 @@ def test_a_raising_layer_draws_its_error_frame_in_its_place():
 def test_an_unattended_run_leaves_a_failing_layer_out_until_none_is_left():
     comp = stack(solid("base", GREEN), Layer("top", one_node("raises_test"), blend="add"), bypass=True)
     np.testing.assert_array_equal(comp.advance_to(0.25), [[0.0, 1.0, 0.0]] * 8)
-    assert comp.error is not None and comp.error.pattern == "layers.top"  # the status still names it
+    assert comp.error is not None and comp.error.layer == "layers.top"  # the status still names it
     comp.controls.set("layers.base.enabled", False)
     np.testing.assert_array_equal(comp.advance_to(0.5), comp.error_frame(0.5))  # the failure, not black
     alone = stack(Layer("base", one_node("raises_test")), bypass=True)

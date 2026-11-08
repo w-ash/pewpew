@@ -745,6 +745,12 @@ series (batch mode).
 
 ### Changed
 
+- Name things for the domain. `PatternError` is `RenderFailure` and its
+  `pattern` field is `layer`; `pewpew.kit` is gone (`hsv` and `bins` are in
+  `pewpew.color`, `TWO_PI`, `wave` and `fade` in `pewpew.fx.prims.vec`);
+  `pewpew.classinfo` is gone; comments and docs no longer call a layer or
+  program a pattern. No wire field or golden changes. A look that hangs
+  while it is built at launch is named in the stall marker (tested).
 - Modules take precise names: `harness` is `pewpew.testing`, `sinks/base.py`
   is `sinks/sink.py`, `agent.py` is `mcp_cli.py`, `command.py` is
   `cli_args.py`, and the rig catalog's JSON lives in `rig/catalog_entries/`.

@@ -222,7 +222,7 @@ def test_a_bad_file_is_refused_naming_the_problem(text, message):
     ({"looks": {}}, "looks file has no version; "),
 ])
 def test_a_file_of_another_version_is_refused_alone(doc, start):
-    """A v3 file of single-pattern looks is not read as layers: a clean
+    """A v3 file of single-program looks is not read as layers: a clean
     break, with no migration."""
     with pytest.raises(LookError) as err:
         parse_looks(json.dumps(doc))
@@ -326,7 +326,7 @@ def test_a_raising_side_still_renders_a_frame():
     fader.fade_to(renderer("raises_test"), 1.0)
     frame = fader.advance_to(0.5)  # contained: the incoming side is the error frame
     assert frame.shape == (4, 3) and np.all(frame[:, 1] == np.float32(0.5))
-    assert fader.error is not None and fader.error.pattern == "layers.base"
+    assert fader.error is not None and fader.error.layer == "layers.base"
 
 
 def four_only() -> Renderer:

@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-from pewpew.classinfo import lowercase_name
 from pewpew.errors import unknown
 from pewpew.params.bound import Bound
 from pewpew.params.kinds import Param, Parsed
@@ -55,7 +54,7 @@ class ParamSet:
     ) -> None:
         """`name` is the owner a refusal names, a dotted path where the owner
         is nested (`layers.base.fold`): by default the class's name, lowercased."""
-        self._state = _ParamState.of(owner_cls, None, name or lowercase_name(owner_cls))
+        self._state = _ParamState.of(owner_cls, None, name or owner_cls.__name__.lower())
         if overrides:
             self.set_many(overrides)
 

@@ -5,7 +5,7 @@
 checks everything that can fail before it changes anything: the map
 compiles, the DDP sink accepts the new boards, and the audit record of a
 changed board set is written (no packet goes to a target without one).
-Then the running look is rebound; if a pattern's `setup` raises on the new
+Then the running look is rebound; if a program's `setup` raises on the new
 geometry, the last good geometry is bound again and the reload fails. Only
 then do the sinks, the blink and each listener take the new map.
 

@@ -78,7 +78,7 @@ from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.compile import label_of
 from pewpew.fx.graph import Graph
 from pewpew.mapping import dimensions
-from pewpew.render import PatternError, Renderer, error_frame
+from pewpew.render import Renderer, RenderFailure, error_frame
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,7 @@ class Compositor:
         return self._timings
 
     @property
-    def error(self) -> PatternError | None:
+    def error(self) -> RenderFailure | None:
         """The first enabled layer's contained failure, bottom up, else a
         signal's (pewpew.compose.modulation), or None."""
         for live in self._layers:

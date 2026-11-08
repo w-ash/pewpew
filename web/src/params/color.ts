@@ -1,5 +1,5 @@
 // The only color math on the page. A color param is HSV over linear-light
-// primaries, the same as pewpew.kit.hsv; the screen wants display-gamma RGB,
+// primaries, the same as pewpew.color.hsv; the screen wants display-gamma RGB,
 // as the engine's to_display_u8 gives the canvas.
 import type { Gradient, HSV } from "./schema";
 

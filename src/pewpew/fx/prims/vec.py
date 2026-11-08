@@ -12,10 +12,13 @@ axes, if any, follow the spatial axes.
 
 Angle arguments are radians. An angle that is a coordinate (the `turn` that
 `space.polar` gives) is a 0-1 turn, like every other coordinate.
+
+`TWO_PI`, `wave` and `fade` are the scalar and shaping helpers ops share.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -57,7 +60,7 @@ def vec(p: VecLike) -> Vec:
 
 def plain(values: Sequence[float]) -> tuple[float, ...]:
     """Return `values` as Python floats. A NumPy float64 scalar (what
-    `kit.wave`, `np.sin(t)` and `np.mean` return) would turn float32 math
+    `vec.wave`, `np.sin(t)` and `np.mean` return) would turn float32 math
     into float64; a Python float keeps it float32 (NEP 50)."""
     return tuple(float(v) for v in values)
 
@@ -96,3 +99,19 @@ def length(components: Sequence[F32]) -> F32:
     for c in components[1:]:
         total = total + c * c
     return np.sqrt(total)
+
+
+TWO_PI = 2.0 * math.pi
+
+
+def wave(p):
+    """Sine shaped to 0-1: wave(0)=0.5 rising."""
+    return 0.5 + 0.5 * np.sin(TWO_PI * np.asarray(p))
+
+
+def fade(dt: float, tau: float) -> float:
+    """Frame-rate-independent decay factor: `v *= fade(dt, tau)` keeps
+    exp(-dt/tau), where a per-frame constant (`v *= 0.94`) would depend on
+    the frame rate (stumble #2). Returns a Python float, as the study did, so
+    no numpy scalar changes a downstream dtype."""
+    return math.exp(-dt / tau)
