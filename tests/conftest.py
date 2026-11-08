@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import multiprocessing
 import os
 import sys
 from collections.abc import Callable, Hashable, Iterator
@@ -109,7 +110,9 @@ def pool_jobs(
     whose selected tests read `pooled` start on one process pool before the
     first test, so they run beside the tests in front of them. `JOBS` maps a
     key to a job that takes no arguments and gives a result that pickles.
-    Each worker holds the suite's rules (`fakes.strict_worker`)."""
+    Each worker holds the suite's rules (`fakes.strict_worker`). At the
+    end, a job not done hung or was never read: the workers are stopped,
+    not waited for."""
     tables: dict[ModuleType | None, dict[Hashable, Callable[[], Any]]] = {
         item.module: getattr(item.module, "JOBS", {}) for item in request.session.items
         if isinstance(item, pytest.Function) and "pooled" in item.fixturenames}
@@ -119,10 +122,15 @@ def pool_jobs(
         return
     pool = ProcessPoolExecutor(min(count, os.cpu_count() or 1), initializer=strict_worker,
                                initargs=(tmp_path_factory.mktemp("workers"),))
+    futures = {module: {key: pool.submit(job) for key, job in jobs.items()} for module, jobs in tables.items()}
     try:
-        yield {module: Pooled({key: pool.submit(job) for key, job in jobs.items()}) for module, jobs in tables.items()}
+        yield {module: Pooled(submitted) for module, submitted in futures.items()}
     finally:
-        pool.shutdown(cancel_futures=True)
+        stuck = not all(f.done() for submitted in futures.values() for f in submitted.values())
+        pool.shutdown(wait=not stuck, cancel_futures=True)
+        if stuck:
+            for worker in multiprocessing.active_children():
+                worker.terminate()
 
 
 @pytest.fixture

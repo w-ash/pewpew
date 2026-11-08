@@ -15,7 +15,6 @@ import os
 import socket
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -24,7 +23,7 @@ from websockets.exceptions import InvalidStatus
 from websockets.http11 import Response
 
 import pewpew.remote.observe as remote_observe
-from fakes import aura_rig, fake_engine, peers, preview_sink, run_python, solid, wait_until
+from fakes import aura_rig, fake_engine, peers, preview_sink, solid, wait_until
 from pewpew.__main__ import main
 from pewpew.mapping import grid, line
 from pewpew.metrics import measure
@@ -275,19 +274,17 @@ def test_an_https_address_is_told_the_preview_speaks_plain_websocket():
     assert str(exc.value).endswith(f"a preview port speaks plain websocket, so give ws://127.0.0.1:{port}/")
 
 
-# A test that fails inside `fake_engine`, in a new process on the suite's
-# process pool (conftest.py): a server left running keeps that process from
-# exiting, and `run_python` bounds the wait.
-_FAILS_INSIDE = (
-    "import fakes\n"
-    "try:\n"
-    "    with fakes.fake_engine(lambda conn: None):\n"
-    "        raise LookupError\n"
-    "except LookupError:\n"
-    "    print('stopped')\n"
-)
-JOBS = {"fails inside a fake engine": functools.partial(
-    run_python, _FAILS_INSIDE, PYTHONPATH=str(Path(__file__).parent))}
+def _fails_inside_a_fake_engine() -> str:
+    """A test that fails inside `fake_engine`, run on the suite's process
+    pool (conftest.py): it returns once the server stops."""
+    try:
+        with fake_engine(lambda conn: None):
+            raise LookupError("the test failed")
+    except LookupError:
+        return "stopped"
+
+
+JOBS = {"fails inside a fake engine": _fails_inside_a_fake_engine}
 
 
 @pytest.mark.usefixtures("patient_open")
@@ -295,14 +292,15 @@ def test_a_server_that_sends_no_hello_is_not_an_engine():
     def silent(conn) -> None:
         conn.recv()
 
-    with fake_engine(silent) as url, pytest.raises(Unreachable, match=r"sent nothing for 0\.1 s before its hello"):
+    says = r"sent nothing for 0\.1 s before its hello: is it a pewpew engine's preview port\?"
+    with fake_engine(silent) as url, pytest.raises(Unreachable, match=says):
         observe(url, timeout=0.1)
 
 
 def test_a_fake_engine_stops_when_the_test_in_it_fails(pooled):
     """A failure inside `fake_engine` still stops its server, so the
     process that ran it exits instead of waiting for `serve_forever`."""
-    assert pooled["fails inside a fake engine"].stdout == "stopped\n"
+    assert pooled["fails inside a fake engine"] == "stopped"
 
 
 @pytest.mark.parametrize(("exc", "says"), [

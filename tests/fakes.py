@@ -481,9 +481,9 @@ def stack(*layers: Layer, mapping=None, seed: int = 0, **kw) -> Compositor:
     return Compositor(layers, line(8) if mapping is None else mapping, seed=seed, **kw)
 
 
-# The longest a job of the suite's process pool, or a process a test starts,
-# may take: far past what one takes on a loaded machine, so a job that hangs
-# fails its test instead of the whole run.
+# The longest a test waits for a job of the suite's process pool, or for a
+# process `run_python` starts: far past what one takes on a loaded machine,
+# so a job that hangs fails its test instead of the whole run.
 JOB_S = 120.0
 
 
