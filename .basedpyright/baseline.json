@@ -258,16 +258,6 @@
                 }
             }
         ],
-        "./tests/test_param_liveness.py": [
-            {
-                "code": "reportAttributeAccessIssue",
-                "range": {
-                    "startColumn": 28,
-                    "endColumn": 40,
-                    "lineCount": 1
-                }
-            }
-        ],
         "./tests/test_params.py": [
             {
                 "code": "reportUnnecessaryTypeIgnoreComment",
