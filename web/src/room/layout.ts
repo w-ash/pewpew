@@ -44,7 +44,7 @@ export interface MapShape {
   readonly total: number;
   readonly positions: readonly Vec[];
   readonly is3d: boolean;
-  /** Null unless the map is a room map (`run --room`). */
+  /** Null unless the map is an arrangement or room file (`run --map`). */
   readonly room: RoomShape | null;
 }
 

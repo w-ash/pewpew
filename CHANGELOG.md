@@ -780,7 +780,7 @@ series (batch mode).
   (`output_over_cap`, `controller_over_cap`) or a wired controller has no host, and
   `--ddp` is refused with controllers that have hosts. `--max-watts` works on any
   arrangement. "use for A" on the page rewrites that controller's `host`; it is
-  refused on a room file ("migrate it first") and under `--unattended`. The preview's
+  refused on a room file ("migrate it first"); it works under `--unattended`. The preview's
   `hello` and `layout` carry a `rig` object (null for other maps) for a 3D view.
   `fx render`, `look_render` and `boards backup|restore` take an arrangement
   (`boards ... --map`).

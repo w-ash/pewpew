@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -366,6 +367,15 @@ def test_the_canopy_takes_a_power_cap_but_no_ddp_list(capsys):
     message = usage_error_or_exit(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--ddp", "10.0.0.11=0+8",
                                    "--dry-run"])
     assert "--ddp" in message and "drop --ddp" in message and "\n" not in message
+
+
+def test_use_for_a_works_in_an_unattended_run(tmp_path, audit_log):
+    """Rebind stays allowed under --unattended; only a layout edit is refused."""
+    rig_file = tmp_path / "canopy.arrangement.json"
+    shutil.copy(EXAMPLE_RIG, rig_file)
+    run = build(["run", looks_file(), "--map", str(rig_file), "--unattended", "--armed"])
+    assert run.rig is not None and run.rig.rebind("A", "192.0.2.20") is None
+    assert json.loads(rig_file.read_text())["controllers"][0]["host"] == "192.0.2.20"
 
 
 def test_a_dry_run_of_an_arrangement_without_hosts_is_refused_with_one_line(audit_log):

@@ -5,7 +5,7 @@ import { App } from "../../src/app/App";
 import { board, health, hello } from "../fixtures/messages";
 import { pastDoubleTap, renderWired } from "../harness";
 
-const NO_ROOM = "layout tools need a room map (start the run with --room)";
+const NO_ROOM = "layout tools need an arrangement (start the run with --map ARRANGEMENT.json)";
 
 test("on a phone the layout tools take the editor's place, and the deck stays", async () => {
   const { screen } = await renderWired(<App />);

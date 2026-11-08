@@ -42,7 +42,7 @@ from pewpew.rig.runtime import (
 )
 from pewpew.rig_cli import DEFAULT_CONTROLLER, DEFAULT_TYPE
 from pewpew.room.blink import Blink
-from pewpew.room.live import UNATTENDED_WRITE, RigLive
+from pewpew.room.live import RigLive
 from pewpew.sinks.ddp import Board
 
 TWO_BARS = arrangement(bar("a"), bar("b", chain=2, start=[0.0, 1.0], end=[1.0, 1.0]))
@@ -271,15 +271,6 @@ def test_use_for_a_refuses_without_a_path_in_the_reason(tmp_path):
     assert reason is not None and "'Z'" in reason and str(tmp_path) not in reason
     path.unlink()
     assert rig_live.rebind("A", "192.0.2.20") == "could not read the map file"
-
-
-def test_use_for_a_is_refused_in_an_unattended_run_and_leaves_the_file(tmp_path, audit_log):
-    path, *_, rig_live = live(tmp_path, writes=False)
-    before = path.read_bytes()
-    assert rig_live.rebind("A", "192.0.2.20") == UNATTENDED_WRITE
-    assert path.read_bytes() == before
-    rig_live.calls.drain()
-    assert not audit_log.exists()
 
 
 def legacy_live(tmp_path):

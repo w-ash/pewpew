@@ -281,11 +281,9 @@ class Run:
             self.looks.error = stalled
         if args.armed:
             self.aura.triggers.arm(True, "launch")  # applied and logged at the first tick
-        # A layout write under --unattended needs --accept-looks, which --unattended refuses.
         self.rig = None if rig is None else RigLive(
             Path(args.map), rig, launch.geometry.data, self.aura.fader, self.aura.calls.call_soon,
             ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch, follow=launch.follow,
-            writes=not args.unattended or args.accept_looks,
         )
         sources: list[tuple[Source, Any]] = [
             ("reload", self.rig), ("render", self.aura.fader), ("looks", self.looks),

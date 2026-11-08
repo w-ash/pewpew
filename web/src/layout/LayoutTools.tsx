@@ -14,7 +14,7 @@ export function LayoutTools() {
   const mode = useLayoutMode();
   const fine = useMedia(FINE_POINTER);
   const room = roomOf(useWire((s) => s.map));
-  if (!room) return <p className="layout-tools empty note">layout tools need a room map{onEngineHost() ? " (start the run with --room)" : ""}</p>;
+  if (!room) return <p className="layout-tools empty note">layout tools need an arrangement{onEngineHost() ? " (start the run with --map ARRANGEMENT.json)" : ""}</p>;
   const fixture = mode.fixture && room.fixtures.some((f) => f.id === mode.fixture) ? mode.fixture : (room.fixtures[0]?.id ?? null);
   return (
     <div className="row layout-tools">

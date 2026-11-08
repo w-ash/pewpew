@@ -44,16 +44,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-UNATTENDED_WRITE = "an unattended run (--unattended) never rewrites its arrangement; point the board in an attended run"
-
 
 class RigLive:
     """One rig file, its compiled rig, and its watch.
 
     With `follow`, the DDP sink streams to the rig's controllers and takes
     each reload's (`ddp_targets`); without it, the sink keeps its own
-    boards (`run --ddp`). `writes` is False when the run may not rewrite
-    its layout, which refuses `rebind`.
+    boards (`run --ddp`).
     """
 
     def __init__(
@@ -69,7 +66,6 @@ class RigLive:
         blink: Blink | None = None,
         watch: Watch | None = None,
         follow: bool = True,
-        writes: bool = True,
     ) -> None:
         self.path = Path(path)
         self.rig = rig
@@ -79,7 +75,6 @@ class RigLive:
         self._call_soon = call_soon
         self._ddp = ddp
         self._follow = follow
-        self._writes = writes
         self._targets: tuple[tuple[str, ...], tuple[Board, ...]] = ((), ())
         self._take(rig)
         self._argv = argv
@@ -161,8 +156,6 @@ class RigLive:
         """Point controller `controller` at `address` by rewriting its host
         in the file, then reload it on the loop thread.
         Any thread; returns a refusal that names no path, or None."""
-        if not self._writes:
-            return UNATTENDED_WRITE
         from pewpew.rig import RigError
         from pewpew.rig.runtime import rebind_host
 
