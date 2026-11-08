@@ -29,16 +29,19 @@ web:
 fonts:
     uv run --no-project --with fonttools==4.68.0 --with brotli==1.2.1 python tools/fonts.py
 
-# The L1 suite. Extra arguments go to pytest, e.g. `just test -k "health or room"`.
+# The L1 suite, on one pytest-xdist worker a core. `--dist loadfile` keeps a
+# module's tests on one worker, so its JOBS start once (tests/conftest.py).
+# Extra arguments go to pytest, e.g. `just test -k "health or room"`; `-n 0`
+# runs serially. Bare `uv run pytest` is serial too.
 [positional-arguments]
 test *args:
-    uv run pytest "$@"
+    uv run pytest -n auto --dist loadfile "$@"
 
 # The L1 suite with more examples a property: the "thorough" Hypothesis
 # profile (tests/conftest.py).
 [positional-arguments]
 test-thorough *args:
-    uv run pytest --hypothesis-profile=thorough "$@"
+    uv run pytest -n auto --dist loadfile --hypothesis-profile=thorough "$@"
 
 # Before a merge: the gate, the changelog check, and open work.
 # The base branch defaults to main; `just ready fx` and `just ready base=fx`

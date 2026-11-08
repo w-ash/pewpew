@@ -772,6 +772,9 @@ series (batch mode).
 
 ### Changed
 
+- Run the L1 suite in parallel: `just test` and `just test-thorough` use pytest-xdist
+  (`-n auto --dist loadfile`), about 35 s serial to 15 s. `-n 0` or bare `uv run pytest`
+  runs it serially. Under xdist the process pool's jobs start per module on first read.
 - Arrangements map into the plan frame (x right, y up the plan, z height), the
   same frame as a room map, `line` and `grid`, so an effect on an arrangement
   lays out as it does on a room. A flat axis and a single point now map to 0

@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import sys
 from collections.abc import Callable, Hashable, Iterator
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Future, ProcessPoolExecutor
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -105,26 +105,43 @@ def strict_nodes(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(scope="session", autouse=True)
 def pool_jobs(
     request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory,
-) -> Iterator[dict[ModuleType | None, Pooled]]:
-    """Each module's `JOBS` results, by module. The jobs of every module
-    whose selected tests read `pooled` start on one process pool before the
-    first test, so they run beside the tests in front of them. `JOBS` maps a
-    key to a job that takes no arguments and gives a result that pickles.
-    Each worker holds the suite's rules (`fakes.strict_worker`). At the
-    end, a job not done hung or was never read: the workers are stopped,
-    not waited for."""
+) -> Iterator[Callable[[ModuleType | None], Pooled]]:
+    """A module's `JOBS` results, by module. `JOBS` maps a key to a job that
+    takes no arguments and gives a result that pickles. Each worker of the
+    process pool holds the suite's rules (`fakes.strict_worker`). In a serial
+    run, the jobs of every module whose selected tests read `pooled` start
+    before the first test, so they run beside the tests in front of them.
+    Under xdist every worker collects all the tests and runs a share, so a
+    module's jobs start on its first read instead, in a pool of two. Run
+    with `--dist loadfile`, as `just test` does, so each module's jobs start
+    in one worker. At the end, a job not done hung or was never read: the
+    workers are stopped, not waited for."""
+    serial = "PYTEST_XDIST_WORKER" not in os.environ  # xdist sets it in each worker
     tables: dict[ModuleType | None, dict[Hashable, Callable[[], Any]]] = {
         item.module: getattr(item.module, "JOBS", {}) for item in request.session.items
         if isinstance(item, pytest.Function) and "pooled" in item.fixturenames}
     count = sum(map(len, tables.values()))
     if not count:
-        yield {}
+        yield lambda module: Pooled({})
         return
-    pool = ProcessPoolExecutor(min(count, os.cpu_count() or 1), initializer=strict_worker,
-                               initargs=(tmp_path_factory.mktemp("workers"),))
-    futures = {module: {key: pool.submit(job) for key, job in jobs.items()} for module, jobs in tables.items()}
+    size = min(count, os.cpu_count() or 1) if serial else 2
+    pool = ProcessPoolExecutor(size, initializer=strict_worker, initargs=(tmp_path_factory.mktemp("workers"),))
+    futures: dict[ModuleType | None, dict[Hashable, Future[Any]]] = {}
+
+    def submit(module: ModuleType | None) -> None:
+        futures[module] = {key: pool.submit(job) for key, job in tables[module].items()}
+
+    if serial:
+        for module in tables:
+            submit(module)
+
+    def jobs_of(module: ModuleType | None) -> Pooled:
+        if module not in futures:
+            submit(module)
+        return Pooled(futures[module])
+
     try:
-        yield {module: Pooled(submitted) for module, submitted in futures.items()}
+        yield jobs_of
     finally:
         stuck = not all(f.done() for submitted in futures.values() for f in submitted.values())
         pool.shutdown(wait=not stuck, cancel_futures=True)
@@ -134,9 +151,9 @@ def pool_jobs(
 
 
 @pytest.fixture
-def pooled(pool_jobs: dict[ModuleType | None, Pooled], request: pytest.FixtureRequest) -> Pooled:
+def pooled(pool_jobs: Callable[[ModuleType | None], Pooled], request: pytest.FixtureRequest) -> Pooled:
     """This module's `JOBS` results, by key."""
-    return pool_jobs.get(request.module, Pooled({}))
+    return pool_jobs(request.module)
 
 
 @pytest.fixture

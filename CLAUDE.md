@@ -18,8 +18,9 @@ every major decision has an ADR in `research/synthesis/decisions/`.
   every commit. There is no lint baseline. The basedpyright baseline
   (`.basedpyright/baseline.json`, tests only) holds old debt: fix, never add;
   suppress a new finding only inline, with its reason.
-- `uv run pytest` (`just test`) — the L1 suite (golden frames +
-  determinism). It must stay green and fast (<30 s).
+- `just test` — the L1 suite (golden frames + determinism), parallel on
+  pytest-xdist; bare `uv run pytest` or `just test -n 0` is serial (debugging,
+  `--regen-goldens`). It must stay green and fast (<30 s).
 - `just test-thorough` — the L1 suite with more examples a property
   (tests/conftest.py); run it when you change what a property covers.
 - `uv run pytest --regen-goldens` — ONLY for intentional visual changes;

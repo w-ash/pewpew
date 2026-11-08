@@ -189,7 +189,7 @@ def test_aim_takes_the_direction_of_any_finite_axis(axis, direction):
 
 
 def test_every_arrangement_list_is_capped():
-    ids = [f"x{i}" for i in range(10**6)]
+    ids = [f"x{i}" for i in range(MAX_FIXTURES + 1)]
     assert codes(arrangement(wiring={"chains": [{"id": "A", "controller": "c", "output": "o", "fixtures": ids}]})) == {
         "too_long"
     }
