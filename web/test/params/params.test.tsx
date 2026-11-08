@@ -108,6 +108,10 @@ test("a typed value outside the range says what it became; garbage says it is no
   await userEvent.keyboard("{Enter}");
   expect(sets(sent).at(-1)).toEqual({ type: "set", name: "level", value: 1 });
   await expect.element(screen.getByRole("status")).toHaveTextContent("5 is outside 0.000…1.000: kept to 1.000");
+  // The engine's echo: unechoed, the box falls back to the old value after SETTLE_MS (useDraft), and a
+  // slow run steps from that.
+  receive({ type: "params", values: { level: 1 } });
+  await expect.element(box).toHaveValue("1.000");
   await screen.getByRole("button", { name: "decrease level" }).click();
   expect(sets(sent).at(-1)).toEqual({ type: "set", name: "level", value: 0.995 });
   await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
@@ -380,9 +384,14 @@ test("the hue strip's keys step by the hue's own step, and wrap past 360°", asy
   receive({ type: "params", values: { color: { h: 350, s: 1, v: 1 } } });
   screen.getByRole("slider", { name: "color hue" }).element().focus();
   const hues: number[] = [];
+  const hue = screen.getByRole("slider", { name: "color hue" });
   for (const key of ["{PageUp}", "{ArrowDown}", "{ArrowUp}", "{ArrowUp}", "{PageDown}", "{Shift>}{ArrowRight}{/Shift}"]) {
     await userEvent.keyboard(key);
-    hues.push((sets(sent).at(-1)!.value as HSV).h);
+    const sent_ = sets(sent).at(-1)!.value as HSV;
+    hues.push(sent_.h);
+    // The engine's echo: unechoed, the next key steps from the old value once SETTLE_MS passes (useDraft).
+    receive({ type: "params", values: { color: sent_ } });
+    await expect.element(hue).toHaveAttribute("aria-valuenow", String(sent_.h));
   }
   expect(hues).toEqual([10, 8, 10, 12, 352, 12]);
 });
