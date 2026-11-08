@@ -1,5 +1,4 @@
-/* The layout editor and the power, wiring and controller report (src/arrange), in the Console and the
-   studio. */
+/* The layout editor and the power, wiring and controller report (src/arrange), in the Console. */
 
 :where(.arrange-panel) :where(ul, ol, dl, dd) {
   margin: 0;

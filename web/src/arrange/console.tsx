@@ -1,6 +1,6 @@
 // The layout editor and the report in the Console's slot, loaded on demand (app/App.tsx) with the rest of
 // src/arrange: the page always loads none of it.
-import { use } from "react";
+import { lazy, use, useState } from "react";
 import { Badge } from "../design/Badge";
 import { Banner } from "../design/Banner";
 import { Button } from "../design/Button";
@@ -9,13 +9,16 @@ import { LayoutTools } from "../layout/LayoutTools";
 import { loadParts } from "../rig/loadParts";
 import type { PartsCatalog } from "../rig/parts";
 import { useMedia, WIDE } from "../design/useMedia";
-import { canArrange, useRefusal, useWire } from "../wire/store";
+import { canArrange, useOffers, useRefusal, useWire } from "../wire/store";
 import { ArrangementPanel } from "./ArrangementPanel";
 import { useDocEditor } from "./doc";
 import { GizmoToolbar, useGizmoTools } from "./gizmoTools";
 import { useEditorKeys } from "./keys";
 import { IssueList, ReportPanel } from "./ReportPanel";
 import { retryArrange, useArrangeSync, useArrangeSyncState, useEngineArrangement, useRigIsCurrent } from "./sync";
+
+// Publish, which the page loads only when it first opens (src/share).
+const Share = lazy(() => import("../share/Share"));
 
 // Where the last press or focus must be for Delete and Backspace to delete what is selected: the layout
 // panel and the 3D view.
@@ -41,8 +44,8 @@ function useEditor() {
 }
 
 /** The layout panel: the build-day tools (input-end markers, blink), what became of the last edit (the
- * engine's refusal with its issues, or edits a layout from elsewhere replaced), and the arrangement
- * editor. Each edit runs live once edits settle (sync.ts); undo and redo are this page's. Open only on a
+ * engine's refusal with its issues, or edits a layout from elsewhere replaced), the report and, on a run
+ * that publishes, Publish, which opens in the panel's place, and the arrangement editor. Each edit runs live once edits settle (sync.ts); undo and redo are this page's. Open only on a
  * run that takes `arrange`; read-only while the connection is down. On a phone, the 3D view's gizmo
  * tools sit here, off its small canvas. */
 export function ArrangeSlot({ onClose, onReport }: { onClose(): void; onReport(): void }) {
@@ -53,8 +56,12 @@ export function ArrangeSlot({ onClose, onReport }: { onClose(): void; onReport()
   const refusal = useRefusal("arrange");
   const problems = useWire((s) => s.report?.issues.filter((i) => i.level !== "warning").length ?? 0);
   const connected = useWire((s) => s.connected);
+  const publishes = useOffers("publish");
+  const [publishing, setPublishing] = useState(false);
   const wide = useMedia(WIDE);
   const gizmo = useGizmoTools((s) => s.shown) && !wide;
+  // Publish loads in the slot's own Suspense and error boundary (app/App.tsx `Loaded`).
+  if (publishing) return <Share part="publish" onClose={() => setPublishing(false)} />;
   return (
     <Panel title="layout" onClose={onClose}>
       <div className="arrange-panel">
@@ -94,6 +101,11 @@ export function ArrangeSlot({ onClose, onReport }: { onClose(): void; onReport()
             report
             {problems > 0 && <Badge tone="danger">{problems}</Badge>}
           </Button>
+          {publishes && (
+            <Button onPress={() => setPublishing(true)} title="share this layout and its looks in the Gallery">
+              publish
+            </Button>
+          )}
         </div>
         {engine ? (
           <ArrangementPanel

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Assembly } from "../../src/rig3d/assembly";
 import { buildBatches, type ViewRig } from "../../src/rig3d/instances";
 import { assembliesKey, drawnAssemblies } from "../../src/rig3d/Rig";
-import { partsCatalog } from "../studio/fixtures/rig";
+import { partsCatalog } from "./rig";
 
 /** The y extent of a geometry. */
 function yExtent(g: BufferGeometry): [number, number] {

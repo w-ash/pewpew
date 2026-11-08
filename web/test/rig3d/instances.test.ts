@@ -1,6 +1,6 @@
 import { BoxGeometry, Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { partsCatalog, threeBarRig } from "../studio/fixtures/rig";
+import { partsCatalog, threeBarRig } from "./rig";
 import type { Assembly } from "../../src/rig3d/assembly";
 import {
   anchorMatrix,

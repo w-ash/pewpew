@@ -1,12 +1,14 @@
 // Layout mode: the build-day tools (input-end markers, blink a fixture), on
-// only while the operator asks for them.
+// only while the operator asks for them, and never in the Gallery.
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { useSender } from "../wire/store";
+import { useOffers, useSender } from "../wire/store";
 
 /** How long a blink runs: pewpew.blink DURATION. */
 export const BLINK_MS = 4000;
 
 export interface LayoutMode {
+  /** Whether the page offers layout mode: not in the Gallery, whose layout is read-only. */
+  readonly offered: boolean;
   readonly on: boolean;
   setOn(on: boolean): void;
   readonly markers: boolean;
@@ -24,6 +26,7 @@ const LayoutContext = createContext<LayoutMode | null>(null);
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
   const sender = useSender();
+  const offered = !useOffers("gallery");
   const [on, setOn] = useState(false);
   const [markers, setMarkers] = useState(true);
   const [fixture, setFixture] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     sender.send({ type: "blink", fixture: id });
   };
   return (
-    <LayoutContext.Provider value={{ on, setOn, markers, setMarkers, fixture, setFixture, blink, blinking: blinked?.id ?? null }}>
+    <LayoutContext.Provider value={{ offered, on: on && offered, setOn, markers, setMarkers, fixture, setFixture, blink, blinking: blinked?.id ?? null }}>
       {children}
     </LayoutContext.Provider>
   );

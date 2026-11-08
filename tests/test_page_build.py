@@ -36,11 +36,16 @@ THREE_D_MEASURED = 280_196
 THREE_D_BUDGET = round(THREE_D_MEASURED * 1.03)
 # What the layout editor and the report load on demand (web/src/arrange and
 # zustand), gzipped file by file: RIG_MEASURED bytes as built on 2026-11-08
-# with the sync that survives a reconnect, the delete that unwires and the
-# phone's gizmo tools, plus 3%; 16,436 before them. The 3D view loads them
-# too: it edits through the editor's store.
-RIG_MEASURED = 18_074
+# with the sync that survives a reconnect, the delete that unwires, the
+# phone's gizmo tools and the button that opens Publish, plus 3%; 16,436
+# before them. The 3D view loads them too: it edits through the editor's store.
+RIG_MEASURED = 18_473
 RIG_BUDGET = round(RIG_MEASURED * 1.03)
+# What Publish, export looks and the Gallery's chrome load on demand
+# (web/src/share), gzipped file by file: SHARE_MEASURED bytes as built on
+# 2026-11-08, plus 3%.
+SHARE_MEASURED = 2_482
+SHARE_BUDGET = round(SHARE_MEASURED * 1.03)
 
 # The token names RA-27c §3.8 retired, and the classes RA-27b §6.1 did: a
 # var() of a name nothing defines fails silently.
@@ -61,7 +66,7 @@ def sources(*suffixes: str) -> dict[Path, str]:
 
 
 def test_the_page_keeps_its_title():
-    assert "<title>pewpew preview</title>" in PAGE.read_text()
+    assert "<title>pewpew Console</title>" in PAGE.read_text()
 
 
 def test_the_page_is_built_from_the_current_source():
@@ -121,6 +126,11 @@ def rig_files() -> list[str]:
     return on_demand("console-rig")
 
 
+def share_files() -> list[str]:
+    """The files of Publish, export looks and the Gallery's chrome."""
+    return on_demand("console-share")
+
+
 def three_d_files() -> list[str]:
     """The 3D view's own files: what it loads beyond the layout editor's."""
     return [name for name in on_demand("console-3d") if name not in rig_files()]
@@ -146,6 +156,13 @@ def test_the_layout_editor_is_within_its_budget():
     files = rig_files()
     size = gzipped(files)
     assert size <= RIG_BUDGET, f"the layout editor loads {size} gzipped bytes, over its {RIG_BUDGET}-byte budget"
+
+
+def test_publish_and_the_gallery_chrome_are_within_their_budget():
+    files = share_files()
+    assert files, "the page has no Publish or Gallery chrome to load on demand"
+    size = gzipped(files)
+    assert size <= SHARE_BUDGET, f"Publish and the Gallery load {size} gzipped bytes, over {SHARE_BUDGET}"
 
 
 def test_three_js_loads_only_with_the_3d_view():

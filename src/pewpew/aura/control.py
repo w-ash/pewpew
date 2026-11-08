@@ -30,7 +30,7 @@ request sent after it is not held up. A request that changes what runs
 (a layer edit, a recall, a look, a made look) does not run once
 one asked for after it has run (`OVERTAKEN`): a look made while the
 operator recalled another never replaces it. Every request but `arm`,
-`fire`, `scan`, `rebind`, `blink` and `arrange` is operator input: on the
+`fire`, `scan`, `rebind`, `blink`, `arrange` and `export` is operator input: on the
 loop thread it first touches the looks, so the idle cycle stops. A cue
 fired from the page stands in for a room event and leaves the idle cycle
 alone.
@@ -41,6 +41,15 @@ is live or refused: only in a run on an arrangement map that allows
 edits, which an unattended run does not. It names its `base`, the digest
 of the arrangement it edited, and is refused when the file has changed
 since. A refused one carries the compile's `issues`.
+
+An `export` answers with a file (`Exported`) in place of an ack: a looks
+file of the saved looks it names (`share` false), or a share envelope of
+the run's layout and those looks (`share` true, pewpew.share) for the
+Console's Publish. A share is offered only with a Gallery to publish to
+(`run --gallery URL`) and an editable layout, and is checked here, so a
+share the Gallery would refuse is refused before it leaves. An export
+reads only the looks book, which is replaced whole, so it runs on the
+caller's thread and never waits for the loop.
 """
 
 from __future__ import annotations
@@ -50,8 +59,10 @@ import logging
 import threading
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
+from pewpew import share as shares
 from pewpew.aura.book import check_name
 from pewpew.aura.deck import Deck
 from pewpew.aura.looks import Looks
@@ -107,6 +118,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "rebind": (("board", None), ("address", None)),
     "blink": (("fixture", None),),
     "arrange": (("arrangement", None), ("base", None)),
+    "export": (("looks", None), ("share", False)),
 }
 
 NO_LOOKS = "this engine takes no looks: start it with `python -m pewpew run ... --preview --accept-looks`"
@@ -116,8 +128,19 @@ BUSY_LAYER = "the engine is busy, so the layer was not added; send it again"
 OVERTAKEN = "a request sent after this one changed what runs first, so this one did not run"
 MAKING = "a look is still being made; send this again once it has started"
 NO_LAYOUT = "layout edits need an arrangement map (run --map RIG.arrangement.json)"
+NO_PUBLISH = "this run does not publish: it needs a Gallery (run --gallery URL) and a layout it may edit"
 # What an added layer's id is made from when it has no node to make one from.
 LAYER = "layer"
+
+
+@dataclass(frozen=True)
+class Exported:
+    """An accepted `export` and its answer: `file` is a looks file or a
+    share envelope, and `gallery` the Gallery's base URL for a share, else
+    None. The socket sends it as an `exported` message."""
+
+    file: Mapping[str, Any]
+    gallery: str | None = None
 
 
 class Boards(Protocol):
@@ -157,7 +180,8 @@ class AuraControl:
     """The aura's controls over one run: the deck, the master, the looks
     and triggers, and, when the run has them, the blink, the boards, the
     health snapshot and the rig file's `layout`. `accept_looks` lets a
-    client send a whole look.
+    client send a whole look. `gallery` is the Gallery's base URL, with no
+    trailing slash, that a share is published to; None offers no share.
     `max_making` bounds how many looks a `surprise` or `vary` makes at
     once; one asked for past it is refused at once (`MAKING`)."""
 
@@ -177,6 +201,7 @@ class AuraControl:
         accept_looks: bool = False,
         timeout: float = ASK_TIMEOUT_S,
         max_making: int | None = None,
+        gallery: str | None = None,
     ) -> None:
         self._calls = calls
         self._deck = deck
@@ -190,6 +215,7 @@ class AuraControl:
         # sets it then, before any surface reads `capabilities`.
         self.layout = layout
         self._accept_looks = accept_looks
+        self._gallery = gallery
         self._variety = variety
         self._timeout = timeout
         # One slot per look a `surprise` or `vary` may be making at once; None: no limit.
@@ -205,13 +231,21 @@ class AuraControl:
 
     @property
     def capabilities(self) -> tuple[str, ...]:
-        """The requests this run takes beyond the page's own: `look` when it
-        takes looks, for clients outside the package (ADR-020 amendment
-        "capabilities"), and `arrange` when its layout is editable, which
-        the page reads to show its layout editor."""
+        """The requests this run takes beyond the page's own, in this
+        order: `look` when it takes looks, for clients outside the package
+        (ADR-020 amendment "capabilities"); `arrange` when its layout is
+        editable, which shows the page's layout editor; `export` when it
+        has a looks book; `publish` when it can export a share (`_publishes`)."""
         layout = self.layout
         return (*(("look",) if self._accept_looks else ()),
-                *(("arrange",) if layout is not None and layout.editable else ()))
+                *(("arrange",) if layout is not None and layout.editable else ()),
+                *(("export",) if self._looks is not None else ()),
+                *(("publish",) if self._publishes() else ()))
+
+    def _publishes(self) -> bool:
+        """Whether a share may be exported: the run has a Gallery and a looks book, and its layout is editable."""
+        layout = self.layout
+        return self._gallery is not None and self._looks is not None and layout is not None and layout.editable
 
     def describe(self) -> list[dict]:
         """Every knob of the running stack, by address, in display order."""
@@ -275,10 +309,11 @@ class AuraControl:
 
     # ---- requests (any thread) -------------------------------------------------
 
-    def request(self, message: Mapping[str, object]) -> Refusal | Future[Refusal | None] | None:
+    def request(self, message: Mapping[str, object]) -> Refusal | Exported | Future[Refusal | None] | None:
         """Act on one message `{"type": control, field: value, ...}`. Returns
-        why it was refused, or None when it was accepted; for a look to make
-        (`surprise`, `vary`) that passed its checks, a future of either. A
+        why it was refused, or None when it was accepted; for an `export`,
+        its `Exported` answer; for a look to make (`surprise`, `vary`) that
+        passed its checks, a future of either. A
         message that names no control is refused when it carries an `id`, so
         its sender gets an answer, and passed over without one."""
         kind = message.get("type")
@@ -505,6 +540,41 @@ class AuraControl:
         if layout is None:
             return NO_LAYOUT
         return layout.arrange(arrangement, base)
+
+    def export(self, looks: object = None, share: object = False) -> Exported | str:
+        """The saved looks `looks` (names, in the book's order; None: every
+        one) as a looks file, or with `share` as a share envelope of the
+        run's layout (pewpew.share), checked as the Gallery checks one.
+        Reads the book as it is now, on the caller's thread."""
+        book = self._looks.book if self._looks is not None else None
+        if book is None:
+            return NO_LOOKS_FILE
+        if not isinstance(share, bool):
+            return f"export's share is true or false, got {share!r}"
+        if looks is None:
+            names = list(book.looks)
+            if not names:
+                return "there are no saved looks to export"
+        elif not isinstance(looks, list) or not all(isinstance(name, str) for name in looks):
+            return f"export's looks is a list of look names, or null for every one, got {looks!r}"
+        elif not looks:
+            return "export needs at least one look"
+        else:
+            names = looks
+        for name in names:
+            if name not in book.looks:
+                return unknown("look", name, book.looks)
+        if not share:
+            return Exported(shares.looks_file(book, names))
+        layout = self.layout
+        arrangement = layout.arrangement()["arrangement"] if layout is not None and self._publishes() else None
+        if not isinstance(arrangement, dict):
+            return NO_PUBLISH
+        try:
+            checked, _ = shares.check(shares.envelope(arrangement, book, names))
+        except shares.ShareError as exc:
+            return f"the Gallery would refuse this share: {exc}"
+        return Exported(checked, self._gallery)
 
     # ---- the loop thread -------------------------------------------------------
 

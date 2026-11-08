@@ -28,7 +28,7 @@ function ModeBadge({ word, icon, tone, note }: { word: string; icon?: IconName; 
 }
 
 /** The page's top line, status chrome only (RA-27c §3.5): the connection while there is none, the modes the
- * aura is in (each a badge, its "?" opening a note under the bar), aura health, layout, the shortcuts, and on
+ * aura is in (each a badge, its "?" opening a note under the bar), aura health, layout (not in the Gallery), the shortcuts, and on
  * a phone on its side, where the side panel scrolls the deck away, blackout (page.css). The look's header
  * names what plays, and the deck holds the brightness. */
 export function TopBar({ healthOpen, onHealth, onHelp }: { healthOpen: boolean; onHealth(): void; onHelp(): void }) {
@@ -53,9 +53,11 @@ export function TopBar({ healthOpen, onHealth, onHelp }: { healthOpen: boolean; 
         </div>
         {blackout !== null && <Blackout on={blackout} keyless />}
         <HealthChip open={healthOpen} onToggle={onHealth} />
-        <ToggleButton variant="tertiary" className="layout-toggle" pressed={layout.on} onPressedChange={layout.setOn} title="layout tools (L)">
-          layout
-        </ToggleButton>
+        {layout.offered && (
+          <ToggleButton variant="tertiary" className="layout-toggle" pressed={layout.on} onPressedChange={layout.setOn} title="layout tools (L)">
+            layout
+          </ToggleButton>
+        )}
         <IconButton className="help" icon="command" label="keyboard shortcuts" title="keyboard shortcuts (?)" onPress={onHelp} />
       </header>
       {cycle !== null && <DisclosureNote disclosure={cycleNote}>{cycle}</DisclosureNote>}

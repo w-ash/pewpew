@@ -13,10 +13,10 @@ sources:
 typecheck:
     uv run basedpyright
 
-# Both pages in web/: install from the lockfile, type-check, lint (oxlint, type-aware), run the unit tests
-# (Chromium and WebKit), then build the control page into src/pewpew/sinks/web/
-# (index.html and the files files.json lists) and the studio into web/dist/studio.
-# The studio's E2E (`pnpm -C web e2e`) is not in the gate.
+# The Console in web/: install from the lockfile, type-check, lint (oxlint, type-aware), run the unit tests
+# (Chromium and WebKit), then build the Console into src/pewpew/sinks/web/
+# (index.html, assets/ and files.json). The build makes no studio page: the Gallery serves the Console build.
+# The Console's E2E (`pnpm -C web e2e`) is not in the gate.
 web:
     pnpm install --frozen-lockfile
     pnpm -C web check

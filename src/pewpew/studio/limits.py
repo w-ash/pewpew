@@ -229,7 +229,8 @@ class RateLimiter:
 
 
 class BodyLimit:
-    """ASGI middleware: refuse HTTP bodies over `limit` bytes with 413.
+    """ASGI middleware: refuse HTTP bodies over `limit` bytes with 413, or
+    over `paths[path]` for a path it names.
 
     Checks `Content-Length` up front and counts streamed bytes for chunked
     bodies, which carry no length. A chunked body that crosses the limit gets
@@ -237,17 +238,19 @@ class BodyLimit:
     dropped.
     """
 
-    def __init__(self, app, limit: int) -> None:
+    def __init__(self, app, limit: int, paths: Mapping[str, int] | None = None) -> None:
         self.app = app
         self.limit = limit
+        self.paths = dict(paths or {})
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        limit = self.paths.get(scope["path"], self.limit)
         declared = dict(scope["headers"]).get(b"content-length")
-        if declared is not None and declared.isdigit() and int(declared) > self.limit:
-            await self._refuse(send)
+        if declared is not None and declared.isdigit() and int(declared) > limit:
+            await self._refuse(send, limit)
             return
         seen = 0
         started = False
@@ -260,9 +263,9 @@ class BodyLimit:
             message = await receive()
             if message["type"] == "http.request":
                 seen += len(message.get("body", b""))
-                if seen > self.limit:
+                if seen > limit:
                     if not started:
-                        await self._refuse(send)
+                        await self._refuse(send, limit)
                     refused = True
                     return {"type": "http.disconnect"}
             return message
@@ -276,13 +279,14 @@ class BodyLimit:
 
         await self.app(scope, counted, tracked)
 
-    async def _refuse(self, send) -> None:
-        body = b'{"detail":"request body over the limit of %d bytes"}' % self.limit
+    async def _refuse(self, send, limit: int) -> None:
+        body = b"request body over the limit of %d bytes\n" % limit
         await send(
             {
                 "type": "http.response.start",
                 "status": 413,
-                "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+                "headers": [(b"content-type", b"text/plain; charset=utf-8"),
+                            (b"content-length", str(len(body)).encode())],
             }
         )
         await send({"type": "http.response.body", "body": body})

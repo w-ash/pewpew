@@ -1,17 +1,19 @@
-// Every message on the preview socket, both directions. This file is where the
-// protocol is described; pewpew.sinks.preview builds each message from one
-// source, and tests/goldens/wire.json holds real ones. Every text message is
-// absolute state, so the last write wins on every tab. A new client gets the
-// hello, then the current text of every other server message but `layout`,
-// `refused` and `ack`; after that, each one when its text changes.
+// Every message on the page's socket, both directions: the engine's (the
+// Console) and a Gallery session's speak the same protocol. This file is where
+// the protocol is described; pewpew.sinks.preview builds each message from one
+// source, and tests/goldens/wire.json and session.json hold real ones. Every
+// text message is absolute state, so the last write wins on every tab. A new
+// client gets the hello, then the current text of every other server message
+// but `layout`, `refused`, `ack` and `exported`; after that, each one when its
+// text changes.
 //
-// Any client may give a request an `id`, which its answer, an `ack` or a
-// `refused`, carries back. This page gives one only to a request it shows
-// as busy until the engine answers (`Sender.ask`: a look the engine makes,
-// a keep, or a layout edit). A client outside the package (`python -m pewpew
-// push`, an agent) also reads the hello's `capabilities` (ADR-020 amendment
-// "capabilities"). This page ships with its engine: of them it reads only
-// `arrange`, whether this run takes layout edits (wire/store.ts `canArrange`).
+// Any client may give a request an `id`, which its answer, an `ack`, an
+// `exported` or a `refused`, carries back. This page gives one only to a
+// request it waits on (`Sender.ask`: a look the engine makes, a keep, a layout
+// edit, an export). The hello's `capabilities` say what the server takes
+// (ADR-020 amendment "capabilities"); this page reads them to show only what
+// works: "arrange" (layout edits, wire/store.ts `canArrange`), "export",
+// "publish", "pause" and "gallery".
 import type { HealthState } from "../health/health";
 import { isRecord, type Param, type ValueOf } from "../params/schema";
 import type { MapShape } from "../room/layout";
@@ -66,8 +68,10 @@ export interface HelloMessage extends MapShape {
   /** The build stamp of the page the engine serves; a tab built otherwise reloads. Null without one. */
   readonly build: string | null;
   /** What a client may rely on: "ack" (a request with an `id` is answered), "look" (the run takes `look`,
-   * `run --accept-looks`) and "arrange" (the run takes `arrange`: an arrangement map, not unattended).
-   * This page reads only "arrange". Empty when no control is wired. */
+   * `run --accept-looks`), "arrange" (the run takes `arrange`: an arrangement map, not unattended),
+   * "export" (it takes `export`: it has a looks book), "publish" (an `export` may `share`: a Gallery URL
+   * and an editable layout), and a Gallery session's "pause" (it takes `pause` and `resume`) and
+   * "gallery" (the page is the Gallery's: a shared layout, read-only). Empty when no control is wired. */
   readonly capabilities: readonly string[];
 }
 
@@ -79,9 +83,8 @@ interface LayoutMessage extends MapShape {
 }
 
 /** The part of the engine an error comes from. On "render" a layer of the running look raises: it
- * pulses red in its place, or an unattended run leaves it out of a mix that has other layers. On "bind"
- * (the studio's) the running look could not run on the rig bound, so an example look that fits plays. */
-export type ErrorSource = "render" | "reload" | "looks" | "bind";
+ * pulses red in its place, or an unattended run leaves it out of a mix that has other layers. */
+export type ErrorSource = "render" | "reload" | "looks";
 
 /** The engine's error, when it changes; every field is null when there is none. */
 interface StatusMessage {
@@ -135,7 +138,7 @@ interface CatalogMessage extends Catalog {
 }
 
 /** The estimated draw of the frame last streamed, under the power cap and without it, at most twice a
- * second. Sent only on a rig (the engine's arrangement run, or the studio's bound rig). */
+ * second. Sent only on a rig (the engine's arrangement run, or a Gallery share's). */
 interface PowerMessage {
   readonly type: "power";
   readonly watts: number;
@@ -162,9 +165,9 @@ interface ReportMessage {
 /** A request's `id`, as a client outside the package sent it; it comes back as sent. */
 export type RequestId = string | number;
 
-/** The studio's own requests and refusals: a `bind` the rig fails, a session the server has no room for,
- * a message it cannot read. */
-export type RefusedControl = Control | "bind" | "session" | "message";
+/** The Gallery's own refusals: a session the server has no room for (or ended, or has no share for), a
+ * message it cannot read. */
+export type RefusedControl = Control | "session" | "message";
 
 /** A declined request, to the client that sent it. The reason names the param,
  * op, look, fixture or cap, never a path, and carries no hint: the port has no login. */
@@ -179,7 +182,7 @@ interface RefusedMessage {
   /** The request's `id`; null without one. */
   readonly id: RequestId | null;
   readonly reason: string;
-  /** Every problem of an arrangement the engine did not compile (an `arrange`, the studio's `bind`). */
+  /** Every problem of an arrangement the engine did not compile (an `arrange`). */
   readonly issues?: readonly RigIssue[];
   /** For an `arrange` built on a file that has changed: the engine's current arrangement and its digest,
    * as the `arrangement` message gives them, which the page takes as that message. */
@@ -194,10 +197,22 @@ interface AckMessage {
   readonly control: Control;
 }
 
+/** The answer to an `export`, in place of an `ack`, to the client that sent it. */
+export interface ExportedMessage {
+  readonly type: "exported";
+  readonly id: RequestId | null;
+  /** A looks file (version 4) of the looks asked for; for a `share`, the share envelope
+   * (`{format: "pewpew.share", version: 1, arrangement, looks}`: board addresses removed). */
+  readonly file: Readonly<Record<string, unknown>>;
+  /** For a `share`, the Gallery's base URL with no trailing slash, which the page posts the envelope to
+   * (`${gallery}/api/shares`); else null. */
+  readonly gallery: string | null;
+}
+
 export type ServerMessage =
   | HelloMessage | LayoutMessage | StatusMessage | ParamsMessage | ModMessage | DeclareMessage
   | AuraMessage | HealthMessage | CatalogMessage | PowerMessage | ArrangementMessage | ReportMessage | RefusedMessage
-  | AckMessage;
+  | AckMessage | ExportedMessage;
 
 /** What a client may send. The engine checks every field and refuses a bad one with its
  * reason. Without an `id`, only a message that is not an object, has no known `type`, or is
@@ -271,7 +286,17 @@ export type ClientMessage =
    * "arrange" capability: refused in an unattended run, on a room map file and on any other map. `base`
    * is the `arrangement` message's digest of the file it edited: refused when the file has changed since.
    * Answered once the edit runs or is refused; a refused one leaves the file as it was. */
-  | { readonly type: "arrange"; readonly arrangement: Arrangement; readonly base: string };
+  | { readonly type: "arrange"; readonly arrangement: Arrangement; readonly base: string }
+  /** The saved looks `looks` by name, in the book's order, or every one for null: answered with an
+   * `exported`, not an `ack`. `share` false asks for a looks file; true for a share envelope of the
+   * layout and those looks, which needs "publish". Needs "export"; an empty list or an unknown name is
+   * refused. The page reads the answer from the store (`WireStore.exported`) once its `ask` settles. */
+  | { readonly type: "export"; readonly looks: readonly string[] | null; readonly share: boolean }
+  /** A Gallery session's ("pause"): stop sending frames until `resume`, as the tab hides. */
+  | { readonly type: "pause" }
+  /** A Gallery session's ("pause"): send frames again, as the tab shows or the visitor presses after
+   * the session paused itself while idle. */
+  | { readonly type: "resume" };
 
 /** The inbound type a refusal names. */
 export type Control = ClientMessage["type"];
@@ -284,8 +309,9 @@ export interface Sender {
    * a newer master, replaces it. For what a drag sends. */
   sendLatest(msg: ClientMessage): void;
   /** Send at once with an `id`, for a request that takes the engine a while. Settles when the engine
-   * answers it, true for an ack and false for a refusal (which reaches the store as any does), or false
-   * when it was not sent or the connection closes first. */
+   * answers it, true for an ack or an `exported` (which the store keeps as `exported`) and false for a
+   * refusal (which reaches the store as any does), or false when it was not sent or the connection
+   * closes first. */
   ask(msg: ClientMessage): Promise<boolean>;
 }
 
@@ -322,7 +348,7 @@ export function encodeFrame(t: number, seq: number, rgb: Uint8Array): ArrayBuffe
 // Every server message type: a new member of ServerMessage fails to compile until it is listed.
 const TYPES: Readonly<Record<ServerMessage["type"], true>> = {
   hello: true, layout: true, status: true, params: true, mod: true, declare: true, aura: true, health: true,
-  catalog: true, power: true, arrangement: true, report: true, refused: true, ack: true,
+  catalog: true, power: true, arrangement: true, report: true, refused: true, ack: true, exported: true,
 };
 
 /** A JSON object with a text `type`: any message, before it is known to be the wire's. */

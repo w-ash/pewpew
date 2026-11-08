@@ -1,10 +1,10 @@
 """The aura pipeline: the parts that run a look, built in dependency order.
 
-`build_aura_pipeline` builds what `python -m pewpew run` and each studio
+`build_aura_pipeline` builds what `python -m pewpew run` and each Gallery
 session run (ADR-025):
 
     calls, features -> layer stack -> crossfader -> deck -> master ->
-    variety -> looks (with a looks file) -> triggers -> aura control
+    variety -> looks (with a looks book) -> triggers -> aura control
 
 and `AuraPipeline.loop` puts it under a `PacedLoop`: the triggers, then
 the looks, before each frame renders; the blink, the master, then the
@@ -90,6 +90,7 @@ def build_aura_pipeline(
     master_cap: float = 1.0,
     looks_path: Path | None = None,
     book: LookBook | None = None,
+    gallery: str | None = None,
     trigger_log: TextIO | None = None,
     trigger_log_max: int | None = None,
     blink: Blink | None = None,
@@ -108,9 +109,10 @@ def build_aura_pipeline(
     `seed` seeds the made looks, and the default features (the seeded
     fake). `bypass` and `now` are as for `Compositor`. `book`, with
     its file at `looks_path`, gives the saved looks and the triggers;
-    without it there are no looks and no triggers. `blink`, `boards`, `health`,
-    `layout`, `accept_looks`, `max_making` and `timeout` are as for
-    `AuraControl`.
+    without it there are no looks and no triggers. A book with no
+    `looks_path` keeps its changes in memory (`Looks`). `gallery`, `blink`,
+    `boards`, `health`, `layout`, `accept_looks`, `max_making` and
+    `timeout` are as for `AuraControl`.
     `make_variety(deck)` makes the made looks' `Variety` (default: one
     seeded from `seed`), and `submit` is how the looks make a fresh slot's
     look (`Looks`). Raises as `Compositor` does."""
@@ -130,7 +132,6 @@ def build_aura_pipeline(
     variety = make_variety(deck) if make_variety is not None else Variety(deck, seed=seed)
     looks = None
     if book is not None:
-        assert looks_path is not None, "a looks book needs the path of its file"
         looks = Looks(looks_path, book, deck, master, variety=variety, submit=submit)
     triggers = Triggers(
         book.triggers if book is not None else {}, looks=looks, features=features, log=trigger_log,
@@ -139,5 +140,6 @@ def build_aura_pipeline(
     control = AuraControl(
         calls, deck, master, triggers, looks=looks, blink=blink, boards=boards, health=health,
         layout=layout, accept_looks=accept_looks, variety=variety, timeout=timeout, max_making=max_making,
+        gallery=gallery,
     )
     return AuraPipeline(calls, features, fader, deck, master, variety, looks, triggers, blink, control)

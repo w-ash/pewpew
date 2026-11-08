@@ -1,8 +1,9 @@
-# Running and deploying the pewpew studio
+# Running and deploying the pewpew Gallery
 
-The studio is one container: the CLI serves the API, the render websockets and
-the built frontend from the same origin, backed by Neon PostgreSQL when
-`DATABASE_URL` is set. This page deploys your own instance; the names below
+The Gallery (code name `studio`) is one container: the CLI serves the share
+route, the render websockets and the committed Console build from the same
+origin, backed by Neon PostgreSQL when `DATABASE_URL` is set. The image has
+no Node stage. This page deploys your own instance; the names below
 are the examples in the committed `fly.toml`.
 
 - **Platform**: Fly.io, one machine (`primary_region`, for example `sjc`)
@@ -12,9 +13,9 @@ are the examples in the committed `fly.toml`.
 
 ## Local development
 
-Not covered here. Run the server with `python -m pewpew studio` (SQLite at
-`./studio.sqlite3`) and the frontend with `pnpm dev:studio` in `web/`. Vite on 5173
-proxies `/api` and `/ws` to port 8000.
+Run `python -m pewpew studio` (SQLite at `./studio.sqlite3`). It serves the
+committed Console build; see `docs/studio/README.md`. To change the page,
+run `pnpm dev` in `web/` against a Console (`python -m pewpew run ... --preview`).
 
 ## First-time Fly setup
 
@@ -66,7 +67,7 @@ availability, which this app cannot have (see below).
 
 ## Why exactly one machine
 
-Not a cost decision. The studio keeps its live state in memory:
+Not a cost decision. The Gallery keeps its live state in memory:
 
 - each visitor's render session runs on its own thread inside the process;
 - the admission limits and rate limits are in-memory counters.
@@ -112,7 +113,7 @@ docker run --rm -p 8080:8000 pewpew:local
 ```
 
 Then check: `http://localhost:8080/health/live` answers `{"ok": true}`, and `/`
-returns the SPA's `index.html`. The SQLite fallback writes
+returns the Console page, titled `pewpew Gallery`. The SQLite fallback writes
 `/app/data/studio.sqlite3`, the only directory the runtime user can write.
 
 ## Release notes

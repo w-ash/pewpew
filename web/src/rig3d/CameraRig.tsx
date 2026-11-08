@@ -1,5 +1,5 @@
-/** The 3D view's camera: the view buttons' framings, a tween between them, and a slow spin. Shared by
- * the Console's 3D stage (Stage3D) and the studio's. */
+/** The 3D view's camera: the view buttons' framings, a tween between them, and a slow spin, for the
+ * Console's 3D stage (Stage3D). */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Color, type PerspectiveCamera, Vector3 } from "three";

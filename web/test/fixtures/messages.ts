@@ -13,15 +13,24 @@ export const GREETING = wire.greeting as unknown as readonly ServerMessage[];
  * ids, an ack, a render error, a scan and a room layout. */
 export const LATER = wire.later as unknown as readonly ServerMessage[];
 
-/** What a studio session sends a new client (tests/goldens/session.json): the engine's greeting on the
- * placeholder rig. */
-export const SESSION_GREETING = session.greeting as unknown as readonly ServerMessage[];
-/** The layout after a bind: the bound rig of 16 pixels. */
-export const SESSION_LAYOUT = session.layout as unknown as Message<"layout">;
+/** tests/goldens/session.json, as a Gallery session wrote it. Read loosely: the server writes the golden,
+ * so a key it drops fails a test here, not the build. */
+const gallery = session as unknown as {
+  readonly greeting: readonly ServerMessage[];
+  readonly power: Message<"power">;
+  readonly refused: Readonly<Record<"session" | "message" | "paused", Message<"refused">>>;
+  readonly exported: Message<"exported">;
+};
+
+/** What a Gallery session sends a new client: its hello (a share's rig, capabilities "gallery" and
+ * "pause"), then the state of its look and its in-memory looks book. */
+export const SESSION_GREETING = gallery.greeting;
 /** The power reading of a streamed frame. */
-export const SESSION_POWER = session.power as unknown as Message<"power">;
-/** The session's refusals: of a bind, of the session, of a binary message, and of a request while paused. */
-export const SESSION_REFUSED = session.refused as unknown as Readonly<Record<"bind" | "session" | "message" | "paused", Message<"refused">>>;
+export const SESSION_POWER = gallery.power;
+/** The session's refusals: of the session, of a binary message, and of a request while paused. */
+export const SESSION_REFUSED = gallery.refused;
+/** The answer to an `export` of every look as a looks file. */
+export const SESSION_EXPORTED = gallery.exported;
 
 /** The first message of `type` in `messages`. */
 export function first<T extends ServerMessage["type"]>(type: T, messages: readonly ServerMessage[] = GREETING): Message<T> {
@@ -61,3 +70,16 @@ export function greeting(op = "zoo_test"): ServerMessage[] {
 export const board = (patch: Partial<BoardHealth>): BoardHealth => ({ ...greetingHealth.boards[0]!, ...patch });
 
 export const health = (boards: BoardHealth[], patch: Partial<HealthState> = {}): HealthState => ({ ...greetingHealth, boards, ...patch });
+
+/** What a Gallery session's hello says it takes. */
+export const GALLERY_CAPABILITIES: readonly string[] = ["ack", "look", "export", "pause", "gallery"];
+
+/** A Gallery session's greeting, made from the engine's (`greeting`): its hello on the golden's rig (the
+ * later layout's) with the Gallery's capabilities, and no health, arrangement or report, which the
+ * Gallery never sends. */
+export function galleryGreeting(op = "zoo_test"): ServerMessage[] {
+  const { type: _, ...rig } = first("layout", LATER);
+  return greeting(op)
+    .filter((msg) => msg.type !== "health" && msg.type !== "arrangement" && msg.type !== "report")
+    .map((msg) => (msg.type === "hello" ? { ...msg, ...rig, capabilities: GALLERY_CAPABILITIES } : msg));
+}

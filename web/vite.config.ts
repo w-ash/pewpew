@@ -3,14 +3,13 @@ import { readFileSync } from "node:fs";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
-import { defineConfig, type Plugin, type UserConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import type { BrowserCommand } from "vitest/node";
 import { upgradeAllowed } from "./dev-origin.ts";
 
-// Two pages from one source tree. The default mode is the engine's control page
-// (index.html), built into src/pewpew/sinks/web: the page and its hashed files,
-// which the engine serves (src/pewpew/sinks/preview.py). The mode `studio` is
-// the hosted studio (studio.html), built into dist/studio.
+// The Console page (index.html), built into src/pewpew/sinks/web: the page and
+// its hashed files, which the engine serves (src/pewpew/sinks/preview.py) and
+// the Gallery serves too (src/pewpew/studio/app.py).
 
 // The build stamp, from the same function tests/test_page_build.py checks.
 function buildStamp(): Plugin {
@@ -92,35 +91,16 @@ const CONSOLE_RIG = new RegExp(
     String.raw`|[\/]src[\/](arrange[\/]|design[\/]Field\.tsx|params[\/]NumberField\.tsx)`,
 );
 
+/** What the hello's capabilities add to the Console (src/share): the Gallery's banner and idle pause,
+ * the looks' export and Publish, in one file loaded when the first of them shows. The page's own modules
+ * they import stay with the page. */
+const CONSOLE_SHARE = /[\\/]src[\\/]share[\\/]/;
+
 /** Every other module the page imports, in one file the page loads at once. Two files loaded on demand
  * that import the same modules of the page would otherwise get those modules split into a file of their
  * own, which costs the page about 4 kB gzipped in the names the two files trade (Rolldown 1.2). The
  * page's entry is then only its `main.tsx`. */
 const PAGE = /[\\/](src|node_modules)[\\/]/;
-
-/** The studio's page: served for `/` and a share link `/a/<id>` in dev, and
- * built as index.html, the name the studio server serves (studio/app.py). */
-function studioPage(): Plugin {
-  return {
-    name: "pewpew-studio-page",
-    configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        const path = req.url?.split("?")[0];
-        if (path === "/" || path?.startsWith("/a/")) req.url = "/studio.html";
-        next();
-      });
-    },
-    generateBundle: {
-      order: "post",
-      handler(_, bundle) {
-        const page = bundle["studio.html"];
-        if (page?.type !== "asset") throw new Error("no studio page");
-        delete bundle["studio.html"];
-        this.emitFile({ type: "asset", fileName: "index.html", source: page.source });
-      },
-    },
-  };
-}
 
 // Moves the pointer off the page, so it lies over nothing a test renders (test/setup.ts).
 const pointerAway: BrowserCommand = ({ page }) => page.mouse.move(-1, -1);
@@ -129,39 +109,7 @@ const pointerAway: BrowserCommand = ({ page }) => page.mouse.move(-1, -1);
 // silently goes without memoization.
 const compiledReact = () => [react(), babel({ presets: [reactCompilerPreset({ panicThreshold: "all_errors" })] })];
 
-/** The hosted studio: a single-page app with its three.js chunk apart, beside a studio server. */
-function studio(): UserConfig {
-  const server = "http://127.0.0.1:8000";
-  return {
-    plugins: [compiledReact(), studioPage()],
-    server: {
-      host: "127.0.0.1",
-      port: 5173,
-      // The default arrangement is imported from the rig package's examples.
-      fs: { allow: [".", "../src/pewpew/rig/examples"] },
-      proxy: { "/api": { target: server, changeOrigin: true }, "/ws": { target: server, ws: true, changeOrigin: true } },
-    },
-    build: {
-      outDir: "dist/studio",
-      rolldownOptions: {
-        input: "studio.html",
-        output: {
-          codeSplitting: {
-            groups: [
-              { name: "three-vendor", test: /[\\/]node_modules[\\/](three|three-stdlib|@react-three)[\\/]/, priority: 30 },
-              { name: "react-vendor", test: /[\\/]node_modules[\\/](react|react-dom|scheduler|@tanstack|zustand)[\\/]/, priority: 20 },
-            ],
-          },
-        },
-      },
-      // The three.js chunk is about 1 MB minified (277 kB gzipped) and loads once.
-      chunkSizeWarningLimit: 1100,
-    },
-  };
-}
-
 export default defineConfig(({ command, mode }) => {
-  if (mode === "studio") return studio();
   // The dev server proxies to a running engine, e.g.
   // PEWPEW_ENGINE=http://127.0.0.1:52011 pnpm dev
   const engine = process.env.PEWPEW_ENGINE;
@@ -192,6 +140,7 @@ export default defineConfig(({ command, mode }) => {
             groups: [
               { name: "console-3d", test: CONSOLE_3D, includeDependenciesRecursively: false, priority: 2 },
               { name: "console-rig", test: CONSOLE_RIG, includeDependenciesRecursively: false, priority: 2 },
+              { name: "console-share", test: CONSOLE_SHARE, includeDependenciesRecursively: false, priority: 2 },
               { name: "page", test: PAGE, includeDependenciesRecursively: false, priority: 0 },
             ],
           },

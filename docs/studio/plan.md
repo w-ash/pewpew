@@ -1,5 +1,7 @@
 # pewpew studio: arrange LED fixtures in 3D, run real effects on them, model the rig, share by link
 
+> Record from 2026-10. Since 2026-11-08 the hosted app is the Gallery and serves the Console's page; the routes and the studio page below are gone. See [README.md](README.md) for the current system.
+
 ## Context
 
 The maintainer and an earlier agent session built a three.js prototype: 48 1M LED Pixel Bars in

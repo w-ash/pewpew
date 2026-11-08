@@ -1,32 +1,29 @@
-"""One visitor's aura: the aura pipeline under a `PacedLoop` on its own thread.
+"""One Gallery visitor's aura: the aura pipeline under a `PacedLoop` on its own thread.
 
 A session builds what `python -m pewpew run` builds (ADR-025,
-`pewpew.aura.pipeline`), with no looks file and no boards, and it takes
+`pewpew.aura.pipeline`) on one share (`Shared`): its compiled rig's
+mapping and power limit, and its looks book, kept in memory (`Looks` with
+no file), so a save, a rename or a favorite lasts for the visit and an
+`export` hands back a looks file. It has no boards and no rig file, takes
 whole looks (`accept_looks`), and makes at most one look at a time for a
-`surprise` or `vary`. It starts in the first of the looks it is given
-(the studio gives the example looks, `START` first). Every request a
-visitor sends goes to the pipeline's `AuraControl`, which refuses what
-needs a looks file or boards; the session adds only `bind`, `pause` and
-`resume`.
+`surprise` or a `vary`. It starts in the book's current look, else in the
+first that starts on the mapping; with none, it is refused (`NoLook`).
+Every request a visitor sends goes to the pipeline's `AuraControl`, which
+refuses what needs boards or a rig file; the session adds only `pause`
+and `resume`.
 
-A bind is coalesced, not queued: one slot, applied by at most one queued
-closure on the loop thread, so a paused session holds a bounded amount of
-pending work. It rebinds the crossfader to the rig's mapping; engine time
-continues. When the running look cannot run on the
-new mapping (a strip under a look that folds a plane), the session cuts
-to the first of its looks that can, and the `status` message says so
-until another look runs; when none can, the bind is refused and the old
-mapping stays.
-
-Each frame passes the master, then the bound rig's `PowerLimiter` (a
-`pewpew.power.PowerMeter`, an `after` stage), before it is quantized, so the stream carries the capped
-light (architecture §2 stage 3). Beside each frame go the current text of
-every per-frame message the preview sends (`pewpew.sinks.preview.StateTexts`):
-the status, the knobs, their values, the driven knobs' live values, the
-aura state, the catalog and the `power` reading. The `mod` values are read
-at most `MOD_HZ` times a second of engine time. The session speaks the
-engine's wire: its `View` (`pewpew.sinks.preview`) gives the `hello` on
-connect and the `layout` after each bind, and `pack_frame` the frames.
+Each frame passes the master, then the rig's `PowerLimiter` (a
+`pewpew.power.PowerMeter`, an `after` stage), before it is quantized, so
+the stream carries the capped light (architecture §2 stage 3). Beside each
+frame go the current text of every per-frame message the preview sends
+(`pewpew.sinks.preview.StateTexts`): the status, the knobs, their values,
+the driven knobs' live values, the aura state with the looks, the catalog
+and the `power` reading. The `mod` values are read at most `MOD_HZ` times
+a second of engine time. The session speaks the engine's wire: its `View`
+(`pewpew.sinks.preview`) gives the `hello`, with the rig's flat drawing
+(`room`) and 3D view (`rig`), the packaged page's build stamp and the
+capabilities `ack`, the control's own (`look`, `export`), `pause` and
+`gallery`; `pack_frame` gives the frames.
 
 The session never touches asyncio. It reports through a `SessionSink`,
 whose methods run on the loop thread (or, for an answer, the thread that
@@ -35,47 +32,45 @@ asked) and must not block.
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
 
+from pewpew.aura.book import LookBook
 from pewpew.aura.control import AuraControl
-from pewpew.aura.pipeline import build_aura_pipeline
-from pewpew.compose import Look
-from pewpew.lab.check import ready
-from pewpew.mapping import grid
+from pewpew.aura.pipeline import AuraPipeline, build_aura_pipeline
+from pewpew.compose import LayerError
 from pewpew.power import PowerLimiter, PowerMeter
-from pewpew.sinks.preview import StateTexts, View, pack_frame, refusal
+from pewpew.sinks.preview import StateTexts, View, pack_frame, page_build
 from pewpew.studio.limits import MAX_PIXELS
 
 logger = logging.getLogger(__name__)
 
 FPS = 30.0
-START = "tide"  # the example look every session starts in
+GALLERY_CAPABILITIES = ("pause", "gallery")  # what a Gallery session adds to the control's
 
 
-def example_looks(folder: Path) -> dict[str, dict]:
-    """The current look of each example looks file in `folder`
-    (`*.look.json`), in the looks file's form, by the file's name."""
-    looks = {}
-    for path in sorted(folder.glob("*.look.json")):
-        data = json.loads(path.read_bytes())
-        looks[path.name.removesuffix(".look.json")] = data["looks"][data["current"]]
-    return looks
+class NoLook(Exception):
+    """No look of the share's book starts on its layout."""
 
 
-def start_looks(docs: Mapping[str, dict]) -> dict[str, Look]:
-    """The looks of `docs` (`example_looks`) a session starts in and
-    falls back on in a bind, in that order: `START`, then the others.
-    Raises Refused for a look that does not check."""
-    return {name: ready(docs[name]).look for name in [START, *(name for name in docs if name != START)]}
+@dataclass(frozen=True, eq=False)
+class Shared:
+    """A share compiled once, which every session on it reads: the rig's
+    `mapping`, its flat drawing `room` (`plan_view`) and 3D view `rig`
+    (`rig_view`), a `limiter` factory for its power limit (None: uncapped,
+    with no power reading) and the looks `book`."""
+
+    mapping: np.ndarray
+    room: dict[str, Any] | None
+    rig: dict[str, Any] | None
+    limiter: Callable[[], PowerLimiter] | None
+    book: LookBook
 
 
 @dataclass(frozen=True)
@@ -89,12 +84,6 @@ class FramePayload:
     texts: tuple[str | None, ...]
 
 
-@dataclass(frozen=True)
-class _Bind:
-    mapping: np.ndarray
-    limiter: PowerLimiter | None
-
-
 class SessionSink(Protocol):
     def frame(self, payload: FramePayload) -> None: ...
 
@@ -102,49 +91,54 @@ class SessionSink(Protocol):
         """A discrete text message: a dict to serialize, or its text."""
         ...
 
-    def layout(self, message: dict | str) -> None:
-        """The layout for a new map: as `control`, and it drops the frame
-        packed for the old map."""
-        ...
-
     def closed(self) -> None:
         """The loop thread died; the session cannot continue."""
         ...
+
+
+def _start(shared: Shared, **kw: Any) -> AuraPipeline:
+    """The aura of `shared` in the book's current look, else the first
+    that starts on the mapping. Raises NoLook when none starts."""
+    book = shared.book
+    names = [*([book.current] if book.current is not None else []), *(n for n in book.looks if n != book.current)]
+    for name in names:
+        try:
+            aura = build_aura_pipeline(book.looks[name], shared.mapping, book=book, **kw)
+        except (LayerError, ValueError):  # ValueError: a signal or route the stack cannot run
+            logger.debug("look %r does not start on the share", name, exc_info=True)
+            continue
+        if name != book.current:
+            assert aura.looks is not None
+            aura.looks.leave()  # runs as a sent look does: no look is current
+        return aura
+    raise NoLook("no look of this share can start on its layout")
 
 
 class Session:
     def __init__(
         self,
         sink: SessionSink,
-        looks: Mapping[str, Look],
+        shared: Shared,
         *,
         fps: float = FPS,
         seed: int = 0,
         max_pixels: int = MAX_PIXELS,
     ) -> None:
-        """A session that starts in the first of `looks` on a 16 x 16 grid,
-        which every example look renders on, its made looks seeded from
-        `seed`; a bind falls back on `looks` in order. A rig over
-        `max_pixels` is decimated evenly in the stream, as in the preview.
-        Raises as `Compositor` does for a look it cannot start."""
-        self._looks = looks
-        look = next(iter(looks.values()))
-        self._aura = build_aura_pipeline(look, grid(16, 16), seed=seed, accept_looks=True, max_making=1)
-        # The stack a bind cut to, and why, while it runs: the `status` says so.
-        self._fallback: tuple[object, str] | None = None
+        """A session on `shared`, its made looks seeded from `seed`. A rig
+        over `max_pixels` is decimated evenly in the stream, as in the
+        preview. Raises NoLook when no look of the book starts."""
+        self._aura = _start(shared, seed=seed, accept_looks=True, max_making=1)
         self._sink = sink
-        self._fps = fps
         self._texts = StateTexts(self._aura.control, now=lambda: self._aura.fader.t)
-        self._max_pixels = max_pixels
-        self._capabilities = ("ack", *self._aura.control.capabilities)
-        self._view = View.of(self._aura.fader.current.mapping, max_pixels, 0, capabilities=self._capabilities)
-        # The bound rig's cap and its power reading: the `power` state.
-        self._meter = PowerMeter(fps)
+        self._view = View.of(
+            shared.mapping, max_pixels, 0, room=shared.room, rig=shared.rig, build=page_build(),
+            capabilities=("ack", *self._aura.control.capabilities, *GALLERY_CAPABILITIES),
+        )
+        # The rig's cap and its power reading: the `power` state.
+        self._meter = PowerMeter(fps, shared.limiter() if shared.limiter is not None else None)
         self._loop = self._aura.loop(fps, after=[self._meter], on_frame=[self._on_frame])
         self._seq = 0
         self._logged: set[type] = set()
-        self._lock = threading.Lock()
-        self._next_bind: _Bind | None = None
         self._paused_since: float | None = None
         self._want_run = threading.Event()
         self._closed = threading.Event()
@@ -209,22 +203,18 @@ class Session:
     # -- messages out ------------------------------------------------------
 
     def hello(self) -> str:
-        """The `hello` message text, as the preview sends it: the positions
-        of the bound rig, the display gamma and what a client may rely on
-        (`capabilities`). It carries no build stamp: the studio page is built
-        apart from its server."""
+        """The `hello` message text, as the preview sends it (the module docstring)."""
         return self._view.hello
 
     def _status(self) -> tuple[str, str, str | None] | None:
         """The render error and the address of the part that raised, else
-        the look a bind cut to while it runs, or None."""
+        a failed look recall, or None."""
         error = self._aura.fader.error
         if error is not None:
             return "render", str(error), error.path
-        fallback = self._fallback
-        if fallback is not None and fallback[0] is self._aura.fader.current:
-            return "bind", fallback[1], None
-        return None
+        looks = self._aura.looks
+        failed = looks.error if looks is not None else None
+        return ("looks", failed, None) if failed else None
 
     def _on_frame(self, t: float, frame: np.ndarray) -> None:
         """Loop thread. Must not raise or block: a frame that fails is
@@ -249,65 +239,10 @@ class Session:
 
     @property
     def control(self) -> AuraControl:
-        """The aura's controls: every request but `bind`, `pause` and
-        `resume` goes here. Its requests may block until the loop thread
-        answers, so call them off the event loop."""
+        """The aura's controls: every request but `pause` and `resume`
+        goes here. Its requests may block until the loop thread answers,
+        so call them off the event loop."""
         return self._aura.control
-
-    def bind(
-        self,
-        mapping: np.ndarray,
-        *,
-        limiter: PowerLimiter | None,
-    ) -> None:
-        """Ask for a rebind to a compiled rig's mapping; engine time
-        continues.
-
-        `limiter` caps the rig's frames and estimates their power; None
-        streams them uncapped with no new power readings. A later bind
-        replaces a pending one."""
-        with self._lock:
-            queue = self._next_bind is None
-            self._next_bind = _Bind(mapping, limiter)
-        if queue:
-            self._aura.calls.call_soon(self._apply_bind)
-
-    def _apply_bind(self) -> None:
-        """Loop thread. A bind the look cannot run on is refused, and the
-        old mapping stays bound."""
-        with self._lock:
-            bind, self._next_bind = self._next_bind, None
-        if bind is None:
-            return
-        fader = self._aura.fader
-        old = fader.current.mapping
-        try:
-            fader.rebind(bind.mapping)
-        except Exception as exc:
-            # The stack keeps the new mapping, so a look recalled now starts on it.
-            name = self._cut_to_one_that_runs()
-            if name is None:
-                logger.warning("no look runs on the arrangement", exc_info=True)
-                fader.rebind(old)  # if this raises too, the loop ends
-                self._sink.control(refusal("bind", "no look could start on this arrangement"))
-                return
-            self._fallback = (fader.current, f"the look could not run on this arrangement ({exc}), so {name} runs")
-        self._meter.limiter = bind.limiter  # None drops the old rig's reading
-        self._view = View.of(
-            fader.current.mapping, self._max_pixels, self._view.generation + 1, capabilities=self._capabilities,
-        )
-        self._sink.layout(self._view.layout)
-
-    def _cut_to_one_that_runs(self) -> str | None:
-        """Cut to the first of the session's looks that starts on the
-        running stack's mapping, at its master. Returns its name, or None
-        when none starts. Loop thread."""
-        for name, look in self._looks.items():
-            if self._aura.deck.recall(look) is None:
-                if look.master is not None:
-                    self._aura.master.set(look.master)
-                return name
-        return None
 
     @property
     def n(self) -> int:

@@ -108,7 +108,7 @@ export function Variety({ aura, looks, note }: Props) {
   );
 }
 
-/** The make actions' row, with its note under it, as the deck and the studio's effect panel show it. */
+/** The make actions' row, with its note under it, as the deck shows it. */
 export function MadeRow({ aura, looks }: { aura: AuraState; looks: LooksState | null }) {
   const note = useDisclosure();
   return (

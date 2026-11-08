@@ -10,7 +10,7 @@ import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
 import type { LayerItem } from "../stack/stack";
 import type { Arrangement } from "../arrange/types";
-import type { ErrorSource, Frame, RefusedControl, RigIssue, RigShape, Sender, ServerMessage } from "./protocol";
+import type { ErrorSource, ExportedMessage, Frame, RefusedControl, RigIssue, RigShape, Sender, ServerMessage } from "./protocol";
 import type { RigReport } from "../rig/types.gen";
 
 export interface Refusal {
@@ -43,7 +43,7 @@ export interface ReportState {
 
 export interface WireState {
   readonly connected: boolean;
-  /** What the engine's hello says it takes beyond the page's own requests; the page reads only "arrange". */
+  /** What the hello says the server takes, which the page shows only what works by (wire/protocol.ts). */
   readonly capabilities: readonly string[];
   /** The engine's display gamma, from the hello; null before one. */
   readonly gamma: number | null;
@@ -70,8 +70,6 @@ export interface WireState {
   readonly paramRefusals: Readonly<Record<string, Refusal>>;
   /** Counts hellos: state a page held for the last connection is dropped on a new one. */
   readonly session: number;
-  /** Whether a `layout` has come since the last hello: the studio's bind has taken effect. */
-  readonly bound: boolean;
 }
 
 type Listener = () => void;
@@ -79,13 +77,22 @@ type Listener = () => void;
 const INITIAL: WireState = {
   connected: false, capabilities: [], gamma: null, map: null, params: [], aura: null, health: null, catalog: null,
   power: null, arrangement: null, arrangementBase: null, report: null, error: null, refusals: {}, paramRefusals: {},
-  session: 0, bound: false,
+  session: 0,
 };
 
 /** Whether the run takes layout edits: a rig, the hello's "arrange" capability, and an arrangement the
  * engine still offers to edit. */
 export const canArrange = (s: WireState): boolean =>
   !!s.map?.rig && s.capabilities.includes("arrange") && s.arrangement !== null;
+
+/** What a hello may offer that the page shows by, beyond `arrange` (`canArrange`): an export of the looks,
+ * Publish, a session that pauses, and the Gallery's page (wire/protocol.ts `HelloMessage`). */
+export type Offer = "export" | "publish" | "pause" | "gallery";
+
+/** Whether the server's hello offers `what`. Every module but the wire's reads the hello's list here. */
+export function useOffers(what: Offer): boolean {
+  return useWire((s) => s.capabilities.includes(what));
+}
 
 /** `next`, reusing every part of `prev` that is equal to it, so a message
  * that changes one field leaves the identity of the others alone. */
@@ -127,13 +134,10 @@ export class WireStore {
   private seq = 0;
   /** performance.now() of the last frame, or 0 since a connection opened. */
   lastFrameAt = 0;
-  /** performance.now() of the last hello or layout, or 0 since the connection closed. */
-  layoutAt = 0;
   /** Refusals that came while no hello stood (a full server's, before its hello): the next hello keeps them. */
   private readonly early = new Set<number>();
-
-  /** performance.now() of the later of the last frame and the last hello or layout; 0 for none. */
-  heardAt = (): number => Math.max(this.lastFrameAt, this.layoutAt);
+  /** The last `exported`, which the page reads once the `ask` it answers settles; null before one. */
+  exported: ExportedMessage | null = null;
 
   getState = (): WireState => this.state;
   getFrame = (): Frame | null => this.frame;
@@ -206,37 +210,29 @@ export class WireStore {
     }
   }
 
-  /** A new connection, on positions `map` with frames in `gamma`: what the last one said is dropped, and
-   * the rest follows. The engine's hello opens one; a page whose server sends no hello calls it as its socket
-   * opens. */
-  opened({ gamma, map, capabilities = [] }: Pick<WireState, "gamma" | "map"> & { capabilities?: readonly string[] }): void {
-    const keep = (r: Refusal) => this.early.has(r.seq);
-    const refusals = Object.fromEntries(Object.entries(this.state.refusals).filter(([, r]) => r && keep(r)));
-    const paramRefusals = Object.fromEntries(Object.entries(this.state.paramRefusals).filter(([, r]) => keep(r)));
-    this.early.clear();
-    this.layoutAt = performance.now();
-    this.wire.clear();
-    this.setMods({});
-    this.clearFrame();
-    this.update({
-      connected: true, capabilities, gamma, map, params: this.declare([]), aura: null, catalog: null,
-      power: null, arrangement: null, arrangementBase: null, report: null, error: null, refusals, paramRefusals,
-      session: this.state.session + 1, bound: false,
-    });
-  }
-
   receive(msg: ServerMessage): void {
     switch (msg.type) {
       case "hello": {
-        const { type: _, display_gamma, capabilities, ...map } = msg;
-        this.opened({ gamma: display_gamma, map, capabilities });
+        // A new connection: what the last one said is dropped, and the rest follows.
+        const { type: _, display_gamma: gamma, capabilities, ...map } = msg;
+        const keep = (r: Refusal) => this.early.has(r.seq);
+        const refusals = Object.fromEntries(Object.entries(this.state.refusals).filter(([, r]) => r && keep(r)));
+        const paramRefusals = Object.fromEntries(Object.entries(this.state.paramRefusals).filter(([, r]) => keep(r)));
+        this.early.clear();
+        this.wire.clear();
+        this.setMods({});
+        this.clearFrame();
+        this.update({
+          connected: true, capabilities, gamma, map, params: this.declare([]), aura: null, catalog: null,
+          power: null, arrangement: null, arrangementBase: null, report: null, error: null, refusals, paramRefusals,
+          session: this.state.session + 1,
+        });
         break;
       }
       case "layout": {
         const { type: _, ...map } = msg;
         this.clearFrame();
-        this.layoutAt = performance.now();
-        this.update({ map, bound: true });
+        this.update({ map });
         break;
       }
       case "status":
@@ -296,6 +292,9 @@ export class WireStore {
         });
         break;
       }
+      case "exported":
+        this.exported = msg;
+        break;
       case "ack": // the socket settles the `ask` it answers
         break;
       default:
@@ -318,7 +317,6 @@ export class WireStore {
   /** The socket closed: the engine's error and health died with it, and the next engine sends its own. */
   disconnected(): void {
     this.lastFrameAt = 0;
-    this.layoutAt = 0;
     this.early.clear();
     this.update({ connected: false, power: null, error: null, health: null });
   }
@@ -445,14 +443,13 @@ export function useParamRefusal(name: string): Refusal | null {
   return useWire((s) => s.paramRefusals[name] ?? null);
 }
 
-/** Seconds since the last frame once frames are stale, else 0; checked every second. With `fromLayout`
- * (the studio's), a connection that never gets a frame counts from its hello or last layout. */
-export function useFrameGap(fromLayout = false): number {
+/** Seconds since the last frame once frames are stale, else 0; checked every second. */
+export function useFrameGap(): number {
   const { store } = useWireContext();
   const [gap, setGap] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setGap(frameGap(performance.now(), fromLayout ? store.heardAt() : store.lastFrameAt)), 1000);
+    const id = setInterval(() => setGap(frameGap(performance.now(), store.lastFrameAt)), 1000);
     return () => clearInterval(id);
-  }, [store, fromLayout]);
+  }, [store]);
   return gap;
 }

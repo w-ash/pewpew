@@ -15,7 +15,7 @@ import { Matrix4, Vector3 } from "three";
 import type { ClientMessage, ServerMessage } from "../../src/wire/protocol";
 import { first, GREETING, hello, LATER } from "../fixtures/messages";
 import { renderWired } from "../harness";
-import { partsCatalog } from "../studio/fixtures/rig";
+import { partsCatalog } from "../rig3d/rig";
 
 /** The golden run: a rig (the later layout) whose hello offers "arrange". */
 const RIG_RUN: readonly ServerMessage[] = [...GREETING, first("layout", LATER)];

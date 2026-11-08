@@ -1,24 +1,45 @@
-"""The studio FastAPI app: HTTP API, websocket sessions, and the built SPA.
+"""The Gallery's FastAPI app: the Console page, the shares, and one live session per visitor.
 
 `create_app` takes its collaborators as arguments so tests can inject fakes.
 The defaults are the real rig: `pewpew.rig.load_catalog` and
-`pewpew.rig.runtime.compile_doc` (under `Limits.max_pixels`) for
-arrangements, `pewpew.rig.parts.prebuilt` for the packaged GLBs, and the
-example looks of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another folder),
-which `GET /api/looks` lists and every session starts in one of (`START`).
-`GET /api/catalog` is `pewpew.rig.parts.PartsView`'s body with assembly URLs
-under `/api/assembly/`. A type without an assembly has null URLs.
+`pewpew.rig.runtime.compile_doc` (under `Limits.max_pixels`), and the
+example looks of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another
+folder, `pewpew.aura.book.examples_book`), which an older bare-arrangement
+share and the default share open with.
 
-The websocket speaks the engine's wire (`pewpew.sinks.preview`): the
-`hello` on connect, a `layout` after each bind, the per-frame states with
-the binary frames, `ack` and `refused`. The `refused` message names the
-refused control, as the preview does, and the studio adds three controls of
-its own: `session` (the session is refused or ends: the server is full, the
-visitor was evicted, or it sat paused too long), `message` (a message the
-socket does not accept: binary, or over the size limit) and `bind` (the
-arrangement did not compile, with `issues` then, or no look runs on it).
+HTTP:
 
-Routes are plain `def` where they block, which FastAPI runs in its threadpool.
+- `GET /` and `GET /a/{id}`: the Console page the engine serves
+  (`pewpew.sinks.preview.page`), titled "pewpew Gallery", never cached;
+  `/a/{id}` of no stored share is a 404. Its files (`web_files()`) are
+  served immutable, the parts catalog at `/parts.json` and each assembly at
+  `/assembly/{digest}.glb`, as the engine serves them, gzipped when the
+  client accepts it. Any other path is a 404.
+- `POST /api/shares`: a form (`application/x-www-form-urlencoded`) with one
+  field, `envelope`, the share's JSON text, which the Console's Publish
+  posts from a top-level form. It is checked (`pewpew.share.check`),
+  compiled under the limits and stored under its content id, then answered
+  `303 See Other` to `/a/{id}`. Every refusal is one short line of
+  `text/plain`, which the browser shows in the tab the form opened: 413 too
+  large, 415 not a form, 422 not a share, or one that does not check or
+  compile, 429 over the rate limit, 503 too busy to compile.
+- `GET /health/live`.
+
+No response carries a CORS header, and there is no API schema or docs page.
+
+The websocket `/ws?a={id}` speaks the engine's wire (`pewpew.sinks.preview`)
+for one session on share `id` (no `a`: the default share, the packaged
+`golden-rings` arrangement and the example looks). A share is compiled
+once and kept by id in a bounded cache (`_Shares`), so the compile limits
+apply only to a share no session has opened lately. A session sends the
+`hello` on connect, the per-frame states with the binary frames, `ack`,
+`exported` and `refused`. The `refused` message names the refused control,
+as the preview does, and the Gallery adds two controls of its own:
+`session` (the session is refused or ends: the server is full, the share is
+unknown or does not compile, no look starts on it, the visitor was evicted,
+or it sat paused too long) and `message` (a message the socket does not
+accept: binary, or over the size limit).
+
 Production runs `python -m pewpew studio`, which sets uvicorn's websocket
 message cap and shutdown bound (docs/studio/contracts.md).
 """
@@ -31,69 +52,60 @@ import functools
 import json
 import logging
 import os
+import re
 import threading
 import time
-from collections.abc import Callable, Coroutine
+from collections import OrderedDict
+from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Any
+from urllib.parse import parse_qs
 
-from fastapi import Body, FastAPI, HTTPException, Request, Response, WebSocket
-from fastapi.exception_handlers import http_exception_handler
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.routing import APIRoute
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi import FastAPI, Request, Response, WebSocket
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.requests import HTTPConnection
+from starlette.requests import ClientDisconnect, HTTPConnection
 
-from pewpew.jsonfile import TooDeep, loads
-from pewpew.rig import load_catalog
-from pewpew.rig.parts import Assemblies, PartsView, prebuilt
-from pewpew.rig.runtime import compile_doc
-from pewpew.sinks.preview import IMMUTABLE, answer_request, refusal, unanswered
-from pewpew.studio.limits import (
-    Admission,
-    BodyLimit,
-    Limits,
-    RateLimiter,
-    address_key,
-    client_ip,
-    declared_fixtures,
-    oversized_list,
+from pewpew import share
+from pewpew.aura.book import LookBook, examples_book
+from pewpew.jsonfile import loads
+from pewpew.rig import EXAMPLES, load_catalog
+from pewpew.rig.runtime import compile_doc, plan_view, rig_view
+from pewpew.sinks.preview import (
+    ASSEMBLY_PATH,
+    IMMUTABLE,
+    accepts_gzip,
+    answer_request,
+    assembly,
+    file_type,
+    page,
+    parts,
+    refusal,
+    unanswered,
+    web_file,
+    web_files,
+    zipped,
 )
-from pewpew.studio.session import START, Session, SessionRegistry, example_looks, start_looks
-from pewpew.studio.store import ID_PATTERN, Store, arrangement_id, canonical_json, store_from_env
+from pewpew.studio.limits import Admission, BodyLimit, Limits, RateLimiter, address_key, client_ip
+from pewpew.studio.session import NoLook, Session, SessionRegistry, Shared
+from pewpew.studio.store import ID_PATTERN, Store, store_from_env
 from pewpew.studio.transport import Outbox
 
 logger = logging.getLogger(__name__)
 
-ASSEMBLY_URL = "/api/assembly/{digest}.glb"  # the dev proxy forwards only /api
 IDLE_TIMEOUT_S = 600.0  # no inbound message for this long pauses a session
 PAUSED_TIMEOUT_S = 1800.0  # paused for this long closes it
+CACHED_SHARES = 32  # compiled shares kept by id
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
 PAUSED = "the session is paused; send resume first"
-_WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist" / "studio"
+UNKNOWN = "no share has this link"
+SHARES_URL = "/api/shares"
+FORM = "application/x-www-form-urlencoded"
+# Percent-encoding writes a byte as three, so the form may be three times the envelope it carries.
+FORM_INFLATION = 3
+TITLE = re.compile(rb"<title>.*?</title>", re.DOTALL)
 _EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
-
-
-class SavedArrangement(BaseModel):
-    id: str
-
-
-class IssueModel(BaseModel):
-    level: Literal["error", "violation", "warning"]
-    code: str
-    message: str
-    ref: str | None = None
-
-
-class IssueList(BaseModel):
-    issues: list[IssueModel]
-
-
-ISSUES_422: dict[int | str, dict[str, Any]] = {422: {"model": IssueList, "description": "Unprocessable Content"}}
 
 
 class CompileFailure(Exception):
@@ -112,8 +124,12 @@ class Busy(Exception):
         self.status = status
         self.retry_after = retry_after
 
-    def http(self) -> HTTPException:
-        return HTTPException(self.status, str(self), headers={"Retry-After": str(int(self.retry_after) + 1)})
+    def response(self) -> Response:
+        return _text(self.status, str(self), {"Retry-After": str(int(self.retry_after) + 1)})
+
+
+class Unknown(Exception):
+    """No share is stored under the id."""
 
 
 def _issue(obj: Any) -> dict:
@@ -136,35 +152,46 @@ def _unreadable(exc: BaseException) -> str:
     return str(exc)[:300] or "invalid JSON"
 
 
-class _BodyRequest(Request):
-    """A request that parses its JSON body with `pewpew.jsonfile.loads`, so
-    nesting past `MAX_DEPTH` is refused on every platform."""
-
-    async def json(self) -> Any:
-        if not hasattr(self, "_json"):
-            self._json = loads(await self.body())
-        return self._json
+def _text(status: int, text: str, headers: Mapping[str, str] | None = None) -> PlainTextResponse:
+    """A refusal as one short line of plain text."""
+    return PlainTextResponse(text.rstrip("\n") + "\n", status, headers=dict(headers or {}))
 
 
-class _BodyRoute(APIRoute):
-    """A route that gives its endpoint a `_BodyRequest`. FastAPI wraps an
-    error of the body parser in a 400, which `http_error` answers."""
-
-    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
-        handler = super().get_route_handler()
-
-        async def route_handler(request: Request) -> Response:
-            return await handler(_BodyRequest(request.scope, request.receive))
-
-        return route_handler
-
-
-def _issues_response(issues: list[dict]) -> JSONResponse:
-    return JSONResponse({"issues": issues}, status_code=422)
+def _served(request: Request, body: tuple[bytes, bytes], kind: str, cache: str) -> Response:
+    """`body` (raw, gzipped) of Content-Type `kind` and Cache-Control `cache`,
+    gzipped when the request accepts it."""
+    raw, gz = body
+    headers = {"Vary": "Accept-Encoding", "Cache-Control": cache}
+    if accepts_gzip(", ".join(request.headers.getlist("accept-encoding"))):
+        return Response(gz, media_type=kind, headers={**headers, "Content-Encoding": "gzip"})
+    return Response(raw, media_type=kind, headers=headers)
 
 
 def _address(conn: HTTPConnection) -> str:
     return address_key(client_ip(conn.headers, conn.client.host if conn.client else None))
+
+
+class _Shares:
+    """Compiled shares by id, the `size` used last; thread-safe."""
+
+    def __init__(self, size: int) -> None:
+        self._size = size
+        self._lock = threading.Lock()
+        self._shares: OrderedDict[str, Shared] = OrderedDict()
+
+    def get(self, id: str) -> Shared | None:
+        with self._lock:
+            found = self._shares.get(id)
+            if found is not None:
+                self._shares.move_to_end(id)
+            return found
+
+    def put(self, id: str, shared: Shared) -> None:
+        with self._lock:
+            self._shares[id] = shared
+            self._shares.move_to_end(id)
+            while len(self._shares) > self._size:
+                self._shares.popitem(last=False)
 
 
 def create_app(
@@ -172,30 +199,43 @@ def create_app(
     catalog: Any = None,
     compile: Callable[[dict, Any], Any] | None = None,
     store: Store | None = None,
-    assemblies: Assemblies | None = None,
-    web_dist: Path | None = None,
     examples: Path | None = None,
+    default: dict | None = None,
     limits: Limits | None = None,
     fps: float = 30.0,
     idle_timeout_s: float = IDLE_TIMEOUT_S,
     paused_timeout_s: float = PAUSED_TIMEOUT_S,
+    cached: int = CACHED_SHARES,
 ) -> FastAPI:
+    """The Gallery app. `default` is the arrangement of the share `/` runs
+    (default: the packaged `golden-rings`), with the example looks in
+    `examples`. Raises RuntimeError when `examples` holds no looks."""
     limits = limits or Limits()
     admission = Admission(limits)
     save_limiter = RateLimiter(limits.saves_per_minute)
     compile_limiter = RateLimiter(limits.compiles_per_minute, limits.compile_burst)
     compile_slots = threading.BoundedSemaphore(limits.max_concurrent_compiles)
     registry = SessionRegistry()
+    shares = _Shares(cached)
     compile_fn = compile or functools.partial(compile_doc, max_pixels=limits.max_pixels)
-    view: PartsView | None = None
-    view_lock = threading.Lock()
     if examples is None:
         examples = Path(os.environ.get("PEWPEW_STUDIO_EXAMPLES", _EXAMPLES))
-    looks = example_looks(examples)
-    if START not in looks:
-        raise RuntimeError(f"no example look {START!r}: every session starts in it")
-    looks_body = json.dumps(looks).encode()
-    starts = start_looks(looks)
+    book = examples_book(examples)
+    if not book.looks:
+        raise RuntimeError(f"no example looks in {examples}: an older share and the default share open with them")
+    if default is None:
+        default = json.loads((EXAMPLES / "golden-rings.json").read_text("utf-8"))
+    default_text = json.dumps(default)
+    default_lock = threading.Lock()
+    default_share: Shared | None = None  # compiled on first use, and kept
+    titled, count = TITLE.subn(b"<title>pewpew Gallery</title>", page()[0], count=1)
+    if not count:
+        logger.warning("the packaged page has no <title>; the Gallery serves it as it is")
+    gallery_page = zipped(titled)
+
+    def db() -> Store:
+        assert store is not None, "the store opens with the app's lifespan"
+        return store
 
     def catalog_of() -> Any:
         nonlocal catalog
@@ -203,15 +243,9 @@ def create_app(
             catalog = load_catalog()
         return catalog
 
-    def catalog_view() -> PartsView:
-        nonlocal view
-        with view_lock:
-            if view is None:
-                view = PartsView.of(catalog_of(), assemblies or prebuilt, ASSEMBLY_URL)
-            return view
-
-    def compile_checked(arrangement: Any, key: str) -> Any:
-        """Compile `arrangement` for the address `key`, under the limits.
+    def compile_checked(arrangement: Any, key: str | None) -> Any:
+        """Compile `arrangement` for the address `key` (None: the Gallery's
+        own, with no rate limit), under the limits.
 
         Blocks; call it off the event loop. Raises CompileFailure or Busy.
         Only a dict reaches the compiler, so a client string is never read as
@@ -219,16 +253,7 @@ def create_app(
         """
         if not isinstance(arrangement, dict):
             raise CompileFailure([_error("invalid", "an arrangement is a JSON object")])
-        if declared_fixtures(arrangement, limits.max_fixtures) > limits.max_fixtures:
-            raise CompileFailure(
-                [_error("too_many_fixtures", f"limit of {limits.max_fixtures} fixtures per arrangement")]
-            )
-        too_long = oversized_list(arrangement, limits.max_fixtures)
-        if too_long is not None:
-            raise CompileFailure(
-                [_error("too_many_entries", f"limit of {limits.max_fixtures} entries in a list ({too_long})")]
-            )
-        wait = compile_limiter.allow(key)
+        wait = compile_limiter.allow(key) if key is not None else None
         if wait is not None:
             raise Busy(429, f"limit of {limits.compiles_per_minute} compiles per minute per address", wait)
         if not compile_slots.acquire(timeout=limits.compile_wait_s):
@@ -238,19 +263,52 @@ def create_app(
         except (ValueError, OverflowError) as exc:  # RigError and ValidationError are ValueErrors
             issues = [_issue(i) for i in getattr(exc, "issues", ())]
             raise CompileFailure(issues or [_error("invalid", _unreadable(exc))]) from None
+        except Exception:  # a compiler bug: logged here, and never named to the visitor
+            logger.warning("an arrangement failed to compile", exc_info=True)
+            raise CompileFailure([_error("internal", "the arrangement could not be compiled")]) from None
         finally:
             compile_slots.release()
 
-    def bind_args(arrangement: Any, key: str) -> dict[str, Any]:
-        """Compile for a websocket bind and return `Session.bind`'s arguments.
-        Blocks; call it off the event loop."""
-        rig = compile_checked(arrangement, key)
-        limiter = getattr(rig, "limiter", None)
-        return {
-            "mapping": rig.mapping,
-            # A rig without a limiter streams uncapped, with no power readings.
-            "limiter": None if limiter is None else limiter(),
-        }
+    def shared_of(envelope: dict, looks: LookBook, key: str | None) -> Shared:
+        """Compile the share `envelope` with its looks book. Blocks; raises as `compile_checked`."""
+        rig = compile_checked(envelope["arrangement"], key)
+        return Shared(rig.mapping, plan_view(rig, catalog_of()), rig_view(rig), rig.limiter, looks)
+
+    def open_share(id: str | None, key: str) -> Shared:
+        """The compiled share `id`, or the default share for None, compiled
+        on a miss. Blocks. Raises Unknown, CompileFailure or Busy."""
+        nonlocal default_share
+        if id is None:
+            with default_lock:  # the first visitors wait for one compile
+                if default_share is None:
+                    default_share = shared_of(*share.read(default_text, book), None)
+                return default_share
+        if not ID_PATTERN.match(id):
+            raise Unknown(UNKNOWN)
+        found = shares.get(id)
+        if found is not None:
+            return found
+        text = db().get(id)
+        if text is None:
+            raise Unknown(UNKNOWN)
+        found = shared_of(*share.read(text, book), key)
+        shares.put(id, found)
+        return found
+
+    def save(doc: object, key: str) -> str:
+        """Check, compile and store the share `doc`; its id. Blocks.
+        Raises ShareError, CompileFailure or Busy."""
+        envelope, looks = share.check(doc, max_bytes=limits.max_body_bytes, max_fixtures=limits.max_fixtures)
+        text = share.canonical_json(envelope)
+        id_ = share.content_id(text)
+        if shares.get(id_) is None:
+            shares.put(id_, shared_of(envelope, looks, key))
+        db().put(id_, text)
+        return id_
+
+    def stored(id: str) -> bool:
+        """Whether a share is stored under `id`. Blocks."""
+        return ID_PATTERN.match(id) is not None and (shares.get(id) is not None or db().get(id) is not None)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -265,101 +323,96 @@ def create_app(
             await asyncio.to_thread(registry.close_all)
             await asyncio.to_thread(store.close)
 
-    app = FastAPI(
-        title="pewpew studio",
-        lifespan=lifespan,
-        docs_url="/api/docs",
-        openapi_url="/api/openapi.json",
-        generate_unique_id_function=lambda route: route.name,
-    )
-    app.router.route_class = _BodyRoute
-    app.add_middleware(BodyLimit, limit=limits.max_body_bytes)
+    app = FastAPI(title="pewpew Gallery", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    # Percent-encoding inflates the form; the envelope inside it is held to max_body_bytes.
+    app.add_middleware(BodyLimit, limit=limits.max_body_bytes,
+                       paths={SHARES_URL: FORM_INFLATION * limits.max_body_bytes})
     app.state.sessions = registry
     app.state.admission = admission
-
-    @app.exception_handler(RequestValidationError)
-    async def request_issues(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        return _issues_response(
-            [
-                {"level": "error", "code": e["type"], "message": e["msg"], "ref": ".".join(map(str, e["loc"])) or None}
-                for e in exc.errors()
-            ]
-        )
+    app.state.shares = shares
 
     @app.exception_handler(StarletteHTTPException)
-    async def http_error(request: Request, exc: StarletteHTTPException) -> Response:
-        # FastAPI answers 400 to a body its JSON parser gave up on, such as one nested too deeply.
-        if exc.status_code == 400 and isinstance(exc.__cause__, ValueError):
-            code = "too_deep" if isinstance(exc.__cause__, TooDeep) else "json_invalid"
-            return _issues_response([_error(code, _unreadable(exc.__cause__))])
-        return await http_exception_handler(request, exc)
+    async def http_error(_request: Request, exc: StarletteHTTPException) -> Response:
+        return _text(exc.status_code, str(exc.detail), exc.headers)
 
     # -- HTTP ------------------------------------------------------------------
 
-    @app.get("/health/live", include_in_schema=False)
+    @app.get("/health/live")
     def health_live() -> dict[str, bool]:
         return {"ok": True}
 
-    @app.get("/api/catalog", response_model=dict[str, Any])
-    def get_catalog() -> Response:
-        return Response(catalog_view().body, media_type="application/json")
+    @app.get("/parts.json")
+    def get_parts(request: Request) -> Response:
+        # no-cache: the catalog changes with the Gallery.
+        return _served(request, parts(), "application/json", "no-cache")
 
-    @app.post("/api/compile", response_model=dict[str, Any], responses=ISSUES_422)
-    def compile_arrangement(request: Request, arrangement: Annotated[dict[str, Any], Body()]) -> Response:
-        try:
-            rig = compile_checked(arrangement, _address(request))
-        except CompileFailure as exc:
-            return _issues_response(exc.issues)
-        except Busy as exc:
-            raise exc.http() from None
-        return JSONResponse(rig.to_json())  # serialized here, in the threadpool
-
-    @app.get("/api/assembly/{digest}.glb", response_class=Response, responses=ISSUES_422)
-    def get_assembly(digest: str) -> Response:
-        glb = catalog_view().glb(digest)
+    @app.get("/assembly/{digest}.glb")
+    def get_assembly(request: Request, digest: str) -> Response:
+        glb = assembly(digest) if ASSEMBLY_PATH.fullmatch(request.url.path) else None
         if glb is None:
-            raise HTTPException(404, "no such assembly")
-        return Response(glb, media_type="model/gltf-binary", headers={"Cache-Control": IMMUTABLE})
+            return _text(404, "no such assembly")
+        return _served(request, glb, "model/gltf-binary", IMMUTABLE)
 
-    @app.post("/api/arrangements", responses=ISSUES_422)
-    def save_arrangement(request: Request, arrangement: Annotated[dict[str, Any], Body()]) -> SavedArrangement:
+    @app.get("/")
+    def get_page(request: Request) -> Response:
+        # no-cache: a reload after a deploy gets the new page.
+        return _served(request, gallery_page, "text/html; charset=utf-8", "no-cache")
+
+    @app.get("/a/{id}")
+    def get_shared_page(request: Request, id: str) -> Response:
+        if not stored(id):
+            return _text(404, UNKNOWN)
+        return _served(request, gallery_page, "text/html; charset=utf-8", "no-cache")
+
+    @app.post(SHARES_URL)
+    async def post_share(request: Request) -> Response:
+        kind = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if kind != FORM:
+            return _text(415, f"a share is posted as a form ({FORM})")
         key = _address(request)
         wait = save_limiter.allow(key)
         if wait is not None:
-            raise HTTPException(
-                429,
-                f"limit of {limits.saves_per_minute} saves per minute per address",
-                headers={"Retry-After": str(int(wait) + 1)},
-            )
+            return _text(429, f"limit of {limits.saves_per_minute} shares per minute per address",
+                         {"Retry-After": str(int(wait) + 1)})
         try:
-            compile_checked(arrangement, key)
-            text = canonical_json(arrangement)
+            body = await request.body()
+        except ClientDisconnect:  # BodyLimit has answered 413 to a body over the limit
+            return _text(413, "the share is over the limit")
+        try:
+            fields = parse_qs(body.decode("ascii"), strict_parsing=True, max_num_fields=1, errors="strict")
+        except ValueError:  # not ASCII, not a form, more than one field, or bad UTF-8 in it
+            fields = {}
+        values = fields.get("envelope", [])
+        if len(values) != 1:
+            return _text(422, "a share is a form of one field, envelope")
+        text = values[0]
+        if len(text.encode("utf-8")) > limits.max_body_bytes:
+            return _text(413, f"a share is at most {limits.max_body_bytes} bytes")
+        try:
+            doc = loads(text)
+        except (ValueError, OverflowError) as exc:  # not JSON, or nested too deep
+            return _text(422, f"the envelope is not JSON: {_unreadable(exc)}")
+        try:
+            id_ = await asyncio.to_thread(save, doc, key)
+        except share.ShareError as exc:
+            return _text(422, "this share does not check: " + "; ".join(exc.problems)[:2000])
         except CompileFailure as exc:
-            return _issues_response(exc.issues)  # type: ignore[return-value]
+            reasons = "; ".join(str(i.get("message")) for i in exc.issues)
+            return _text(422, f"this layout does not compile: {reasons}"[:2000])
         except Busy as exc:
-            raise exc.http() from None
-        except ValueError:
-            return _issues_response(  # type: ignore[return-value]
-                [_error("invalid", "arrangement is not plain JSON (NaN or infinity)")]
-            )
-        id_ = arrangement_id(text)
-        store.put(id_, text)  # type: ignore[union-attr]
-        return SavedArrangement(id=id_)
+            return exc.response()
+        # 303: the browser fetches the share's page with a GET (RFC 9110 §15.4.4).
+        return RedirectResponse(f"/a/{id_}", status_code=303)
 
-    @app.get("/api/arrangements/{id}", responses=ISSUES_422)
-    def get_arrangement(id: str) -> Response:
-        text = store.get(id) if ID_PATTERN.match(id) else None  # type: ignore[union-attr]
-        if text is None:
-            raise HTTPException(404, "no such arrangement")
-        return Response(text, media_type="application/json", headers={"Cache-Control": IMMUTABLE})
-
-    @app.get("/api/looks", response_model=dict[str, dict[str, Any]])
-    def list_looks() -> Response:
-        return Response(looks_body, media_type="application/json")
+    @app.get("/{path:path}")
+    def get_file(request: Request, path: str) -> Response:
+        if path not in web_files():
+            return _text(404, "not found")
+        return _served(request, web_file(path), file_type(path), IMMUTABLE)
 
     # -- websocket -------------------------------------------------------------
 
-    @app.websocket("/ws/session")
+    @app.websocket("/ws")
     async def ws_session(ws: WebSocket) -> None:
         key = _address(ws)
         await ws.accept()
@@ -371,22 +424,20 @@ def create_app(
         session: Session | None = None
         pump: asyncio.Future | None = None
         try:
-            outbox = Outbox(asyncio.get_running_loop())
-            session = Session(outbox, starts, fps=fps, max_pixels=limits.max_pixels)
+            try:
+                shared = await asyncio.to_thread(open_share, ws.query_params.get("a"), key)
+                outbox = Outbox(asyncio.get_running_loop())
+                session = Session(outbox, shared, fps=fps, max_pixels=limits.max_pixels)
+            except (Unknown, CompileFailure, Busy, NoLook) as exc:
+                reason = str(exc) if not isinstance(exc, CompileFailure) else f"this layout does not compile: {exc}"
+                await ws.send_text(json.dumps(refusal("session", reason)))
+                await ws.close(code=1013 if isinstance(exc, Busy) else 1008)
+                return
             registry.add(session, ticket, lambda: outbox.close_with(refusal("session", EVICTED)))
             outbox.control(session.hello())
             session.start()
             pump = asyncio.ensure_future(outbox.pump(ws))
-            visitor = _Visitor(
-                ws,
-                session,
-                outbox,
-                pump,
-                lambda arrangement: bind_args(arrangement, key),
-                limits.max_body_bytes,
-                idle_timeout_s,
-                paused_timeout_s,
-            )
+            visitor = _Visitor(ws, session, outbox, pump, limits.max_body_bytes, idle_timeout_s, paused_timeout_s)
             await visitor.serve()
         except Exception:
             logger.debug("session socket ended", exc_info=True)
@@ -400,7 +451,6 @@ def create_app(
             with suppress(Exception):  # already closed
                 await ws.close()
 
-    _mount_spa(app, web_dist if web_dist is not None else Path(os.environ.get("PEWPEW_STUDIO_WEB_DIST", _WEB_DIST)))
     return app
 
 
@@ -412,7 +462,6 @@ class _Visitor:
     session: Session
     outbox: Outbox
     pump: asyncio.Future
-    bind_args: Callable[[Any], dict[str, Any]]  # blocks; runs in a worker thread
     max_bytes: int
     idle_timeout_s: float
     paused_timeout_s: float
@@ -474,18 +523,16 @@ class _Visitor:
         await asyncio.wait({self.pump}, timeout=5.0)
 
     async def _dispatch(self, kind: object, msg: dict) -> None:
-        """`pause`, `resume` and `bind` are the session's own; any other
-        message goes whole to the aura's control, which may block until
-        the loop thread answers, so it runs on a worker thread; while the
-        session is paused, it is refused at once. A message that gets no
-        reply (`unanswered`) gets none either way."""
+        """`pause` and `resume` are the session's own; any other message
+        goes whole to the aura's control, which may block until the loop
+        thread answers, so it runs on a worker thread; while the session is
+        paused, it is refused at once. A message that gets no reply
+        (`unanswered`) gets none either way."""
         session, outbox = self.session, self.outbox
         if kind == "pause":
             session.pause()
         elif kind == "resume":
             session.resume()
-        elif kind == "bind":
-            await self._bind(msg.get("arrangement"))
         elif unanswered(msg):
             return
         elif session.paused:
@@ -494,46 +541,3 @@ class _Visitor:
                                    name=name if isinstance(name, str) else None, id=msg.get("id")))
         else:
             await asyncio.to_thread(answer_request, session.control, msg, outbox.control)
-
-    async def _bind(self, arrangement: object) -> None:
-        """Compile `arrangement` off the event loop, then rebind the session to it."""
-        outbox = self.outbox
-        if not isinstance(arrangement, dict):
-            outbox.control(refusal("bind", "bind needs an arrangement object"))
-            return
-        try:
-            args = await asyncio.to_thread(self.bind_args, arrangement)
-        except CompileFailure as exc:
-            outbox.control(refusal("bind", str(exc)[:300], issues=exc.issues))
-            return
-        except Busy as exc:
-            outbox.control(refusal("bind", str(exc)))
-            return
-        except Exception:
-            logger.warning("a bind failed to compile", exc_info=True)
-            outbox.control(refusal("bind", "the arrangement could not be compiled"))
-            return
-        self.session.bind(**args)
-
-
-def _mount_spa(app: FastAPI, dist: Path) -> None:
-    """Serve the built SPA, when `dist` holds one. `/` and `/a/{id}` get the
-    index; other paths get only files that exist inside `dist`."""
-    index = dist / "index.html"
-    if not index.is_file():
-        return
-    root = dist.resolve()
-    if (dist / "assets").is_dir():
-        app.mount("/assets", StaticFiles(directory=str(dist / "assets")), name="assets")
-
-    @app.get("/", include_in_schema=False)
-    @app.get("/a/{id}", include_in_schema=False)
-    def spa_index(id: str = "") -> FileResponse:
-        return FileResponse(str(index))
-
-    @app.get("/{path:path}", include_in_schema=False)
-    def spa_file(path: str) -> FileResponse:
-        candidate = (dist / path).resolve()
-        if path.startswith(("api/", "ws/", "health/")) or not candidate.is_relative_to(root) or not candidate.is_file():
-            raise HTTPException(404, "not found")
-        return FileResponse(str(candidate))

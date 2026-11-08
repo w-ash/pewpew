@@ -7,7 +7,7 @@ import "../styles.css";
 import { App } from "./App";
 
 const store = new WireStore();
-const socket = new Socket(store, { url: `ws://${location.host}/ws` });
+const socket = new Socket(store);
 socket.start();
 
 createRoot(document.getElementById("root")!).render(

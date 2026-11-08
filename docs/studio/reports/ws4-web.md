@@ -1,5 +1,7 @@
 # ws4: studio frontend
 
+> Record from 2026-10. Since 2026-11-08 the hosted app is the Gallery and serves the Console's page; the routes and the studio page below are gone. See [README.md](../README.md) for the current system.
+
 Built `web/`, a React + three.js app. A visitor arranges fixtures in 3D, watches pewpew's effects
 streamed onto them, edits the arrangement with undo, reads the rig report and saves a share link.
 It runs against an msw mock (`pnpm dev:mock`) or the backend through Vite's proxy (`pnpm dev`).

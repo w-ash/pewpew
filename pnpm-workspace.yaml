@@ -1,8 +1,6 @@
-# The one front-end package, web/: the control page and the hosted studio.
+# The one front-end package, web/: the Console page, which the engine and the Gallery serve.
 # pnpm 11 reads its settings here.
 packages:
   - web
 allowBuilds:
   esbuild: true
-  # orval still pulls msw in as a dependency until a later section; its install script is allowed until then.
-  msw: true

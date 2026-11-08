@@ -1,6 +1,6 @@
 import { Splitter } from "@ark-ui/react/splitter";
 import { lazy, Suspense, useEffect, useId, useState, type ReactNode } from "react";
-import { canArrange, useStandingAura, useWire } from "../wire/store";
+import { canArrange, useOffers, useStandingAura, useWire } from "../wire/store";
 import { Banner } from "../design/Banner";
 import { Button } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
@@ -36,6 +36,9 @@ const Stage3D = lazy(() => import("../rig3d/Stage3D"));
 // The layout editor and the report load only when one first opens.
 const ArrangeSlot = lazy(() => import("../arrange/console").then((m) => ({ default: m.ArrangeSlot })));
 const ReportSlot = lazy(() => import("../arrange/console").then((m) => ({ default: m.ReportSlot })));
+// What the hello offers beyond the Console's own, loaded only when one is offered: the
+// Gallery's banner and idle pause, and the looks' export (the layout panel loads Publish).
+const Share = lazy(() => import("../share/Share"));
 
 export function App() {
   return (
@@ -79,7 +82,9 @@ function Loaded({ children }: { children: ReactNode }) {
  * panel, the list of every look, the layout panel (the layout tools and, on a
  * run that takes layout edits, the arrangement editor; else on a phone the
  * layout tools alone), the rig's report, or the catalog a layer is added
- * from: no panel covers the deck. While the connection is lost every control is inert and dimmed, so
+ * from: no panel covers the deck. What the hello offers says what shows: the Gallery's page has no
+ * layout mode, and has its banner and the 3D view first; export and Publish show only where they work.
+ * While the connection is lost every control is inert and dimmed, so
  * no tap is dropped silently, and a banner over the stage says so; the room
  * is fitted under it, as under the status bar. Focus that an aura message or a lost connection takes away comes back
  * (`useFocusKeeper`): to the same control once it is back, else to the look. */
@@ -95,7 +100,11 @@ function Shell() {
   // Only an arrangement run has a rig to draw in 3D; any other map draws flat.
   const hasRig = useWire((s) => !!s.map?.rig);
   const arranges = useWire(canArrange);
-  const [stageView, setStageView] = useState<StageView>("2d");
+  const gallery = !mode.offered;
+  const exports = useOffers("export");
+  // The Gallery shows a rig in 3D first; the Console, flat.
+  const [chosenView, setStageView] = useState<StageView | null>(null);
+  const stageView = chosenView ?? (gallery ? "3d" : "2d");
   const in3d = hasRig && stageView === "3d";
   // A new value tries the 3D view again after it failed to load.
   const [tries3d, setTries3d] = useState(0);
@@ -121,9 +130,10 @@ function Shell() {
     return () => clearTimeout(id);
   }, [lost]);
   useShortcuts([
-    { hotkey: "l", label: "layout tools on or off", action: () => mode.setOn(!mode.on) },
     { hotkey: "shift+?", label: "this list", keys: "?", action: () => setHelpOpen(true) },
     { hotkey: "Escape", label: "disarm a two-press button; close a panel, note or help", keys: "Esc", action: disarmAll },
+    // Last, so its going moves no other shortcut's place: the Gallery has no layout mode (LayoutMode.tsx).
+    ...(gallery ? [] : [{ hotkey: "l", label: "layout tools on or off", action: () => mode.setOn(!mode.on) }]),
   ]);
   const stage = (
     <div className="stage-area">
@@ -164,7 +174,7 @@ function Shell() {
       </div>
       {lost && (
         <Banner tone="lost" ref={measureCover}>
-          {connectionText(link, "stage", lostLong)}
+          {connectionText(link, gallery ? "status" : "stage", lostLong)}
         </Banner>
       )}
     </div>
@@ -210,13 +220,30 @@ function Shell() {
       onAdd={() => setAdding(true)}
     />
   );
-  const deck = <Deck allOpen={slotPanel === "looks"} onAll={toggle("looks")} />;
+  const deck = (
+    <Deck
+      allOpen={slotPanel === "looks"}
+      onAll={toggle("looks")}
+      exporter={
+        exports && (
+          <Suspense>
+            <Share part="export" />
+          </Suspense>
+        )
+      }
+    />
+  );
   return (
     <div className="app" data-wide={wide || undefined}>
-      <h1 className="sr-only">pewpew aura control</h1>
+      <h1 className="sr-only">{gallery ? "pewpew Gallery" : "pewpew Console"}</h1>
       <div className="head">
         <TopBar healthOpen={slotPanel === "health"} onHealth={toggle("health")} onHelp={() => setHelpOpen(true)} />
         {!lost && <BoardBanner onOpen={() => setSlotPanel("health")} />}
+        {gallery && (
+          <Suspense>
+            <Share part="gallery" />
+          </Suspense>
+        )}
       </div>
       {wide ? (
         <Splitter.Root

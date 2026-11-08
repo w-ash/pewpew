@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { shuffleLine } from "../aura/looks";
 import { armable } from "../aura/triggers";
 import { useStandingAura } from "../wire/store";
@@ -19,6 +19,8 @@ interface Props {
   readonly allOpen?: boolean;
   /** Open or close the list of every look. */
   onAll?(): void;
+  /** The looks' export, behind the "⋯" on a run that exports them; false for none. */
+  readonly exporter?: ReactNode;
 }
 
 /** The controls the operator plays, on one region card, a row each: the brightness, its head ending in
@@ -28,11 +30,12 @@ interface Props {
  * apart from the tiles; and while cues are on a button per cue. On a phone the brightness comes last, its
  * slider the whole width, and blackout under it on a row of its own, under the thumb; wide, the brightness
  * comes first, then the rows that wrap, so a new look moves neither. What is rarely needed waits behind
- * the "⋯": cues on or off, the fade a recall takes, what the signs shown now mean and what shuffle does;
+ * the "⋯": cues on or off, the fade a recall takes, the looks' export, what the signs shown now mean and
+ * what shuffle does;
  * its name says which of these the run has, and a run with none of them has no "⋯". It opens in the deck,
  * in a well under the row of its "⋯", pushing what is under it down; Esc or a press outside the deck closes
  * it. A row's own note (why a button is off, what a second press does) opens under that row. */
-export function Deck({ allOpen, onAll }: Props) {
+export function Deck({ allOpen, onAll, exporter }: Props) {
   const aura = useStandingAura();
   const wide = useMedia(WIDE);
   const deck = useRef<HTMLElement>(null);
@@ -74,6 +77,8 @@ export function Deck({ allOpen, onAll }: Props) {
         <CuesOn triggers={triggers} />
         {fades && <FadeSelect fade={fade} onFade={setFade} />}
       </div>
+      {/* Loaded as the well first opens. */}
+      {more && exporter}
       {marks.length > 0 && (
         <p className="marks">
           {marks.map((mark) => (

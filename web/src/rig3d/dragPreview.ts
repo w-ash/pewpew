@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { groupOf, type Placed, type Selection } from "../arrange/arrangement";
 import { matrixPose, type PoseQ } from "../arrange/pose";
@@ -6,12 +5,11 @@ import { sameJson } from "../arrange/sync";
 import type { Aim, Arrangement, Pose } from "../arrange/types";
 
 /**
- * A gizmo drag in progress: `delta` is the motion since the view last drew `fixtures` from the server,
- * applied on top of their server matrices until the compile of what it committed settles
- * (`useSettledPreview`, the studio's). A new drag of the same fixtures before then adds to the motion it
- * holds, so it starts where the last one left them. On the Console, `offsets` move each fixture from the
- * pose the server drew it at to the one the editor holds (`presentOffsets`), so an edit, an undo or a
- * redo shows at once; a drag then ends as it commits.
+ * A gizmo drag in progress: `delta` is the motion since the drag began, applied on top of the dragged
+ * fixtures' server matrices until it commits. A new drag of the same fixtures before then adds to the
+ * motion it holds, so it starts where the last one left them. `offsets` move each fixture from the pose
+ * the server drew it at to the one the editor holds (`presentOffsets`), so an edit, an undo or a redo
+ * shows at once; a drag then ends as it commits.
  */
 export const dragPreview = {
   delta: null as Matrix4 | null,
@@ -134,13 +132,4 @@ function sameShape(a: object, b: object): boolean {
   const { pose: _a, ...ra } = a as { pose?: unknown };
   const { pose: _b, ...rb } = b as { pose?: unknown };
   return sameJson(ra, rb);
-}
-
-/** Ends the drag preview when `answered` turns true: the server has answered for the current arrangement,
- * so the view shows its compile, or keeps the last good one after a refusal. Either way the preview has no
- * pose left to bridge, and one kept would draw a pose the document does not hold. */
-export function useSettledPreview(answered: boolean) {
-  useEffect(() => {
-    if (answered) dragPreview.clear();
-  }, [answered]);
 }

@@ -1,7 +1,7 @@
 """The command line: `python -m pewpew run|studio|wifi|boards|observe|push|fx|verify|audio|mcp|rig`.
 
 `run` plays a looks file live to one or more sinks (`pewpew.run`), `studio`
-serves the 3D studio (`pewpew.studio`, the `studio` extra), `wifi` sets up
+serves the Gallery (`pewpew.studio`, the `studio` extra), `wifi` sets up
 a new WLED board over USB serial (`pewpew.provision`),
 `boards scan|backup|restore` finds the boards and saves and restores their
 config (`pewpew.boards`), `observe` watches a running engine's preview
@@ -35,7 +35,7 @@ from typing import TextIO
 from pewpew import boards, mcp_cli, provision, rig_cli, studio
 from pewpew.audio import cli as audio_cli
 from pewpew.audio.inputs import NET, REPLAY
-from pewpew.cli_args import add_allow_host, number, parsed_by, port, positive, whole
+from pewpew.cli_args import add_allow_host, number, parsed_by, port, positive, web_url, whole
 from pewpew.fx import cli as fx_cli
 from pewpew.lab import cli as lab_cli
 from pewpew.lab.geometry import SPEC_RULE, check_spec, is_file_spec, room_spec
@@ -47,6 +47,7 @@ from pewpew.run import Launch, Run
 from pewpew.watchdog import TIMEOUT_S as WATCHDOG_S
 
 PREVIEW_PORT = 7447
+GALLERY = "https://pewpew.fly.dev"  # where Publish sends a share: fly.toml's app
 
 
 def main(
@@ -167,6 +168,9 @@ def _parser() -> argparse.ArgumentParser:
     out.add_argument("--accept-looks", action="store_true",
                      help="let a client of the preview send a whole look (`python -m pewpew push`); "
                      "never with --unattended")
+    out.add_argument("--gallery", type=web_url, default=GALLERY, metavar="URL",
+                     help="the Gallery the preview's Publish sends a share to, offered in an attended run on an "
+                     f"arrangement map (default {GALLERY})")
     out.add_argument("--ddp", action="append", default=[], metavar="HOST=START+COUNT",
                      help="stream DDP to a WLED board (HOST or HOST:PORT, HOST an IPv4 address or NAME.local); "
                      "repeat once per board; not with an arrangement whose controllers have hosts")

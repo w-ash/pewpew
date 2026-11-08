@@ -1,30 +1,22 @@
-// A page's one connection to the engine. Engine restarts are routine, so a
-// closed socket reconnects after a second; one that answers with another page
-// build (an upgrade) reloads the tab, since this page cannot drive its wire.
-// A page whose server reads more than the wire (the studio's `bind`) sends its own
-// messages through the same connection.
+// The page's one connection to its server, the engine or the Gallery. Engine
+// restarts are routine, so a closed socket reconnects after a second; one that
+// answers with another page build (an upgrade) reloads the tab, since this
+// page cannot drive its wire. The Gallery's page backs its reconnects off
+// (`retryMs`).
 import { asServerMessage, parseFrame, parseTyped, type ClientMessage, type RequestId, type Sender } from "./protocol";
 import type { WireStore } from "./store";
 
 export const RECONNECT_MS = 1000;
 
 export interface SocketOptions {
-  readonly url: string;
+  /** By default the page's own (`socketUrl`). */
+  readonly url?: string;
   readonly WebSocket?: typeof WebSocket;
   readonly requestFrame?: (cb: () => void) => void;
   readonly now?: () => number;
   /** This page's build stamp; by default its `pewpew-build` meta, or null outside a build. */
   readonly build?: string | null;
   readonly reload?: () => void;
-  /** Called as each connection opens, before any message on it. */
-  readonly onOpen?: () => void;
-  /** The wait before a reconnect, asked at each close; RECONNECT_MS by default. */
-  readonly reconnectMs?: () => number;
-}
-
-/** A message of a page's own, outside the wire's vocabulary. */
-export interface OwnMessage {
-  readonly type: string;
 }
 
 /** What a newer message replaces: a set of the same param, any master. */
@@ -32,11 +24,22 @@ function slot(msg: ClientMessage): string {
   return msg.type === "set" ? `set:${msg.name}` : msg.type;
 }
 
-/** The connection; `Own` is what else the page sends (none for the control page). */
-export class Socket<Own extends OwnMessage = never> implements Sender {
+/** The page's URL for the socket of the server at `loc`: the same host, by the page's scheme, with the page's
+ * query, and on a share's page (`/a/<id>`) the share's id as `a`. */
+export function socketUrl(loc: Pick<Location, "protocol" | "host" | "pathname" | "search">): string {
+  const share = /^\/a\/([\w-]{22})$/.exec(loc.pathname)?.[1];
+  // "http:" gives "ws:", "https:" "wss:".
+  return `ws${loc.protocol.slice(4)}//${loc.host}/ws${loc.search}${share ? `${loc.search ? "&" : "?"}a=${share}` : ""}`;
+}
+
+/** The connection. */
+export class Socket implements Sender {
   private ws: WebSocket | null = null;
   private stopped = false;
   private retry: ReturnType<typeof setTimeout> | null = null;
+  /** The wait before the next reconnect, asked at each close: RECONNECT_MS, unless the Gallery's page sets
+   * a backoff (share/backoff.ts). */
+  retryMs = (): number => RECONNECT_MS;
   /** Messages a drag produces, held to the next animation frame, the newest per slot. */
   private readonly pending = new Map<string, ClientMessage>();
   private flushing = false;
@@ -51,7 +54,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
   private readonly store: WireStore;
   private readonly options: SocketOptions;
 
-  constructor(store: WireStore, options: SocketOptions) {
+  constructor(store: WireStore, options: SocketOptions = {}) {
     this.store = store;
     this.options = options;
     this.WS = options.WebSocket ?? WebSocket;
@@ -67,12 +70,9 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
 
   start(): void {
     this.stopped = false;
-    const ws = new this.WS(this.options.url);
+    const ws = new this.WS(this.options.url ?? socketUrl(location));
     this.ws = ws;
     ws.binaryType = "arraybuffer";
-    ws.onopen = () => {
-      if (this.ws === ws) this.options.onOpen?.();
-    };
     ws.onmessage = (ev: MessageEvent) => {
       if (this.ws !== ws) return;
       if (typeof ev.data === "string") {
@@ -80,7 +80,8 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
         if (msg?.type === "hello" && this.build && msg.build && msg.build !== this.build) this.reload();
         else if (msg) {
           this.store.receive(msg);
-          if ((msg.type === "ack" || msg.type === "refused") && msg.id !== null) this.answered(msg.id, msg.type === "ack");
+          // An ack, an exported or a refusal answers the request its `id` names.
+          if ("id" in msg && msg.id !== null) this.answered(msg.id, msg.type !== "refused");
         }
       } else if (ev.data instanceof ArrayBuffer) {
         this.store.receiveFrame(parseFrame(ev.data), this.now());
@@ -93,7 +94,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
       for (const settle of this.asked.values()) settle(false);
       this.asked.clear();
       this.store.disconnected();
-      if (!this.stopped) this.retry = setTimeout(() => this.start(), this.options.reconnectMs?.() ?? RECONNECT_MS);
+      if (!this.stopped) this.retry = setTimeout(() => this.start(), this.retryMs());
     };
   }
 
@@ -108,7 +109,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
   }
 
   /** Send now, after anything held, so the engine sees requests in the order made. */
-  send(msg: ClientMessage | Own): void {
+  send(msg: ClientMessage): void {
     this.flush();
     this.write(msg);
   }
@@ -144,7 +145,7 @@ export class Socket<Own extends OwnMessage = never> implements Sender {
   }
 
   /** Send `msg`, with `id` when given, if the socket is open. Returns whether it went. */
-  private write(msg: ClientMessage | Own, id?: RequestId): boolean {
+  private write(msg: ClientMessage, id?: RequestId): boolean {
     if (this.ws?.readyState !== this.WS.OPEN) return false;
     this.ws.send(JSON.stringify(id === undefined ? msg : { ...msg, id }));
     return true;

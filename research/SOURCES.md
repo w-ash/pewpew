@@ -2791,6 +2791,39 @@ is removed.
 - archive: https://web.archive.org/web/20261024201249/https://peps.python.org/pep-0387/  # snapshot 2026-10-24 (snapshot predates accessed date; refresh next verification pass)
 - relevance: incompatible changes go through a warning first ("Add a warning to the current main branch", naming the release the change becomes default), a wait of at least two minor versions, then removal — the shape of the `--room` deprecation window, shortened to one release
 
+### [S784] MDN — Cross-Origin Resource Sharing (CORS), simple requests
+- type: docs
+- url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS
+- author: MDN contributors
+- accessed: 2026-11-08
+- archive: https://web.archive.org/web/20261101205044/https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS
+- relevance: a POST whose Content-Type is `application/x-www-form-urlencoded` is a simple request and triggers no preflight; an HTML `<form>` can already submit such a request to any origin, so a server need not opt in to receive it. The Gallery's share POST is that request and sends no CORS headers.
+
+### [S785] Chrome for Developers — Local Network Access
+- type: docs
+- url: https://developer.chrome.com/blog/local-network-access
+- author: Chrome team
+- accessed: 2026-11-08
+- archive: https://web.archive.org/web/20261025205432/https://developer.chrome.com/blog/local-network-access
+- relevance: a local network request is any request from the public network to a local or loopback address, and needs the user's permission; in Chrome 138 the prompt covers `fetch()`, subresource loading and subframe navigation (the page does not mention top-level navigations or form submissions). A Gallery that fetched from the LAN engine would hit this prompt.
+
+### [S786] RFC 9110 — HTTP Semantics, section 15.4.4 (303 See Other)
+- type: spec
+- url: https://www.rfc-editor.org/rfc/rfc9110#section-15.4.4
+- author: IETF (Fielding, Nottingham, Reschke)
+- published: 2022-06
+- accessed: 2026-11-08
+- archive: https://web.archive.org/web/20260520194653/https://www.rfc-editor.org/rfc/rfc9110
+- relevance: 303 is "primarily used to allow the output of a POST action to redirect the user agent to a different resource", which the user agent retrieves with GET; the share POST answers 303 to `/a/{id}` so the new tab shows a bookmarkable page.
+
+### [S787] MDN — rel="noreferrer"
+- type: docs
+- url: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/noreferrer
+- author: MDN contributors
+- accessed: 2026-11-08
+- archive: https://web.archive.org/web/20261104015708/https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/noreferrer
+- relevance: `noreferrer` on `<a>`, `<area>` and `<form>` omits the `Referer` header when fetching the target and implies `noopener`; the Console's publish form uses it so the Gallery never sees the Console's LAN address.
+
 ## Block S800–S849 — RA-13 ESP-NOW & fleet scaling
 
 ### [S800] ESP-IDF Programming Guide — ESP-NOW (ESP32-S3, latest/v5.x)

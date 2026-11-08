@@ -1,5 +1,7 @@
 # ws3: studio backend
 
+> Record from 2026-10. Since 2026-11-08 the hosted app is the Gallery and serves the Console's page; the routes and the studio page below are gone. See [README.md](../README.md) for the current system.
+
 Built `src/pewpew/studio/`, the `studio` CLI subcommand and `scripts/export_openapi.py`. All of contracts.md's HTTP routes and `/ws/session` exist. `uv run pytest` passes (268 passed, 2 xfailed, about 3.6 s). A real `python -m pewpew studio` run served frames (200 bytes = 8 + 3·64) and shut down 0.03 s after SIGTERM with the socket open. Nothing was run against a live Postgres.
 
 ## What is where

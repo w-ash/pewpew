@@ -1,7 +1,80 @@
-# pewpew studio
+# pewpew Gallery
 
-The studio arranges LED fixtures in 3D, runs pewpew's real effects on them, models the rig's
-power, wiring and controllers, and shares an arrangement by link. It is hosted on fly.io.
+The Gallery is the hosted app (code name `studio`, on fly.io). It serves the Console's own page
+and shows a layout someone shared, read-only, in 3D. A visitor plays with looks on that layout,
+keeps them for the visit, and exports them. The Console is the engine's page; it publishes a
+layout and its looks to the Gallery (ADR-024, 2026-11-08 amendment).
+
+## Run it locally
+
+```
+uv sync --extra studio
+uv run python -m pewpew studio          # http://127.0.0.1:8000, SQLite at ./studio.sqlite3
+```
+
+`/` runs the example arrangement `golden-rings.json` with the example looks. `/a/{id}` runs a
+share. No Node is needed: the Gallery serves the committed Console build. To publish from a local
+Console to a local Gallery, start the Console on an arrangement with
+`python -m pewpew run LOOKS --map RIG.arrangement.json --preview --gallery http://127.0.0.1:8000`.
+
+## Routes
+
+| Route | Answer |
+|---|---|
+| `GET /`, `GET /a/{id}` | the Console page, titled `pewpew Gallery`, never cached; `/a/{id}` is 404 for an unknown id |
+| `GET /assets/...` | the build's hashed files, immutable, gzipped when accepted |
+| `GET /parts.json`, `GET /assembly/{digest}.glb` | the 3D view's parts and models, as the engine serves them |
+| `POST /api/shares` | publish a share (below) |
+| `GET /health/live` | liveness; does not touch the database |
+| WebSocket `/ws?a=<id>` | one session on that share; no `a` means the default share |
+
+No route sends CORS headers.
+
+## What a visitor can do
+
+The hello's `capabilities` are `ack`, `look`, `export`, `pause` and `gallery`. The layout is
+read-only. The visitor's looks are an in-memory book for the visit: save, rename, favorite, and
+`export` them as a looks file. Nothing is stored on the server, and the Gallery never sends
+`health`, `arrangement` or `report`. A session pauses after 10 minutes without a message
+(`pause` and `resume`).
+
+## The share envelope
+
+```json
+{"format": "pewpew.share", "version": 1, "arrangement": {...}, "looks": {...looks file v4...}}
+```
+
+- `arrangement`: every `controllers[].host` removed, no `plan` (no floor plan in v1).
+- `looks`: only the chosen looks, each checked with `pewpew.lab.check.ready`; no `triggers`, no
+  `notes`.
+- The id is the first 128 bits of SHA-256 over the canonical JSON (sorted keys, compact),
+  base64url, 22 characters (`src/pewpew/share.py`).
+- An older stored link is a bare arrangement; it opens with the example looks.
+- Limits: the canonical envelope at most 256 KiB; at most 200 fixtures and no list in the
+  arrangement longer than 200; the looks file's own limits (64 looks).
+
+## Publish from the Console
+
+On an attended arrangement run the Console offers Publish (the hello has `publish`). Pick looks
+(default: the current look and the favorites), press Next, read "This is public: anyone with the
+link sees this layout and these looks. Board addresses are removed.", then press Publish. The
+page submits a top-level form POST to `{gallery}/api/shares` in a new tab, with `rel="noreferrer"`
+so the Console's LAN address is not sent. The gallery is `--gallery URL`, default
+`https://pewpew.fly.dev`. The Gallery answers `303` to `/a/{id}`, or with a plain-text error:
+413 too large, 415 wrong content type, 422 not a share, does not check or does not compile,
+429 more than 10 shares a minute from one address.
+
+The Console's "export looks" saves the same looks as a looks file (`export` with `share: false`).
+
+## Removed
+
+The studio's own page and editor, its mock mode, the generated API client (orval, msw, TanStack
+Query), `scripts/export_openapi.py`, the Dockerfile's Node stage, `/api/compile`, `/api/catalog`,
+`/api/looks`, `/api/assembly/*`, `/api/arrangements*`, `/ws/session`, `/api/docs` and
+`/api/openapi.json`. The files below are the record of how it was built, written before this
+change; where they name those routes or the studio page, they are history.
+
+## Records
 
 - [`plan.md`](plan.md): the plan the maintainer approved on 2026-10-22. It covers the decisions,
   the workstreams and the verification.

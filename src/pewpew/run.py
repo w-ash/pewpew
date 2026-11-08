@@ -30,7 +30,8 @@ one exception is the preview's view of the rig: the rig reload pushes a
 new map to the preview, and the preview reads the reload's status, so the
 preview subscribes to the reload after both exist (`RigLive.listeners`).
 The rig reload is also the aura control's `layout`: the page's layout
-edit writes the rig file through it, in an attended run only.
+edit writes the rig file through it, in an attended run only, and the
+page's Publish sends it to the Gallery at `--gallery` as a share.
 
 The features are the seeded stand-in, or with `--audio` the analysis of
 one of this computer's inputs, a capture node or a WAV file
@@ -273,6 +274,7 @@ class Run:
                 trigger_log_max=int(args.trigger_log_max * 1_000_000), blink=self.blink,
                 boards=self.monitor if self.ddp is not None else None,
                 health=self.monitor.state if self.monitor is not None else None, accept_looks=args.accept_looks,
+                gallery=args.gallery,
             )
         except (LayerError, ValueError) as exc:  # ValueError: a signal or route the stack cannot run
             if self.watchdog is not None:

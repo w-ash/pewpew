@@ -466,11 +466,11 @@ def test_get_root_serves_page():
     with preview_sink(line(4)) as sink, urllib.request.urlopen(f"http://127.0.0.1:{sink.port}/", timeout=5.0) as resp:
         assert resp.status == 200
         assert resp.headers.get_content_type() == "text/html"
-        assert "pewpew preview" in resp.read().decode()
+        assert "<title>pewpew Console</title>" in resp.read().decode()
 
 
 def test_the_page_is_gzipped_when_the_client_allows_it_and_read_once(monkeypatch):
-    raw, zipped = preview._page()
+    raw, zipped = preview.page()
     assert gzip.decompress(zipped) == raw
     preview.web_files()  # read once too: the page's path is looked up in it
     reads = []
@@ -516,7 +516,7 @@ def test_each_file_of_the_build_is_served_immutable_with_its_type():
             status, headers, body = fetch(sink.port, f"/{name}", accept="gzip")
             assert headers["content-encoding"] == "gzip" and gzip.decompress(body) == (WEB / name).read_bytes()
             # The path must match exactly: with a second slash it is not on the list.
-            assert fetch(sink.port, f"//{name}")[2] == preview._page()[0]
+            assert fetch(sink.port, f"//{name}")[2] == preview.page()[0]
 
 
 @pytest.mark.parametrize("path", [
@@ -529,7 +529,7 @@ def test_any_other_path_gets_the_page(path):
     with preview_sink(line(4)) as sink:
         status, headers, body = fetch(sink.port, path)
     assert status == 200 and headers["content-type"] == "text/html; charset=utf-8"
-    assert body == preview._page()[0]
+    assert body == preview.page()[0]
 
 
 def test_the_parts_catalog_and_each_assembly_are_served():
@@ -552,7 +552,7 @@ def test_the_parts_catalog_and_each_assembly_are_served():
             assert gzip.decompress(body) == parts_view().glb(t["digest"]) and len(body) < len(gzip.decompress(body))
         assert fetch(sink.port, "/assembly/0000000000000000.glb")[0] == 404
         # Not a digest: the page, as for any other path.
-        assert fetch(sink.port, "/assembly/strip.glb")[2] == preview._page()[0]
+        assert fetch(sink.port, "/assembly/strip.glb")[2] == preview.page()[0]
 
 
 def test_a_grid_run_has_no_rig_so_the_page_never_loads_its_3d_view():

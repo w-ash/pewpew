@@ -2,10 +2,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
-// The end-to-end tests, against the studio's dev server, which proxies /api and /ws to the
-// studio backend on :8000. Both start here.
+// The end-to-end tests, against the Gallery (`python -m pewpew studio`) on :8000 and the Vite dev server
+// in front of it, which serves the Console page and the test fixtures and proxies /ws, /parts.json and
+// /assembly to the Gallery. Both start here.
 const PORT = 5179;
-const BACKEND_PORT = 8000;
+const GALLERY = "http://127.0.0.1:8000";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -17,15 +18,16 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `uv run python -m pewpew studio --port ${BACKEND_PORT} --db ${join(tmpdir(), "pewpew-e2e-studio.sqlite3")}`,
+      command: `uv run python -m pewpew studio --port ${new URL(GALLERY).port} --db ${join(tmpdir(), "pewpew-e2e-gallery.sqlite3")}`,
       cwd: "..",
-      url: `http://127.0.0.1:${BACKEND_PORT}/api/looks`,
+      url: `${GALLERY}/health/live`,
       reuseExistingServer: false,
       timeout: 60_000,
     },
     {
-      command: `pnpm exec vite --mode studio --port ${PORT} --strictPort --host 127.0.0.1`,
-      url: `http://127.0.0.1:${PORT}`,
+      command: `pnpm exec vite --port ${PORT} --strictPort --host 127.0.0.1`,
+      env: { PEWPEW_ENGINE: GALLERY },
+      url: `http://127.0.0.1:${PORT}/e2e/fixtures/color.html`,
       reuseExistingServer: false,
       timeout: 60_000,
     },

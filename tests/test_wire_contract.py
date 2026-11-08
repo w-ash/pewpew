@@ -1,17 +1,19 @@
 """The wire contract: `tests/goldens/wire.json` is what a real preview
 sends, captured from a `PreviewSink` over an `AuraControl` on fakes, in a
-run that takes looks. The run starts in a look with two signals, routes
-into a param and a color's part, and front knobs, so the greeting carries
-them (`aura.stack`, the signals' knobs, and the `mod` readout). Its rig
-file is an arrangement the page may edit, so the greeting carries the
-`arrangement` and the rig's `report`, and a fixed `power` reading. It
-holds a new client's greeting, its `catalog` cut to two cards (`CARDS`)
-and its report's `basis` to one fact,
+run that takes looks and has a Gallery to publish to. The run starts in a
+look with two signals, routes into a param and a color's part, and front
+knobs, so the greeting carries them (`aura.stack`, the signals' knobs, and
+the `mod` readout). Its rig file is an arrangement the page may edit, so
+the greeting carries the `arrangement` and the rig's `report`, a fixed
+`power` reading, and the capabilities `look`, `arrange`, `export` and
+`publish`. It holds a new client's greeting, its `catalog` cut to two
+cards (`CARDS`) and its report's `basis` to one fact,
 then one example of each message whose fields the greeting leaves empty
 (a held trigger, a refusal, a look and a layer refused with their ids, an
 arrangement refused with its issues and one built on a stale file with the
-current one, an ack, a render error, a scan, the
-layout of a rig with a floor plan), and the controls a client may send.
+current one, an ack, the `exported` share an `export` asks for, a render
+error, a scan, the layout of a rig with a floor plan), and the controls a
+client may send.
 The page builds its test messages from it and checks every key against
 its types (web/test/wire/wire.test.ts), so a renamed key fails both
 suites.
@@ -64,6 +66,7 @@ BUILD = "0123456789abcdef"
 # The layout's catalog digest follows every catalog entry; the golden holds this one.
 DIGEST = "0" * 64
 HOST, US = "192.168.1.50", "192.168.1.2"
+GALLERY = "https://pewpew.fly.dev"
 pytestmark = pytest.mark.usefixtures("fake_ops")
 # A look whose one knob is out of its range, which the aura refuses.
 REFUSED = layered("osc", {"freq": 99.0})
@@ -99,7 +102,8 @@ def capture(folder: Path) -> dict:
     looks = {"warm": warm, "cool": look(ZOO, {"level": 0.2}, node="zoo", fade=0.0)}
     triggers = {"door": Trigger(look="cool", hold=8.0, debounce=0.0), "bell": Trigger()}
     rig = aura_rig(look(ZOO, node="zoo"), mapping=line(2), looks=looks, current="warm", triggers=triggers,
-                   path=folder / "looks.json", boards=monitor, health=monitor.state, accept_looks=True)
+                   path=folder / "looks.json", boards=monitor, health=monitor.state, accept_looks=True,
+                   gallery=GALLERY)
     assert restore(rig) is None
     rig.master.set(0.8)
     rig.frame(rig.clock.advance())
@@ -141,6 +145,8 @@ def capture(folder: Path) -> dict:
             stale = next_text(ws)
             ws.send(json.dumps({"type": "blackout", "id": "b1", "on": False}))
             ack = next_text(ws)
+            ws.send(json.dumps({"type": "export", "id": 11, "looks": ["cool"], "share": True}))
+            exported = next_text(ws)
             rig.renderer().bound.render = lambda: (_ for _ in ()).throw(RuntimeError("boom"))
             error = later("status")
             assert monitor.scan() is None
@@ -165,7 +171,7 @@ def capture(folder: Path) -> dict:
     report["basis"] = report["basis"][:1]  # its sources' wording follows the catalog
     return {
         "greeting": greeting,
-        "later": [held, refused, refused_look, layer, arranged, stale, ack, error, scan, layout],
+        "later": [held, refused, refused_look, layer, arranged, stale, ack, exported, error, scan, layout],
         "controls": {name: [field for field, _ in fields] for name, fields in REQUESTS.items()},
     }
 
@@ -184,13 +190,16 @@ def test_the_golden_holds_every_server_message_and_the_greeting_in_order() -> No
         "report",
     ]
     assert [m["type"] for m in golden["later"]] == [
-        "aura", "refused", "refused", "refused", "refused", "refused", "ack", "status", "health", "layout",
+        "aura", "refused", "refused", "refused", "refused", "refused", "ack", "exported", "status", "health", "layout",
     ]
     assert golden["later"][4]["control"] == "arrange" and golden["later"][4]["issues"]
     stale = golden["later"][5]
     assert stale["control"] == "arrange" and stale["base"] == golden["greeting"][-2]["base"]
     assert stale["arrangement"] == golden["greeting"][-2]["arrangement"]
-    assert "arrange" in golden["greeting"][0]["capabilities"]
+    assert golden["greeting"][0]["capabilities"] == ["ack", "look", "arrange", "export", "publish"]
+    exported = golden["later"][7]
+    assert exported["id"] == 11 and exported["gallery"] == GALLERY and exported["file"]["format"] == "pewpew.share"
+    assert all("host" not in c for c in exported["file"]["arrangement"]["controllers"])  # a share names no board
 
 
 def test_the_golden_rig_is_a_rig_view():
@@ -201,13 +210,12 @@ def test_the_golden_rig_is_a_rig_view():
 
 
 def test_the_page_reads_the_capabilities_only_in_the_wire():
-    """`hello.capabilities` is for clients outside the package, and for the
-    page only `arrange`: the store keeps them from the hello and answers
-    whether this run lets the page edit the layout, so no other module
-    reads them (ADR-020 amendment "capabilities")."""
-    studio = PAGE_SOURCE / "studio"  # the hosted studio's source, beside the page's
+    """`hello.capabilities` says what this run or Gallery session allows
+    (`arrange`, `export`, `publish`, `pause`, `gallery`): the store keeps
+    them from the hello and answers what the page may show, so no other
+    module reads them (ADR-020 amendment "capabilities")."""
     sources = PAGE_SOURCE.rglob("*.ts*")
-    files = sorted(f for f in sources if f.suffix in {".ts", ".tsx"} and not f.is_relative_to(studio))
+    files = sorted(f for f in sources if f.suffix in {".ts", ".tsx"})
     assert len(files) > 10
     readers = [f.relative_to(PAGE_SOURCE).as_posix() for f in files if "capabilities" in f.read_text()]
     assert readers == ["wire/protocol.ts", "wire/store.ts"]

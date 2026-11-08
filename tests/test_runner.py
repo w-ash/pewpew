@@ -392,14 +392,26 @@ def two_bar_rig(folder) -> str:
 def test_a_layout_edit_is_offered_in_an_attended_rig_run_only(tmp_path, audit_log):
     argv = ["run", looks_file(), "--map", two_bar_rig(tmp_path), "--no-ddp", "--preview", "--port", "0"]
     attended = build(argv)
-    assert attended.aura.control.capabilities == ("arrange",)
-    assert json.loads(attended.preview._view.hello)["capabilities"] == ["ack", "arrange"]  # type: ignore[union-attr]
+    assert attended.aura.control.capabilities == ("arrange", "export", "publish")
+    hello = json.loads(attended.preview._view.hello)  # type: ignore[union-attr]
+    assert hello["capabilities"] == ["ack", "arrange", "export", "publish"]
     unattended = build([*argv, "--unattended", "--armed"])
-    assert unattended.aura.control.capabilities == ()
+    assert unattended.aura.control.capabilities == ("export",)  # a layout it may not edit is never published
     refused = unattended.aura.control.arrange({})
     assert refused == Refusal("layout edits are off in an unattended run")
     synthetic = build(["run", looks_file(), "--map", "line:8", "--preview", "--port", "0"])
-    assert synthetic.aura.control.capabilities == () and synthetic.power is None  # nothing caps, nothing to read
+    assert synthetic.aura.control.capabilities == ("export",) and synthetic.power is None  # nothing caps or reads
+
+
+def test_the_gallery_defaults_to_the_hosted_one_and_takes_an_http_url():
+    from pewpew.__main__ import GALLERY, parse
+
+    assert GALLERY == "https://pewpew.fly.dev"
+    assert parse(["run", looks_file()]).gallery == GALLERY
+    assert parse(["run", looks_file(), "--gallery", "http://127.0.0.1:8000/"]).gallery == "http://127.0.0.1:8000"
+    for bad in ("ftp://example.org", "example.org", "https://", "https://example.org/?q=1"):
+        with pytest.raises(SystemExit):
+            parse(["run", looks_file(), "--gallery", bad])
 
 
 def test_the_power_limit_follows_a_reload_that_changes_the_pixel_count(tmp_path, audit_log):
@@ -475,8 +487,8 @@ def test_a_run_takes_looks_only_when_asked_and_never_an_unattended_run(capsys):
     only a run that asks offers `look`, and an unattended run refuses the flag
     (ADR-020 amendment "capabilities")."""
     argv = ["run", looks_file(), "--map", "line:8", "--frames", "1", "--preview", "--port", "0"]
-    assert build(argv).aura.control.capabilities == ()
-    assert build([*argv, "--accept-looks"]).aura.control.capabilities == ("look",)
+    assert build(argv).aura.control.capabilities == ("export",)
+    assert build([*argv, "--accept-looks"]).aura.control.capabilities == ("look", "export")
     assert "--accept-looks lets any client of the preview change the look, which --unattended refuses" in (
         usage_error([*argv, "--accept-looks", "--unattended"], capsys))
 

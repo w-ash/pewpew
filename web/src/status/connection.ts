@@ -8,7 +8,7 @@ export function linkOf(s: Pick<WireState, "connected" | "session">): Link {
   return s.connected ? "up" : s.session ? "lost" : "waiting";
 }
 
-/** Where the words go: the top bar's chip, the control page's stage, or the studio's status line. */
+/** Where the words go: the top bar's chip, the Console's stage, or a status line (the Gallery's stage). */
 export type Place = "chip" | "stage" | "status";
 
 /** What `place` says of a connection that is not up, else null. Lost on the stage, on the laptop pewpew runs on,

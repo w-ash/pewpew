@@ -38,7 +38,8 @@ studio's data model is in ADR-007 (amended 2026-10-22); its full design is in
     *(Superseded 2026-11-07: visitors run JSON looks over the built-in op
     catalog; see ADR-025.)*
   - Limits apply per `Fly-Client-IP` [S763]: websockets per IP, inbound
-    message size, saves per minute, and a total storage cap. The numbers are
+    message size, saves per minute, and a total storage cap.
+    *(Since 2026-11-08 "saves" are shares published.)* The numbers are
     starting values set by the plan (inference, no sourced standard); they
     live in config, not in this ADR.
   - Share links are immutable, content-addressed snapshots. The id is the
@@ -46,6 +47,9 @@ studio's data model is in ADR-007 (amended 2026-10-22); its full design is in
     (22 characters), above the 64-bit minimum for identifiers [S780].
     Opening a link lets a visitor edit and save a copy; nothing is
     overwritten. A link is a capability to public data, not a secret.
+    *(Superseded 2026-11-08: a visitor no longer edits or saves a layout;
+    a link opens a shared layout read-only, with its looks, in the
+    Gallery.)*
   - This amends architecture §5's trust model **for this deployment only**.
     The LAN engine, preview and mesh tiers keep §5 as written. Tier 2 stays
     read-only for agents (CLAUDE.md T-7); the studio has no fleet access.
@@ -60,6 +64,8 @@ studio's data model is in ADR-007 (amended 2026-10-22); its full design is in
   `WebGLRenderer`** [S523][S526]. LED colors reach the GPU as an sRGB-tagged
   RGBA `DataTexture` read by a custom `ShaderMaterial` [S525]; streamed
   colors are written imperatively, not through React state.
+  *(Since 2026-11-08 the Gallery serves the Console's build, not a studio
+  page.)*
 - **Geometry: server-built GLB via manifold3d, one implementation.** The
   server builds each fixture type's mesh with `manifold3d` into a
   deterministic GLB served at a content-hash URL; each part node carries
@@ -146,3 +152,80 @@ studio's data model is in ADR-007 (amended 2026-10-22); its full design is in
   shader is a `ShaderMaterial`. Phone support is also uneven (the A2
   planning report: Firefox Android lacks it). `WebGLRenderer` is the
   recommended choice for WebGL 2 applications [S524].
+
+## Amendment (2026-11-08) — the Gallery: a shared layout with looks, published from the Console
+
+The hosted studio becomes the **Gallery**. It has no page, editor or save API
+of its own. It serves the Console's page, shows a shared layout read-only in
+3D, and lets a visitor play with looks for the visit and export them. The
+engine's page, the **Console**, publishes. Code names stay (`studio`,
+`python -m pewpew studio`). Status stays **Accepted**.
+
+### Decision
+
+- **A share is an envelope.** `{format: "pewpew.share", version: 1,
+  arrangement, looks}`: the arrangement with every `controllers[].host`
+  removed and no floor plan (v1), and a looks file v4 of the chosen looks,
+  each checked with `pewpew.lab.check.ready`, with no `triggers` and no
+  `notes`. The id is the content id above, over the canonical envelope.
+  `src/pewpew/share.py` holds the canonical JSON, the id and the checks. An
+  old stored row is a bare arrangement; it opens as an envelope of that
+  arrangement and the example looks.
+- **Publish is a top-level form POST from the Console.** The page builds
+  `<form method="post" action="{gallery}/api/shares" target="_blank"
+  rel="noreferrer">` with one hidden field `envelope` and submits it in the
+  user's press. The body is `application/x-www-form-urlencoded`, a simple
+  request: no preflight, and the Gallery sends no CORS headers [S784]. The
+  Gallery answers `303 See Other` with `Location: /a/{id}`, and the new tab
+  loads that page with GET [S786]. `rel="noreferrer"` omits the `Referer`
+  header and implies `noopener`, so the Console's LAN address is not sent
+  [S787]. Errors answer in plain text: 413, 415, 422 or 429.
+- **No fetch crosses between the two origins.** Board hosts are stripped
+  before the envelope leaves the Console, and the Console shows "This is
+  public: anyone with the link sees this layout and these looks. Board
+  addresses are removed." before the press.
+- **The Gallery serves the Console's build** at `/` and `/a/{id}` (title
+  `pewpew Gallery`) with the same hashed files, `/parts.json` and prebuilt
+  GLBs, and one websocket `/ws?a=<id>` per visitor. The hello's
+  `capabilities` gate the page (ADR-020, 2026-11-08 amendment). The routes
+  `/api/compile`, `/api/catalog`, `/api/looks`, `/api/assembly/*`,
+  `/api/arrangements*` and `/ws/session` are gone.
+- **Gallery looks are an in-memory book for the visit.** A visitor saves,
+  renames and favorites looks and exports them; the server stores nothing
+  of them, and a new session starts from the share's looks.
+
+### Consequences
+
+- The web build has one page. The Dockerfile has no Node stage; the image
+  serves the committed Console build.
+- A link shows the looks its author chose, not only the layout. Board
+  addresses and the floor plan do not leave the LAN.
+- A visitor cannot change a shared layout; to change one they export the
+  looks and use the engine.
+
+### Evidence
+
+- [S784] A POST with Content-Type `application/x-www-form-urlencoded` is a
+  CORS simple request, and an HTML `<form>` can already send one to any
+  origin, so the server need not opt in.
+- [S786] RFC 9110 15.4.4: 303 is "primarily used to allow the output of a
+  POST action to redirect the user agent to a different resource".
+- [S787] MDN: `rel="noreferrer"` on a `<form>` omits the `Referer` header
+  and implies `noopener`.
+- [S785] Chrome's Local Network Access asks the user's permission for
+  requests from a public site to a local address, covering `fetch()`,
+  subresources and subframe navigation in Chrome 138.
+
+### Rejected alternatives
+
+- **A `fetch` POST from the Console with CORS.** A JSON body is not a
+  simple request, so the Gallery would answer a preflight and send CORS
+  headers, and allow the Console's origin, a LAN address it cannot know
+  [S784]. The form needs neither.
+- **The Gallery fetching from the LAN engine.** It is a public-to-local
+  request, which Chrome gates behind a permission prompt for `fetch()` and
+  subresources [S785]; it would also need the engine reachable from the
+  internet side and CORS headers on the engine (inference).
+- **Keeping a separate studio page.** It duplicated the Console's views and
+  wire; serving the Console's build, gated by capabilities, needs one page
+  and one client (inference).

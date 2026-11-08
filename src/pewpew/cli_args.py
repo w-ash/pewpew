@@ -81,6 +81,22 @@ def port(text: str) -> int:
     return int(text)
 
 
+def web_url(text: str) -> str:
+    """argparse type for a site's base URL (`run --gallery`): http or https
+    with a host, returned with no trailing slash."""
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(text)
+        good = parts.hostname is not None and parts.scheme in ("http", "https") and not (parts.query or parts.fragment)
+    except ValueError:  # a malformed port or IPv6 address
+        good = False
+    if not good:
+        raise argparse.ArgumentTypeError(f"expected an http or https URL with a host, such as https://example.org, "
+                                         f"got {text!r}")
+    return text.rstrip("/")
+
+
 def png_path(text: str) -> Path:
     """argparse type for a PNG to write (`observe --sheet`, `fx --out`): a
     path in a folder that exists, and not a folder itself."""

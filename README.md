@@ -5,7 +5,7 @@ portables and mid-scale light art (room-sized and up). Its quality bar is
 better than clown mode: temporal dithering, perceptual color and smooth
 motion. Looks, layered effects built from a catalog of ops, render on a host computer against a
 map of where each pixel is, and Phase 1, the host engine, streams them to
-stock WLED boards over DDP. A browser preview, a phone control page and an
+stock WLED boards over DDP. A browser preview, a phone Console and an
 agent interface drive the same engine, so no hardware is needed to start
 ([`docs/backlog/`](docs/backlog/README.md) has the plan).
 
@@ -23,7 +23,7 @@ agent interface drive the same engine, so no hardware is needed to start
 - [`docs/hardware-buying-list.md`](docs/hardware-buying-list.md) — what to buy
 - [`docs/reference/catalog.md`](docs/reference/catalog.md) — every effect op,
   blend and palette
-- [`docs/deployment.md`](docs/deployment.md) — deploying your own studio
+- [`docs/deployment.md`](docs/deployment.md) — deploying your own Gallery
   instance to Fly.io
 - [`docs/backlog/`](docs/backlog/README.md) and [`CHANGELOG.md`](CHANGELOG.md)
   — what is planned and what changed
@@ -37,7 +37,7 @@ agent interface drive the same engine, so no hardware is needed to start
 
 ```sh
 uv sync                                                    # the pinned Python and dev tools
-pnpm install --frozen-lockfile                             # web/'s tools: the control page and the studio
+pnpm install --frozen-lockfile                             # web/'s tools: the Console
 pnpm -C web exec playwright install chromium webkit        # the browsers its tests run in
 uv run just check                                          # every gate CI runs
 ```

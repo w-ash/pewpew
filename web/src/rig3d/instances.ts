@@ -13,7 +13,7 @@ import type { PartsCatalog } from "../rig/parts";
 import type { Assembly, AssemblyAnchor, PixelAxis } from "./assembly";
 
 /** A fixture as the 3D view draws it: the fields of both the engine's `rig` (`hello`, `layout`) and a
- * studio compile. */
+ * compiled rig (`CompiledRig`). */
 export interface ViewFixture {
   readonly id: string;
   /** A variant id when the placement gave `dims`; else the catalog type. */
@@ -44,7 +44,7 @@ export interface ViewRig {
   /** The rig's own pixel count, which `pixel_start` counts in; `n` when absent. */
   readonly total?: number;
   readonly fixtures: readonly ViewFixture[];
-  /** The pixels of each type placed, variants included (`rig_view`); absent from a studio compile. */
+  /** The pixels of each type placed, variants included (`rig_view`); absent from a compiled rig. */
   readonly types?: Readonly<Record<string, ViewType>>;
 }
 

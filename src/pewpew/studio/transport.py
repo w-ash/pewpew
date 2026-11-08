@@ -1,11 +1,9 @@
-"""The asyncio side of a session: a one-slot frame mailbox and the sender.
+"""The asyncio side of a Gallery session: a one-slot frame mailbox and the sender.
 
 The session thread posts through `loop.call_soon_threadsafe`. Frames and power
 readings keep only the newest value, so a slow client loses frames and never
-queues them. Discrete messages (hello, layout, refused) keep their order;
-their queue is bounded, and overflow closes the socket. A `layout` drops the
-pending frame: a frame laid out for the map before it must not follow it, and
-the next frame carries the whole state.
+queues them. Discrete messages (hello, ack, exported, refused) keep their
+order; their queue is bounded, and overflow closes the socket.
 
 Beside each frame the pump sends each per-frame message (the `power`
 reading among them) whose text has changed since this client last got it,
@@ -52,9 +50,6 @@ class Outbox:
     def control(self, message: dict | str) -> None:
         self._post(self._put_control, message)
 
-    def layout(self, message: dict | str) -> None:
-        self._post(self._put_control, message, True)
-
     def closed(self) -> None:
         self._post(self._put_dead)
 
@@ -70,13 +65,11 @@ class Outbox:
         self._frame = payload
         self._event.set()
 
-    def _put_control(self, message: dict | str, new_map: bool = False) -> None:
+    def _put_control(self, message: dict | str) -> None:
         if len(self._control) >= MAX_CONTROL_BACKLOG:
             self.overflow = True
         else:
             self._control.append(message)
-            if new_map:
-                self._frame = None  # packed for the old map
         self._event.set()
 
     def _put_close(self, message: dict) -> None:

@@ -1,11 +1,11 @@
 # =============================================================================
-# pewpew studio — production image
+# pewpew Gallery — production image
 #   1. python-builder — dependency venv and the pewpew package via uv
-#   2. node-builder   — SPA bundle via pnpm
-#   3. runtime        — slim, non-root, the studio CLI
-# The server serves the built SPA from its own origin, so one container is the
-# whole app: same-origin means the frontend's relative /api and /ws paths work
-# with no production-only configuration.
+#   2. runtime        — slim, non-root, the `studio` CLI that serves the Gallery
+# The page is the Console's committed build, package data inside pewpew
+# (src/pewpew/sinks/web), so the image needs no Node stage. The server serves
+# it from its own origin, so one container is the whole app: the page's
+# relative /ws path works with no production-only configuration.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -34,55 +34,28 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --extra studio --no-editable
 
 # ---------------------------------------------------------------------------
-# Stage 2: Frontend bundle
-# ---------------------------------------------------------------------------
-FROM node:24-slim AS node-builder
-
-WORKDIR /app
-
-# Pinned to the root package.json's `packageManager`. pnpm 11 reads its settings
-# (build allowlist, peer rules) from pnpm-workspace.yaml at the workspace root.
-RUN npm install -g pnpm@11.20.0
-
-# The workspace: web/ holds the control page and the studio.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY web/package.json web/
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
-
-# No build args: every API call is a relative path, so the bundle is the same
-# in every environment. The default arrangement is imported from the rig
-# package's examples, at the same path relative to web/ as in the repo. The
-# gate type-checks; this stage only builds the studio's page.
-COPY web/ web/
-COPY src/pewpew/rig/examples/ /app/src/pewpew/rig/examples/
-RUN pnpm -C web exec vite build --mode studio
-
-# ---------------------------------------------------------------------------
-# Stage 3: Runtime
+# Stage 2: Runtime
 # ---------------------------------------------------------------------------
 FROM python:3.14-slim-trixie AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/w-ash/pewpew" \
-      org.opencontainers.image.description="pewpew studio: live LED rig design and preview"
+      org.opencontainers.image.description="pewpew Gallery: shared LED layouts, live in 3D"
 
 RUN groupadd --gid 1000 pewpew && \
     useradd --uid 1000 --gid pewpew --create-home pewpew && \
     mkdir -p /app/data && chown pewpew:pewpew /app/data
 
-# Root-owned, so the server process cannot rewrite its own code or the SPA it
+# Root-owned, so the server process cannot rewrite its own code or the page it
 # serves.
 COPY --from=python-builder /app/.venv /app/.venv
-COPY --from=node-builder /app/web/dist/studio /app/web/dist/studio/
-# The example looks: GET /api/looks lists them, and every session starts in one.
+# The example looks: the default share and every older bare-arrangement share open with them.
 COPY examples/*.look.json /app/examples/
 
-# The package is installed into .venv, so app.py's default web/dist/studio and
-# examples paths (three levels above the package file) point inside the venv.
-# These overrides name the copies above instead.
+# The package is installed into .venv, so app.py's default examples path
+# (three levels above the package file) points inside the venv. This override
+# names the copy above instead.
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PEWPEW_STUDIO_WEB_DIST=/app/web/dist/studio \
     PEWPEW_STUDIO_EXAMPLES=/app/examples
 
 USER pewpew

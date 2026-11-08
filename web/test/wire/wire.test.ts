@@ -25,7 +25,7 @@ import {
 } from "../../src/wire/protocol";
 import { canArrange, WireStore } from "../../src/wire/store";
 import {
-  first, GREETING, LATER, SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, SESSION_REFUSED,
+  first, GREETING, LATER, SESSION_EXPORTED, SESSION_GREETING, SESSION_POWER, SESSION_REFUSED,
 } from "../fixtures/messages";
 
 type Message<T extends ServerMessage["type"]> = Extract<ServerMessage, { type: T }>;
@@ -184,6 +184,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
     fields: { issues: RIG.fields!.issues! },
   },
   ack: { keys: keys<Message<"ack">>({ type: true, id: true, control: true }) },
+  exported: { keys: keys<Message<"exported">>({ type: true, id: true, file: true, gallery: true }) },
 };
 
 type Fields<K extends Control> = Readonly<Record<Exclude<keyof Extract<ClientMessage, { type: K }>, "type">, true>>;
@@ -213,7 +214,13 @@ const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   rebind: { board: true, address: true },
   blink: { fixture: true },
   arrange: { arrangement: true, base: true },
+  export: { looks: true, share: true },
+  pause: {},
+  resume: {},
 };
+
+/** The controls only a Gallery session takes, which the engine's golden does not list. */
+const GALLERY_ONLY: readonly Control[] = ["pause", "resume"];
 
 /** Where `value` has other keys than `shape`, recording each shape a value reached in `seen`. */
 function mismatches(where: string, value: unknown, shape: Shape, seen: Set<Shape>): string[] {
@@ -232,8 +239,11 @@ function allShapes(shape: Shape): Shape[] {
   return [shape, ...Object.values(shape.fields ?? {}).flatMap(allShapes)];
 }
 
-test("every message in wire.json and the session's power has the keys the page's types give, and every shape is in it", () => {
-  const messages = [...GREETING, ...LATER, SESSION_POWER];
+/** The Gallery session's messages the golden has (session.json). */
+const SESSION = [...SESSION_GREETING, SESSION_POWER, ...Object.values(SESSION_REFUSED), SESSION_EXPORTED];
+
+test("every message in wire.json and the session's power and export has the keys the page's types give, and every shape is in it", () => {
+  const messages = [...GREETING, ...LATER, SESSION_POWER, SESSION_EXPORTED];
   const seen = new Set<Shape>();
   const found = messages.flatMap((msg, i) => mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], seen));
   expect(found).toEqual([]);
@@ -242,13 +252,29 @@ test("every message in wire.json and the session's power has the keys the page's
   expect(Object.values(SHAPES).flatMap(allShapes).filter((s) => !seen.has(s))).toEqual([]);
 });
 
-test("every message of a studio session has the keys the page's types give", () => {
-  expect(Array.isArray(SESSION_REFUSED.bind.issues)).toBe(true);
-  const found = [...SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, ...Object.values(SESSION_REFUSED)].flatMap((msg, i) =>
-    mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], new Set()),
-  );
+test("every message of a Gallery session has the keys the page's types give, and its hello asks for the Gallery's page", () => {
+  const found = SESSION.flatMap((msg, i) => mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], new Set()));
   expect(found).toEqual([]);
-  expect(Object.values(SESSION_REFUSED).map((r) => r.control)).toEqual(["bind", "session", "message", "look"]);
+  expect(Object.values(SESSION_REFUSED).map((r) => r.control)).toEqual(["session", "message", "look"]);
+  const hello = SESSION_GREETING[0];
+  expect(hello?.type === "hello" && hello.capabilities).toEqual(expect.arrayContaining(["export", "pause", "gallery"]));
+  expect(hello?.type === "hello" && hello.capabilities).not.toContain("arrange");
+  expect(hello?.type === "hello" && hello.rig).toBeTruthy();
+  expect(SESSION.map((m) => m.type)).not.toEqual(expect.arrayContaining(["health"]));
+  const looks = SESSION_GREETING.find((m) => m.type === "aura");
+  expect(looks?.type === "aura" && looks.looks).toBeTruthy();
+});
+
+test("an export is answered with the file, a share with the Gallery to post it to, and the store keeps the answer", () => {
+  const exported = SESSION_EXPORTED;
+  expect(exported.gallery).toBeNull();
+  expect(exported.file).toMatchObject({ version: 4 });
+  const store = new WireStore();
+  store.receive(asServerMessage(parseTyped(JSON.stringify(exported)))!);
+  expect(store.exported).toEqual(exported);
+  const share = first("exported", LATER);
+  expect(share.gallery).toMatch(/^https?:\/\/[^/]+$/);
+  expect(share.file).toMatchObject({ format: "pewpew.share", version: 1 });
 });
 
 test("a frame's bytes are the <fI header, little-endian, then the RGB the wire reads", () => {
@@ -259,7 +285,8 @@ test("a frame's bytes are the <fI header, little-endian, then the RGB the wire r
 });
 
 test("every control the engine takes is a message the page can send, with the same fields", () => {
-  const page = Object.fromEntries(Object.entries(CONTROLS).map(([name, fields]) => [name, Object.keys(fields).sort()]));
+  const engines = Object.entries(CONTROLS).filter(([name]) => !GALLERY_ONLY.includes(name as Control));
+  const page = Object.fromEntries(engines.map(([name, fields]) => [name, Object.keys(fields).sort()]));
   const engine = Object.fromEntries(Object.entries(wire.controls).map(([name, fields]) => [name, [...fields].sort()]));
   expect(page).toEqual(engine);
 });
@@ -336,7 +363,7 @@ test("a refusal that comes before the hello survives it, and one from the last c
   store.receive({ type: "refused", control: "session", name: null, id: null, reason: "server full" });
   for (const msg of SESSION_GREETING) store.receive(msg);
   expect(store.getState().refusals.session).toMatchObject({ reason: "server full" });
-  store.receive({ type: "refused", control: "bind", name: null, id: null, reason: "bad rig" });
+  store.receive({ type: "refused", control: "message", name: null, id: null, reason: "too large" });
   store.disconnected();
   for (const msg of SESSION_GREETING) store.receive(msg);
   expect(store.getState().refusals).toEqual({});

@@ -6,7 +6,7 @@ import { forgetParts, PARTS_URL } from "../../src/rig/loadParts";
 import index from "../../../src/pewpew/rig/assemblies/index.json";
 import { first, LATER } from "../fixtures/messages";
 import { renderWired } from "../harness";
-import { partsCatalog } from "../studio/fixtures/rig";
+import { partsCatalog } from "../rig3d/rig";
 
 // The layout's rig: two strip variants.
 const RIG_LAYOUT = first("layout", LATER);

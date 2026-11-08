@@ -1,5 +1,7 @@
 # Studio interface contracts
 
+> Record from 2026-10. Since 2026-11-08 the hosted app is the Gallery and serves the Console's page; the routes and the studio page below are gone. See [README.md](README.md) for the current system.
+
 These are the seams between workstreams. The design behind them is in
 [`domain-model.md`](domain-model.md), and the plan is in [`plan.md`](plan.md). A workstream that
 needs to change a contract says so in its report rather than changing it on its own.

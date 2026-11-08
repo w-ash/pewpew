@@ -1,36 +1,25 @@
-"""Share-link storage: one `arrangements` table keyed by content id.
+"""Share storage: one `arrangements` table of canonical JSON text keyed by content id.
 
-The id is the first 128 bits of SHA-256 over the canonical JSON (sorted keys,
-compact separators), base64url without padding: 22 characters. The same
-arrangement always gets the same id, so a save is idempotent.
+A row is a share envelope (`pewpew.share`), or, from before shares held
+looks, a bare arrangement; its `format` tells them apart, and
+`pewpew.share.read` reads either. The id is `pewpew.share.content_id` of
+the text, so the same share always gets the same id and a save is
+idempotent.
 
-Both stores are synchronous and are called from FastAPI's threadpool (plain
-`def` routes). Postgres opens one short connection per call: saves are capped
-at 10 a minute per address, and a fresh connection survives Neon's idle
-autosuspend, which a held connection would not.
+Both stores are synchronous and are called off the event loop. Postgres
+opens one short connection per call: saves are capped at 10 a minute per
+address, and a fresh connection survives Neon's idle autosuspend, which a
+held connection would not.
 """
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import json
 import re
 import sqlite3
 import threading
-from typing import Any, Protocol
+from typing import Protocol
 
 ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{22}$")
-
-
-def canonical_json(obj: Any) -> str:
-    """Deterministic JSON text. Raises `ValueError` on NaN or infinity."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), allow_nan=False)
-
-
-def arrangement_id(canonical: str) -> str:
-    digest = hashlib.sha256(canonical.encode("utf-8")).digest()[:16]
-    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 class Store(Protocol):

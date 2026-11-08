@@ -25,7 +25,8 @@ another name and a delete rename it.
 
 Every write replaces the whole file atomically (`write_atomic`), so a
 crash at any point leaves either the old file or the new one, never half
-of either.
+of either. A book with no file (`Looks(None, ...)`, a Gallery visit) keeps
+every change in memory and writes nothing.
 """
 
 from __future__ import annotations
@@ -149,10 +150,12 @@ class Looks:
     """
 
     def __init__(
-        self, path: Path, book: LookBook, deck: Deck, master: Master, *, variety: Variety | None = None,
+        self, path: Path | None, book: LookBook, deck: Deck, master: Master, *, variety: Variety | None = None,
         submit: Submit = in_background,
     ) -> None:
-        self._path = Path(path)
+        """The looks of `book`, saved to the looks file at `path`, or kept
+        in memory alone when `path` is None."""
+        self._path = None if path is None else Path(path)
         self._book = book
         # The look the file names, which a restart comes back in: the
         # current look, or while none is, the last one.
@@ -637,13 +640,14 @@ class Looks:
         return None
 
     def _commit(self, book: LookBook) -> str | None:
-        """Write `book` to the file, then make it the live one. With no look
-        current, the file names the look it named before while that look
-        is in it, so a restart comes back in it."""
+        """Write `book` to the file, when there is one, then make it the
+        live one. With no look current, the file names the look it named
+        before while that look is in it, so a restart comes back in it."""
         kept = book.current is None and self._restart in book.looks
         on_file = book.with_current(self._restart) if kept else book
         try:
-            write_atomic(self._path, on_file.to_bytes())
+            if self._path is not None:
+                write_atomic(self._path, on_file.to_bytes())
         except OSError:
             logger.warning("cannot write the looks file %s", self._path, exc_info=True)
             return "cannot write the looks file; nothing was saved"

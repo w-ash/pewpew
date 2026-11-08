@@ -1,5 +1,5 @@
 /**
- * Draws one quad with the studio's LED material over a known texture row and
+ * Draws one quad with the 3D view's LED material over a known texture row and
  * reads the canvas back, for e2e/color.spec.ts. Served by Vite dev only; it
  * is not a build input.
  */

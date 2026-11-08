@@ -47,12 +47,16 @@ uses too).
 Any client may give a message an `id`; the engine then answers it,
 accepted or not: `ack` with the `id` and the control, or `refused` with
 them, the control null when the `type` is not text (ADR-020 amendment
-"capabilities"). The bundled page gives one only to the requests it
-shows busy until they are answered: `surprise`, `vary`, `keep` and
-`arrange`. The hello's `capabilities` names what a client outside the
-package (`push`, an agent) may rely on: `ack`, and the control's own
-(`look`, `arrange`). The page ships with its engine and reads only
-`arrange`, which says whether this run lets it edit the layout.
+"capabilities"). An `export` is always answered, with or without an `id`:
+`exported` carries the file it asked for (a looks file, or a share
+envelope and the Gallery's base URL `gallery`; `pewpew.aura.control.Exported`)
+in place of an `ack`. The bundled page gives an `id` only to the requests
+it shows busy until they are answered: `surprise`, `vary`, `keep`,
+`arrange` and `export`. The hello's `capabilities` names what a client
+may rely on: `ack`, and the control's own (`look`, `arrange`, `export`,
+`publish`; the Gallery adds `pause` and `gallery`). The page reads them
+to show what this run allows: the layout editor (`arrange`), "export
+looks" (`export`) and Publish (`publish`).
 
 Security. The port has no login (architecture §5, ADR-006's trust model
 amendment): bind `host` to the private router. Every request gets 403
@@ -97,7 +101,7 @@ from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Request, Response
 from websockets.sync.server import Server, ServerConnection, serve
 
-from pewpew.aura.control import wire_states
+from pewpew.aura.control import Exported, wire_states
 from pewpew.errors import Refusal
 from pewpew.floorplan import IMAGE_TYPES
 from pewpew.jsonfile import loads
@@ -125,7 +129,7 @@ FRAME_HEADER = struct.Struct("<fI")  # a binary frame's engine time and sequence
 
 PLAN_URL = "/plan"
 PARTS_URL = "/parts.json"
-_ASSEMBLY_PATH = re.compile(r"/assembly/([0-9a-f]{16})\.glb")
+ASSEMBLY_PATH = re.compile(r"/assembly/([0-9a-f]{16})\.glb")
 IMMUTABLE = "public, max-age=31536000, immutable"
 # The Content-Type of each kind of file a build can hold.
 _FILE_TYPES = {
@@ -167,6 +171,12 @@ def refusal(
     `type` is not text), the knob it named, the request's `id`, and why.
     The studio sends the same shape (pewpew.studio.app)."""
     return {"type": "refused", "control": control, "name": name, "id": id, "reason": reason, **extra}
+
+
+def zipped(raw: bytes) -> tuple[bytes, bytes]:
+    """`raw` as served: (raw bytes, gzipped bytes). mtime=0 keeps the
+    gzip bytes the same from run to run."""
+    return raw, gzip.compress(raw, mtime=0)
 
 
 _PLAN_MISSING = "the floor plan image was not found or is not a file; drawing the room without it"
@@ -266,11 +276,9 @@ def _is_address(host: str) -> bool:
 
 
 @functools.cache
-def _page() -> tuple[bytes, bytes]:
-    """The page as served: (raw bytes, gzipped bytes). Read once per process."""
-    raw = resources.files("pewpew.sinks").joinpath("web/index.html").read_bytes()
-    # mtime=0 keeps the gzip bytes the same from run to run.
-    return raw, gzip.compress(raw, mtime=0)
+def page() -> tuple[bytes, bytes]:
+    """The page as served (`zipped`). Read once per process."""
+    return zipped(resources.files("pewpew.sinks").joinpath("web/index.html").read_bytes())
 
 
 @functools.cache
@@ -282,38 +290,41 @@ def web_files() -> frozenset[str]:
 
 
 @functools.cache
-def _web_file(path: str) -> tuple[bytes, bytes]:
-    """One of `web_files()` as served: (raw bytes, gzipped bytes). Read once per process."""
-    raw = resources.files("pewpew.sinks").joinpath("web", *path.split("/")).read_bytes()
-    return raw, gzip.compress(raw, mtime=0)
+def web_file(path: str) -> tuple[bytes, bytes]:
+    """One of `web_files()` as served (`zipped`). Read once per process."""
+    return zipped(resources.files("pewpew.sinks").joinpath("web", *path.split("/")).read_bytes())
+
+
+def file_type(path: str) -> str:
+    """The Content-Type of one of `web_files()`."""
+    return _FILE_TYPES.get(Path(path).suffix, "application/octet-stream")
 
 
 @functools.cache
-def _parts() -> tuple[bytes, bytes]:
-    """The parts catalog as served: (raw bytes, gzipped bytes). Made once per process."""
+def parts() -> tuple[bytes, bytes]:
+    """The parts catalog as served (`zipped`). Made once per process."""
     from pewpew.rig.parts import parts_view  # the catalog loads only when a 3D view asks for it
 
-    raw = parts_view().body
-    return raw, gzip.compress(raw, mtime=0)
+    return zipped(parts_view().body)
 
 
 @functools.lru_cache(maxsize=64)  # bounded: a request can name any digest
-def _assembly(digest: str) -> tuple[bytes, bytes] | None:
-    """Assembly `digest`'s GLB as served: (raw bytes, gzipped bytes), or None when there is none."""
+def assembly(digest: str) -> tuple[bytes, bytes] | None:
+    """Assembly `digest`'s GLB as served (`zipped`), or None when there is none."""
     from pewpew.rig.parts import parts_view
 
     raw = parts_view().glb(digest)
-    return None if raw is None else (raw, gzip.compress(raw, mtime=0))
+    return None if raw is None else zipped(raw)
 
 
 @functools.cache
 def page_build() -> str | None:
     """The served page's build stamp (tools/webhash.py), or None without one."""
-    found = re.search(rb'<meta name="pewpew-build" content="([0-9a-f]+)"', _page()[0])
+    found = re.search(rb'<meta name="pewpew-build" content="([0-9a-f]+)"', page()[0])
     return found.group(1).decode() if found else None
 
 
-def _accepts_gzip(accept: str) -> bool:
+def accepts_gzip(accept: str) -> bool:
     """Whether an `Accept-Encoding` value lists gzip. Every browser sends it
     plainly, so q-values are not read."""
     return "gzip" in (item.partition(";")[0].strip() for item in accept.lower().split(","))
@@ -343,17 +354,21 @@ def _zipped_response(
     Accept-Encoding) allows it."""
     raw, gz = body
     headers = {"Content-Type": kind, "Vary": "Accept-Encoding", "Cache-Control": cache}
-    if _accepts_gzip(accept):
+    if accepts_gzip(accept):
         return _bytes_response(conn, gz, {**headers, "Content-Encoding": "gzip"})
     return _bytes_response(conn, raw, headers)
 
 
-def answer(control: str | None, rid: object, refused: Refusal | None) -> dict[str, Any] | None:
-    """The answer to a request: `refused` with that refusal's reason, its
-    `issues` when it has any and the fields of its `current` state, else
-    `ack` when it carries an `id`, `rid`, else None. An accepted request
-    without an id needs no reply: the next frame carries the whole state,
-    and every tab converges on what won."""
+def answer(control: str | None, rid: object, outcome: Refusal | Exported | None) -> dict[str, Any] | None:
+    """The answer to a request with id `rid`: for a refusal, `refused`
+    with its reason, its `issues` when it has any and the fields of its
+    `current` state; for an export, `exported` with its file; else `ack`
+    when it carries an `id`, else None. An accepted request without an id
+    needs no reply: the next frame carries the whole state, and every tab
+    converges on what won."""
+    if isinstance(outcome, Exported):
+        return {"type": "exported", "id": rid, "file": outcome.file, "gallery": outcome.gallery}
+    refused = outcome
     if refused is not None:
         extra: dict[str, object] = {"issues": list(refused.issues)} if refused.issues else {}
         if refused.current is not None:
@@ -660,18 +675,17 @@ class PreviewSink:
             return self._plan_response(conn)
         if path == PARTS_URL:
             # no-cache: the catalog changes with the engine.
-            return _zipped_response(conn, _parts(), accept, "application/json", "no-cache")
-        assembly = _ASSEMBLY_PATH.fullmatch(path)
-        if assembly is not None:
-            glb = _assembly(assembly.group(1))
+            return _zipped_response(conn, parts(), accept, "application/json", "no-cache")
+        found = ASSEMBLY_PATH.fullmatch(path)
+        if found is not None:
+            glb = assembly(found.group(1))
             if glb is None:
                 return conn.respond(404, "no such assembly\n")
             return _zipped_response(conn, glb, accept, "model/gltf-binary", IMMUTABLE)
         if path[1:] in web_files():
-            kind = _FILE_TYPES.get(Path(path).suffix, "application/octet-stream")
-            return _zipped_response(conn, _web_file(path[1:]), accept, kind, IMMUTABLE)
+            return _zipped_response(conn, web_file(path[1:]), accept, file_type(path[1:]), IMMUTABLE)
         # no-cache: a reload after an engine upgrade gets the new page.
-        return _zipped_response(conn, _page(), accept, "text/html; charset=utf-8", "no-cache")
+        return _zipped_response(conn, page(), accept, "text/html; charset=utf-8", "no-cache")
 
     def _plan_response(self, conn: ServerConnection) -> Response:
         """The floor-plan image, read fresh, or a 404 that names no path."""

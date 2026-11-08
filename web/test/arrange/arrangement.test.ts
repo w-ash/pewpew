@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Arrangement, CompiledFixture, RingGroup } from "../../src/studio/api/types";
-import { compiledFixture, stubCompile, threeBarRig } from "../studio/fixtures/rig";
+import type { Arrangement, RingGroup } from "../../src/arrange/types";
+import type { CompiledFixture } from "../../src/rig/types.gen";
+import { compiledFixture, stubCompile, threeBarRig } from "../rig3d/rig";
 import { RINGS as DEFAULT_ARRANGEMENT } from "./fixtures";
 import {
   addFixture,

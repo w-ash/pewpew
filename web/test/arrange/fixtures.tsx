@@ -9,7 +9,7 @@ export const RINGS = asArrangement(goldenRings) as Arrangement;
 
 type Bound = "arrangement" | "onCommit" | "selection" | "onSelect" | "canUndo" | "canRedo" | "onUndo" | "onRedo";
 
-/** The arrangement panel on the doc store, as the Console and the studio wire it. */
+/** The arrangement panel on the doc store, as the Console wires it. */
 export function DocPanel(props: Omit<ArrangementPanelProps, Bound>) {
   return <ArrangementPanel {...props} {...useDocEditor()} />;
 }

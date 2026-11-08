@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { decodeParam } from "../../src/params/kinds";
 import { setParam } from "../../src/wire/protocol";
-import { RECONNECT_MS, Socket } from "../../src/wire/socket";
+import { RECONNECT_MS, Socket, socketUrl } from "../../src/wire/socket";
 import { WireStore } from "../../src/wire/store";
 import { record } from "../fixtures/describe";
 import { FakeWebSocket } from "../fixtures/fakeWebSocket";
@@ -159,33 +159,30 @@ test("an ask the socket cannot send settles at once, not taken", async () => {
   expect(ws.sent).toEqual([]);
 });
 
-test("a page's own requests go out on the same socket; opens are told", () => {
-  FakeWebSocket.made = [];
-  const store = new WireStore();
-  const told: string[] = [];
-  const socket = new Socket<{ type: "bind"; arrangement: string }>(store, {
-    url: "ws://test/ws/session",
-    WebSocket: FakeWebSocket as unknown as typeof WebSocket,
-    build: null,
-    onOpen: () => told.push("open"),
-  });
-  socket.start();
-  const ws = FakeWebSocket.made[0]!;
-  ws.open();
-  for (const msg of SESSION_GREETING) ws.onmessage!({ data: JSON.stringify(msg) });
-  ws.onmessage!({ data: JSON.stringify(SESSION_POWER) });
-  ws.onmessage!({ data: JSON.stringify(SESSION_REFUSED.bind) });
+test("a Gallery session's messages reach the store as any do", () => {
+  const { store, ws } = setup();
+  for (const msg of SESSION_GREETING) ws.receive(msg);
+  ws.receive(SESSION_POWER);
+  ws.receive(SESSION_REFUSED.message);
   expect(store.getState()).toMatchObject({
     connected: true,
     session: 1,
     power: { watts: SESSION_POWER.watts, uncapped_watts: SESSION_POWER.uncapped_watts },
-    refusals: { bind: { reason: SESSION_REFUSED.bind.reason } },
+    refusals: { message: { reason: SESSION_REFUSED.message.reason } },
   });
-  socket.send({ type: "bind", arrangement: "rig" });
-  expect(ws.sent).toEqual([{ type: "bind", arrangement: "rig" }]);
+  expect(store.getState().capabilities).toContain("gallery");
   ws.close();
-  expect(told).toEqual(["open"]);
   expect(store.getState().power).toBeNull();
+});
+
+test("an exported answers an export's ask, taken, and the store keeps it before the ask settles", async () => {
+  const { socket, store, ws } = setup();
+  ws.receive(hello());
+  const file = { version: 4, current: "warm", looks: {}, cycle: [] };
+  const asked = socket.ask({ type: "export", looks: null, share: false }).then((took) => [took, store.exported?.file]);
+  expect(ws.sent).toEqual([{ type: "export", looks: null, share: false, id: 1 }]);
+  ws.receive({ type: "exported", id: 1, file, gallery: null });
+  expect(await asked).toEqual([true, file]);
 });
 
 test("the wait before a reconnect is the page's to give, and a stopped socket stays closed", () => {
@@ -195,15 +192,35 @@ test("the wait before a reconnect is the page's to give, and a stopped socket st
     url: "ws://test/ws",
     WebSocket: FakeWebSocket as unknown as typeof WebSocket,
     build: null,
-    reconnectMs: () => 5000,
   });
   socket.start();
   FakeWebSocket.made[0]!.close();
-  vi.advanceTimersByTime(4999);
+  vi.advanceTimersByTime(RECONNECT_MS - 1);
   expect(FakeWebSocket.made).toHaveLength(1);
   vi.advanceTimersByTime(1);
   expect(FakeWebSocket.made).toHaveLength(2);
+  socket.retryMs = () => 5000;
+  FakeWebSocket.made[1]!.close();
+  vi.advanceTimersByTime(4999);
+  expect(FakeWebSocket.made).toHaveLength(2);
+  vi.advanceTimersByTime(1);
+  expect(FakeWebSocket.made).toHaveLength(3);
   socket.stop();
   vi.advanceTimersByTime(60_000);
-  expect(FakeWebSocket.made).toHaveLength(2);
+  expect(FakeWebSocket.made).toHaveLength(3);
+});
+
+test("the socket's URL follows the page: its scheme, host and query, and a share's id from its path", () => {
+  const page = (href: string) => {
+    const { protocol, host, pathname, search } = new URL(href);
+    return socketUrl({ protocol, host, pathname, search });
+  };
+  const id = "AbCdEfGhIjKlMnOpQr_-12";
+  expect(page("http://127.0.0.1:7447/")).toBe("ws://127.0.0.1:7447/ws");
+  expect(page("https://gallery.example/")).toBe("wss://gallery.example/ws");
+  expect(page(`https://gallery.example/a/${id}`)).toBe(`wss://gallery.example/ws?a=${id}`);
+  expect(page(`http://localhost:8000/a/${id}?x=1`)).toBe(`ws://localhost:8000/ws?x=1&a=${id}`);
+  expect(page("http://127.0.0.1:7447/?debug")).toBe("ws://127.0.0.1:7447/ws?debug");
+  // Not a share's path: no id.
+  expect(page("https://gallery.example/a/short")).toBe("wss://gallery.example/ws");
 });

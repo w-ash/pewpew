@@ -1,5 +1,7 @@
 # Integration: the studio in its production container
 
+> Record from 2026-10. Since 2026-11-08 the hosted app is the Gallery and serves the Console's page; the routes and the studio page below are gone. See [README.md](../README.md) for the current system.
+
 The merged studio runs end to end in `pewpew:local`. The SPA loads the real GLBs, binds the golden
 rings, and streams the Rainbow onto all 3072 pixels. Saving and share links work. With ws2 merged,
 the session streams live power and the compile returns the electrical report, which the Report

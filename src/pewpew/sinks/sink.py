@@ -22,11 +22,14 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future
-from typing import Any, Generic, Protocol, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, Self, TypeVar
 
 import numpy as np
 
 from pewpew.errors import Refusal
+
+if TYPE_CHECKING:
+    from pewpew.aura.control import Exported
 
 logger = logging.getLogger(__name__)
 
@@ -111,15 +114,17 @@ class Control(Protocol):
     @property
     def capabilities(self) -> tuple[str, ...]:
         """The requests this control takes beyond the page's own: `look`,
-        for clients outside the package, and `arrange`, which the page reads."""
+        for clients outside the package, and `arrange`, `export` and
+        `publish`, which the page reads."""
         ...
 
-    def request(self, message: Mapping[str, object]) -> Refusal | Future[Refusal | None] | None:
+    def request(self, message: Mapping[str, object]) -> Refusal | Exported | Future[Refusal | None] | None:
         """Act on one inbound message `{"type": control, ...}`. Returns why
         it was refused, or None when it was accepted, or when it names no
-        control and carries no `id`. May block until the loop thread has
-        answered. A request that takes longer (a look to make) returns a
-        future of that answer instead, so the sink reads on."""
+        control and carries no `id`; an `export` returns its file
+        (`Exported`). May block until the loop thread has answered. A
+        request that takes longer (a look to make) returns a future of
+        that answer instead, so the sink reads on."""
         ...
 
 

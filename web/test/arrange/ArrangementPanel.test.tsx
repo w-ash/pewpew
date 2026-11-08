@@ -3,8 +3,9 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { useDoc } from "../../src/arrange/doc";
 import { DocPanel, RINGS as DEFAULT_ARRANGEMENT } from "./fixtures";
-import type { Arrangement, CompiledFixture, CompiledRig } from "../../src/studio/api/types";
-import { partsCatalog, threeBarRig } from "../studio/fixtures/rig";
+import type { Arrangement } from "../../src/arrange/types";
+import type { CompiledFixture, CompiledRig } from "../../src/rig/types.gen";
+import { partsCatalog, threeBarRig } from "../rig3d/rig";
 
 test("an import its check refuses is refused, and the page and the draft stay", async () => {
   useDoc.getState().load(DEFAULT_ARRANGEMENT);

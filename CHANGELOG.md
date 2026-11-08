@@ -9,6 +9,23 @@ series (batch mode).
 
 ### Added
 
+- Publish, from the Console to the Gallery: on an attended arrangement run
+  (`--gallery URL`, default `https://pewpew.fly.dev`; the hello offers `publish`), pick
+  looks (the current look and the favorites by default), read the public notice, and
+  press Publish. The page submits a top-level form POST to `/api/shares` in a new tab,
+  with `rel="noreferrer"` so the Console's LAN address is not sent; the Gallery
+  answers 303 to `/a/{id}`. A share is `{format: "pewpew.share", version: 1,
+  arrangement, looks}`: board hosts, the floor plan, triggers and notes are left out
+  and each look is checked. Old links to a bare arrangement open with the example
+  looks.
+- Export looks: `export` asks for the saved looks as a looks file (`looks` names
+  them, `null` for all) and `exported` answers with the file in place of an ack. The
+  Console has "export looks"; the hello offers `export` when the aura has a looks
+  book.
+- The Gallery (the hosted studio): serves the Console's page, shows a shared layout
+  read-only in 3D, and gives each visitor an in-memory book of looks for the visit
+  (save, rename, favorite) with export. Its hello offers `ack`, `look`, `export`,
+  `pause` and `gallery`.
 - Layout editing in the Console: on an arrangement run, `layout` opens the
   arrangement editor beside the build-day tools, and `report` the power, wiring
   and controller report with the live draw and the power cap, both loaded on
@@ -812,6 +829,12 @@ series (batch mode).
 
 ### Changed
 
+- Names: the engine's page is the Console and the hosted app is the Gallery, in titles,
+  headings and docs; code names (`studio`, `python -m pewpew studio`) stay.
+- Share links hold looks as well as the layout (the envelope above), and a visitor no
+  longer edits or saves a layout in the Gallery.
+- The page reads the hello's `capabilities` (`arrange`, `export`, `publish`, `pause`,
+  `gallery`) to gate features; it used to read `arrange` only (ADR-020, ADR-024).
 - The studio's arrangement editor, report and undo history moved to `web/src/arrange`,
   shared with the Console; the editor's pose math no longer loads three.js. A run on
   an arrangement always estimates its draw (a limit that caps nothing runs only when
@@ -1368,6 +1391,10 @@ series (batch mode).
 
 ### Removed
 
+- Remove the studio page and everything that served only it: its mock mode, msw, orval,
+  TanStack Query, `scripts/export_openapi.py`, the Dockerfile's Node stage, and the
+  routes `/api/compile`, `/api/catalog`, `/api/looks`, `/api/assembly/*`,
+  `/api/arrangements*` and `/ws/session`. The image serves the committed Console build.
 - Remove hand-written Python patterns (ADR-025): `run file.py`,
   `file.py:Class`, `--pattern-dir` (on `run`, the `fx` verbs, `verify
   looks` and `push`), pattern-file hot reload (`Reloader`), op

@@ -28,7 +28,7 @@ from fakes import (
 )
 from pewpew import wled
 from pewpew.aura import control
-from pewpew.aura.book import Trigger, load_looks
+from pewpew.aura.book import Trigger, load_looks, parse_looks
 from pewpew.aura.control import MAKING, NO_LOOKS, OVERTAKEN, REQUESTS
 from pewpew.awake import KeepAwake
 from pewpew.compose import DEFAULT_FADE, Look
@@ -237,6 +237,82 @@ def test_arrange_goes_to_the_layout_and_leaves_the_looks_alone():
     assert osc_rig(layout=FakeLayout(editable=False), accept_looks=True).control.capabilities == ("look",)
     bare = control.wire_states(osc_rig().control, {})
     assert bare["arrangement"] is None and bare["report"] is None
+
+
+GALLERY = "https://gallery.example"
+
+
+def booked_rig(**kw):
+    """An aura with three saved looks in a book kept in memory: `blue` current, `red` a favorite."""
+    looks = {"blue": solid(0.0, 0.0, 1.0), "red": solid(1.0), "green": solid(0.0, 1.0, 0.0)}
+    return osc_rig(looks=looks, current="blue", favorites=("red",), triggers={"door": Trigger(look="green")}, **kw)
+
+
+def test_export_gives_a_looks_file_of_the_named_looks_in_the_books_order():
+    rig = booked_rig()
+    assert rig.control.capabilities == ("export",)
+    answer = rig.control.request({"type": "export", "looks": ["green", "red"]})
+    assert isinstance(answer, control.Exported) and answer.gallery is None
+    file = dict(answer.file)
+    assert list(file["looks"]) == ["red", "green"]  # the book's order
+    assert file["version"] == 4 and file["current"] == "red"  # `blue` is not chosen: the first chosen is current
+    assert file["favorites"] == ["red"] and "triggers" not in file and "notes" not in file
+    every = rig.control.request({"type": "export"})
+    assert isinstance(every, control.Exported)
+    assert list(every.file["looks"]) == ["blue", "red", "green"] and every.file["current"] == "blue"
+    assert parse_looks(json.dumps(every.file)).looks.keys() == {"blue", "red", "green"}
+
+
+def test_export_refuses_without_a_book_an_empty_list_an_unknown_name_or_a_share_it_cannot_publish():
+    assert osc_rig().control.request({"type": "export", "id": 1}) == Refusal(control.NO_LOOKS_FILE)
+    rig = booked_rig()
+    assert rig.control.request({"type": "export", "looks": []}) == Refusal("export needs at least one look")
+    assert rig.control.request({"type": "export", "looks": ["bleu"]}).reason.startswith("unknown look 'bleu'")
+    assert "list of look names" in rig.control.request({"type": "export", "looks": "blue"}).reason
+    assert "true or false" in rig.control.request({"type": "export", "share": "yes"}).reason
+    assert rig.control.request({"type": "export", "share": True}) == Refusal(control.NO_PUBLISH)
+
+
+class HostedLayout(FakeLayout):
+    """An editable rig file whose controller has a board's address and whose plan has an image."""
+
+    def __init__(self, extra: dict | None = None) -> None:
+        super().__init__(editable=True)
+        self.state = {"arrangement": {"format": "pewpew.arrangement", "version": 1,
+                                      "controllers": [{"id": "A", "host": "192.168.1.50", "profile": "x"}],
+                                      "plan": {"image": "plan.png"}, **(extra or {})},
+                      "base": "b0"}
+
+
+def test_publish_is_offered_only_with_a_gallery_and_a_layout_it_may_edit():
+    assert booked_rig(layout=HostedLayout(), gallery=GALLERY).control.capabilities == ("arrange", "export", "publish")
+    assert booked_rig(layout=HostedLayout()).control.capabilities == ("arrange", "export")
+    assert booked_rig(layout=FakeLayout(editable=False), gallery=GALLERY).control.capabilities == ("export",)
+    assert osc_rig(layout=HostedLayout(), gallery=GALLERY).control.capabilities == ("arrange",)  # no looks book
+    refused = booked_rig(layout=FakeLayout(editable=False), gallery=GALLERY).control.request(
+        {"type": "export", "share": True})
+    assert refused == Refusal(control.NO_PUBLISH)
+
+
+def test_a_share_export_strips_the_boards_and_the_plan_and_names_the_gallery():
+    rig = booked_rig(layout=HostedLayout(), gallery=GALLERY)
+    answer = rig.control.request({"type": "export", "looks": ["blue"], "share": True, "id": 3})
+    assert isinstance(answer, control.Exported) and answer.gallery == GALLERY
+    env = answer.file
+    assert env["format"] == "pewpew.share" and env["version"] == 1
+    assert env["arrangement"]["controllers"] == [{"id": "A", "profile": "x"}] and "plan" not in env["arrangement"]
+    assert list(env["looks"]["looks"]) == ["blue"] and env["looks"]["current"] == "blue"
+    assert not rig.calls._queue  # an export reads the book on the caller's thread
+
+
+def test_a_share_over_a_limit_is_refused_with_its_reason():
+    too_many = {"fixtures": [{"id": f"f{i}"} for i in range(201)]}
+    rig = booked_rig(layout=HostedLayout(too_many), gallery=GALLERY)
+    refused = rig.control.request({"type": "export", "share": True})
+    assert isinstance(refused, Refusal) and "would refuse" in refused.reason and "200 fixtures" in refused.reason
+    huge = {"notes": "x" * 300_000}
+    refused = booked_rig(layout=HostedLayout(huge), gallery=GALLERY).control.request({"type": "export", "share": True})
+    assert isinstance(refused, Refusal) and "at most 262144 bytes" in refused.reason
 
 
 def test_a_control_it_does_not_know_is_refused_when_its_sender_waits_for_an_answer():

@@ -5,7 +5,7 @@ import {
   UnsignedByteType,
 } from "three";
 import { describe, expect, it } from "vitest";
-import { threeBarRig } from "../studio/fixtures/rig";
+import { threeBarRig } from "./rig";
 import {
   createLedData,
   createLedTexture,

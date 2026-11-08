@@ -1,4 +1,4 @@
-# fly.toml — pewpew studio, served at https://<app>.fly.dev. No custom domain;
+# fly.toml — pewpew Gallery (code name studio), served at https://<app>.fly.dev. No custom domain;
 # Fly's proxy terminates TLS and the app speaks plain HTTP.
 #
 # DATABASE_URL is a secret (`fly secrets set`). Without it the app uses SQLite

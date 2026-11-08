@@ -24,7 +24,9 @@
       "capabilities": [
         "ack",
         "look",
-        "arrange"
+        "arrange",
+        "export",
+        "publish"
       ]
     },
     {
@@ -1611,6 +1613,100 @@
       "control": "blackout"
     },
     {
+      "type": "exported",
+      "id": 11,
+      "file": {
+        "format": "pewpew.share",
+        "version": 1,
+        "arrangement": {
+          "format": "pewpew.arrangement",
+          "version": 1,
+          "controllers": [
+            {
+              "id": "A",
+              "profile": "esp32s3-devkitc1-ahct125"
+            }
+          ],
+          "fixtures": [
+            {
+              "id": "a",
+              "type": "strip",
+              "pose": {
+                "position_m": [
+                  0.5,
+                  0.0,
+                  0.0
+                ],
+                "aim": {
+                  "axis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              },
+              "dims": {
+                "pixels": 2,
+                "length": 1.0,
+                "pitch": 0.5
+              }
+            }
+          ],
+          "wiring": {
+            "chains": [
+              {
+                "id": "A-1",
+                "controller": "A",
+                "output": "rmt0",
+                "fixtures": [
+                  "a"
+                ]
+              }
+            ]
+          }
+        },
+        "looks": {
+          "version": 4,
+          "current": "cool",
+          "looks": {
+            "cool": {
+              "seed": 0,
+              "fade": 0.0,
+              "cycle": false,
+              "layers": [
+                {
+                  "id": "base",
+                  "opacity": 1.0,
+                  "blend": "normal",
+                  "enabled": true,
+                  "out": "zoo",
+                  "nodes": {
+                    "zoo": {
+                      "op": "zoo_test",
+                      "args": {
+                        "level": 0.2
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "cycle": {
+            "idle": 300.0,
+            "each": 60.0,
+            "rounds": 0,
+            "end": null,
+            "seed": 0,
+            "window": 2,
+            "fresh": 0,
+            "weights": {}
+          }
+        }
+      },
+      "gallery": "https://pewpew.fly.dev"
+    },
+    {
       "type": "status",
       "error": "layers.base.render raised: RuntimeError: boom",
       "source": "render",
@@ -2015,6 +2111,10 @@
     "arrange": [
       "arrangement",
       "base"
+    ],
+    "export": [
+      "looks",
+      "share"
     ]
   }
 }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { forgetParts, loadParts, PARTS_URL } from "../../src/rig/loadParts";
-import { partsCatalog } from "../studio/fixtures/rig";
+import { partsCatalog } from "../rig3d/rig";
 
 const fetched = vi.fn<typeof fetch>();
 

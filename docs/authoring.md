@@ -3,7 +3,7 @@
 A look is the only effect (ADR-025). It is a stack of layers (§4), each an
 effect program (§5): a small graph of ops from the catalog, whose args are
 knobs (§2) and which signals can move. A look is data, JSON in a looks file
-(version 4), so people, the control page, the studio and agents all write,
+(version 4), so people, the Console, the Gallery and agents all write,
 check and play it the same way.
 
 ```
@@ -13,11 +13,11 @@ $ uv run python -m pewpew run looks.json --map examples/canopy-60-bars.arrangeme
 ```
 
 `run LOOKS` plays a looks file, a version-4 book of looks (a `.look.json`
-file is one), starting in its `current` look. The control page's saves go
+file is one), starting in its `current` look. The Console's saves go
 to that same file. With no `--map` the map is `grid:16x16`.
 The other flags are in `run --help`.
 
-You change a look with the control page, the `fx` verbs (§6) or an agent
+You change a look with the Console, the `fx` verbs (§6) or an agent
 (§7). A new kind of effect is a new op (§9).
 
 ## 1. Looks and ops
@@ -163,7 +163,7 @@ An op declares the maps it takes. A look that uses a plane op is refused on
 a strip with what to use instead (`kaleid` on a strip: use `mirror` on u),
 and `verify looks --map` gates a looks file on the map it is for (§6).
 
-A room event (today, a cue button on the control page) is a trigger in the
+A room event (today, a cue button on the Console) is a trigger in the
 looks file's `triggers` section: it recalls a look for a `hold`, then the
 run returns to where it was. The section is described in the docstring of
 `src/pewpew/aura/book.py`. Events are stamped on engine time, so a recorded
@@ -516,7 +516,7 @@ counted in the run (`kept` for a look not made; the look holds its seed),
 counting on past a name that is taken, with the made look's fade; the aura
 state's `looks.offered` says that name first. A save under another name and
 a delete rename it. `keep` is that save under its old name, for clients that
-send it; the control page sends `save`. On the control page (with a looks
+send it; the Console sends `save`. On the Console (with a looks
 file) these are `surprise me` and `vary this`, on their own row under the
 saved looks, and the one `save` in the look's header, or the keys `s`, `m`
 and `k` (over unsaved edits, `surprise me` and `vary this` take two

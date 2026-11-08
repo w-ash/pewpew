@@ -309,7 +309,8 @@ Status stays **Accepted**; the transport above is unchanged.
   **It exists only for clients outside the package** (the MCP server,
   `observe`, `push` and other agents). **The bundled page never branches on
   it**: it ships with the engine, and the wire still changes in place with
-  no version negotiation (ADR-006, 2026-11-04 amendment). A client that
+  no version negotiation (ADR-006, 2026-11-04 amendment).
+  *(Superseded 2026-11-08: the page reads `capabilities` to gate features.)* A client that
   finds a name missing reports that the engine lacks it, as an OSCQuery
   client assumes a feature absent from `HOST_INFO.EXTENSIONS` is
   unsupported [S1350].
@@ -371,7 +372,7 @@ Status stays **Accepted**; the transport above is unchanged.
 - **Feature detection by trial.** An old engine answers an unknown message
   with nothing, so silence would have to mean "unsupported" after a
   timeout, which is also what a slow engine looks like.
-- **The page reading `capabilities`.** It would grow branches for engine
+- **The page reading `capabilities`.** *(Since 2026-11-08 it does; see below.)* It would grow branches for engine
   builds it never meets, the version negotiation the clean-break rule
   removed.
 - **Accepting a path in an inbound look.** The port is unauthenticated
@@ -514,3 +515,63 @@ Status stays **Accepted**; the transport above is unchanged.
 - **A second, separate page for 3D.** It would load React and the wire
   store again and lose the Console's state on the switch; one page with an
   on-demand file needs only the manifest Vite already writes [S1396].
+
+## Amendment (2026-11-08) — the page gates on capabilities; the Gallery serves it; export
+
+The hosted studio becomes the Gallery (ADR-024, 2026-11-08 amendment), which
+serves this same page. One build now runs against two servers whose hellos
+differ, so the page must tell what each offers. Status stays **Accepted**.
+
+### Decision
+
+- **The page reads the hello's `capabilities` to gate features.** This
+  replaces the 2026-11-05 rule that the page never branches on it. The names:
+  `ack`, `look`, `arrange` (layout editable), `export` (the aura has a looks
+  book), `publish` (the Console, with `--gallery URL` set and the layout
+  editable; never the Gallery), `pause` (the Gallery session takes `pause`
+  and `resume`), `gallery` (the page is the Gallery: read-only shared
+  layout). The page also gates on absent state: no `health` means no health
+  chip or boards. The wire still changes in place; the page and its server
+  ship together, so the capabilities tell one build which server it meets,
+  not which version.
+- **The Gallery serves the same build** (`src/pewpew/sinks/web/index.html`
+  and its hashed files) with a session bound to a share. Its hello has the
+  engine's shape, `rig` never null, and `capabilities`
+  `["ack","look","export","pause","gallery"]`. The socket URL is
+  `/ws` plus the page's query, with `a=<id>` added on `/a/<id>`.
+- **New inbound `{"type": "export", "looks": [name]|null, "share": bool,
+  "id"}`** and outbound **`{"type": "exported", "id", "file", "gallery"}`**.
+  `looks` names saved looks in the book's order, `null` for all; an empty
+  list or an unknown name is refused. `export` is answered with `exported`
+  in place of an `ack`: `file` is a looks file v4, or with `share: true`
+  the share envelope (ADR-024), and `gallery` is the Gallery base URL for a
+  share, else null. `share: true` is refused without `publish`. A refused
+  export gets the usual `refused` with `control: "export"`.
+
+### Consequences
+
+- `web/src/wire/protocol.ts` and `tests/goldens/wire.json` change with the
+  engine, as for any wire change.
+- An engine without the looks book or the Gallery URL does not offer the
+  feature, and the page hides it, rather than showing a control that is
+  refused.
+- `pause` and `resume` are the Gallery's; sent to the engine they are
+  unknown controls with no `id`, so no reply.
+
+### Evidence
+
+- [S1350] OSCQuery: a server lists its optional features in
+  `HOST_INFO.EXTENSIONS`, and a client treats an unlisted one as
+  unsupported; the page now reads the list as the 2026-11-05 amendment
+  reads it for outside clients.
+- [S784] The share leaves the Console as a form POST, so `export` must
+  return the payload to the page, which then builds the form; a fetch from
+  the page would not be a simple request.
+
+### Rejected alternatives
+
+- **Two page builds, one per server.** Two budgets, two tests and two
+  wires to keep in step; one build gated by the hello needs none (inference).
+- **Answering `export` with an `ack` and a second message.** The `id`-matched
+  answer already carries the payload; a pair of messages could be separated
+  by a drop (inference).

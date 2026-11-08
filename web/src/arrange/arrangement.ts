@@ -20,7 +20,7 @@ import {
   resolvePose,
 } from "./pose";
 
-/** A fixture as the engine compiled it: the studio's compile body's, or the `rig` of the Console's
+/** A fixture as the engine compiled it: a compiled rig's (`CompiledRig`), or the `rig` of the
  * `hello` and `layout`. */
 export interface Placed {
   readonly id: string;
