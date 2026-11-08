@@ -748,6 +748,10 @@ series (batch mode).
 
 ### Changed
 
+- Dependencies: websockets 17.4 (the wire client opens its socket with
+  `legacy=True`, as 17.1 asks of a caller that closes it), pytest 9.2,
+  numba 0.68.1, watchfiles 1.3, msw 3 for the studio's mock mode, and
+  @types/node 26.
 - Name things for the domain. `PatternError` is `RenderFailure` and its
   `pattern` field is `layer`; `pewpew.kit` is gone (`hsv` and `bins` are in
   `pewpew.color`, `TWO_PI`, `wave` and `fade` in `pewpew.fx.prims.vec`);
