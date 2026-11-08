@@ -211,6 +211,25 @@ test("after a reconnect to the same file, the history stays and the edit not tak
   await expect.element(panel.getByText(CHANGED_ELSEWHERE)).not.toBeInTheDocument();
 });
 
+test("after a reconnect to an engine that took the edit in flight, the history stays and a later edit goes on it", async () => {
+  const { screen, store, sent, receive, answer } = await openLayout();
+  await screen.getByRole("textbox", { name: "Name" }).fill("A");
+  await expect.poll(() => arranges(sent).length, { timeout: SETTLE_MS * 4 }).toBe(1);
+  // B is edited while A is unanswered; the connection drops before A's echo.
+  await screen.getByRole("textbox", { name: "Name" }).fill("B");
+  act(() => store.disconnected());
+  await answer(false);
+  reconnect(receive);
+  // The engine applied A.
+  receive({ type: "arrangement", arrangement: arranges(sent)[0]!.arrangement, base: "bA" });
+  await expect.poll(() => arranges(sent).length, { timeout: SETTLE_MS * 4 }).toBe(2);
+  expect(arranges(sent)[1]).toMatchObject({ base: "bA", arrangement: { name: "B" } });
+  const panel = screen.getByRole("region", { name: "layout" });
+  await expect.element(panel.getByText(CHANGED_ELSEWHERE)).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("B");
+  await expect.element(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+});
+
 test("after a reconnect to a file changed meanwhile, its layout replaces the edit not taken, with a notice", async () => {
   const { screen, store, sent, receive, answer } = await openLayout();
   await screen.getByRole("textbox", { name: "Name" }).fill("mine");
@@ -247,7 +266,9 @@ test("a stale refusal that carries the engine's layout shows it with no broadcas
   });
   await answer(false);
   await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("theirs");
-  await expect.element(screen.getByRole("region", { name: "layout" }).getByText(CHANGED_ELSEWHERE)).toBeVisible();
+  const panel = screen.getByRole("region", { name: "layout" });
+  await expect.element(panel.getByText(CHANGED_ELSEWHERE)).toBeVisible();
+  await expect.element(panel.getByText(/The engine did not take this edit/)).not.toBeInTheDocument();
   await expect.element(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
   // The next edit builds on the file the refusal named.
   await screen.getByRole("textbox", { name: "Name" }).fill("mine again");

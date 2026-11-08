@@ -234,7 +234,10 @@ class RigLive:
         old = self.rig
         boards, layout = self._boards(rig)
         taken = self._taking(rig)
-        if self._ddp is not None and boards != tuple(self._ddp.boards):
+        old_boards = tuple(self._ddp.boards) if self._ddp is not None else ()
+        relaid = self._ddp is not None and boards != old_boards
+        if relaid:
+            assert self._ddp is not None
             audit.record(
                 "ddp-relayout", argv=self._argv, targets=[b.spec for b in boards], fps=self._ddp.max_fps,
             )
@@ -245,13 +248,11 @@ class RigLive:
                 self._ddp.commit(layout)
             if self._blink is not None:
                 self._blink.rebind(fixture_spans(rig))
-        except Exception:
-            # Each part takes the old rig again, so no part runs the new one.
-            self._live.rebind(old.mapping)
-            if self._ddp is not None and old_layout is not None:
-                self._ddp.commit(old_layout)
-            if self._blink is not None:
-                self._blink.rebind(fixture_spans(old))
+        except Exception as exc:
+            # Each part takes the old rig again, last applied first, each in its own try, so one that
+            # fails neither skips the others nor hides `exc`.
+            for note in self._roll_back(old, old_layout, old_boards, relaid):
+                exc.add_note(note)
             raise
         # The new rig runs: from here on, nothing puts the old one back.
         self._take(*taken)
@@ -273,6 +274,44 @@ class RigLive:
             f"{len(rig.fixtures)} fixtures on {len(rig.controllers)} controller(s)"
         )
         return summary, self._warning
+
+    def _roll_back(
+        self, old: CompiledRig, old_layout: Layout | None, old_boards: tuple[Board, ...], relaid: bool,
+    ) -> list[str]:
+        """Put the blink, the DDP sink and the renderer back on `old`, in
+        that order; the note for each that failed, naming the rig it may
+        still run. Loop thread only; never raises. The revert is audited
+        before the sink takes the old layout, so before any frame can go to
+        the old boards (the sink sends nothing itself)."""
+        from pewpew.rig.runtime import fixture_spans
+
+        notes: list[str] = []
+
+        def attempt(part: str, new_rig: str, step: Callable[[], object]) -> None:
+            try:
+                step()
+            except Exception as exc:
+                logger.warning("rolling back %s failed", part, exc_info=True)
+                notes.append(
+                    f"rollback failed: {part} may still run {new_rig}" if new_rig != "no record"
+                    else f"rollback failed: {part} is missing from the audit log"
+                )
+                notes[-1] += f" ({describe_exception(exc)})"
+
+        if self._blink is not None:
+            blink = self._blink
+            attempt("the blink", "the new map", lambda: blink.rebind(fixture_spans(old)))
+        if self._ddp is not None and old_layout is not None:
+            ddp = self._ddp
+
+            if relaid:
+                attempt("the audit record of the revert", "no record", lambda: audit.record(
+                    "ddp-relayout-reverted", argv=self._argv, targets=[b.spec for b in old_boards], fps=ddp.max_fps,
+                ))
+            attempt("the DDP sink", "the new boards", lambda: ddp.commit(old_layout))
+        live = self._live
+        attempt("the renderer", "the new map", lambda: live.rebind(old.mapping))
+        return notes
 
     def rebind(self, controller: str, address: str) -> str | None:
         """Point controller `controller` at `address` by rewriting its host

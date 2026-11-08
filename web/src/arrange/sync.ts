@@ -80,6 +80,12 @@ const sync = {
   known: null as Arrangement | null,
   /** Sent and not yet echoed or answered: one `arrange` at a time, so each names the base it edited. */
   inflight: null as Arrangement | null,
+  /** The arrangement that was in flight when the connection closed: the engine may have applied it, and
+   * an engine arrangement equal to it on reconnect is its echo. Cleared by the next arrangement read. */
+  lost: null as Arrangement | null,
+  /** Set when the engine's arrangement replaced the history since the last send: the edit sent no longer
+   * exists, so a refusal of it has nothing left to show. */
+  replaced: false,
   /** Set by a refusal, so the refused arrangement is not sent again by itself; an edit, an undo, a redo
    * or `retryArrange` clears it. */
   paused: false,
@@ -89,7 +95,7 @@ const sync = {
 function reset(store: WireStore, sender: Sender): void {
   if (sync.timer) clearTimeout(sync.timer);
   Object.assign(sync, {
-    store, sender, seen: null, connected: false, base: null, known: null, inflight: null, paused: false, timer: null,
+    store, sender, seen: null, connected: false, base: null, known: null, inflight: null, lost: null, replaced: false, paused: false, timer: null,
   });
   useArrangeSyncState.setState({ refused: false, notice: null });
 }
@@ -131,10 +137,15 @@ function reconcile(): void {
   const engine = asArrangement(state.arrangement);
   if (!engine || state.arrangementBase === null) return;
   const present = doc.history.present;
+  const lost = sync.lost;
+  sync.lost = null;
   if (sync.inflight && sameJson(engine, sync.inflight)) sync.inflight = null;
-  else if (doc.loads === 0) load(engine);
+  else if (lost && sameJson(engine, lost)) {
+    // The engine took the edit the closed connection left unanswered: its echo, so the history stays.
+  } else if (doc.loads === 0) load(engine);
   else if (!sameJson(engine, present) && state.arrangementBase !== sync.base) {
     const unsent = sync.known !== null && !sameJson(present, sync.known);
+    sync.replaced = true;
     load(engine);
     useArrangeSyncState.setState({ refused: false, notice: unsent ? CHANGED_ELSEWHERE : null });
   }
@@ -156,13 +167,17 @@ function pump(): void {
   const sent = present;
   const seq = refusalSeq(store);
   sync.inflight = sent;
+  sync.replaced = false;
   void sync.sender.ask({ type: "arrange", arrangement: fileForm(sent), base: sync.base }).then((took) => {
     // An ask settles untaken with no refusal when the connection closed: the engine may hold it or not,
     // and its next arrangement says which.
-    const refused = !took && sync.store === store && refusalSeq(store) !== seq;
+    // A refusal that carried the engine's arrangement was answered by loading it, whose notice says so.
+    const refused = !took && sync.store === store && refusalSeq(store) !== seq && !sync.replaced;
+    const closed = !took && sync.store === store && refusalSeq(store) === seq;
     if (took || refused) useArrangeSyncState.setState({ refused });
     if (sync.inflight !== sent) return;
     if (refused) sync.paused = true;
+    if (closed) sync.lost = sent;
     // Taken: wait for its echo, which names the base the next edit builds on, unless it is already here.
     if (!took || sameJson(asArrangement(store.getState().arrangement), sent)) sync.inflight = null;
     pump();

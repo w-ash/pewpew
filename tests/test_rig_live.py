@@ -805,6 +805,38 @@ def test_an_arrange_whose_blink_fails_after_the_rebind_runs_the_old_rig_everywhe
     assert rig_live.reloader.reload() is False and rig_live.error is None
 
 
+def test_a_rollback_step_that_fails_skips_no_other_step_and_the_status_says_which(tmp_path, audit_log, monkeypatch):
+    """The blink raises on the new rig and the renderer raises on the old one: the sink and the blink still
+    take the old rig, the original error is the refusal, its notes name the renderer, and the revert is
+    audited before the sink takes the old layout."""
+    path, _doc, _renderer, sink, rig_live = live(tmp_path, blink=Blink([]), edits=True)
+    blink, live_ = rig_live._blink, rig_live._live
+    assert blink is not None
+    monkeypatch.setattr(blink, "rebind", Raises(blink.rebind))
+    rebind = live_.rebind
+    renderer_calls = []
+
+    def renderer_rebind(mapping):
+        renderer_calls.append(mapping)
+        if len(renderer_calls) == 2:
+            raise OSError("renderer is stuck")
+        rebind(mapping)
+
+    monkeypatch.setattr(live_, "rebind", renderer_rebind)
+    at_commit, commit = [], sink.commit
+    monkeypatch.setattr(sink, "commit", lambda layout: at_commit.append(audit_log.read_text()) or commit(layout))
+    data, layout, boards = path.read_bytes(), sink.layout, list(sink.boards)
+    refused = arranged(rig_live, three_bars_on_two_boards())
+    assert refused is not None and "RuntimeError: lost the new rig" in refused.reason
+    assert "rollback failed: the renderer may still run the new map" in refused.reason
+    assert sink.layout is layout and list(sink.boards) == boards
+    assert blink._fixtures == tuple(fixture_spans(rig_live.rig)) and path.read_bytes() == data
+    actions = [json.loads(line)["action"] for line in audit_log.read_text().splitlines()]
+    assert actions == ["arrange", "ddp-relayout", "ddp-relayout-reverted"]
+    assert [json.loads(line)["action"] for line in at_commit[1].splitlines()][-1] == "ddp-relayout-reverted"
+    assert json.loads(audit_log.read_text().splitlines()[-1])["targets"] == [b.spec for b in boards]
+
+
 def test_an_arrange_whose_listener_fails_once_the_rig_runs_keeps_the_new_file_and_warns(tmp_path, audit_log):
     """The new rig runs everywhere but one listener: the edit is done (the file, the state and the engine
     hold it), and the status line says what did not follow it."""

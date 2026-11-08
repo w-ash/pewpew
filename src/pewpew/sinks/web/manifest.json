@@ -1,31 +1,31 @@
 {
-  "_console-3d-DzsojDTE.js": {
-    "file": "assets/console-3d-DzsojDTE.js",
+  "_console-3d-BiRKL8Y8.js": {
+    "file": "assets/console-3d-BiRKL8Y8.js",
     "name": "console-3d",
     "imports": [
       "_rolldown-runtime-XKyaHtl9.js",
-      "_page-BtiDEfGy.js",
-      "_console-rig-CJ_d2cS-.js"
+      "_page-Bi9Xn_m8.js",
+      "_console-rig-DKWLoORY.js"
     ]
   },
-  "_console-rig-CJ_d2cS-.js": {
-    "file": "assets/console-rig-CJ_d2cS-.js",
+  "_console-rig-DKWLoORY.js": {
+    "file": "assets/console-rig-DKWLoORY.js",
     "name": "console-rig",
     "imports": [
       "_rolldown-runtime-XKyaHtl9.js",
-      "_page-BtiDEfGy.js"
+      "_page-Bi9Xn_m8.js"
     ]
   },
-  "_page-BtiDEfGy.js": {
-    "file": "assets/page-BtiDEfGy.js",
+  "_page-Bi9Xn_m8.js": {
+    "file": "assets/page-Bi9Xn_m8.js",
     "name": "page",
     "imports": [
       "_rolldown-runtime-XKyaHtl9.js",
       "index.html"
     ],
     "dynamicImports": [
-      "_console-3d-DzsojDTE.js",
-      "_console-rig-CJ_d2cS-.js"
+      "_console-3d-BiRKL8Y8.js",
+      "_console-rig-DKWLoORY.js"
     ]
   },
   "_rolldown-runtime-XKyaHtl9.js": {
@@ -33,12 +33,12 @@
     "name": "rolldown-runtime"
   },
   "index.html": {
-    "file": "assets/index-DvMzxDQ7.js",
+    "file": "assets/index-GC6jaJHs.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
     "imports": [
-      "_page-BtiDEfGy.js"
+      "_page-Bi9Xn_m8.js"
     ]
   },
   "style.css": {
