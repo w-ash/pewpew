@@ -64,6 +64,7 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
     issues: list[Issue] = []
     catalog, variants = with_variants(arrangement, catalog, issues)
     instances = expand(arrangement, catalog, issues)
+    bases = {v.id: base for base, v in variants}
     plan = (
         auto_wire(instances, arrangement, catalog)
         if arrangement.wiring.auto is not None
@@ -96,7 +97,7 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
             normals[start : start + count] = rot @ np.asarray(spec.facing, dtype=np.float64)
         fixture_of[start : start + count] = f
         pixel_in_fixture[start : start + count] = np.arange(count)
-        fixtures.append(_fixture_instance(inst, chain, start, count, catalog))
+        fixtures.append(_fixture_instance(inst, chain, start, count, catalog, bases))
         start += count
 
     with np.errstate(over="ignore", invalid="ignore"):
@@ -580,7 +581,9 @@ def _capacity_issues(
     return issues
 
 
-def _fixture_instance(inst: Instance, chain: Chain | None, start: int, count: int, catalog: Catalog) -> FixtureInstance:
+def _fixture_instance(
+    inst: Instance, chain: Chain | None, start: int, count: int, catalog: Catalog, bases: Mapping[str, str]
+) -> FixtureInstance:
     ft = catalog.get(inst.type_id, "fixture_type")
     frames = {}
     for name, att in inst.attachments.items():
@@ -593,6 +596,7 @@ def _fixture_instance(inst: Instance, chain: Chain | None, start: int, count: in
     return FixtureInstance(
         id=inst.id,
         type_id=inst.type_id,
+        base_type_id=bases.get(inst.type_id, inst.type_id),
         group=inst.group,
         matrix=to_three(inst.matrix),
         attachments=dict(inst.attachments),

@@ -177,7 +177,7 @@ export function Stage({ rig, catalog }: StageProps) {
       [
         ...new Set(
           rig?.fixtures.flatMap((f) => [
-            f.type_id,
+            f.base_type_id ?? f.type_id,
             ...Object.values(f.attachments ?? {}).filter((a) => a !== null),
           ]) ?? [],
         ),

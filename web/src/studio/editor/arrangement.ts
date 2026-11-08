@@ -316,9 +316,11 @@ export function explodeGroup(
     const id = freshId(next, m.id.replace(/\//g, "-"));
     const fixture: FixtureEntry = {
       id,
-      type: m.type_id,
+      type: m.base_type_id ?? m.type_id,
       pose: matrixPose(m.matrix),
     };
+    if (m.dims && Object.keys(m.dims).length) fixture.dims = { ...m.dims };
+    if (m.tags?.length) fixture.tags = [...m.tags];
     if (Object.values(m.attachments ?? {}).some(Boolean)) {
       fixture.attach = { ...m.attachments };
     }

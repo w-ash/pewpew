@@ -180,15 +180,17 @@ def shared_targets(
     """(first name, later name, target) for each later name of a (host, port) already named.
 
     Two names for one device send it two pixel ranges that both start at its
-    pixel 0: the ranges overlap on the wire.
+    pixel 0: the ranges overlap on the wire. Host names compare
+    case-insensitively (RFC 4343, https://www.rfc-editor.org/rfc/rfc4343).
     """
     owner: dict[tuple[str, int], str] = {}
     found = []
     for name, target in named:
-        if target in owner:
-            found.append((owner[target], name, target))
+        key = (target[0].casefold(), target[1])
+        if key in owner:
+            found.append((owner[key], name, target))
         else:
-            owner[target] = name
+            owner[key] = name
     return found
 
 

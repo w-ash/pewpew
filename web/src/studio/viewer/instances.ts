@@ -36,6 +36,8 @@ export interface InstanceBatch {
 }
 
 /** The catalog types a rig uses, fixture types first, in first-use order. */
+const baseType = (f: CompiledFixture) => f.base_type_id ?? f.type_id;
+
 function typesFor(
   rig: CompiledRig,
   catalog: Catalog,
@@ -45,7 +47,8 @@ function typesFor(
     Omit<AssemblyRef, "url"> & { url: string | null }
   >();
   for (const f of rig.fixtures) {
-    const t = catalog.fixture_types.find((x) => x.id === f.type_id);
+    // A variant draws its base type's geometry, whatever its dims.
+    const t = catalog.fixture_types.find((x) => x.id === baseType(f));
     if (t && !out.has(t.id))
       out.set(t.id, { id: t.id, url: t.assembly_url, kind: "fixture" });
   }
@@ -153,9 +156,10 @@ export function buildBatches(
   const hosts = new Map<string, number[]>();
   const attached = new Map<string, Array<{ f: number; end: string }>>();
   rig.fixtures.forEach((fx, i) => {
-    if (!assemblies.has(fx.type_id)) return;
-    if (!hosts.has(fx.type_id)) hosts.set(fx.type_id, []);
-    hosts.get(fx.type_id)?.push(i);
+    const base = baseType(fx);
+    if (!assemblies.has(base)) return;
+    if (!hosts.has(base)) hosts.set(base, []);
+    hosts.get(base)?.push(i);
     for (const [end, id] of Object.entries(fx.attachments ?? {})) {
       if (!id || !assemblies.has(id)) continue;
       if (!attached.has(id)) attached.set(id, []);
@@ -178,7 +182,7 @@ export function buildBatches(
     axis: new Float32Array(count * 3),
   });
   const axisFor = (fx: CompiledFixture) =>
-    hostAxis(assemblies.get(fx.type_id), fx.pixel_count);
+    hostAxis(assemblies.get(baseType(fx)), fx.pixel_count);
   const out: InstanceBatch[] = [];
   const m = new Matrix4();
   const a = new Matrix4();
@@ -211,7 +215,7 @@ export function buildBatches(
         a.copy(
           anchorMatrix(
             end,
-            assemblies.get(fx.type_id)?.anchors[end as End],
+            assemblies.get(baseType(fx))?.anchors[end as End],
             axis,
           ),
         );

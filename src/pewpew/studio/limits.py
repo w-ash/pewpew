@@ -17,7 +17,8 @@ from typing import Any
 from pewpew.rig.models import MAX_FIXTURES
 
 MAX_BODY_BYTES = 256 * 1024  # HTTP request bodies and inbound websocket messages
-MAX_PIXELS = 16_384  # above 200 of the largest catalog fixture (64 px)
+MAX_PIXELS = 16_384  # total pixels of one rig: bounds the mapping and frame memory. A single
+# fixture may have up to MAX_FIXTURE_PIXELS (4096), so this holds four of those.
 MAX_SOCKETS_PER_IP = 3
 MAX_SESSIONS = 20
 SAVES_PER_MINUTE = 10

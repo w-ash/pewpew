@@ -938,11 +938,13 @@ class FixtureInstance(_Model):
     The fixture's pixels are `pixel_start .. pixel_start + pixel_count - 1`.
     `attachment_matrices` gives each attachment's frame in world space.
     `dims` and `tags` are the placement's own; with `dims`, `type_id` names
-    the variant type they compiled to.
+    the variant type they compiled to and `base_type_id` the catalog type
+    it was made from (equal to `type_id` without dims).
     """
 
     id: str
     type_id: str
+    base_type_id: str
     group: str | None
     matrix: Matrix16
     attachments: dict[str, str | None]

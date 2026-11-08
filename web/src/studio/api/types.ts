@@ -42,6 +42,8 @@ export type EndAttach = Record<string, AttachmentRef>;
 export interface FixtureEntry {
   id: string;
   type: string;
+  dims?: Record<string, number>;
+  tags?: string[];
   pose?: Pose;
   attach?: EndAttach;
 }
@@ -152,7 +154,12 @@ export interface Catalog {
 
 export interface CompiledFixture {
   id: string;
+  /** The type id the catalog overlay knows: a variant id when the placement gave dims. */
   type_id: string;
+  /** The catalog type the fixture is made from. */
+  base_type_id?: string;
+  dims?: Record<string, number>;
+  tags?: string[];
   /** The group this fixture was expanded from, or null for a free fixture. */
   group?: string | null;
   /** 16 floats, column-major, three.js `Matrix4.elements` order. */

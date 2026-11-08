@@ -456,6 +456,7 @@ def test_variant_ids_are_deterministic_and_shared_by_equal_dims():
     assert [v.id for v in rig.variants] == [ids[0], ids[2]]
     assert rig.variants[0].type == "strip" and rig.variants[0].dims["pixels"] == 30
     assert rig.variants[0].dims["pitch"] == pytest.approx(0.5 / 30)
+    assert [f.base_type_id for f in rig.fixtures] == ["strip"] * 3
     assert rig.catalog_digest == load_catalog().digest
     assert not load_catalog().has(ids[0], "fixture_type")
 
@@ -492,6 +493,14 @@ def test_a_host_address_used_twice_is_an_error():
         compiled(doc)
     assert [(i.code, i.ref) for i in exc.value.issues] == [("address_used_twice", "b")]
     assert "10.0.0.11:4048" in exc.value.issues[0].message
+
+
+def test_host_names_compare_case_insensitively():
+    ctrl = lambda cid, host: {"id": cid, "profile": S3, "host": host}
+    with pytest.raises(RigError) as exc:
+        compiled(arrangement(controllers=[ctrl("a", "A.local"), ctrl("b", "a.local")]))
+    assert [(i.code, i.ref) for i in exc.value.issues] == [("address_used_twice", "b")]
+    assert "a.local:4048" in exc.value.issues[0].message
 
 
 @pytest.mark.parametrize("host", ["", "10.0.0.11:0", "a b", "10.0.0.11:1:2", "http://x"])
@@ -548,6 +557,8 @@ def test_to_json_carries_controllers_scale_shift_plan_and_variants():
         {"id": "b", "profile": S3, "host": None, "port": None},
     ]
     assert out["plan"] == plan
+    assert [(f["type_id"], f["base_type_id"]) for f in out["fixtures"]] == [(rig.fixtures[0].type_id, "strip")] * 2
+    assert out["fixtures"][0]["dims"] and out["fixtures"][0]["tags"] == []
     assert out["variants"] == [{"id": rig.fixtures[0].type_id, "type": "strip", "dims": out["variants"][0]["dims"]}]
     # mapping = plan-frame meters * scale + shift, the frame the plan is in.
     plan_m = rig.positions_m @ MVR_C.T

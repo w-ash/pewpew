@@ -9,6 +9,13 @@ series (batch mode).
 
 ### Added
 
+- The arrangement holds what only the room map held: a controller's network
+  address (`controllers[].host`), a floor plan, notes and tags, and a parametric
+  `strip` fixture type sized by `dims` (each size compiles to its own variant
+  type). A new `ws2812b` chipset entry gives the strip its electrical facts. The
+  catalog firmware is the one source of per-output and per-controller pixel caps,
+  and a host used twice is an error (host names compare without case). A fixture
+  has at most 4096 pixels.
 - Rename a saved look in place: `rename…` in the look's `⋯` on the control page,
   the `rename` control verb `{name, to}`, and the MCP tool `engine_rename` (tier 1,
   with `--accept-looks`). The look keeps its place, fade, shuffle flag and favorite.

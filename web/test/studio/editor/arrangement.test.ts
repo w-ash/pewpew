@@ -219,6 +219,43 @@ describe("explodeGroup", () => {
     });
   });
 
+  it("writes the base type, dims and tags of a variant member", () => {
+    const group: Arrangement = {
+      ...DEFAULT_ARRANGEMENT,
+      fixtures: [],
+      groups: [
+        {
+          id: "row",
+          preset: "array",
+          type: "strip",
+          counts: [2],
+          steps_m: [[1, 0, 0]],
+        },
+      ],
+    };
+    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    const members = [0, 1].map((i) => ({
+      id: `row/${i}`,
+      type_id: "strip.1a2b3c4d",
+      base_type_id: "strip",
+      dims: { pixels: 8 },
+      tags: ["canopy"],
+      group: "row",
+      matrix: identity,
+      attachments: {},
+      pixel_start: i * 8,
+      pixel_count: 8,
+    }));
+    const next = explodeGroup(group, "row", members);
+    expect(next?.fixtures).toHaveLength(2);
+    for (const f of next?.fixtures ?? []) {
+      expect(f.type).toBe("strip");
+      expect(f.dims).toEqual({ pixels: 8 });
+      expect(f.tags).toEqual(["canopy"]);
+    }
+    expect(JSON.stringify(next)).not.toContain("strip.1a2b3c4d");
+  });
+
   it("returns null without compiled members", () => {
     expect(explodeGroup(DEFAULT_ARRANGEMENT, "inner", [])).toBeNull();
   });
