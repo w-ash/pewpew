@@ -5,12 +5,12 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig, type Plugin, type UserConfig } from "vite";
 import type { BrowserCommand } from "vitest/node";
-import { viteSingleFile } from "vite-plugin-singlefile";
 import { upgradeAllowed } from "./dev-origin.ts";
 
 // Two pages from one source tree. The default mode is the engine's control page
-// (index.html), built into one file the engine serves. The mode `studio` is the
-// hosted studio (studio.html), built into dist/studio.
+// (index.html), built into src/pewpew/sinks/web: the page and its hashed files,
+// which the engine serves (src/pewpew/sinks/preview.py). The mode `studio` is
+// the hosted studio (studio.html), built into dist/studio.
 
 // The build stamp, from the same function tests/test_page_build.py checks.
 function buildStamp(): Plugin {
@@ -28,9 +28,10 @@ const LICENSES = "licenses.md";
 // The fonts' copyright lines and licence, which OFL §2 asks every copy to carry (tools/fonts.py).
 const FONT_LICENSE = new URL("./src/design/fonts/OFL.txt", import.meta.url);
 
-// The licenses of every bundled package, from Vite's `build.license`, then the
-// fonts', moved into the page as a comment: the one file is all that ships. The
-// minifier drops the packages' own license headers.
+// The licenses of every bundled package, in every file of the build, from
+// Vite's `build.license`, then the fonts', moved into the page as a comment: the
+// page ships with every file it loads. The minifier drops the packages' own
+// license headers.
 function inlineLicenses(): Plugin {
   return {
     name: "pewpew-inline-licenses",
@@ -48,6 +49,38 @@ function inlineLicenses(): Plugin {
     },
   };
 }
+
+/** The files the engine serves beside the page (`files.json`, read by
+ * `web_files()` in src/pewpew/sinks/preview.py): every file of the build but
+ * the page itself and the manifest, sorted. */
+const FILES = "files.json";
+const MANIFEST = "manifest.json";
+
+function servedFiles(): Plugin {
+  return {
+    name: "pewpew-served-files",
+    apply: "build",
+    generateBundle: {
+      order: "post",
+      handler(_, bundle) {
+        const files = Object.keys(bundle).filter((name) => name !== "index.html" && name !== MANIFEST && name !== LICENSES).sort();
+        this.emitFile({ type: "asset", fileName: FILES, source: `${JSON.stringify(files, null, 2)}\n` });
+      },
+    },
+  };
+}
+
+/** The Console's 3D view (src/rig3d), three.js, and the packages only they
+ * use, in one file loaded only when the stage first shows 3D. The group takes
+ * none of the other modules they import (`includeDependenciesRecursively:
+ * false`), so React and the page's own modules stay with the page
+ * (https://rolldown.rs/reference/TypeAlias.CodeSplittingGroup); it names
+ * @react-three's own dependencies, which would otherwise make a second 3D
+ * file that imports the first and is imported by it. */
+const CONSOLE_3D = new RegExp(
+  String.raw`[\/]node_modules[\/](three|three-stdlib|@react-three[\/][^\/]+|its-fine|suspend-react|react-use-measure|zustand|use-sync-external-store|@babel[\/]runtime)[\/]` +
+    String.raw`|[\/]src[\/]rig3d[\/]`,
+);
 
 /** The studio's page: served for `/` and a share link `/a/<id>` in dev, and
  * built as index.html, the name the studio server serves (studio/app.py). */
@@ -120,16 +153,32 @@ export default defineConfig(({ command, mode }) => {
     throw new Error("set PEWPEW_ENGINE to the engine's preview URL, e.g. http://127.0.0.1:52011");
   }
   return {
-    plugins: [compiledReact(), viteSingleFile(), buildStamp(), inlineLicenses()],
+    plugins: [compiledReact(), buildStamp(), inlineLicenses(), servedFiles()],
     // Every dependency found up front: one found mid-run reloads the test page
     // with a second copy of React.
     optimizeDeps: { entries: ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}"] },
     build: {
       outDir: "../src/pewpew/sinks/web",
-      emptyOutDir: false,
+      // The folder holds only the build: a file of an older build is not left to be served.
+      emptyOutDir: true,
+      // Which files each chunk imports, for tests/test_page_build.py (https://vite.dev/guide/backend-integration).
+      manifest: MANIFEST,
       license: { fileName: LICENSES },
-      // One file and no chunks: nothing to preload.
+      // Every asset (the fonts) goes inline, and one stylesheet holds every chunk's styles: the page fetches
+      // only scripts and that stylesheet.
+      assetsInlineLimit: () => true,
+      cssCodeSplit: false,
+      // Every browser the page supports has module preload.
       modulePreload: { polyfill: false },
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [{ name: "console-3d", test: CONSOLE_3D, includeDependenciesRecursively: false }],
+          },
+        },
+      },
+      // The 3D chunk is about 1 MB minified and loads once, on demand.
+      chunkSizeWarningLimit: 1100,
     },
     server: {
       host: "127.0.0.1",
@@ -144,6 +193,8 @@ export default defineConfig(({ command, mode }) => {
               bypass: (req, res) => (res || upgradeAllowed(req.headers.host, req.headers.origin) ? undefined : false),
             },
             "/plan": { target: engine, changeOrigin: true },
+            "/parts.json": { target: engine, changeOrigin: true },
+            "/assembly": { target: engine, changeOrigin: true },
           }
         : undefined,
     },

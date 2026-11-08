@@ -18,6 +18,7 @@ import struct
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -447,6 +448,7 @@ def test_get_root_serves_page():
 def test_the_page_is_gzipped_when_the_client_allows_it_and_read_once(monkeypatch):
     raw, zipped = preview._page()
     assert gzip.decompress(zipped) == raw
+    preview.web_files()  # read once too: the page's path is looked up in it
     reads = []
     monkeypatch.setattr(preview.resources, "files", lambda *a: reads.append(a))  # a second read would fail
     with preview_sink(line(4)) as sink:
@@ -459,6 +461,89 @@ def test_the_page_is_gzipped_when_the_client_allows_it_and_read_once(monkeypatch
             assert resp.getheader("Vary") == "Accept-Encoding"
             conn.close()
     assert reads == []
+
+
+def fetch(port: int | None, path: str, accept: str = "identity") -> tuple[int, dict[str, str], bytes]:
+    """GET `path` on `port`, a started sink's: the status, the headers (names lowercased) and the body as sent."""
+    assert port is not None
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5.0)
+    try:
+        conn.request("GET", path, headers={"Accept-Encoding": accept})
+        resp = conn.getresponse()
+        return resp.status, {k.lower(): v for k, v in resp.getheaders()}, resp.read()
+    finally:
+        conn.close()
+
+
+WEB = Path(preview.__file__).parent / "web"
+FILE_TYPES = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
+
+
+def test_each_file_of_the_build_is_served_immutable_with_its_type():
+    files = sorted(preview.web_files())
+    assert files and files == json.loads((WEB / "files.json").read_text())
+    with preview_sink(line(4)) as sink:
+        for name in files:
+            status, headers, body = fetch(sink.port, f"/{name}?v=1")
+            assert status == 200, name
+            assert headers["content-type"] == FILE_TYPES[Path(name).suffix]
+            assert headers["cache-control"] == "public, max-age=31536000, immutable"
+            assert body == (WEB / name).read_bytes()
+            status, headers, body = fetch(sink.port, f"/{name}", accept="gzip")
+            assert headers["content-encoding"] == "gzip" and gzip.decompress(body) == (WEB / name).read_bytes()
+            # The path must match exactly: with a second slash it is not on the list.
+            assert fetch(sink.port, f"//{name}")[2] == preview._page()[0]
+
+
+@pytest.mark.parametrize("path", [
+    "/assets/../index.html", "/assets/%2e%2e/files.json", "/files.json", "/manifest.json", "/assets/",
+    "/assets/nope.js", "/a/b", "/assembly/../parts.json",
+])
+def test_any_other_path_gets_the_page(path):
+    """Only a listed file is served as itself: a path that walks out of the build, or names a file of
+    it that is not listed, gets the page, so no path is read from the request."""
+    with preview_sink(line(4)) as sink:
+        status, headers, body = fetch(sink.port, path)
+    assert status == 200 and headers["content-type"] == "text/html; charset=utf-8"
+    assert body == preview._page()[0]
+
+
+def test_the_parts_catalog_and_each_assembly_are_served():
+    from pewpew.rig.parts import parts_view
+
+    parts = json.loads(parts_view().body)
+    types = parts["fixture_types"] + parts["attachment_types"]
+    with preview_sink(line(4)) as sink:
+        status, headers, body = fetch(sink.port, "/parts.json")
+        assert (status, headers["content-type"], headers["cache-control"]) == (200, "application/json", "no-cache")
+        assert json.loads(body) == parts
+        assert types and all(t["assembly_url"] == f"/assembly/{t['digest']}.glb" for t in types)
+        for t in types:
+            status, headers, body = fetch(sink.port, t["assembly_url"])
+            assert (status, headers["content-type"]) == (200, "model/gltf-binary")
+            assert headers["cache-control"] == "public, max-age=31536000, immutable"
+            assert body[:4] == b"glTF" and body == parts_view().glb(t["digest"])
+        assert fetch(sink.port, "/assembly/0000000000000000.glb")[0] == 404
+        # Not a digest: the page, as for any other path.
+        assert fetch(sink.port, "/assembly/strip.glb")[2] == preview._page()[0]
+
+
+def test_a_grid_run_has_no_rig_so_the_page_never_loads_its_3d_view():
+    """The page shows the 2D/3D switch, and loads the 3D files, only on a hello with a rig."""
+    with preview_sink(grid(4, 4)) as sink:
+        ws, hello = client_for(sink)
+        with ws:
+            assert hello["rig"] is None
+
+
+def test_the_file_routes_keep_the_host_rule():
+    with preview_sink(line(4)) as sink:
+        name = next(iter(sorted(preview.web_files())))
+        for path in (f"/{name}", "/parts.json", "/assembly/0000000000000000.glb"):
+            conn = http.client.HTTPConnection("127.0.0.1", sink.port, timeout=5.0)
+            conn.request("GET", path, headers={"Host": f"evil.example:{sink.port}"})
+            assert conn.getresponse().status == 403, path
+            conn.close()
 
 
 def raw_upgrade(port: int, host: str, *headers: str, upgrade: bool = True) -> tuple[socket.socket, int]:

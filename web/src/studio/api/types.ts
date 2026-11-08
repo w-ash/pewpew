@@ -1,23 +1,21 @@
 /**
  * Types for the studio API.
  *
- * `Issue`, `IssueLevel` and `SavedArrangement` come from the OpenAPI spec
- * through orval (src/studio/api/generated). The spec types the arrangement, catalog
- * and compile bodies as free-form objects, so the rest is written by hand
- * after the pydantic models (src/pewpew/rig/models.py: `Pose`, `RingGroup`,
- * `ArrayGroup`, `FixtureInstance`; `Catalog.to_json` in
- * src/pewpew/rig/catalog.py).
+ * `SavedArrangement` comes from the OpenAPI spec through orval
+ * (src/studio/api/generated). The compile body's types are generated from
+ * the pydantic models (src/rig/types.gen.ts), and the parts catalog's are in
+ * src/rig/parts.ts. The rest is written by hand after the pydantic models
+ * (src/pewpew/rig/models.py: `Pose`, `RingGroup`, `ArrayGroup`).
  */
-import type { IssueModel } from "./generated/model";
+import type { Issue } from "../../rig/types.gen";
+import type { Vec3 } from "../../rig/parts";
 
-export type {
-  IssueModelLevel as IssueLevel,
-  SavedArrangement,
-} from "./generated/model";
+export type { SavedArrangement } from "./generated/model";
+export type { CompiledFixture, CompiledRig, Issue, RigReport } from "../../rig/types.gen";
+export type { PartsCatalog, Vec3 } from "../../rig/parts";
 
-export type Issue = IssueModel;
+export type IssueLevel = Issue["level"];
 
-export type Vec3 = [number, number, number];
 export type QuatXYZW = [number, number, number, number];
 
 /** A rotation from the fixture's +y direction and a roll about it. */
@@ -103,93 +101,6 @@ export interface Arrangement {
   psus?: Opaque[];
   wiring?: Opaque;
   power?: PowerLimit;
-}
-
-export interface CatalogAnchor {
-  accepts?: string | null;
-  connector?: string | null;
-}
-
-export interface CatalogFixtureType {
-  id: string;
-  name: string;
-  /** Null on a server that cannot build geometry. */
-  digest: string | null;
-  assembly_url: string | null;
-  anchors?: Record<string, CatalogAnchor>;
-  [key: string]: unknown;
-}
-
-export interface CatalogAttachmentType {
-  id: string;
-  name: string;
-  /** Null on a server that cannot build geometry. */
-  digest: string | null;
-  assembly_url: string | null;
-  fits?: string;
-  [key: string]: unknown;
-}
-
-export interface CatalogEntry {
-  id: string;
-  name: string;
-  [key: string]: unknown;
-}
-
-export interface PresetInfo {
-  name: string;
-  doc?: string;
-  params: Array<{ name: string; required: boolean; default?: unknown }>;
-}
-
-export interface PartsCatalog {
-  digest?: string;
-  fixture_types: CatalogFixtureType[];
-  attachment_types: CatalogAttachmentType[];
-  controllers: CatalogEntry[];
-  psus: CatalogEntry[];
-  cables: CatalogEntry[];
-  presets: PresetInfo[];
-}
-
-export interface CompiledFixture {
-  id: string;
-  /** The type id the catalog overlay knows: a variant id when the placement gave dims. */
-  type_id: string;
-  /** The catalog type the fixture is made from. */
-  base_type_id?: string;
-  dims?: Record<string, number>;
-  tags?: string[];
-  /** The group this fixture was expanded from, or null for a free fixture. */
-  group?: string | null;
-  /** 16 floats, column-major, three.js `Matrix4.elements` order. */
-  matrix: number[];
-  attachments: Record<string, AttachmentRef>;
-  /** Each attachment's frame in world space: origin on the anchor, +y along its direction. */
-  attachment_matrices?: Record<string, number[] | null>;
-  pixel_start: number;
-  pixel_count: number;
-}
-
-export interface OutputSlice {
-  controller: string;
-  output: string;
-  start: number;
-  count: number;
-  led_type: number | null;
-  color_order: string;
-}
-
-/** Workstream 2 owns the report's fields; the panel renders any JSON. */
-export type RigReport = Record<string, unknown>;
-
-export interface CompiledRig {
-  n: number;
-  catalog_digest: string;
-  fixtures: CompiledFixture[];
-  slices: OutputSlice[];
-  report: RigReport | null;
-  issues: Issue[];
 }
 
 /** One look in the looks file's form (version 4), as `GET /api/looks` gives

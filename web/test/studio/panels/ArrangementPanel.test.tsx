@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ArrangementPanel } from "../../../src/studio/panels/ArrangementPanel";
 import { DEFAULT_ARRANGEMENT, useDoc } from "../../../src/studio/store/doc";
-import type { Arrangement, CompiledRig } from "../../../src/studio/api/types";
+import type { Arrangement, CompiledFixture, CompiledRig } from "../../../src/studio/api/types";
 import { partsCatalog, threeBarRig } from "../fixtures/rig";
 import { stubApi } from "../fixtures/api";
 
@@ -44,7 +44,8 @@ test("a group explodes into the members the compile names by id, with or without
   useDoc.getState().load(DEFAULT_ARRANGEMENT, { mode: "draft" });
   useDoc.getState().select({ kind: "group", id: "inner" });
   const { group: _group, ...member } = threeBarRig.fixtures[0]!;
-  const rig: CompiledRig = { ...threeBarRig, fixtures: [{ ...member, id: "inner/0" }] };
+  // A fixture of a rig from before the group field.
+  const rig: CompiledRig = { ...threeBarRig, fixtures: [{ ...member, id: "inner/0" } as CompiledFixture] };
   const screen = await render(<ArrangementPanel catalog={partsCatalog} rig={rig} rigIsCurrent />);
   await screen.getByRole("button", { name: "Explode" }).click();
   const present = useDoc.getState().history.present;

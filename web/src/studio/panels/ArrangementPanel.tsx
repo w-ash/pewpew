@@ -42,7 +42,7 @@ import {
   roundVec,
   type YawPitchRoll,
   yprToQuat,
-} from "../editor/pose";
+} from "../../rig3d/pose";
 import { useDoc } from "../store/doc";
 
 const DEFAULT_TYPE = "clen-rgbw-bar-1m";

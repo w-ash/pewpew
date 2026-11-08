@@ -6,8 +6,8 @@
  * "Geometry"). three's GLTFLoader copies `extras` to `userData` on the
  * loaded scene, nodes, meshes and the result itself.
  */
-import { type BufferGeometry, Matrix4, Mesh, type Object3D } from "three";
-import type { Vec3 } from "../api/types";
+import { BoxGeometry, type BufferGeometry, Matrix4, Mesh, type Object3D } from "three";
+import type { Vec3 } from "../rig/parts";
 
 export type Glow = "pixels" | "pixel_nearest" | "none";
 
@@ -120,4 +120,32 @@ export function readAssembly(gltf: {
     pixelAxis: pixelAxisOf(axisSource),
     anchors: anchorsOf(anchorSource),
   };
+}
+
+/** A part's glowing geometry as one bar over `span` along y, centred, with the part's x and z extent. */
+function barOver(geometry: BufferGeometry, span: number): BufferGeometry {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  if (!box) return geometry.clone();
+  const bar = new BoxGeometry(box.max.x - box.min.x, span, box.max.z - box.min.z);
+  bar.translate((box.max.x + box.min.x) / 2, 0, (box.max.z + box.min.z) / 2);
+  return bar;
+}
+
+/**
+ * The assembly of a dims variant of `count` pixels over `span`, from its base type's: no GLB is built
+ * for a variant. A glowing part becomes one bar over the pixel span (its pixels are colored along it, as
+ * on the base type), and every other part is stretched along y by `stretch`, the variant's length over
+ * the base type's. Anchors move with the stretch. The base assembly is not changed.
+ */
+export function variantAssembly(base: Assembly, count: number, span: number, stretch: number): Assembly {
+  const parts = base.parts.map((part) => ({
+    ...part,
+    geometry: part.glow === "none" ? part.geometry.clone().scale(1, stretch, 1) : barOver(part.geometry, span),
+  }));
+  const anchors: Assembly["anchors"] = {};
+  for (const [end, a] of Object.entries(base.anchors) as Array<[keyof Assembly["anchors"], AssemblyAnchor]>) {
+    anchors[end] = { ...a, at: [a.at[0], a.at[1] * stretch, a.at[2]] };
+  }
+  return { parts, pixelAxis: base.pixelAxis && { y0: -span / 2, span, count }, anchors };
 }

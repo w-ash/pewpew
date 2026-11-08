@@ -14,6 +14,7 @@ import {
   PowerCapEditor,
   ReportPanel,
 } from "../../../src/studio/panels/ReportPanel";
+import type { RigReport } from "../../../src/studio/api/types";
 
 describe("number formatting", () => {
   it("shows watts and amps with one decimal and a thousands separator", () => {
@@ -31,6 +32,7 @@ describe("number formatting", () => {
   });
 });
 
+// A partial report: the panel shows the parts it is given.
 const report = {
   totals: {
     pixels: 3072,
@@ -83,7 +85,7 @@ const report = {
       used_for: ["feeds"],
     },
   ],
-};
+} as unknown as RigReport;
 
 const wire = { store: new WireStore(), sender: { send() {}, sendLatest() {}, ask: () => Promise.resolve(true) } };
 
@@ -123,9 +125,9 @@ describe("ReportPanel", () => {
       <ReportPanel
         stale={false}
         issues={[
-          { level: "error", code: "e", message: "broken" },
-          { level: "violation", code: "v", message: "over cap" },
-          { level: "warning", code: "w", message: "assumed rating" },
+          { level: "error", code: "e", message: "broken", ref: null },
+          { level: "violation", code: "v", message: "over cap", ref: null },
+          { level: "warning", code: "w", message: "assumed rating", ref: null },
         ]}
         report={report}
       />,

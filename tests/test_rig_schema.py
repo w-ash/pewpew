@@ -11,9 +11,12 @@ import pytest
 import pewpew.rig.migrate as migrate_module
 from pewpew.rig import EXAMPLES, Arrangement, RigError, load_arrangement
 from pewpew.rig.migrate import migrate
-from pewpew.rig.models import json_schemas
+from pewpew.rig.models import RigView, compiled_rig_body, json_schemas
+from pewpew.rig.runtime import load_rig, rig_view
 
-SCHEMAS = Path(__file__).resolve().parent.parent / "schemas"
+ROOT = Path(__file__).resolve().parent.parent
+SCHEMAS = ROOT / "schemas"
+RIGS = [*sorted(EXAMPLES.glob("*.json")), ROOT / "examples" / "canopy-60-bars.arrangement.json"]
 
 
 def test_committed_schemas_match_the_models():
@@ -58,3 +61,14 @@ def test_the_example_round_trips_through_the_model():
     again = Arrangement.model_validate(arr.model_dump(mode="json"))
     assert again == arr
     assert load_arrangement(json.dumps(arr.model_dump(mode="json"))) == arr
+
+
+@pytest.mark.parametrize("path", RIGS, ids=lambda p: p.name)
+def test_what_the_web_reads_of_a_rig_is_its_schema_model(path):
+    """schemas/rig.v1.json describes the compile body and the preview's rig."""
+    rig, _ = load_rig(path)
+    body = json.loads(json.dumps(rig.to_json()))
+    assert body["report"] is not None
+    assert compiled_rig_body().model_validate(body).model_dump(mode="json") == body
+    view = rig_view(rig)
+    assert RigView.model_validate(view).model_dump(mode="json") == view

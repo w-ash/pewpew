@@ -17,8 +17,8 @@ import { ReportPanel } from "./panels/ReportPanel";
 import { SharePanel } from "./panels/SharePanel";
 import { SessionClient } from "./session/client";
 import { useDoc } from "./store/doc";
-import { useSettledPreview } from "./viewer/dragPreview";
-import { Stage } from "./viewer/Stage";
+import { useSettledPreview } from "../rig3d/dragPreview";
+import { Stage } from "../rig3d/Stage";
 
 type Tab = "arrange" | "effect" | "report" | "share";
 const TABS: Array<{ id: Tab; label: string }> = [
@@ -142,6 +142,7 @@ function Studio({ session }: { session: SessionClient }) {
               level: "error",
               code: "compile",
               message: compiled.error?.message ?? "compile failed",
+              ref: null,
             },
           ];
     }

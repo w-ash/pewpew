@@ -1,14 +1,14 @@
 import { BoxGeometry, Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { partsCatalog, threeBarRig } from "../fixtures/rig";
-import type { Assembly } from "../../../src/studio/viewer/assembly";
+import { partsCatalog, threeBarRig } from "../studio/fixtures/rig";
+import type { Assembly } from "../../src/rig3d/assembly";
 import {
   anchorMatrix,
   assembliesFor,
   buildBatches,
   hostAxis,
   missingAssemblies,
-} from "../../../src/studio/viewer/instances";
+} from "../../src/rig3d/instances";
 
 const bar: Assembly = {
   parts: [

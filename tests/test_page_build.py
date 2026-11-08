@@ -1,22 +1,34 @@
 """The preview page in src/pewpew/sinks/web/ is the build of its source in
-web/ (`just web` rebuilds it), stays within its size budget, fetches nothing,
-and its stylesheet names only tokens it defines."""
+web/ (`just web` rebuilds it): index.html and its own files, which the engine
+serves from `files.json`. What the page always loads and what its 3D view
+loads on demand each stay within a size budget, the page fetches only its
+own files, and its stylesheet names only tokens it defines."""
 
 from __future__ import annotations
 
 import gzip
+import json
 import re
+from functools import cache
 from pathlib import Path
 
 from tools.webhash import WEB, web_hash
 
-PAGE = Path(__file__).parents[1] / "src" / "pewpew" / "sinks" / "web" / "index.html"
+BUILT = Path(__file__).parents[1] / "src" / "pewpew" / "sinks" / "web"
+PAGE = BUILT / "index.html"
 SRC = WEB / "src"
 
-# The gzipped page as built on 2026-11-06 with the Martian fonts, their notice
-# and the icon set (224,888 bytes), plus about 2.5%. The page before the fonts
-# was 199,921 bytes against a budget of 217,855 (189,439 + 15%).
+# What the page always loads (index.html and the files it imports statically),
+# gzipped file by file: 228,647 bytes as built on 2026-11-08, when the page
+# was first split from its 3D view. The one-file page as built on 2026-11-06
+# with the Martian fonts, their notice and the icon set was 224,888 bytes; the
+# budget is that plus about 2.5%. The page before the fonts was 199,921 bytes against a
+# budget of 217,855 (189,439 + 15%).
 GZIP_BUDGET = 230_500
+# What the 3D view loads on demand (three.js, @react-three, web/src/rig3d),
+# gzipped file by file: THREE_D_MEASURED bytes as built on 2026-11-08, plus 3%.
+THREE_D_MEASURED = 271_584
+THREE_D_BUDGET = round(THREE_D_MEASURED * 1.03)
 
 # The token names RA-27c §3.8 retired, and the classes RA-27b §6.1 did: a
 # var() of a name nothing defines fails silently.
@@ -46,17 +58,90 @@ def test_the_page_is_built_from_the_current_source():
     assert stamp.group(1) == web_hash(), "web/ changed since the page was built: run `just web`"
 
 
-def test_the_gzipped_page_is_within_budget():
-    size = len(gzip.compress(PAGE.read_bytes(), mtime=0))
-    assert size <= GZIP_BUDGET, f"the gzipped page is {size} bytes, over its {GZIP_BUDGET}-byte budget"
+@cache
+def served() -> tuple[str, ...]:
+    """The files the engine serves beside the page (files.json)."""
+    return tuple(json.loads((BUILT / "files.json").read_text()))
 
 
-def test_the_page_fetches_no_file():
-    """A font or image emitted as its own file would get the page back (sinks/preview.py answers any GET
-    with it), and the page would silently fall back."""
-    page = PAGE.read_text()
-    assert page.count("url(data:font/woff2;base64,") == 3  # Grotesk, Mono, and Mono again as the figures
-    assert not re.search(r"""url\(\s*(?!["']?data:)""", page)
+@cache
+def manifest() -> dict[str, dict]:
+    """The build's manifest: each chunk by its key (https://vite.dev/guide/backend-integration)."""
+    return json.loads((BUILT / "manifest.json").read_text())
+
+
+def imported(name: str, how: str) -> list[str]:
+    """The files built file `name` imports, `how` being "imports" (static) or "dynamicImports"."""
+    chunk = next((c for c in manifest().values() if c["file"] == name), {})
+    return [manifest()[key]["file"] for key in chunk.get(how, [])]
+
+
+def static_closure(files: list[str]) -> list[str]:
+    """`files` and every chunk they import statically, each once, in the order found."""
+    out: list[str] = []
+    todo = list(files)
+    while todo:
+        name = todo.pop(0)
+        if name not in out:
+            out.append(name)
+            todo += imported(name, "imports")
+    return out
+
+
+def entry_files() -> list[str]:
+    """What the page always loads: index.html, the files it names, and their static imports."""
+    named = re.findall(r'(?:src|href)="/([^"]+)"', PAGE.read_text())
+    return ["index.html", *static_closure(named)]
+
+
+def three_d_files() -> list[str]:
+    """What the page's dynamic imports add to what it always loads: the 3D view's files."""
+    entry = entry_files()
+    dynamic = [file for name in entry for file in imported(name, "dynamicImports")]
+    return [name for name in static_closure(dynamic) if name not in entry]
+
+
+def gzipped(files: list[str]) -> int:
+    return sum(len(gzip.compress((BUILT / name).read_bytes(), mtime=0)) for name in files)
+
+
+def test_what_the_page_always_loads_is_within_budget():
+    size = gzipped(entry_files())
+    assert size <= GZIP_BUDGET, f"the page always loads {size} gzipped bytes, over its {GZIP_BUDGET}-byte budget"
+
+
+def test_the_3d_view_is_within_its_budget():
+    files = three_d_files()
+    assert files, "the page has no 3D view to load on demand"
+    size = gzipped(files)
+    assert size <= THREE_D_BUDGET, f"the 3D view loads {size} gzipped bytes, over its {THREE_D_BUDGET}-byte budget"
+
+
+def test_three_js_loads_only_with_the_3d_view():
+    """three.js's renderer is in the 3D view's files, and in none the page always loads: a run without a
+    rig, or a page that never shows 3D, fetches none of it."""
+    assert not [name for name in entry_files() if b"WebGLRenderer" in (BUILT / name).read_bytes()]
+    assert any(b"WebGLRenderer" in (BUILT / name).read_bytes() for name in three_d_files())
+
+
+def test_files_json_lists_every_file_of_the_build():
+    on_disk = {p.relative_to(BUILT).as_posix() for p in BUILT.rglob("*") if p.is_file()}
+    assert set(served()) == on_disk - {"index.html", "files.json", "manifest.json"}
+    assert list(served()) == sorted(served())
+
+
+def test_every_url_in_the_build_is_a_served_file():
+    """The page fetches only files the engine serves: any other path gets the page back
+    (sinks/preview.py), which would fail silently. Fonts and images are inline."""
+    found = set(re.findall(r'(?:src|href)="/([^"]+)"', PAGE.read_text()))
+    for name in served():
+        text = (BUILT / name).read_text()
+        found |= set(re.findall(r"/(assets/[\w.-]+\.(?:js|css))", text))
+        found |= {f"assets/{m}" for m in re.findall(r"[\"'`]\./([\w.-]+\.(?:js|css))[\"'`]", text)}
+        assert not re.search(r"""url\(\s*(?!["']?data:)""", text), name
+    assert found and found <= set(served())
+    css = "".join((BUILT / name).read_text() for name in served() if name.endswith(".css"))
+    assert css.count("url(data:font/woff2;base64,") == 3  # Grotesk, Mono, and Mono again as the figures
 
 
 def test_the_page_carries_the_fonts_licence():

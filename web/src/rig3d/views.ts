@@ -1,5 +1,5 @@
 import { MathUtils, Vector3 } from "three";
-import type { CompiledFixture } from "../api/types";
+import type { ViewFixture } from "./instances";
 
 export type ViewName = "angle" | "top" | "side";
 
@@ -21,7 +21,7 @@ export interface Bounds {
 }
 
 /** A sphere around every fixture origin, padded by one fixture's reach. */
-export function rigBounds(fixtures: readonly CompiledFixture[]): Bounds {
+export function rigBounds(fixtures: readonly ViewFixture[]): Bounds {
   if (fixtures.length === 0) return { center: new Vector3(), radius: 1 };
   const lo = new Vector3(Infinity, Infinity, Infinity);
   const hi = new Vector3(-Infinity, -Infinity, -Infinity);

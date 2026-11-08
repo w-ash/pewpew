@@ -1,6 +1,6 @@
 import { Euler, MathUtils, type Matrix4, Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import type { QuatXYZW } from "../../../src/studio/api/types";
+import type { QuatXYZW } from "../../src/studio/api/types";
 import {
   canonicalQuat,
   flipPose,
@@ -8,7 +8,7 @@ import {
   poseMatrix,
   quatToYpr,
   yprToQuat,
-} from "../../../src/studio/editor/pose";
+} from "../../src/rig3d/pose";
 
 const close = (a: readonly number[], b: readonly number[], eps = 1e-9) =>
   a.every((v, i) => Math.abs(v - b[i]!) < eps);

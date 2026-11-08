@@ -118,8 +118,10 @@ be saved as `docs/studio/domain-model.md`. These are its decisions.
 - **Point and eye.** These are `attachment_type`s built on the host's own `diffuser_outer` profile,
   so they fit flush. They glow at a gain of 0.25, an assumed value, because the maintainer expects
   the glow "would probably be minimal" (the maintainer's fixture notes).
-- **One geometry implementation.** The server builds each fixture type's mesh with `manifold3d`
-  (studio extra) into a deterministic GLB, served at a content-hash URL. The GLB carries each
+- **One geometry implementation.** `scripts/build_assemblies.py` (`just assemblies`) builds each
+  fixture and attachment type's mesh with `manifold3d` (studio extra) into a deterministic GLB,
+  committed as package data in `src/pewpew/rig/assemblies/`. The server serves it at a
+  content-hash URL and needs no `manifold3d`. The GLB carries each
   part's `glow` and `gain` and the pixel axis. The browser never expands presets, places pixels,
   wires anything, or does power arithmetic.
 - **Compile.** `compile_rig(arrangement, catalog)` is pure: no I/O, no clock, no RNG.

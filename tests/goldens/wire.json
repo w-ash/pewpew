@@ -1567,7 +1567,9 @@
               "pixels": 2.0,
               "length": 1.0,
               "pitch": 0.5
-            }
+            },
+            "attachments": {},
+            "attachment_matrices": {}
           },
           {
             "id": "b",
@@ -1601,7 +1603,9 @@
               "pixels": 2.0,
               "length": 1.0,
               "pitch": 0.5
-            }
+            },
+            "attachments": {},
+            "attachment_matrices": {}
           }
         ],
         "types": {

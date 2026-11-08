@@ -297,3 +297,34 @@ export function inputMarker(f: FixtureLine, size: number): readonly [Pt, Pt, Pt]
     [x + dy * size, y - dx * size],
   ];
 }
+
+/** `x` rounded to the nearest integer, a half to the even one, as numpy rounds. */
+function roundHalfEven(x: number): number {
+  const r = Math.round(x);
+  return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r;
+}
+
+/** The map index of each pixel sent, when the engine sends `n` of a map's `total` pixels: the same
+ * `round(linspace(0, total - 1, n))` as `View.of` in src/pewpew/sinks/preview.py. */
+export function sentPixels(total: number, n: number): Int32Array {
+  const out = new Int32Array(n);
+  if (n >= total) return out.map((_, k) => k);
+  // numpy's linspace: k * step, then the last value set to the stop exactly.
+  const step = n > 1 ? (total - 1) / (n - 1) : 0;
+  for (let k = 0; k < n; k++) out[k] = k === n - 1 && n > 1 ? total - 1 : roundHalfEven(k * step);
+  return out;
+}
+
+/** For each of a map's `total` pixels, the index of the nearest pixel sent (`sentPixels`), the lower
+ * one on a tie; null when every pixel is sent. A view of the full map colors each pixel from it. */
+export function nearestSent(total: number, n: number): Int32Array | null {
+  if (n >= total) return null;
+  const sent = sentPixels(total, n);
+  const out = new Int32Array(total);
+  let k = 0;
+  for (let i = 0; i < total; i++) {
+    while (k + 1 < n && Math.abs(sent[k + 1]! - i) < Math.abs(sent[k]! - i)) k++;
+    out[i] = k;
+  }
+  return out;
+}

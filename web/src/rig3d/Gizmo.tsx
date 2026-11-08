@@ -1,7 +1,7 @@
 import { TransformControls } from "@react-three/drei";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { Group, Matrix4 } from "three";
-import { dragPreview } from "../viewer/dragPreview";
+import { dragPreview } from "./dragPreview";
 import { canonicalQuat, type PoseQ, roundVec } from "./pose";
 
 const TRANSLATION_SNAP_M = 0.01;

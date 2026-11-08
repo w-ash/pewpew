@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Arrangement, RingGroup } from "../../../src/studio/api/types";
-import { stubCompile, threeBarRig } from "../fixtures/rig";
+import type { Arrangement, CompiledFixture, RingGroup } from "../../../src/studio/api/types";
+import { compiledFixture, stubCompile, threeBarRig } from "../fixtures/rig";
 import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
 import {
   addFixture,
@@ -17,7 +17,7 @@ import {
   setAttachment,
   setPower,
 } from "../../../src/studio/editor/arrangement";
-import { matrixPose } from "../../../src/studio/editor/pose";
+import { matrixPose } from "../../../src/rig3d/pose";
 
 const withBar = (): Arrangement => ({
   ...DEFAULT_ARRANGEMENT,
@@ -45,7 +45,7 @@ describe("selection mapping", () => {
     });
     expect(entityOf(a, { ...rig.fixtures[3]!, group: "nope" })).toBeNull();
     // A rig without `group` falls back to the `group/k` id.
-    expect(entityOf(a, { ...rig.fixtures[30]!, group: undefined })).toEqual({
+    expect(entityOf(a, { ...rig.fixtures[30]!, group: undefined } as unknown as CompiledFixture)).toEqual({
       kind: "group",
       id: "outer",
     });
@@ -233,7 +233,7 @@ describe("explodeGroup", () => {
       ],
     };
     const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-    const members = [0, 1].map((i) => ({
+    const members = [0, 1].map((i) => compiledFixture({
       id: `row/${i}`,
       type_id: "strip.1a2b3c4d",
       base_type_id: "strip",

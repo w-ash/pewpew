@@ -1,8 +1,13 @@
 """Browser preview sink: map positions once, then compact color frames.
 
 Transport is `websockets.sync.server` (ADR-020): one thread per connection,
-no asyncio. One port serves the page (any HTTP GET), the floor plan
-(`GET /plan`) and the websocket upgrade (any path; the page uses `/ws`).
+no asyncio. One port serves the page (any HTTP GET of a path not below),
+the page's own files (each path `files.json` lists, built by `just web`),
+the floor plan (`GET /plan`), the parts catalog (`GET /parts.json`) and its
+3D assemblies (`GET /assembly/<digest>.glb`, `pewpew.rig.parts`) that the
+page's 3D view loads, and the websocket upgrade (any path; the page uses
+`/ws`). The page's files are hashed by content, so they are served
+immutable; the page itself is never cached.
 
 Wire protocol. web/src/wire/protocol.ts types every message and says
 what its fields mean. Each message has one source here: `hello` and
@@ -44,8 +49,9 @@ amendment): bind `host` to the private router. Every request gets 403
 unless it has one `Host`, an IP address or `localhost` with the bound
 port, so DNS rebinding cannot reach it. An upgrade with more than one
 `Origin`, or one that is not its `Host`, gets 403, so a page from another
-site cannot drive the aura; an upgrade with no `Origin` is accepted. `/plan` serves one fixed file, and no path
-crosses the socket. An input that listens elsewhere needs a token and a
+site cannot drive the aura; an upgrade with no `Origin` is accepted. `/plan` serves one fixed file,
+a page file is served only when its path is on the build's list, exactly, and no path crosses the
+socket. An input that listens elsewhere needs a token and a
 sender allowlist (ADR-009).
 
 Budget: a map over `max_pixels` (LedFx caps at 4096 [S508]) is decimated
@@ -108,6 +114,18 @@ CLOSE_TIMEOUT_S = 1.0
 FRAME_HEADER = struct.Struct("<fI")  # a binary frame's engine time and sequence number
 
 PLAN_URL = "/plan"
+PARTS_URL = "/parts.json"
+_ASSEMBLY_PATH = re.compile(r"/assembly/([0-9a-f]{16})\.glb")
+IMMUTABLE = "public, max-age=31536000, immutable"
+# The Content-Type of each kind of file a build can hold.
+_FILE_TYPES = {
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".woff2": "font/woff2",
+}
 
 
 def pack_frame(t: float, seq: int, frame: np.ndarray) -> bytes:
@@ -246,6 +264,30 @@ def _page() -> tuple[bytes, bytes]:
 
 
 @functools.cache
+def web_files() -> frozenset[str]:
+    """The paths of the page's own files, relative to the page (`files.json`
+    beside it, written by the build). Read once per process."""
+    listed = json.loads(resources.files("pewpew.sinks").joinpath("web/files.json").read_text("utf-8"))
+    return frozenset(listed)
+
+
+@functools.cache
+def _web_file(path: str) -> tuple[bytes, bytes]:
+    """One of `web_files()` as served: (raw bytes, gzipped bytes). Read once per process."""
+    raw = resources.files("pewpew.sinks").joinpath("web", *path.split("/")).read_bytes()
+    return raw, gzip.compress(raw, mtime=0)
+
+
+@functools.cache
+def _parts() -> tuple[bytes, bytes]:
+    """The parts catalog as served: (raw bytes, gzipped bytes). Made once per process."""
+    from pewpew.rig.parts import parts_view  # the catalog loads only when a 3D view asks for it
+
+    raw = parts_view().body
+    return raw, gzip.compress(raw, mtime=0)
+
+
+@functools.cache
 def page_build() -> str | None:
     """The served page's build stamp (tools/webhash.py), or None without one."""
     found = re.search(rb'<meta name="pewpew-build" content="([0-9a-f]+)"', _page()[0])
@@ -272,6 +314,19 @@ def _bytes_response(conn: ServerConnection, body: bytes, headers: dict[str, str]
     for name, value in {"Content-Length": str(len(body)), **headers}.items():
         _set_header(response, name, value)
     return response
+
+
+def _zipped_response(
+    conn: ServerConnection, body: tuple[bytes, bytes], accept: str, kind: str, cache: str,
+) -> Response:
+    """A 200 response of `body` (raw, gzipped) of Content-Type `kind` and
+    Cache-Control `cache`, gzipped when `accept` (the request's
+    Accept-Encoding) allows it."""
+    raw, gz = body
+    headers = {"Content-Type": kind, "Vary": "Accept-Encoding", "Cache-Control": cache}
+    if _accepts_gzip(accept):
+        return _bytes_response(conn, gz, {**headers, "Content-Encoding": "gzip"})
+    return _bytes_response(conn, raw, headers)
 
 
 def answer(control: str | None, rid: object, refused: Refusal | None) -> dict[str, Any] | None:
@@ -553,8 +608,9 @@ class PreviewSink:
     # -- server side (per-connection threads) ---------------------------------
 
     def _process_request(self, conn: ServerConnection, request: Request) -> Response | None:
-        """The page, the plan or the handshake, or 403 (the module docstring's
-        security rules). A repeated header is read whole, never raised on."""
+        """The page, one of its files, the plan, the parts catalog, an
+        assembly or the handshake, or 403 (the module docstring's security
+        rules). A repeated header is read whole, never raised on."""
         headers = request.headers
         hosts = headers.get_all("Host")
         authority = _split_host(hosts[0]) if len(hosts) == 1 else None
@@ -565,19 +621,30 @@ class PreviewSink:
             if len(origins) > 1 or (origins and _split_host(origins[0].partition("://")[2]) != authority):
                 return conn.respond(403, "cross-origin websocket refused\n")
             return None  # continue the websocket handshake
-        if request.path.partition("?")[0] == PLAN_URL:
+        path = request.path.partition("?")[0]
+        accept = ", ".join(headers.get_all("Accept-Encoding"))
+        if path == PLAN_URL:
             return self._plan_response(conn)
-        return self._page_response(conn, ", ".join(headers.get_all("Accept-Encoding")))
-
-    def _page_response(self, conn: ServerConnection, accept: str) -> Response:
-        """The page, gzipped when `accept` (the request's Accept-Encoding)
-        allows it."""
-        raw, gz = _page()
+        if path == PARTS_URL:
+            # no-cache: the catalog changes with the engine.
+            return _zipped_response(conn, _parts(), accept, "application/json", "no-cache")
+        assembly = _ASSEMBLY_PATH.fullmatch(path)
+        if assembly is not None:
+            return self._assembly_response(conn, assembly.group(1))
+        if path[1:] in web_files():
+            kind = _FILE_TYPES.get(Path(path).suffix, "application/octet-stream")
+            return _zipped_response(conn, _web_file(path[1:]), accept, kind, IMMUTABLE)
         # no-cache: a reload after an engine upgrade gets the new page.
-        headers = {"Content-Type": "text/html; charset=utf-8", "Vary": "Accept-Encoding", "Cache-Control": "no-cache"}
-        if _accepts_gzip(accept):
-            return _bytes_response(conn, gz, {**headers, "Content-Encoding": "gzip"})
-        return _bytes_response(conn, raw, headers)
+        return _zipped_response(conn, _page(), accept, "text/html; charset=utf-8", "no-cache")
+
+    def _assembly_response(self, conn: ServerConnection, digest: str) -> Response:
+        """The GLB of assembly `digest`, or a 404."""
+        from pewpew.rig.parts import parts_view
+
+        glb = parts_view().glb(digest)
+        if glb is None:
+            return conn.respond(404, "no such assembly\n")
+        return _bytes_response(conn, glb, {"Content-Type": "model/gltf-binary", "Cache-Control": IMMUTABLE})
 
     def _plan_response(self, conn: ServerConnection) -> Response:
         """The floor-plan image, read fresh, or a 404 that names no path."""

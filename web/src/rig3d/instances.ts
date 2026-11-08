@@ -9,8 +9,44 @@
  * of its own, because one file serves both ends.
  */
 import { Matrix4 } from "three";
-import type { PartsCatalog, CompiledFixture, CompiledRig } from "../api/types";
+import type { PartsCatalog } from "../rig/parts";
 import type { Assembly, AssemblyAnchor, PixelAxis } from "./assembly";
+
+/** A fixture as the 3D view draws it: the fields of both the engine's `rig` (`hello`, `layout`) and a
+ * studio compile. */
+export interface ViewFixture {
+  readonly id: string;
+  /** A variant id when the placement gave `dims`; else the catalog type. */
+  readonly type_id: string;
+  /** The catalog type the fixture is made from. */
+  readonly base_type_id?: string | null;
+  /** 16 numbers, column-major, three.js `Matrix4.elements` order, in the file's y-up meters. */
+  readonly matrix: readonly number[];
+  readonly pixel_start: number;
+  readonly pixel_count: number;
+  readonly dims?: Readonly<Record<string, number>> | null;
+  /** Anchor name to attachment type, or null for a bare end. */
+  readonly attachments?: Readonly<Record<string, string | null>> | null;
+  /** Each attachment's frame in world space: origin on the anchor, +y along its direction. */
+  readonly attachment_matrices?: Readonly<Record<string, readonly number[] | null>> | null;
+}
+
+/** A type's pixels: `count` over `span_m`, centred on its local y. */
+export interface ViewType {
+  readonly count: number;
+  readonly span_m: number;
+}
+
+/** A rig as the 3D view draws it. */
+export interface ViewRig {
+  /** The pixels a frame carries: fewer than `total` when the engine decimates the map. */
+  readonly n: number;
+  /** The rig's own pixel count, which `pixel_start` counts in; `n` when absent. */
+  readonly total?: number;
+  readonly fixtures: readonly ViewFixture[];
+  /** The pixels of each type placed, variants included (`rig_view`); absent from a studio compile. */
+  readonly types?: Readonly<Record<string, ViewType>>;
+}
 
 export type End = "end_a" | "end_b";
 
@@ -35,11 +71,12 @@ export interface InstanceBatch {
   axis: Float32Array;
 }
 
-/** The catalog types a rig uses, fixture types first, in first-use order. */
-const baseType = (f: CompiledFixture) => f.base_type_id ?? f.type_id;
+/** The catalog type a fixture is made from. */
+export const baseType = (f: ViewFixture) => f.base_type_id ?? f.type_id;
 
+/** The catalog types a rig uses, fixture types first, in first-use order. */
 function typesFor(
-  rig: CompiledRig,
+  rig: ViewRig,
   catalog: PartsCatalog,
 ): Array<Omit<AssemblyRef, "url"> & { url: string | null }> {
   const out = new Map<
@@ -47,7 +84,7 @@ function typesFor(
     Omit<AssemblyRef, "url"> & { url: string | null }
   >();
   for (const f of rig.fixtures) {
-    // A variant draws its base type's geometry, whatever its dims.
+    // A variant draws from its base type's GLB (`variantAssembly`): no GLB is keyed by a variant.
     const t = catalog.fixture_types.find((x) => x.id === baseType(f));
     if (t && !out.has(t.id))
       out.set(t.id, { id: t.id, url: t.assembly_url, kind: "fixture" });
@@ -65,7 +102,7 @@ function typesFor(
 
 /** The GLBs a rig needs, fixture types first, in first-use order. */
 export function assembliesFor(
-  rig: CompiledRig,
+  rig: ViewRig,
   catalog: PartsCatalog,
 ): AssemblyRef[] {
   return typesFor(rig, catalog).filter((r): r is AssemblyRef => r.url !== null);
@@ -73,7 +110,7 @@ export function assembliesFor(
 
 /** The types a rig uses that the server sent no `assembly_url` for, so they are not drawn. */
 export function missingAssemblies(
-  rig: CompiledRig,
+  rig: ViewRig,
   catalog: PartsCatalog,
 ): string[] {
   return typesFor(rig, catalog)
@@ -149,17 +186,19 @@ export function anchorMatrix(
   );
 }
 
+/** One instance batch per type drawn, then per attachment type. `assemblies` is keyed by each
+ * fixture's `type_id` (a variant's own, from `variantAssembly`) and by attachment type. */
 export function buildBatches(
-  rig: CompiledRig,
+  rig: ViewRig,
   assemblies: ReadonlyMap<string, Assembly>,
 ): InstanceBatch[] {
   const hosts = new Map<string, number[]>();
   const attached = new Map<string, Array<{ f: number; end: string }>>();
   rig.fixtures.forEach((fx, i) => {
-    const base = baseType(fx);
-    if (!assemblies.has(base)) return;
-    if (!hosts.has(base)) hosts.set(base, []);
-    hosts.get(base)?.push(i);
+    const drawn = fx.type_id;
+    if (!assemblies.has(drawn)) return;
+    if (!hosts.has(drawn)) hosts.set(drawn, []);
+    hosts.get(drawn)?.push(i);
     for (const [end, id] of Object.entries(fx.attachments ?? {})) {
       if (!id || !assemblies.has(id)) continue;
       if (!attached.has(id)) attached.set(id, []);
@@ -181,8 +220,8 @@ export function buildBatches(
     axisY: new Float32Array(count * 4),
     axis: new Float32Array(count * 3),
   });
-  const axisFor = (fx: CompiledFixture) =>
-    hostAxis(assemblies.get(baseType(fx)), fx.pixel_count);
+  const axisFor = (fx: ViewFixture) =>
+    hostAxis(assemblies.get(fx.type_id), fx.pixel_count);
   const out: InstanceBatch[] = [];
   const m = new Matrix4();
   const a = new Matrix4();
@@ -215,7 +254,7 @@ export function buildBatches(
         a.copy(
           anchorMatrix(
             end,
-            assemblies.get(baseType(fx))?.anchors[end as End],
+            assemblies.get(fx.type_id)?.anchors[end as End],
             axis,
           ),
         );

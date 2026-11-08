@@ -3,11 +3,11 @@
 `create_app` takes its collaborators as arguments so tests can inject fakes.
 The defaults are the real rig: `pewpew.rig.load_catalog` and
 `pewpew.rig.runtime.compile_doc` (under `Limits.max_pixels`) for
-arrangements, `pewpew.rig.geometry` for the GLBs, and the example looks
-of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another folder), which
-`GET /api/looks` lists and every session starts in one of (`START`). The geometry module
-is imported on first use. While it or manifold3d is missing, catalog entries
-carry no assembly URL and the GLB route answers 503.
+arrangements, `pewpew.rig.parts.prebuilt` for the packaged GLBs, and the
+example looks of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another folder),
+which `GET /api/looks` lists and every session starts in one of (`START`).
+`GET /api/catalog` is `pewpew.rig.parts.PartsView`'s body with assembly URLs
+under `/api/assembly/`. A type without an assembly has null URLs.
 
 The websocket speaks the engine's wire (`pewpew.sinks.preview`): the
 `hello` on connect, a `layout` after each bind, the per-frame states with
@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import functools
-import importlib
 import json
 import logging
 import os
@@ -51,8 +50,9 @@ from starlette.requests import HTTPConnection
 
 from pewpew.jsonfile import TooDeep, loads
 from pewpew.rig import load_catalog
+from pewpew.rig.parts import Assemblies, PartsView, prebuilt
 from pewpew.rig.runtime import compile_doc
-from pewpew.sinks.preview import answer_request, refusal, unanswered
+from pewpew.sinks.preview import IMMUTABLE, answer_request, refusal, unanswered
 from pewpew.studio.limits import (
     Admission,
     BodyLimit,
@@ -69,15 +69,13 @@ from pewpew.studio.transport import Outbox
 
 logger = logging.getLogger(__name__)
 
-IMMUTABLE = "public, max-age=31536000, immutable"
+ASSEMBLY_URL = "/api/assembly/{digest}.glb"  # the dev proxy forwards only /api
 IDLE_TIMEOUT_S = 600.0  # no inbound message for this long pauses a session
 PAUSED_TIMEOUT_S = 1800.0  # paused for this long closes it
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
 PAUSED = "the session is paused; send resume first"
 _WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist" / "studio"
 _EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
-
-Builders = tuple[Callable[[str, Any], bytes], Callable[[str, Any], str]]
 
 
 class SavedArrangement(BaseModel):
@@ -169,70 +167,12 @@ def _address(conn: HTTPConnection) -> str:
     return address_key(client_ip(conn.headers, conn.client.host if conn.client else None))
 
 
-def _geometry() -> Builders | None:
-    """`pewpew.rig.geometry`'s builders, or None while that module is missing."""
-    try:
-        geometry = importlib.import_module("pewpew.rig.geometry")
-    except ImportError as exc:
-        logger.warning("assembly geometry is not available: %s", exc)
-        return None
-    return geometry.build_glb, geometry.assembly_digest
-
-
-@dataclasses.dataclass(frozen=True)
-class _CatalogView:
-    """`GET /api/catalog` as sent, and every assembly's GLB by digest.
-
-    Built once per catalog, and every GLB is built here, so the GLB route
-    only looks one up. `geometry` is False when there are no builders.
-    """
-
-    body: bytes
-    assemblies: dict[str, bytes]  # assembly digest -> GLB
-    geometry: bool
-
-    @classmethod
-    def of(cls, catalog: Any, builders: Builders | None) -> _CatalogView:
-        try:
-            return cls._build(catalog, builders)
-        except ImportError as exc:  # the geometry module imports without manifold3d; building needs it
-            logger.warning("assembly geometry is not available: %s", exc)
-            return cls._build(catalog, None)
-
-    @classmethod
-    def _build(cls, catalog: Any, builders: Builders | None) -> _CatalogView:
-        body = dict(catalog.to_json())
-        assemblies: dict[str, bytes] = {}
-        for key in ("fixture_types", "attachment_types"):
-            entries = []
-            for entry in body.get(key, []):
-                built = _assembly(entry["id"], catalog, builders) if builders else None
-                digest = None
-                if built is not None:
-                    digest, assemblies[digest] = built
-                url = None if digest is None else f"/api/assembly/{digest}.glb"
-                entries.append({**entry, "digest": digest, "assembly_url": url})
-            body[key] = entries
-        return cls(json.dumps(body).encode(), assemblies, builders is not None)
-
-
-def _assembly(type_id: str, catalog: Any, builders: Builders) -> tuple[str, bytes] | None:
-    """The digest and GLB of one type, or None when its data cannot be meshed."""
-    build_glb, assembly_digest = builders
-    try:
-        return assembly_digest(type_id, catalog), build_glb(type_id, catalog)
-    except (KeyError, ValueError):  # geometry.GeometryError is a ValueError
-        logger.warning("no assembly for %s", type_id, exc_info=True)
-        return None
-
-
 def create_app(
     *,
     catalog: Any = None,
     compile: Callable[[dict, Any], Any] | None = None,
     store: Store | None = None,
-    build_glb: Callable[[str, Any], bytes] | None = None,
-    assembly_digest: Callable[[str, Any], str] | None = None,
+    assemblies: Assemblies | None = None,
     web_dist: Path | None = None,
     examples: Path | None = None,
     limits: Limits | None = None,
@@ -247,7 +187,7 @@ def create_app(
     compile_slots = threading.BoundedSemaphore(limits.max_concurrent_compiles)
     registry = SessionRegistry()
     compile_fn = compile or functools.partial(compile_doc, max_pixels=limits.max_pixels)
-    view: _CatalogView | None = None
+    view: PartsView | None = None
     view_lock = threading.Lock()
     if examples is None:
         examples = Path(os.environ.get("PEWPEW_STUDIO_EXAMPLES", _EXAMPLES))
@@ -263,12 +203,11 @@ def create_app(
             catalog = load_catalog()
         return catalog
 
-    def catalog_view() -> _CatalogView:
+    def catalog_view() -> PartsView:
         nonlocal view
         with view_lock:
             if view is None:
-                builders = (build_glb, assembly_digest) if build_glb and assembly_digest else _geometry()
-                view = _CatalogView.of(catalog_of(), builders)
+                view = PartsView.of(catalog_of(), assemblies or prebuilt, ASSEMBLY_URL)
             return view
 
     def compile_checked(arrangement: Any, key: str) -> Any:
@@ -377,10 +316,7 @@ def create_app(
 
     @app.get("/api/assembly/{digest}.glb", response_class=Response, responses=ISSUES_422)
     def get_assembly(digest: str) -> Response:
-        current = catalog_view()
-        if not current.geometry:
-            raise HTTPException(503, "assembly geometry is not available on this server yet")
-        glb = current.assemblies.get(digest)
+        glb = catalog_view().glb(digest)
         if glb is None:
             raise HTTPException(404, "no such assembly")
         return Response(glb, media_type="model/gltf-binary", headers={"Cache-Control": IMMUTABLE})

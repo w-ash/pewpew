@@ -14,8 +14,8 @@ typecheck:
     uv run basedpyright
 
 # Both pages in web/: install from the lockfile, type-check, lint (oxlint, type-aware), run the unit tests
-# (Chromium and WebKit), then build the control page into
-# src/pewpew/sinks/web/index.html and the studio into web/dist/studio.
+# (Chromium and WebKit), then build the control page into src/pewpew/sinks/web/
+# (index.html and the files files.json lists) and the studio into web/dist/studio.
 # The studio's E2E (`pnpm -C web e2e`) is not in the gate.
 web:
     pnpm install --frozen-lockfile
@@ -28,6 +28,10 @@ web:
 # Run only when the fonts change; fontTools and brotli are for this run alone.
 fonts:
     uv run --no-project --with fonttools==4.68.0 --with brotli==1.2.1 python tools/fonts.py
+
+# The prebuilt 3D assemblies in src/pewpew/rig/assemblies; run it when a fixture or attachment type changes.
+assemblies:
+    uv run python scripts/build_assemblies.py
 
 # The L1 suite, on one pytest-xdist worker a core. `--dist loadfile` keeps a
 # module's tests on one worker, so its JOBS start once (tests/conftest.py).

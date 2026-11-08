@@ -2,11 +2,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import { createQueryClient, useCompiled } from "../../../src/studio/api/queries";
-import type { Arrangement } from "../../../src/studio/api/types";
-import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
-import { dragPreview, useSettledPreview } from "../../../src/studio/viewer/dragPreview";
-import { stubApi } from "../fixtures/api";
+import { createQueryClient, useCompiled } from "../../src/studio/api/queries";
+import type { Arrangement } from "../../src/studio/api/types";
+import { DEFAULT_ARRANGEMENT } from "../../src/studio/store/doc";
+import { dragPreview, useSettledPreview } from "../../src/rig3d/dragPreview";
+import { stubApi } from "../studio/fixtures/api";
 
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={createQueryClient()}>{children}</QueryClientProvider>;

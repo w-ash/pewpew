@@ -35,7 +35,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_core import PydanticCustomError
+from pydantic.json_schema import GenerateJsonSchema, JsonSchemaMode, models_json_schema
+from pydantic_core import PydanticCustomError, core_schema
 
 from pewpew.floorplan import PLAN_SCHEMA, Plan, parse_plan
 from pewpew.power import MAX_CAP_W, EffectPower, PowerCap, PowerLimiter
@@ -43,6 +44,7 @@ from pewpew.sinks.ddp import parse_target
 
 if TYPE_CHECKING:
     from pewpew.rig.catalog import FixtureSpec
+    from pewpew.rig.electrical import RigReport
 
 # ---- shared ------------------------------------------------------------------
 
@@ -937,7 +939,7 @@ Matrix16 = tuple[float, ...]
 
 
 class FixtureInstance(_Model):
-    """One fixture of a compiled rig.
+    """One fixture of a compiled rig (`CompiledFixture` in schemas/rig.v1.json).
 
     `matrix` is the world matrix as 16 floats in column-major order, the order
     of three.js `Matrix4.elements` (https://threejs.org/docs/pages/Matrix4.html).
@@ -947,6 +949,8 @@ class FixtureInstance(_Model):
     the variant type they compiled to and `base_type_id` the catalog type
     it was made from (equal to `type_id` without dims).
     """
+
+    model_config = ConfigDict(title="CompiledFixture")
 
     id: str
     type_id: str
@@ -1080,9 +1084,146 @@ class CompiledRig:
         }
 
 
+# ---- what the web reads ------------------------------------------------------------
+# web/src/rig/types.gen.ts is generated from these, through schemas/rig.v1.json.
+
+
+class RigViewFixture(_Model):
+    """One fixture of a `RigView`: its `FixtureInstance` without `chain`."""
+
+    id: str
+    type_id: str
+    base_type_id: str
+    group: str | None
+    matrix: Matrix16
+    pixel_start: int
+    pixel_count: int
+    controller: str | None
+    output: str | None
+    tags: list[str]
+    dims: dict[str, float]
+    attachments: dict[str, str | None]
+    attachment_matrices: dict[str, Matrix16 | None]
+
+
+class RigViewType(_Model):
+    """A fixture type's pixels: `count` along its local y over `span_m`,
+    centred, `z_m` off its local z. `facing` is the light's local direction,
+    or null for a light that faces every way."""
+
+    count: int
+    span_m: float
+    z_m: float
+    facing: list[float] | None
+
+
+def _absent(url: str | None) -> bool:
+    return url is None
+
+
+class RigViewPlan(_Model):
+    """The floor plan of a `RigView`: its top-left corner in plan-frame
+    meters and its meters per image pixel. `url` is where the preview
+    serves the image: `rig_view` leaves it out, and the preview's
+    `View.of` adds it."""
+
+    corner_m: list[float]
+    meters_per_pixel: float
+    # On the wire `url` is always a string, so the schema says so.
+    url: Annotated[str | None, WithJsonSchema({"type": "string"})] = Field(default=None, exclude_if=_absent)
+
+
+class PlanMissing(_Model):
+    """A `RigView` plan whose image the preview cannot serve."""
+
+    error: str
+
+
+class RigView(_Model):
+    """The `rig` of the preview's `hello` and `layout`
+    (`pewpew.rig.runtime.rig_view`): what a 3D view needs to place each
+    fixture and its pixels. `frame` is C, which takes the file's y-up
+    meters to the plan frame: `mapping = (C @ p) * scale + shift`."""
+
+    catalog_digest: str
+    frame: list[list[float]]
+    scale: float
+    shift: list[float]
+    plan: RigViewPlan | PlanMissing | None
+    fixtures: list[RigViewFixture]
+    types: dict[str, RigViewType]
+    controllers: list[ControllerTarget]
+    slices: list[OutputSlice]
+    controller_slices: list[ControllerSlice]
+    issues: list[Issue]
+
+
+class CompiledRigBody(_Model):
+    """`CompiledRig.to_json()`, the body of the studio's `POST /api/compile`
+    (`CompiledRig` in schemas/rig.v1.json)."""
+
+    # `report` is a pewpew.rig.electrical.RigReport, and that module imports this one:
+    # `compiled_rig_body` gives the model built.
+    model_config = ConfigDict(title="CompiledRig", defer_build=True)
+
+    n: int
+    catalog_digest: str
+    fixtures: list[FixtureInstance]
+    slices: list[OutputSlice]
+    controller_slices: list[ControllerSlice]
+    feeds: list[Feed]
+    issues: list[Issue]
+    report: RigReport | None
+    positions_m: list[list[float]]
+    normals: list[list[float]]
+    controllers: list[ControllerTarget]
+    scale: float
+    shift: list[float]
+    plan: PlanBlock | None
+    variants: list[Variant]
+
+
+def compiled_rig_body() -> type[CompiledRigBody]:
+    """`CompiledRigBody`, with its `report` type resolved."""
+    from pewpew.rig.electrical import RigReport
+
+    CompiledRigBody.model_rebuild(_types_namespace={"RigReport": RigReport})
+    return CompiledRigBody
+
+
 # ---- schemas -------------------------------------------------------------------
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
+
+
+class _Dumped(GenerateJsonSchema):
+    """JSON Schemas of `model_dump` output: in serialization mode every field
+    is required, because a dump writes each field, its default included.
+    Fields get no title: json-schema-to-typescript makes a named type of
+    each titled schema."""
+
+    def field_title_should_be_set(self, schema: Any) -> bool:
+        return False
+
+    def field_is_required(
+        self,
+        field: core_schema.ModelField | core_schema.DataclassField | core_schema.TypedDictField,
+        total: bool,
+    ) -> bool:
+        return self.mode == "serialization" or super().field_is_required(field, total)
+
+
+def rig_schema() -> dict[str, Any]:
+    """schemas/rig.v1.json: `RigView` and the `CompiledRig` body, with every
+    type they hold in `$defs`. The root is either one."""
+    roots: list[tuple[type[BaseModel], JsonSchemaMode]] = [
+        (RigView, "serialization"),
+        (compiled_rig_body(), "serialization"),
+    ]
+    refs, schema = models_json_schema(roots, title="RigJson", schema_generator=_Dumped)
+    schema["description"] = "A compiled rig as the engine sends it: the preview's `rig`, or the studio's compile body."
+    schema["anyOf"] = [refs[root] for root in roots]
+    return schema
 
 
 def json_schemas() -> dict[str, str]:
@@ -1090,7 +1231,8 @@ def json_schemas() -> dict[str, str]:
     arrangement = Arrangement.model_json_schema()
     catalog = CATALOG_ENTITY.json_schema()
     catalog["title"] = "pewpew catalog entity"
+    schemas = {"arrangement.v1.json": arrangement, "catalog.v1.json": catalog, "rig.v1.json": rig_schema()}
     out = {}
-    for name, schema in (("arrangement.v1.json", arrangement), ("catalog.v1.json", catalog)):
+    for name, schema in schemas.items():
         out[name] = json.dumps({"$schema": _DRAFT, **schema}, indent=2, ensure_ascii=False) + "\n"
     return out

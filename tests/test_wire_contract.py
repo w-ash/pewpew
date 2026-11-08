@@ -45,6 +45,7 @@ from pewpew.health import HealthMonitor
 from pewpew.mapping import line
 from pewpew.pace import PaceStats
 from pewpew.rig import load_catalog
+from pewpew.rig.models import RigView
 from pewpew.rig.runtime import compile_doc, plan_view, rig_view
 from pewpew.run import status_line
 from pewpew.sinks.ddp import Board
@@ -159,6 +160,13 @@ def test_the_golden_holds_every_server_message_and_the_greeting_in_order() -> No
     assert [m["type"] for m in golden["later"]] == [
         "aura", "refused", "refused", "refused", "ack", "status", "health", "layout",
     ]
+
+
+def test_the_golden_rig_is_a_rig_view():
+    """The layout's rig, its plan served, is what web/src/rig/types.gen.ts describes."""
+    rig = json.loads(GOLDEN.read_text())["later"][-1]["rig"]
+    assert "url" in rig["plan"] and rig["fixtures"]
+    assert RigView.model_validate(rig).model_dump(mode="json") == rig
 
 
 def test_the_page_never_reads_the_capabilities():

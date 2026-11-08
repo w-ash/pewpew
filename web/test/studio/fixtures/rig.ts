@@ -1,6 +1,23 @@
 import { Matrix4 } from "three";
-import type { Arrangement, CompiledFixture, CompiledRig, PartsCatalog } from "../../../src/studio/api/types";
-import { poseMatrix } from "../../../src/studio/editor/pose";
+import type { Arrangement, CompiledFixture, CompiledRig, PartsCatalog, RigReport } from "../../../src/studio/api/types";
+import { poseMatrix } from "../../../src/rig3d/pose";
+
+/** A compiled fixture, each field a test leaves out at what a fixture with no group, wiring, tags or
+ * dims compiles to. */
+export function compiledFixture(
+  f: Pick<CompiledFixture, "id" | "type_id" | "matrix" | "pixel_start" | "pixel_count"> & Partial<CompiledFixture>,
+): CompiledFixture {
+  return {
+    base_type_id: f.type_id, group: null, attachments: {}, attachment_matrices: {}, controller: null, output: null,
+    chain: null, tags: [], dims: {}, ...f,
+  };
+}
+
+/** The fields of a compiled rig that no test here reads, empty. */
+const EMPTY_RIG = {
+  controller_slices: [], feeds: [], positions_m: [], normals: [], controllers: [], scale: 1, shift: [0, 0, 0],
+  plan: null, variants: [],
+} satisfies Partial<CompiledRig>;
 
 /**
  * A hand-written compiled rig: three bars of 64 pixels in a row along x,
@@ -10,10 +27,11 @@ import { poseMatrix } from "../../../src/studio/editor/pose";
  * before `attachment_matrices` would.
  */
 export const threeBarRig: CompiledRig = {
+  ...EMPTY_RIG,
   n: 192,
   catalog_digest: "mock-catalog",
   fixtures: [
-    {
+    compiledFixture({
       id: "bar-1",
       type_id: "clen-rgbw-bar-1m",
       group: null,
@@ -21,8 +39,8 @@ export const threeBarRig: CompiledRig = {
       attachments: { end_a: null, end_b: null },
       pixel_start: 0,
       pixel_count: 64,
-    },
-    {
+    }),
+    compiledFixture({
       id: "bar-2",
       type_id: "clen-rgbw-bar-1m",
       // Rz(90°): local +y points along world -x.
@@ -34,8 +52,8 @@ export const threeBarRig: CompiledRig = {
       },
       pixel_start: 64,
       pixel_count: 64,
-    },
-    {
+    }),
+    compiledFixture({
       id: "bar-3",
       type_id: "clen-rgbw-bar-1m",
       group: null,
@@ -43,7 +61,7 @@ export const threeBarRig: CompiledRig = {
       attachments: { end_a: null, end_b: null },
       pixel_start: 128,
       pixel_count: 64,
-    },
+    }),
   ],
   slices: [
     {
@@ -53,15 +71,17 @@ export const threeBarRig: CompiledRig = {
       count: 192,
       led_type: 30,
       color_order: "GRBW",
+      chain: "c1",
     },
   ],
+  // A partial report: the studio's report panel shows any JSON it is given.
   report: {
     totals: {
       pixels: 192,
       max_w: { v: 76.8, status: "stated", src: "RES-038" },
     },
     feeds: { connector_rated_a: { v: 4, status: "assumed", src: "RES-017" } },
-  },
+  } as unknown as RigReport,
   issues: [
     {
       level: "warning",
@@ -107,15 +127,17 @@ export const partsCatalog: PartsCatalog = {
 export function stubCompile(arrangement: Arrangement): CompiledRig {
   const fixtures: CompiledFixture[] = [];
   const add = (id: string, type_id: string, group: string | null, matrix: Matrix4, attachments: CompiledFixture["attachments"] = {}) =>
-    fixtures.push({
-      id,
-      type_id,
-      group,
-      matrix: matrix.elements.slice(),
-      attachments: { end_a: null, end_b: null, ...attachments },
-      pixel_start: fixtures.length * 64,
-      pixel_count: 64,
-    });
+    fixtures.push(
+      compiledFixture({
+        id,
+        type_id,
+        group,
+        matrix: matrix.elements.slice(),
+        attachments: { end_a: null, end_b: null, ...attachments },
+        pixel_start: fixtures.length * 64,
+        pixel_count: 64,
+      }),
+    );
   for (const g of arrangement.groups) {
     if (g.preset !== "ring") continue;
     for (let k = 0; k < g.count; k++) {

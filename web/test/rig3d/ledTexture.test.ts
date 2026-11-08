@@ -5,13 +5,13 @@ import {
   UnsignedByteType,
 } from "three";
 import { describe, expect, it } from "vitest";
-import { threeBarRig } from "../fixtures/rig";
+import { threeBarRig } from "../studio/fixtures/rig";
 import {
   createLedData,
   createLedTexture,
   fillLedData,
   ledLayout,
-} from "../../../src/studio/viewer/ledTexture";
+} from "../../src/rig3d/ledTexture";
 
 describe("ledLayout", () => {
   it("is max pixel_count wide with one row per fixture", () => {
@@ -101,5 +101,15 @@ describe("createLedTexture", () => {
     expect(t.generateMipmaps).toBe(false);
     expect(t.image.width).toBe(64);
     expect(t.image.height).toBe(3);
+  });
+});
+
+describe("a decimated frame", () => {
+  it("colors each rig pixel from the nearest pixel the engine sent", () => {
+    // 8 rig pixels, 5 sent: pixels 0, 2, 4, 5 and 7 (numpy's linspace, src/room/layout.ts).
+    const layout = ledLayout([{ pixel_start: 0, pixel_count: 8 }], 5, 8);
+    const data = createLedData(layout);
+    fillLedData(data, layout, new Uint8Array([0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]));
+    expect([...data].filter((_, i) => i % 4 === 0)).toEqual([0, 0, 1, 1, 2, 3, 3, 4]);
   });
 });

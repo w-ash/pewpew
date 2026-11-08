@@ -9,7 +9,7 @@ import { offSaved } from "../aura/looks";
 import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
 import type { LayerItem } from "../stack/stack";
-import type { ErrorSource, Frame, RefusedControl, Sender, ServerMessage } from "./protocol";
+import type { ErrorSource, Frame, RefusedControl, RigShape, Sender, ServerMessage } from "./protocol";
 
 export interface Refusal {
   readonly control: RefusedControl;
@@ -35,8 +35,9 @@ export interface WireState {
   readonly connected: boolean;
   /** The engine's display gamma, from the hello; null before one. */
   readonly gamma: number | null;
-  /** The positions, replaced whole by a hello or a layout. */
-  readonly map: MapShape | null;
+  /** The positions and, on an arrangement, the rig a 3D view draws; replaced whole by a hello or a
+   * layout. */
+  readonly map: (MapShape & { readonly rig?: RigShape | null }) | null;
   readonly params: readonly Param[];
   readonly aura: AuraState | null;
   readonly health: HealthState | null;

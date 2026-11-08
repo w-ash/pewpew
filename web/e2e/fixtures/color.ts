@@ -12,9 +12,9 @@ import {
   Scene,
   WebGLRenderer,
 } from "three";
-import type { Glow } from "../../src/studio/viewer/assembly";
-import { createLedMaterial } from "../../src/studio/viewer/ledMaterial";
-import { createLedTexture, fillLedData, ledLayout } from "../../src/studio/viewer/ledTexture";
+import type { Glow } from "../../src/rig3d/assembly";
+import { createLedMaterial } from "../../src/rig3d/ledMaterial";
+import { createLedTexture, fillLedData, ledLayout } from "../../src/rig3d/ledTexture";
 
 export const BYTES = [
   [10, 20, 30],
@@ -37,16 +37,7 @@ function draw(glow: Glow): number[][] {
 
   const n = BYTES.length;
   const layout = ledLayout(
-    [
-      {
-        id: "q",
-        type_id: "q",
-        matrix: [],
-        attachments: {},
-        pixel_start: 0,
-        pixel_count: n,
-      },
-    ],
+    [{ pixel_start: 0, pixel_count: n }],
     n,
   );
   const texture = createLedTexture(layout);

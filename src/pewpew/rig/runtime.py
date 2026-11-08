@@ -39,7 +39,17 @@ from pewpew.jsonfile import ProblemsError, TooDeep, loads, replace_string
 from pewpew.rig import load_arrangement
 from pewpew.rig.catalog import Catalog, load_catalog
 from pewpew.rig.compile import compile_rig
-from pewpew.rig.models import CompiledRig, ControllerSlice, ControllerTarget, Issue, RigError
+from pewpew.rig.models import (
+    CompiledRig,
+    ControllerSlice,
+    ControllerTarget,
+    Issue,
+    RigError,
+    RigView,
+    RigViewFixture,
+    RigViewPlan,
+    RigViewType,
+)
 from pewpew.rig.pose import MVR_C
 from pewpew.rig.room_import import RoomError, is_room, room_to_arrangement
 from pewpew.rig_cli import DEFAULT_CONTROLLER, DEFAULT_TYPE
@@ -258,39 +268,31 @@ def plan_view(rig: CompiledRig, catalog: Catalog | None = None) -> dict[str, Any
 
 
 def rig_view(rig: CompiledRig) -> dict[str, Any]:
-    """The `rig` of `hello` and `layout`, JSON-ready: what a 3D view needs
-    to place each fixture and its pixels. `frame` is C, which takes the
-    file's y-up meters to the plan frame the mapping is normalized from
+    """The `rig` of `hello` and `layout`, JSON-ready: a `RigView` dump
+    (schemas/rig.v1.json). `frame` is C, which takes the file's y-up meters
+    to the plan frame the mapping is normalized from
     (`mapping = (C @ p) * scale + shift`). `plan` is the floor plan's
     top-left corner in plan-frame meters and its meters per image pixel."""
     # pixel_start and pixel_count are full resolution, and no index is sent: a 3D view of a
     # decimated hello (n < total) must map them through the same linspace as `pewpew.sinks.preview.View.of`.
     plan = None
     if rig.plan is not None:
-        plan = {"corner_m": list(rig.plan.corner), "meters_per_pixel": rig.plan.meters_per_pixel}
-    return {
-        "catalog_digest": rig.catalog_digest,
-        "frame": MVR_C.tolist(),
-        "scale": rig.scale,
-        "shift": list(rig.shift),
-        "plan": plan,
-        "fixtures": [
-            {
-                "id": f.id, "type_id": f.type_id, "base_type_id": f.base_type_id, "group": f.group,
-                "matrix": list(f.matrix), "pixel_start": f.pixel_start, "pixel_count": f.pixel_count,
-                "controller": f.controller, "output": f.output, "tags": list(f.tags), "dims": dict(f.dims),
-            }
-            for f in rig.fixtures
-        ],
-        "types": {
-            tid: {
-                "count": spec.count, "span_m": spec.span_m, "z_m": spec.z_m,
-                "facing": None if spec.facing is None else list(spec.facing),
-            }
+        plan = RigViewPlan(corner_m=list(rig.plan.corner), meters_per_pixel=rig.plan.meters_per_pixel)
+    view = RigView(
+        catalog_digest=rig.catalog_digest,
+        frame=MVR_C.tolist(),
+        scale=rig.scale,
+        shift=list(rig.shift),
+        plan=plan,
+        fixtures=[RigViewFixture.model_validate(f, from_attributes=True) for f in rig.fixtures],
+        types={
+            tid: RigViewType(count=spec.count, span_m=spec.span_m, z_m=spec.z_m,
+                             facing=None if spec.facing is None else list(spec.facing))
             for tid, spec in rig.types.items()
         },
-        "controllers": [c.model_dump(mode="json") for c in rig.controllers],
-        "slices": [s.model_dump(mode="json") for s in rig.slices],
-        "controller_slices": [s.model_dump(mode="json") for s in rig.controller_slices],
-        "issues": [i.model_dump(mode="json") for i in rig.issues],
-    }
+        controllers=list(rig.controllers),
+        slices=list(rig.slices),
+        controller_slices=list(rig.controller_slices),
+        issues=list(rig.issues),
+    )
+    return view.model_dump(mode="json")

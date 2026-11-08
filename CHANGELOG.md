@@ -9,6 +9,14 @@ series (batch mode).
 
 ### Added
 
+- The Console's 3D view: on an arrangement run, a 2D/3D switch on the stage draws
+  the rig in 3D, each fixture from its type's model, lit by the live frames (a
+  decimated map is colored from the nearest pixel sent). A `strip` sized by `dims`
+  is drawn as a bar of its own length and pixels. three.js and the view load only
+  when the stage first shows 3D; a run on any other map never fetches them. The
+  engine serves the parts catalog (`GET /parts.json`) and each model
+  (`GET /assembly/<digest>.glb`) from models prebuilt into the package
+  (`just assemblies`), so neither it nor the studio needs manifold3d at run time.
 - Migrate a room map to an arrangement: `python -m pewpew rig migrate-room ROOM.json
   -o OUT.json [--controller PROFILE] [--type FIXTURE_TYPE]`. Each board becomes a
   controller with its host, each output a chain, and each fixture, `instances`
@@ -771,6 +779,11 @@ series (batch mode).
   `look-critic` subagent or a person to judge. Evidence only, never a gate.
 
 ### Changed
+
+- The page the engine serves is `index.html` and its own hashed files (listed in
+  `files.json` beside it), not one inlined file. The engine serves each listed file
+  with its type, gzipped when the browser allows, and cached as immutable; any other
+  path still gets the page.
 
 - Run a real rig from an arrangement: `run --map RIG.arrangement.json` gives the
   mapping, the DDP boards (each controller's `host`, unless `--no-ddp`), the blink,

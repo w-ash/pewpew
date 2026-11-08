@@ -9,12 +9,12 @@ import {
   Matrix4,
   type Object3D,
 } from "three";
-import type { Frame } from "../../wire/protocol";
-import type { WireStore } from "../../wire/store";
-import type { PartsCatalog, CompiledRig } from "../api/types";
-import { type Assembly, type AssemblyPart, readAssembly } from "./assembly";
+import type { Frame } from "../wire/protocol";
+import type { WireStore } from "../wire/store";
+import type { PartsCatalog } from "../rig/parts";
+import { type Assembly, type AssemblyPart, readAssembly, variantAssembly } from "./assembly";
 import { dragPreview } from "./dragPreview";
-import { assembliesFor, buildBatches, type InstanceBatch } from "./instances";
+import { assembliesFor, baseType, buildBatches, type InstanceBatch, type ViewRig } from "./instances";
 import { createLedMaterial, setOthersLevel } from "./ledMaterial";
 import {
   createLedTexture,
@@ -67,8 +67,42 @@ function layoutKey(layout: LedLayout): string {
   return `${layout.width}x${layout.height}:${layout.rows.map((r) => `${r.start}+${r.count}`).join(",")}`;
 }
 
+/** A dim of a catalog type, from its `{"v"}` fact; null when it has none. */
+function catalogDim(catalog: PartsCatalog, typeId: string, name: string): number | null {
+  const dims = catalog.fixture_types.find((t) => t.id === typeId)?.dims;
+  const fact = dims && typeof dims === "object" ? (dims as Record<string, unknown>)[name] : undefined;
+  const v = fact && typeof fact === "object" && "v" in fact ? fact.v : undefined;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/**
+ * The assembly each fixture type of `rig` is drawn with, keyed by `type_id`, with each attachment type's:
+ * a base type's own, and a dims variant's made from its base type's (`variantAssembly`). The variant's
+ * pixel span is the rig's (`types`), else its pitch times its pixels; it stretches by its `length` over
+ * the base type's, else by its span over the base type's.
+ */
+export function drawnAssemblies(
+  rig: ViewRig,
+  catalog: PartsCatalog,
+  loaded: ReadonlyMap<string, Assembly>,
+): Map<string, Assembly> {
+  const out = new Map(loaded);
+  for (const f of rig.fixtures) {
+    const base = baseType(f);
+    const from = loaded.get(base);
+    if (f.type_id === base || out.has(f.type_id) || !from?.pixelAxis) continue;
+    const pitch = f.dims?.pitch;
+    const span = rig.types?.[f.type_id]?.span_m ?? (pitch ? pitch * f.pixel_count : from.pixelAxis.span);
+    const length = f.dims?.length;
+    const baseLength = catalogDim(catalog, base, "length");
+    const stretch = length && baseLength ? length / baseLength : span / from.pixelAxis.span;
+    out.set(f.type_id, variantAssembly(from, f.pixel_count, span, stretch));
+  }
+  return out;
+}
+
 interface RigProps {
-  rig: CompiledRig;
+  rig: ViewRig;
   /** Where the newest frame is read, each animation frame. */
   frames: WireStore;
   catalog: PartsCatalog;
@@ -92,10 +126,17 @@ export function Rig({ rig, frames, catalog, selected, accent, onPick }: RigProps
     refs.forEach((r, i) => {
       if (gltfs[i]) map.set(r.id, assemblyOf(gltfs[i]));
     });
-    return map;
-  }, [refs, gltfs]);
+    return drawnAssemblies(rig, catalog, map);
+  }, [rig, catalog, refs, gltfs]);
+  // A variant's geometry is made here, so it is freed here; a GLB's stays in the loader's cache.
+  useEffect(
+    () => () => {
+      for (const [id, a] of assemblies) if (!refs.some((r) => r.id === id)) for (const p of a.parts) p.geometry.dispose();
+    },
+    [assemblies, refs],
+  );
 
-  const layout = useMemo(() => ledLayout(rig.fixtures, rig.n), [rig]);
+  const layout = useMemo(() => ledLayout(rig.fixtures, rig.n, rig.total ?? rig.n), [rig]);
   // The texture follows the layout's shape, not its identity: a new compile of the same shape keeps it.
   const key = layoutKey(layout);
   const [shaped, setShaped] = useState(() => ({ key, texture: textureFor(layout, frames) }));

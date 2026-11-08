@@ -1,0 +1,1436 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AutoWiring": {
+      "additionalProperties": false,
+      "description": "Options for the deterministic auto-wiring (docs/studio/domain-model.md:217-226).\n\nThe defaults are the design's: 3 m hop\n(https://auschristmaslighting.com/threads/maximum-distance-between-ws2811-pixel-nodes.7607),\n75% loading of a fuse sized to the connector, Littelfuse's guidance as\nRES-033 records it (the maintainer's private notes;\nhttps://info.littelfuse.com/hubfs/Fuseology%20Design%20Guide.pdf),\n10% drop (https://quinled.info/the-ultimate-led-strip-power-injection-guide/)\nand 80% PSU loading (https://flexfireleds.com/blog/LED-power-supply-derating).\nThe 1.2 slack is the design's example figure (docs/studio/domain-model.md:239);\nit lengthens every straight cable run: data hops, leads and feeds.\n`feed_cable` names the cable of every feed; None takes the catalog cable\nwith the lowest loop resistance per metre.",
+      "properties": {
+        "target_fps": {
+          "default": 40.0,
+          "minimum": 0.1,
+          "type": "number"
+        },
+        "fixtures_per_output": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "max_hop_m": {
+          "default": 3.0,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "hop_slack": {
+          "default": 1.2,
+          "maximum": 10.0,
+          "minimum": 1,
+          "type": "number"
+        },
+        "connector_load_fraction": {
+          "default": 0.75,
+          "maximum": 1,
+          "minimum": 0.01,
+          "type": "number"
+        },
+        "max_drop_fraction": {
+          "default": 0.1,
+          "maximum": 1,
+          "minimum": 0.01,
+          "type": "number"
+        },
+        "psu_load_fraction": {
+          "default": 0.8,
+          "maximum": 1,
+          "minimum": 0.01,
+          "type": "number"
+        },
+        "feed_cable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "target_fps",
+        "fixtures_per_output",
+        "max_hop_m",
+        "hop_slack",
+        "connector_load_fraction",
+        "max_drop_fraction",
+        "psu_load_fraction",
+        "feed_cable"
+      ],
+      "title": "AutoWiring",
+      "type": "object"
+    },
+    "Basis": {
+      "additionalProperties": false,
+      "description": "One unmeasured value that results rest on, with its source.",
+      "properties": {
+        "fact": {
+          "type": "string"
+        },
+        "v": {},
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "used_for": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "fact",
+        "v",
+        "status",
+        "src",
+        "used_for"
+      ],
+      "title": "Basis",
+      "type": "object"
+    },
+    "BomLine": {
+      "additionalProperties": false,
+      "description": "One line of the bill of materials. Cables give the total `length_m`.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "fixture",
+            "attachment",
+            "controller",
+            "component",
+            "psu",
+            "fuse",
+            "cable"
+          ],
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "length_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "item",
+        "name",
+        "count",
+        "length_m"
+      ],
+      "title": "BomLine",
+      "type": "object"
+    },
+    "CompiledRigBody": {
+      "additionalProperties": false,
+      "description": "`CompiledRig.to_json()`, the body of the studio's `POST /api/compile`\n(`CompiledRig` in schemas/rig.v1.json).",
+      "properties": {
+        "n": {
+          "type": "integer"
+        },
+        "catalog_digest": {
+          "type": "string"
+        },
+        "fixtures": {
+          "items": {
+            "$ref": "#/$defs/FixtureInstance"
+          },
+          "type": "array"
+        },
+        "slices": {
+          "items": {
+            "$ref": "#/$defs/OutputSlice"
+          },
+          "type": "array"
+        },
+        "controller_slices": {
+          "items": {
+            "$ref": "#/$defs/ControllerSlice"
+          },
+          "type": "array"
+        },
+        "feeds": {
+          "items": {
+            "$ref": "#/$defs/Feed"
+          },
+          "type": "array"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/Issue"
+          },
+          "type": "array"
+        },
+        "report": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RigReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "positions_m": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "normals": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "controllers": {
+          "items": {
+            "$ref": "#/$defs/ControllerTarget"
+          },
+          "type": "array"
+        },
+        "scale": {
+          "type": "number"
+        },
+        "shift": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "description": "A floor-plan image, calibrated by two image pixels `meters` apart.",
+              "properties": {
+                "image": {
+                  "pattern": "\\.([Pp][Nn][Gg]|[Jj][Pp][Ee]?[Gg]|[Ww][Ee][Bb][Pp]|[Gg][Ii][Ff])$",
+                  "type": "string"
+                },
+                "points": {
+                  "items": {
+                    "items": {
+                      "type": "number"
+                    },
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "type": "array"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "meters": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "at": {
+                  "default": [
+                    0.0,
+                    0.0
+                  ],
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "image",
+                "points",
+                "meters"
+              ],
+              "title": "Plan",
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/$defs/Variant"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "n",
+        "catalog_digest",
+        "fixtures",
+        "slices",
+        "controller_slices",
+        "feeds",
+        "issues",
+        "report",
+        "positions_m",
+        "normals",
+        "controllers",
+        "scale",
+        "shift",
+        "plan",
+        "variants"
+      ],
+      "title": "CompiledRig",
+      "type": "object"
+    },
+    "ControllerReport": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "derived": {
+          "type": "boolean"
+        },
+        "outputs": {
+          "type": "integer"
+        },
+        "outputs_used": {
+          "type": "integer"
+        },
+        "pixels": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "profile",
+        "derived",
+        "outputs",
+        "outputs_used",
+        "pixels"
+      ],
+      "title": "ControllerReport",
+      "type": "object"
+    },
+    "ControllerSlice": {
+      "additionalProperties": false,
+      "description": "The contiguous pixels one controller receives, for DDP.",
+      "properties": {
+        "controller": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "controller",
+        "start",
+        "count"
+      ],
+      "title": "ControllerSlice",
+      "type": "object"
+    },
+    "ControllerTarget": {
+      "additionalProperties": false,
+      "description": "One controller of a compiled rig and where DDP reaches it; None without a host.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "profile",
+        "host",
+        "port"
+      ],
+      "title": "ControllerTarget",
+      "type": "object"
+    },
+    "Feed": {
+      "additionalProperties": false,
+      "description": "A PSU feed into `count` fixtures of a chain, from index `first`.\n\nIt injects at the input of fixture `first`, with V+ open toward the\nupstream run (docs/studio/domain-model.md:50).",
+      "properties": {
+        "id": {
+          "pattern": "^[^/\\s]+$",
+          "type": "string"
+        },
+        "psu": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        },
+        "first": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "cable": {
+          "type": "string"
+        },
+        "length_m": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000000.0,
+          "type": "number"
+        },
+        "fuse_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "psu",
+        "chain",
+        "first",
+        "count",
+        "cable",
+        "length_m",
+        "fuse_a"
+      ],
+      "title": "Feed",
+      "type": "object"
+    },
+    "FeedReport": {
+      "additionalProperties": false,
+      "description": "One feed. `loop_ohm` is its cable's V+ and GND; `drop_v` is at its last fixture.\n\n`current_a` has every channel full; the drop uses it. `capped_a` is the\nRGB worst case under the power cap; the PSU loads use it. The connector\ncheck and `fuse_window_a` take `capped_a` under a cap, else `current_a`.\n`connector_a` is the least rating of the fixtures' input connectors and\nthe PSU's output connector.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "psu": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        },
+        "fixtures": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cable": {
+          "type": "string"
+        },
+        "length_m": {
+          "type": "number"
+        },
+        "current_a": {
+          "type": "number"
+        },
+        "capped_a": {
+          "type": "number"
+        },
+        "connector_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fuse_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fuse_window_a": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "type": "array"
+        },
+        "loop_ohm": {
+          "type": "number"
+        },
+        "drop_v": {
+          "type": "number"
+        },
+        "drop_fraction": {
+          "type": "number"
+        },
+        "va": {
+          "type": "number"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "psu",
+        "chain",
+        "fixtures",
+        "cable",
+        "length_m",
+        "current_a",
+        "capped_a",
+        "connector_a",
+        "fuse_a",
+        "fuse_window_a",
+        "loop_ohm",
+        "drop_v",
+        "drop_fraction",
+        "va",
+        "note"
+      ],
+      "title": "FeedReport",
+      "type": "object"
+    },
+    "FixtureInstance": {
+      "additionalProperties": false,
+      "description": "One fixture of a compiled rig (`CompiledFixture` in schemas/rig.v1.json).\n\n`matrix` is the world matrix as 16 floats in column-major order, the order\nof three.js `Matrix4.elements` (https://threejs.org/docs/pages/Matrix4.html).\nThe fixture's pixels are `pixel_start .. pixel_start + pixel_count - 1`.\n`attachment_matrices` gives each attachment's frame in world space.\n`dims` and `tags` are the placement's own; with `dims`, `type_id` names\nthe variant type they compiled to and `base_type_id` the catalog type\nit was made from (equal to `type_id` without dims).",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type_id": {
+          "type": "string"
+        },
+        "base_type_id": {
+          "type": "string"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matrix": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "attachments": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "attachment_matrices": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "pixel_start": {
+          "type": "integer"
+        },
+        "pixel_count": {
+          "type": "integer"
+        },
+        "controller": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "chain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "dims": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type_id",
+        "base_type_id",
+        "group",
+        "matrix",
+        "attachments",
+        "attachment_matrices",
+        "pixel_start",
+        "pixel_count",
+        "controller",
+        "output",
+        "chain",
+        "tags",
+        "dims"
+      ],
+      "title": "CompiledFixture",
+      "type": "object"
+    },
+    "HopReport": {
+      "additionalProperties": false,
+      "description": "One data cable: a controller's `lead` to a chain, or a `link` between fixtures.\n\n`run_m` is the straight distance × slack; `path_m` adds the pigtails. On a\n`tee` chain a link runs from input to input along the trunk, and `path_m`\nalso adds the source fixture's return to its input (`tee_link_m`).",
+      "properties": {
+        "chain": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "lead",
+            "link"
+          ],
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "run_m": {
+          "type": "number"
+        },
+        "path_m": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "chain",
+        "kind",
+        "source",
+        "target",
+        "run_m",
+        "path_m"
+      ],
+      "title": "HopReport",
+      "type": "object"
+    },
+    "Issue": {
+      "additionalProperties": false,
+      "description": "One finding. Errors stop a compile; violations and warnings do not.",
+      "properties": {
+        "level": {
+          "enum": [
+            "error",
+            "violation",
+            "warning"
+          ],
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "level",
+        "code",
+        "message",
+        "ref"
+      ],
+      "title": "Issue",
+      "type": "object"
+    },
+    "OutputReport": {
+      "additionalProperties": false,
+      "description": "One output: its pixels and frame time, the frame rate the wire allows,\nand `fps`, the rate it shows: at most the firmware's `min_frame_interval_s`.",
+      "properties": {
+        "controller": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        },
+        "pixels": {
+          "type": "integer"
+        },
+        "led_type": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "led_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "frame_s": {
+          "type": "number"
+        },
+        "wire_fps": {
+          "type": "number"
+        },
+        "fps": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "controller",
+        "output",
+        "chain",
+        "pixels",
+        "led_type",
+        "led_label",
+        "frame_s",
+        "wire_fps",
+        "fps"
+      ],
+      "title": "OutputReport",
+      "type": "object"
+    },
+    "OutputSlice": {
+      "additionalProperties": false,
+      "description": "The contiguous pixels one controller output drives.",
+      "properties": {
+        "controller": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "led_type": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "color_order": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "controller",
+        "output",
+        "chain",
+        "start",
+        "count",
+        "led_type",
+        "color_order"
+      ],
+      "title": "OutputSlice",
+      "type": "object"
+    },
+    "PlanMissing": {
+      "additionalProperties": false,
+      "description": "A `RigView` plan whose image the preview cannot serve.",
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "PlanMissing",
+      "type": "object"
+    },
+    "PsuReport": {
+      "additionalProperties": false,
+      "description": "One PSU. `current_a`, `load_fraction` and `watts` are its load from the\nRGB stream under the power cap; `worst_a` is its load with every channel full.\nBoth include `board_a`, what the boards it `powers` draw through their buck.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "derived": {
+          "type": "boolean"
+        },
+        "v_out": {
+          "type": "number"
+        },
+        "i_max_a": {
+          "type": "number"
+        },
+        "current_a": {
+          "type": "number"
+        },
+        "worst_a": {
+          "type": "number"
+        },
+        "load_fraction": {
+          "type": "number"
+        },
+        "watts": {
+          "type": "number"
+        },
+        "feeds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "powers": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "board_a": {
+          "default": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "derived",
+        "v_out",
+        "i_max_a",
+        "current_a",
+        "worst_a",
+        "load_fraction",
+        "watts",
+        "feeds",
+        "powers",
+        "board_a"
+      ],
+      "title": "PsuReport",
+      "type": "object"
+    },
+    "RigReport": {
+      "additionalProperties": false,
+      "description": "The power, wiring and controller report (docs/studio/domain-model.md:228-243).",
+      "properties": {
+        "target_fps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/AutoWiring"
+        },
+        "totals": {
+          "$ref": "#/$defs/Totals"
+        },
+        "controllers": {
+          "items": {
+            "$ref": "#/$defs/ControllerReport"
+          },
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/OutputReport"
+          },
+          "type": "array"
+        },
+        "hops": {
+          "items": {
+            "$ref": "#/$defs/HopReport"
+          },
+          "type": "array"
+        },
+        "feeds": {
+          "items": {
+            "$ref": "#/$defs/FeedReport"
+          },
+          "type": "array"
+        },
+        "psus": {
+          "items": {
+            "$ref": "#/$defs/PsuReport"
+          },
+          "type": "array"
+        },
+        "bom": {
+          "items": {
+            "$ref": "#/$defs/BomLine"
+          },
+          "type": "array"
+        },
+        "basis": {
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "type": "array"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "target_fps",
+        "limits",
+        "totals",
+        "controllers",
+        "outputs",
+        "hops",
+        "feeds",
+        "psus",
+        "bom",
+        "basis",
+        "notes"
+      ],
+      "title": "RigReport",
+      "type": "object"
+    },
+    "RigView": {
+      "additionalProperties": false,
+      "description": "The `rig` of the preview's `hello` and `layout`\n(`pewpew.rig.runtime.rig_view`): what a 3D view needs to place each\nfixture and its pixels. `frame` is C, which takes the file's y-up\nmeters to the plan frame: `mapping = (C @ p) * scale + shift`.",
+      "properties": {
+        "catalog_digest": {
+          "type": "string"
+        },
+        "frame": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "scale": {
+          "type": "number"
+        },
+        "shift": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RigViewPlan"
+            },
+            {
+              "$ref": "#/$defs/PlanMissing"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fixtures": {
+          "items": {
+            "$ref": "#/$defs/RigViewFixture"
+          },
+          "type": "array"
+        },
+        "types": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RigViewType"
+          },
+          "type": "object"
+        },
+        "controllers": {
+          "items": {
+            "$ref": "#/$defs/ControllerTarget"
+          },
+          "type": "array"
+        },
+        "slices": {
+          "items": {
+            "$ref": "#/$defs/OutputSlice"
+          },
+          "type": "array"
+        },
+        "controller_slices": {
+          "items": {
+            "$ref": "#/$defs/ControllerSlice"
+          },
+          "type": "array"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/Issue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "catalog_digest",
+        "frame",
+        "scale",
+        "shift",
+        "plan",
+        "fixtures",
+        "types",
+        "controllers",
+        "slices",
+        "controller_slices",
+        "issues"
+      ],
+      "title": "RigView",
+      "type": "object"
+    },
+    "RigViewFixture": {
+      "additionalProperties": false,
+      "description": "One fixture of a `RigView`: its `FixtureInstance` without `chain`.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type_id": {
+          "type": "string"
+        },
+        "base_type_id": {
+          "type": "string"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matrix": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "pixel_start": {
+          "type": "integer"
+        },
+        "pixel_count": {
+          "type": "integer"
+        },
+        "controller": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "dims": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "attachments": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "attachment_matrices": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type_id",
+        "base_type_id",
+        "group",
+        "matrix",
+        "pixel_start",
+        "pixel_count",
+        "controller",
+        "output",
+        "tags",
+        "dims",
+        "attachments",
+        "attachment_matrices"
+      ],
+      "title": "RigViewFixture",
+      "type": "object"
+    },
+    "RigViewPlan": {
+      "additionalProperties": false,
+      "description": "The floor plan of a `RigView`: its top-left corner in plan-frame\nmeters and its meters per image pixel. `url` is where the preview\nserves the image: `rig_view` leaves it out, and the preview's\n`View.of` adds it.",
+      "properties": {
+        "corner_m": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "meters_per_pixel": {
+          "type": "number"
+        },
+        "url": {
+          "default": null,
+          "type": "string"
+        }
+      },
+      "required": [
+        "corner_m",
+        "meters_per_pixel",
+        "url"
+      ],
+      "title": "RigViewPlan",
+      "type": "object"
+    },
+    "RigViewType": {
+      "additionalProperties": false,
+      "description": "A fixture type's pixels: `count` along its local y over `span_m`,\ncentred, `z_m` off its local z. `facing` is the light's local direction,\nor null for a light that faces every way.",
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "span_m": {
+          "type": "number"
+        },
+        "z_m": {
+          "type": "number"
+        },
+        "facing": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "count",
+        "span_m",
+        "z_m",
+        "facing"
+      ],
+      "title": "RigViewType",
+      "type": "object"
+    },
+    "Totals": {
+      "additionalProperties": false,
+      "description": "The rig's draw at the nominal voltage.\n\n`worst_w` and `worst_a` have every channel of every fixture full.\n`rgb_worst_w` and `rgb_worst_a` are the most the RGB stream draws\nthrough each board's auto-white. `capped_w` and `capped_a` are that\nunder the power cap: what the PSUs are sized for. Each includes the\nboards the PSUs power (`PsuReport.board_a`), whatever the frame.",
+      "properties": {
+        "fixtures": {
+          "type": "integer"
+        },
+        "pixels": {
+          "type": "integer"
+        },
+        "worst_w": {
+          "type": "number"
+        },
+        "worst_a": {
+          "type": "number"
+        },
+        "rgb_worst_w": {
+          "type": "number"
+        },
+        "rgb_worst_a": {
+          "type": "number"
+        },
+        "capped_w": {
+          "type": "number"
+        },
+        "capped_a": {
+          "type": "number"
+        },
+        "controllers": {
+          "type": "integer"
+        },
+        "psus": {
+          "type": "integer"
+        },
+        "feeds": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fixtures",
+        "pixels",
+        "worst_w",
+        "worst_a",
+        "rgb_worst_w",
+        "rgb_worst_a",
+        "capped_w",
+        "capped_a",
+        "controllers",
+        "psus",
+        "feeds"
+      ],
+      "title": "Totals",
+      "type": "object"
+    },
+    "Variant": {
+      "additionalProperties": false,
+      "description": "A fixture type made from `type` with some dims replaced. `dims` holds\nevery dim of the variant, evaluated.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "dims": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "dims"
+      ],
+      "title": "Variant",
+      "type": "object"
+    }
+  },
+  "title": "RigJson",
+  "description": "A compiled rig as the engine sends it: the preview's `rig`, or the studio's compile body.",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/RigView"
+    },
+    {
+      "$ref": "#/$defs/CompiledRigBody"
+    }
+  ]
+}

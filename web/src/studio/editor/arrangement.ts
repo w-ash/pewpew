@@ -19,7 +19,7 @@ import {
   matrixPose,
   type PoseQ,
   resolvePose,
-} from "./pose";
+} from "../../rig3d/pose";
 
 export type Selection =
   | { kind: "fixture"; id: string }

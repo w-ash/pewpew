@@ -20,6 +20,7 @@
     "vite.config.ts",
     "dev-origin.ts",
     "playwright.config.ts",
-    "orval.config.ts"
+    "orval.config.ts",
+    "scripts/gen-types.ts"
   ]
 }

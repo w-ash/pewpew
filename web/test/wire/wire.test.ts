@@ -56,7 +56,8 @@ const RIG: Shape = {
     fixtures: {
       keys: keys<RigFixture>({
         id: true, type_id: true, base_type_id: true, group: true, matrix: true, pixel_start: true,
-        pixel_count: true, controller: true, output: true, tags: true, dims: true,
+        pixel_count: true, controller: true, output: true, tags: true, dims: true, attachments: true,
+        attachment_matrices: true,
       }),
     },
     controllers: { keys: keys<RigController>({ id: true, profile: true, host: true, port: true }) },

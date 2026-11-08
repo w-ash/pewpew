@@ -1,10 +1,10 @@
 import { act } from "react";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { encodeFrame, parseFrame } from "../../../src/wire/protocol";
-import { WireContext, WireStore } from "../../../src/wire/store";
-import { StageStatus } from "../../../src/studio/viewer/Stage";
-import { SESSION_GREETING, SESSION_LAYOUT } from "../../fixtures/messages";
+import { encodeFrame, parseFrame } from "../../src/wire/protocol";
+import { WireContext, WireStore } from "../../src/wire/store";
+import { StageStatus } from "../../src/rig3d/Stage";
+import { SESSION_GREETING, SESSION_LAYOUT } from "../fixtures/messages";
 
 const noop = () => {};
 

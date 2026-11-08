@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  DOT, DOT_MIN, GLOW_GAP, GLOW_MAX, inputMarker, makeLayout, nearestFixture, padOf, type Layout, type MapShape, type RoomShape, type Viewport,
+  DOT, DOT_MIN, GLOW_GAP, GLOW_MAX, inputMarker, makeLayout, nearestFixture, nearestSent, padOf, sentPixels, type Layout, type MapShape, type RoomShape, type Viewport,
 } from "../../src/room/layout";
 const line: MapShape = { n: 8, total: 8, positions: Array.from({ length: 8 }, (_, i) => [i / 7, 0, 0]), is3d: false, room: null };
 const grid: MapShape = {
@@ -126,4 +126,35 @@ test("the room fits under a banner over the stage's top, so every dot shows", ()
   expect(Math.max(...l.py)).toBeLessThanOrEqual(view.height - padOf(under) + 1e-3);
   const r = makeLayout(roomMap, view, { width: 200, height: 100 }, 100);
   expect(Math.min(r.plan!.y, ...r.fixtures.flatMap((f) => [f.ay, f.by]))).toBeGreaterThanOrEqual(100);
+});
+
+// Each expected list is numpy's `np.linspace(0.0, total - 1, n).round()`, as `View.of` decimates.
+describe("sentPixels", () => {
+  test.each([
+    [6, 5, [0, 1, 2, 4, 5]],
+    [8, 5, [0, 2, 4, 5, 7]],
+    [10, 4, [0, 3, 6, 9]],
+    [100, 7, [0, 16, 33, 50, 66, 82, 99]],
+    [9, 1, [0]],
+  ])("sends %i pixels as numpy picks %i of them", (total, n, expected) => {
+    expect([...sentPixels(total, n)]).toEqual(expected);
+  });
+
+  test("matches numpy at the engine's budget", () => {
+    const sent = sentPixels(5000, 4096);
+    expect([...sent.slice(0, 8)]).toEqual([0, 1, 2, 4, 5, 6, 7, 9]);
+    expect([...sent.slice(-4)]).toEqual([4995, 4997, 4998, 4999]);
+    expect(sent.reduce((a, b) => a + b, 0)).toBe(10237952);
+  });
+});
+
+describe("nearestSent", () => {
+  test("colors each pixel from the nearest one sent, the lower on a tie", () => {
+    // Sent: 0, 2, 4, 5, 7.
+    expect([...nearestSent(8, 5)!]).toEqual([0, 0, 1, 1, 2, 3, 3, 4]);
+  });
+
+  test("is null when every pixel is sent", () => {
+    expect(nearestSent(8, 8)).toBeNull();
+  });
 });

@@ -1,0 +1,22 @@
+{
+  "clen-360-tube-1500": {
+    "digest": "62efbd86ef6eeea1",
+    "source": "ac4a616524e35f881150e911c4f0cf0efacf75e5a72af64f63a3703a50469201"
+  },
+  "clen-rgbw-bar-1m": {
+    "digest": "b0c0e942081d867f",
+    "source": "bda667d7c86b54dbbd4cc74511911c7af2f823604349dd83455978bca6d21077"
+  },
+  "eye-v0": {
+    "digest": "e30716ce61f71662",
+    "source": "35ba71bbac57b1582f2e1734877fee48a52942652d044fa670208fae464fbb06"
+  },
+  "point-v0": {
+    "digest": "30ba296fe9412539",
+    "source": "ae7336e795255289c597b7018766f6e3e7857ab5029406aaea993cf9029b8dfb"
+  },
+  "strip": {
+    "digest": "86541740180c37cb",
+    "source": "112c2c0df0caa5bac73b52fe718eb7171ef4baecd2a944077d67e05d10d03bda"
+  }
+}

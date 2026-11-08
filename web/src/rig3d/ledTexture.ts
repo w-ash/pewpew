@@ -19,27 +19,33 @@ import {
   SRGBColorSpace,
   UnsignedByteType,
 } from "three";
-import type { CompiledFixture } from "../api/types";
+import { nearestSent } from "../room/layout";
+import type { ViewFixture } from "./instances";
 
 export interface LedLayout {
   width: number;
   height: number;
   /** Per texture row: the fixture's first pixel and its pixel count, in rig order. */
   rows: ReadonlyArray<{ start: number; count: number }>;
-  /** The rig's total pixel count. */
+  /** The pixels a frame carries. */
   n: number;
+  /** For each rig pixel, the frame pixel it is colored from, when the engine sends fewer than the
+   * rig has (`nearestSent`); null when a frame carries every pixel. */
+  sent?: Int32Array | null;
 }
 
+/** The texture layout of `fixtures`, for frames of `n` pixels of a rig of `total`. */
 export function ledLayout(
-  fixtures: readonly CompiledFixture[],
+  fixtures: readonly Pick<ViewFixture, "pixel_start" | "pixel_count">[],
   n: number,
+  total: number = n,
 ): LedLayout {
   const rows = fixtures.map((f) => ({
     start: f.pixel_start,
     count: f.pixel_count,
   }));
   const width = Math.max(1, ...rows.map((r) => r.count));
-  return { width, height: Math.max(1, rows.length), rows, n };
+  return { width, height: Math.max(1, rows.length), rows, n, sent: nearestSent(total, n) };
 }
 
 /** Black, opaque texels for a layout. */
@@ -50,8 +56,9 @@ export function createLedData(layout: LedLayout): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Copy one frame's RGB (n×3, rig pixel order) into the texels, row by
- * fixture. Rows whose pixels fall outside `rgb` keep their last colors.
+ * Copy one frame's RGB (n×3, pixel order) into the texels, row by
+ * fixture, through `layout.sent` when the frame is decimated. Rows whose
+ * pixels fall outside the frame keep their last colors.
  */
 export function fillLedData(
   data: Uint8Array,
@@ -59,16 +66,17 @@ export function fillLedData(
   rgb: Uint8Array,
 ): void {
   const { width, rows } = layout;
+  const sent = layout.sent ?? null;
+  const total = sent ? sent.length : rgb.length / 3;
   for (let f = 0; f < rows.length; f++) {
     const { start, count } = rows[f]!;
-    if (start < 0 || (start + count) * 3 > rgb.length) continue;
-    let src = start * 3;
+    if (start < 0 || start + count > total) continue;
     let dst = f * width * 4;
     for (let j = 0; j < count; j++) {
+      const src = (sent ? sent[start + j]! : start + j) * 3;
       data[dst] = rgb[src]!;
       data[dst + 1] = rgb[src + 1]!;
       data[dst + 2] = rgb[src + 2]!;
-      src += 3;
       dst += 4;
     }
   }

@@ -16,89 +16,43 @@ import { isRecord, type Param, type ValueOf } from "../params/schema";
 import type { MapShape } from "../room/layout";
 import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
+import type {
+  ControllerSlice, ControllerTarget, Issue, OutputSlice, PlanMissing, RigView, RigViewFixture, RigViewPlan, RigViewType,
+} from "../rig/types.gen";
 
-/** A fixture of a rig, as compiled (pewpew.rig.runtime.rig_view), in data order. */
-export interface RigFixture {
-  readonly id: string;
-  /** With `dims`, the variant type they made; else `base_type_id`. */
-  readonly type_id: string;
-  readonly base_type_id: string;
-  readonly group: string | null;
-  /** Its pose: 16 numbers in three.js `Matrix4.elements` order, in the file's y-up meters. */
-  readonly matrix: readonly number[];
-  readonly pixel_start: number;
-  readonly pixel_count: number;
-  /** Null for a fixture no chain wires. */
-  readonly controller: string | null;
-  readonly output: string | null;
-  readonly tags: readonly string[];
-  readonly dims: Readonly<Record<string, number>>;
-}
+/** `T` with every field, array and record in it read-only: the page never changes a message. */
+type Wire<T> = T extends object ? { readonly [K in keyof T]: Wire<T[K]> } : T;
+
+// The rig's types are generated from the pydantic models in src/pewpew/rig/models.py (src/rig/types.gen.ts).
+
+/** A fixture of a rig, as compiled, in data order. Its pose `matrix` is 16 numbers in three.js
+ * `Matrix4.elements` order, in the file's y-up meters; `attachment_matrices` gives each attachment's
+ * frame in the same space. `controller` and `output` are null for a fixture no chain wires. */
+export type RigFixture = Wire<RigViewFixture>;
 
 /** A fixture type's pixels: `count` along its local y over `span_m`, centred, `z_m` off its local
  * z; `facing` is the light's local direction, null for one that faces every way. */
-export interface RigType {
-  readonly count: number;
-  readonly span_m: number;
-  readonly z_m: number;
-  readonly facing: readonly number[] | null;
-}
+export type RigType = Wire<RigViewType>;
 
-export interface RigController {
-  readonly id: string;
-  readonly profile: string;
-  /** Where DDP reaches it; null without a host. */
-  readonly host: string | null;
-  readonly port: number | null;
-}
+/** A controller and where DDP reaches it; `host` and `port` are null without a host. */
+export type RigController = Wire<ControllerTarget>;
 
 /** The pixels one controller output drives. */
-export interface RigSlice {
-  readonly controller: string;
-  readonly output: string;
-  readonly chain: string;
-  readonly start: number;
-  readonly count: number;
-  readonly led_type: number | null;
-  readonly color_order: string;
-}
+export type RigSlice = Wire<OutputSlice>;
 
 /** The pixels one controller receives. */
-export interface RigControllerSlice {
-  readonly controller: string;
-  readonly start: number;
-  readonly count: number;
-}
+export type RigControllerSlice = Wire<ControllerSlice>;
 
-export interface RigIssue {
-  readonly level: "error" | "violation" | "warning";
-  readonly code: string;
-  readonly message: string;
-  readonly ref: string | null;
-}
+export type RigIssue = Wire<Issue>;
 
-export type RigPlan =
-  /** The image's top-left corner in plan-frame meters, and meters per image pixel. */
-  | { readonly corner_m: readonly number[]; readonly meters_per_pixel: number; readonly url: string }
-  /** The rig names an image the engine cannot find. */
-  | { readonly error: string };
+/** The image's top-left corner in plan-frame meters, meters per image pixel and URL; or, when the
+ * engine cannot find the image the rig names, why. */
+export type RigPlan = Wire<RigViewPlan | PlanMissing>;
 
 /** What a 3D view needs of a rig (`run --map` with an arrangement); null on any other map.
  * `frame` is C, which takes the y-up meters to the plan frame: a pixel's mapping is
  * `(C @ p) * scale + shift`. */
-export interface RigShape {
-  readonly catalog_digest: string;
-  readonly frame: readonly (readonly number[])[];
-  readonly scale: number;
-  readonly shift: readonly number[];
-  readonly plan: RigPlan | null;
-  readonly fixtures: readonly RigFixture[];
-  readonly types: Readonly<Record<string, RigType>>;
-  readonly controllers: readonly RigController[];
-  readonly slices: readonly RigSlice[];
-  readonly controller_slices: readonly RigControllerSlice[];
-  readonly issues: readonly RigIssue[];
-}
+export type RigShape = Wire<RigView>;
 
 export interface HelloMessage extends MapShape {
   readonly type: "hello";

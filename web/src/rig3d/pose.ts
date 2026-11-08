@@ -8,7 +8,7 @@
  * identity pose, a bar standing upright with its LEDs facing +Z.
  */
 import { Euler, MathUtils, Matrix4, Quaternion, Vector3 } from "three";
-import type { Pose, QuatXYZW, Vec3 } from "../api/types";
+import type { Pose, QuatXYZW, Vec3 } from "../studio/api/types";
 
 /** A pose with both parts given, as the editor reads and writes it. */
 export interface PoseQ {

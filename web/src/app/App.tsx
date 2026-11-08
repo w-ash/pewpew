@@ -1,7 +1,8 @@
 import { Splitter } from "@ark-ui/react/splitter";
-import { useEffect, useId, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useState } from "react";
 import { useStandingAura, useWire } from "../wire/store";
 import { Banner } from "../design/Banner";
+import { ErrorBoundary } from "../design/ErrorBoundary";
 import { Panel } from "../design/Panel";
 import { StepStatus } from "../design/StepStatus";
 import { ArmStatus } from "../design/press";
@@ -19,6 +20,7 @@ import { AddLayerPanel } from "../stack/AddLayer";
 import { ADD, useLayerSelection } from "../stack/selection";
 import { usePlanImage } from "../stage/plan";
 import { Stage, useCover } from "../stage/Stage";
+import { StageControls, type StageView } from "../stage/StageControls";
 import { BoardBanner } from "../status/BoardBanner";
 import { connectionText, linkOf } from "../status/connection";
 import { HealthPanel } from "../status/HealthPanel";
@@ -26,6 +28,9 @@ import { ShortcutHelp } from "../status/ShortcutHelp";
 import { StatusBar } from "../status/StatusBar";
 import { TopBar } from "../status/TopBar";
 import { Slot } from "./Slot";
+
+// three.js and the 3D view load only when the stage first shows 3D.
+const Stage3D = lazy(() => import("../rig3d/Stage3D"));
 
 export function App() {
   return (
@@ -70,6 +75,10 @@ function Shell() {
   const blackout = useWire((s) => !!s.aura?.blackout);
   const held = useWire((s) => !!s.aura?.triggers?.held || !!s.aura?.looks?.pending);
   const lost = link === "lost";
+  // Only an arrangement run has a rig to draw in 3D; any other map draws flat.
+  const hasRig = useWire((s) => !!s.map?.rig);
+  const [stageView, setStageView] = useState<StageView>("2d");
+  const in3d = hasRig && stageView === "3d";
   // The health panel and the list of every look take the slot in turn: opening one closes the other.
   const [slotPanel, setSlotPanel] = useState<SlotPanel>(null);
   const toggle = (which: Exclude<SlotPanel, null>) => () => setSlotPanel(slotPanel === which ? null : which);
@@ -96,7 +105,16 @@ function Shell() {
   const stage = (
     <div className="stage-area">
       <div className="stage-live" inert={lost}>
-        <Stage plan={plan} cover={cover} />
+        {in3d ? (
+          <ErrorBoundary fallback={<p className="stage-note">The 3D view did not load. Reload the page to try again.</p>}>
+            <Suspense fallback={<p className="stage-note">loading the 3D view…</p>}>
+              <Stage3D />
+            </Suspense>
+          </ErrorBoundary>
+        ) : (
+          <Stage plan={plan} cover={cover} />
+        )}
+        {hasRig && <StageControls view={stageView} onChange={setStageView} />}
         <StatusBar planNote={plan.note} coverRef={measureCover} />
         {blackout && (
           <p className="stage-cue t-eyebrow" aria-hidden="true">

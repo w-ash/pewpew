@@ -1,7 +1,7 @@
 """The studio backend, driven through FastAPI's TestClient.
 
 Most tests inject a fake rig: `create_app` takes the catalog, compile function
-and geometry builders as arguments. The tests marked "real rig" use the
+and assemblies as arguments. The tests marked "real rig" use the
 defaults, `pewpew.rig.load_catalog` and `compile_rig`.
 """
 
@@ -107,6 +107,10 @@ def fake_compile(arrangement, catalog):
     return (PoweredRig if arrangement.get("power") else FakeRig)(arrangement.get("n", 8))
 
 
+def fake_assembly(type_id, catalog):
+    return "d" + type_id, b"glTF-" + type_id.encode()
+
+
 def state_of(client):
     return cast(Any, client.app).state
 
@@ -117,8 +121,7 @@ def make_app(**kw):
         "catalog": FakeCatalog(),
         "compile": fake_compile,
         "store": SqliteStore(":memory:"),
-        "build_glb": lambda type_id, cat: b"glTF-" + type_id.encode(),
-        "assembly_digest": lambda type_id, cat: "d" + type_id,
+        "assemblies": fake_assembly,
         "web_dist": Path("/nonexistent"),
         "fps": FPS,
     }
@@ -1306,49 +1309,54 @@ def test_an_unexpected_compile_error_is_refused_and_logged(caplog):
     assert any(r.levelno == logging.WARNING and r.name == "pewpew.studio.app" for r in caplog.records)
 
 
-# -- repeated work and missing geometry (finding 13) --------------------------------------
+# -- repeated work and the prebuilt assemblies (finding 13) --------------------------------
 
 
 def test_the_digest_map_is_built_once_and_unknown_assemblies_rebuild_nothing():
-    digests, builds = [], []
+    calls = []
 
-    def digest_of(type_id, cat):
-        digests.append(type_id)
-        return "d" + type_id
+    def assemblies(type_id, cat):
+        calls.append(type_id)
+        return fake_assembly(type_id, cat)
 
-    def build(type_id, cat):
-        builds.append(type_id)
-        return b"glTF-" + type_id.encode()
-
-    with TestClient(make_app(build_glb=build, assembly_digest=digest_of)) as c:
+    with TestClient(make_app(assemblies=assemblies)) as c:
         for _ in range(3):
             assert c.get("/api/assembly/nope.glb").status_code == 404
             assert c.get("/api/catalog").status_code == 200
             assert c.get("/api/assembly/dbar.glb").status_code == 200
-    assert sorted(digests) == sorted(builds) == ["bar", "point"]
+    assert sorted(calls) == ["bar", "point"]
 
 
-def test_real_geometry_serves_every_assembly_once_built():
-    from pewpew.rig import geometry
-
-    catalog = load_catalog()
-    with TestClient(real_app()) as c:
+def test_a_type_without_an_assembly_has_null_urls():
+    with TestClient(make_app(assemblies=lambda type_id, cat: None)) as c:
         body = c.get("/api/catalog").json()
-        types = body["fixture_types"] + body["attachment_types"]
-        assert {t["id"] for t in types} == set(catalog.fixture_types) | set(catalog.attachment_types)
-        for t in types:
-            assert t["digest"] == geometry.assembly_digest(t["id"], catalog)
-            r = c.get(t["assembly_url"])
-            assert r.status_code == 200 and r.content[:4] == b"glTF"
-            assert r.headers["cache-control"] == "public, max-age=31536000, immutable"
-        assert c.get("/api/assembly/0000000000000000.glb").status_code == 404
+        assert body["fixture_types"][0]["digest"] is None
+        assert body["fixture_types"][0]["assembly_url"] is None
+        assert body["attachment_types"][0]["assembly_url"] is None
+        assert c.get("/api/assembly/dbar.glb").status_code == 404
+
+
+def serves_every_prebuilt_assembly(c):
+    catalog = load_catalog()
+    body = c.get("/api/catalog").json()
+    types = body["fixture_types"] + body["attachment_types"]
+    assert {t["id"] for t in types} == set(catalog.fixture_types) | set(catalog.attachment_types)
+    for t in types:
+        assert t["assembly_url"] == f"/api/assembly/{t['digest']}.glb"
+        r = c.get(t["assembly_url"])
+        assert r.status_code == 200 and r.content[:4] == b"glTF"
+        assert hashlib.sha256(r.content).hexdigest()[:16] == t["digest"]
+        assert r.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert c.get("/api/assembly/0000000000000000.glb").status_code == 404
+
+
+def test_the_real_app_serves_every_prebuilt_assembly():
+    with TestClient(real_app()) as c:
+        serves_every_prebuilt_assembly(c)
 
 
 @pytest.mark.parametrize("missing", ["pewpew.rig.geometry", "manifold3d"])
-def test_missing_geometry_gives_503_and_no_assembly_urls(monkeypatch, missing):
+def test_missing_geometry_still_serves_every_prebuilt_assembly(monkeypatch, missing):
     monkeypatch.setitem(sys.modules, missing, None)  # the import fails as if absent
     with TestClient(real_app()) as c:
-        body = c.get("/api/catalog").json()
-        assert body["fixture_types"] and all(f["assembly_url"] is None for f in body["fixture_types"])
-        r = c.get("/api/assembly/anything.glb")
-        assert r.status_code == 503 and "geometry" in r.json()["detail"]
+        serves_every_prebuilt_assembly(c)

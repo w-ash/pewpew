@@ -107,7 +107,11 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
 deterministic bytes. `assembly_digest(type_id, catalog) -> str` gives the URL key. In the GLB,
 each part node carries `extras` `{"glow": "pixels"|"pixel_nearest"|"none", "gain": float}`, and
 the root carries `extras.pixel_axis` `{"y0", "span", "count"}`. The same builder covers the
-`attachment_type`s.
+`attachment_type`s. `scripts/build_assemblies.py` (`just assemblies`) writes each type's GLB to
+`src/pewpew/rig/assemblies/<digest>.glb`, with `index.json` giving each base type id its `digest`
+and the `source` hash of the data it was built from. `pewpew.rig.parts.PartsView` serves them
+without manifold3d; a type whose `source` is stale has a null `digest` and `assembly_url`, and
+`GET /api/assembly/{digest}.glb` answers 404 for a digest it does not have.
 
 **Wiring and electrical (ws2).** `compile_rig` calls ws2's functions to produce `rig.slices` and
 `rig.report`. The report includes `estimate_effect_power(frame_linear: np.ndarray) -> float` (W)
