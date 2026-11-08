@@ -27,7 +27,7 @@ from pewpew.render import Renderer
 
 
 class Knobs:
-    """A class that declares params; a pattern and an op are two such."""
+    """A class that declares params; an op is one such."""
 
     speed = Float(0.4, 0.0, 2.0, "/s")
     angle = Float(90.0, 0.0, 360.0, "°", periodic=True)
@@ -151,7 +151,7 @@ def test_apply_binds_the_set_and_writes_every_value() -> None:
 
 def test_a_drive_moves_the_target_and_leaves_the_base() -> None:
     """A slider and a saved look read the set, so they show the operator's
-    value; the pattern reads the modulated one."""
+    value; the program reads the modulated one."""
     params, target, link = bound()
     link.drive("speed", 0.5)
     assert target.speed == pytest.approx(0.9)

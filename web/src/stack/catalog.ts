@@ -125,7 +125,10 @@ export function brings(card: Card, at: number, sources: ReadonlyMap<string, stri
   if (card.sig === "source" || !json || readsBelow(json)) return [];
   const nodes = json.nodes;
   if (typeof nodes !== "object" || nodes === null) return [];
-  const ops = Object.values(nodes).map((n: unknown) => String((n as { op?: unknown })?.op ?? ""));
+  const ops = Object.values(nodes).map((n: unknown) => {
+    const op = (n as { op?: unknown } | null)?.op;
+    return typeof op === "string" ? op : "";
+  });
   return [...new Set(ops.filter((op) => op !== card.name && sources.has(op)))].map((op) => sources.get(op)!);
 }
 

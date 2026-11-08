@@ -20,7 +20,7 @@ from typing import Protocol
 
 import numpy as np
 
-from pewpew.kit import TWO_PI
+from pewpew.fx.prims.vec import TWO_PI
 
 N_BANDS = 16  # the bands of every frame
 

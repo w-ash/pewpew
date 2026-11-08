@@ -1098,6 +1098,25 @@
               "label": "z"
             }
           ]
+        },
+        {
+          "name": "shape",
+          "kind": "choice",
+          "label": "Shape",
+          "help": "Sine rises and falls; saw climbs from 0 to 1, then jumps back to 0, so a palette wraps round",
+          "group": "",
+          "widget": "",
+          "default": "sine",
+          "options": [
+            {
+              "value": "sine",
+              "label": "Sine"
+            },
+            {
+              "value": "saw",
+              "label": "Saw"
+            }
+          ]
         }
       ],
       "cost": {
@@ -1168,6 +1187,54 @@
                       }
                     ]
                   }
+                }
+              }
+            }
+          }
+        },
+        {
+          "py": "osc(0.8, 0.1, shape=\"saw\").palette(\"candy\", cycle=0.03)",
+          "json": {
+            "out": "palette",
+            "nodes": {
+              "osc": {
+                "op": "osc",
+                "args": {
+                  "freq": 0.8,
+                  "sync": 0.1,
+                  "shape": "saw"
+                }
+              },
+              "palette": {
+                "op": "palette",
+                "in": [
+                  "osc"
+                ],
+                "args": {
+                  "palette": {
+                    "label": "candy",
+                    "stops": [
+                      {
+                        "at": 0.0,
+                        "h": 330.0,
+                        "s": 0.55,
+                        "v": 1.0
+                      },
+                      {
+                        "at": 0.5,
+                        "h": 275.0,
+                        "s": 0.4,
+                        "v": 1.0
+                      },
+                      {
+                        "at": 1.0,
+                        "h": 160.0,
+                        "s": 0.45,
+                        "v": 1.0
+                      }
+                    ]
+                  },
+                  "cycle": 0.03
                 }
               }
             }

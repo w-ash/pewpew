@@ -44,7 +44,7 @@ import numpy as np
 
 from pewpew.audio.source import Block
 from pewpew.features import N_BANDS
-from pewpew.kit import fade
+from pewpew.fx.prims.vec import fade
 
 HOP_S = 0.01
 LOST_S = 0.5

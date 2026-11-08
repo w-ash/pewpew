@@ -84,7 +84,7 @@ def test_advance_failure_is_contained_too() -> None:
     assert all(is_error_frame(f) for f in frames)
     assert renderer.error is not None
     assert renderer.error.phase == "advance"
-    assert renderer.error.pattern == "layers.base" and renderer.error.path == f"layers.base.{NID}"
+    assert renderer.error.layer == "layers.base" and renderer.error.path == f"layers.base.{NID}"
     assert "boom in advance" in renderer.error.traceback
 
 

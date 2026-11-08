@@ -9,8 +9,7 @@ it to the object that reads them, where a float, an int or a color's part
 can be driven by an offset (modulation). `probes` reads a describe record
 for two values of a param that must render differently (liveness).
 
-This package depends on nothing else in pewpew but `pewpew.classinfo`,
-`pewpew.errors` and `pewpew.kit`.
+This package depends on nothing else in pewpew but `pewpew.errors` and, at run time, `pewpew.color`.
 """
 
 from __future__ import annotations

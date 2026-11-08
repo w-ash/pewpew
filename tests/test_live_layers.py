@@ -105,7 +105,7 @@ def test_a_layer_added_below_another_goes_under_it_and_keeps_the_id_it_gives(tmp
 def test_a_layer_that_names_op_pattern_is_an_unknown_op_and_its_file_never_read(tmp_path):
     rig = rig_of(tmp_path, solid_on("base", RED))
     pathed = tmp_path / "x.py"
-    pathed.write_text("raise SystemExit('a pattern file sent over the socket ran')\n")
+    pathed.write_text("raise SystemExit('a file sent over the socket ran')\n")
     refusal = ask(rig, type="add_layer", layer={"out": "x", "nodes": {"x": {"op": "pattern",
                                                                             "args": {"pattern": str(pathed)}}}})
     assert refusal is not None and refusal.name == "layers.x.x.op"

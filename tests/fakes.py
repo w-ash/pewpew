@@ -88,7 +88,7 @@ class FakeProcess:
 class FakeTime:
     """Wall-time fake for pacing tests: a perfect sleeper whose sleep(s)
     advances the clock by exactly s. The pacing counterpart of the
-    harness FakeClock, which fakes *pattern* time."""
+    harness FakeClock, which fakes *look* time."""
 
     def __init__(self, start: float = 0.0) -> None:
         self.t = float(start)

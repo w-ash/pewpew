@@ -1,24 +1,9 @@
-"""Small numeric helpers the ops, colors and sinks share: `TWO_PI`, the
-0-1 sine `wave`, `hsv`, the frame-rate-independent `fade` and `bins`.
-
-The arithmetic is copied, not tidied, from the authoring study's prototype
-(ADR-005; bench/results/authoring-2026-07-16.md), so what it rendered
-stays bit-identical.
-"""
+"""HSV to linear-light RGB, and the index of a 0-1 coordinate in a table."""
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 from numpy.typing import ArrayLike
-
-TWO_PI = 2.0 * math.pi
-
-
-def wave(p):
-    """Sine shaped to 0-1: wave(0)=0.5 rising."""
-    return 0.5 + 0.5 * np.sin(TWO_PI * np.asarray(p))
 
 
 def hsv(h: ArrayLike, s: ArrayLike, v: ArrayLike) -> np.ndarray:
@@ -34,19 +19,6 @@ def hsv(h: ArrayLike, s: ArrayLike, v: ArrayLike) -> np.ndarray:
 
     r, g, b = np.broadcast_arrays(chan(5.0), chan(3.0), chan(1.0))
     return np.stack([r, g, b], axis=-1).astype(np.float32)
-
-
-# ---- fade and bins: the study's verdict -------------------------------------
-# (bench/results/authoring-2026-07-16.md). Each copies the expression a study
-# pattern wrote by hand; tests/test_kit.py holds the proofs.
-
-
-def fade(dt: float, tau: float) -> float:
-    """Frame-rate-independent decay factor: `v *= fade(dt, tau)` keeps
-    exp(-dt/tau), where a per-frame constant (`v *= 0.94`) would depend on
-    the frame rate (stumble #2). Returns a Python float, as the study did, so
-    no numpy scalar changes a downstream dtype."""
-    return math.exp(-dt / tau)
 
 
 def _cell(v, n: int) -> np.ndarray:

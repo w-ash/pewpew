@@ -3,7 +3,7 @@
 Every start that drives real hardware appends one JSON line before the
 first packet goes out. The log lives outside the repo by default
 (`~/.local/state/pewpew/audit.jsonl`); `PEWPEW_AUDIT_LOG` overrides it.
-The record carries wall-clock UTC time: this is provenance, not pattern
+The record carries wall-clock UTC time: this is provenance, not look
 code, so determinism does not apply.
 """
 

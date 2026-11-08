@@ -7,8 +7,6 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import ArrayLike
 
-from pewpew.kit import hsv
-
 
 @dataclass(frozen=True, slots=True)
 class HSV:
@@ -16,7 +14,7 @@ class HSV:
 
     `h` is degrees from 0 to 360; `s` and `v` are 0 to 1. `v` scales
     brightness. `rgb` is the color as a frame; `turn` is the hue in the
-    unit `pewpew.hsv` takes.
+    unit `pewpew.color.hsv` takes.
     """
 
     h: float
@@ -25,13 +23,16 @@ class HSV:
 
     @property
     def turn(self) -> float:
-        """The hue as a 0-1 turn, the unit `pewpew.hsv` takes."""
+        """The hue as a 0-1 turn, the unit `pewpew.color.hsv` takes."""
         return self.h / 360.0
 
     def rgb(self, v: np.ndarray) -> np.ndarray:
         """This color as linear RGB with its value scaled by `v`, per pixel:
         `hsv(turn, s, self.v * v)`, (N,3) for an (N,) `v`. A scalar `v`
         gives one (3,) colour, which a frame must broadcast to (N,3)."""
+        # Imported here: pewpew.color imports this module.
+        from pewpew.color import hsv
+
         return hsv(self.turn, self.s, self.v * v)
 
 

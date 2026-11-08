@@ -251,7 +251,7 @@ test("an edit of one color part snaps that part and sends the others as they wer
   const point = { clientX: box.left + box.width / 2, clientY: box.top + box.height / 2, pointerId: 1, bubbles: true };
   strip.dispatchEvent(new PointerEvent("pointerdown", { ...point, button: 0, buttons: 1 }));
   document.dispatchEvent(new PointerEvent("pointerup", point));
-  await expect.poll(() => (sets(sent).at(-1)?.value as HSV).h).not.toBe(40);
+  await expect.poll(() => (sets(sent).at(-1)!.value as HSV).h).not.toBe(40);
   const dragged = sets(sent).at(-1)?.value as HSV;
   expect([dragged.h % 2, dragged.s, dragged.v]).toEqual([0, at.s, at.v]);
 });
@@ -382,7 +382,7 @@ test("the hue strip's keys step by the hue's own step, and wrap past 360°", asy
   const hues: number[] = [];
   for (const key of ["{PageUp}", "{ArrowDown}", "{ArrowUp}", "{ArrowUp}", "{PageDown}", "{Shift>}{ArrowRight}{/Shift}"]) {
     await userEvent.keyboard(key);
-    hues.push((sets(sent).at(-1)?.value as HSV).h);
+    hues.push((sets(sent).at(-1)!.value as HSV).h);
   }
   expect(hues).toEqual([10, 8, 10, 12, 352, 12]);
 });

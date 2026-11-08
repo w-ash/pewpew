@@ -103,9 +103,11 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `sync`: 0.1 -1.0..1.0 Hz. How fast the stripes travel: crests a second past each point; below 0 they run back.
 - `offset`: 0.0 0.0..1.0. Moves the stripes along by part of a crest.
 - `axis`: 'x' of u, x, y, z. Which way the stripes run; u runs along a strip from its first light.
+- `shape`: 'sine' of sine, saw. Sine rises and falls; saw climbs from 0 to 1, then jumps back to 0, so a palette wraps round.
 
     osc(8, 0.1)
     osc(3, 0.15, axis="u").palette("ocean")
+    osc(0.8, 0.1, shape="saw").palette("candy", cycle=0.03)
 
 ### `particles` — Particles
 

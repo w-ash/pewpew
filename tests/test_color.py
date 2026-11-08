@@ -2,7 +2,7 @@
 
 A gradient blends in OKLab so a blend keeps its hue, and a blend that
 leaves the gamut gives up chroma, never hue or lightness. Each stop's color
-is the color `pewpew.hsv` gives, so a palette and a color param agree.
+is the color `pewpew.color.hsv` gives, so a palette and a color param agree.
 """
 
 from __future__ import annotations
@@ -12,9 +12,20 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pewpew.color import EMBER, LUT_SIZE, OCEAN, PRESETS, gradient_lut, linear_srgb, oklab, sample, turn_hue
-from pewpew.kit import hsv
-from pewpew.mapping import line
+from pewpew.color import (
+    EMBER,
+    LUT_SIZE,
+    OCEAN,
+    PRESETS,
+    bins,
+    gradient_lut,
+    hsv,
+    linear_srgb,
+    oklab,
+    sample,
+    turn_hue,
+)
+from pewpew.mapping import grid, line
 from pewpew.params import HSV, Gradient, Palette, Stop
 from pewpew.testing.goldens import assert_matches_golden
 
@@ -99,7 +110,7 @@ def test_a_blend_outside_the_gamut_gives_up_chroma_only() -> None:
 
 
 def test_a_stop_color_is_the_color_hsv_gives() -> None:
-    """One color model: a flat gradient is its stop's `pewpew.hsv` color."""
+    """One color model: a flat gradient is its stop's `pewpew.color.hsv` color."""
     teal = HSV(170.0, 0.6, 0.8)
     lut = gradient_lut(gradient((0.0, teal), (1.0, teal)))
     np.testing.assert_allclose(lut, np.broadcast_to(teal.rgb(np.ones(1, np.float32)), lut.shape), atol=1e-5)
@@ -174,3 +185,65 @@ def test_turning_a_hue_keeps_lightness_and_a_whole_turn_is_none() -> None:
     np.testing.assert_allclose(turned[2], rgb[2], atol=1e-5)  # grey has no hue to turn
     assert np.argmax(turned[0]) != np.argmax(rgb[0])
     np.testing.assert_allclose(turn_hue(rgb, 360.0), rgb, atol=1e-5)
+
+
+# ---- hsv and bins -----------------------------------------------------------
+
+
+def test_hsv_matches_reference_and_stays_in_range():
+    h = np.linspace(0.0, 1.0, 64, dtype=np.float32)
+    out = hsv(h, 1.0, 1.0)
+    assert out.dtype == np.float32
+    assert out.shape == (64, 3)
+    assert np.all((out >= 0.0) & (out <= 1.0))
+    assert np.array_equal(out[0], np.array([1.0, 0.0, 0.0], dtype=np.float32))  # h=0 -> red
+
+
+# ---- bins(x, n) — stumble #9 (hit) -----------------------------------------
+
+
+def test_bins_matches_geq_study_expression():
+    x = grid(16, 16)[:, 0]  # Geq's actual study fixture
+    expected = np.minimum((x * 16.0).astype(np.int32), 15)
+    assert np.array_equal(bins(x, 16), expected)
+
+
+def test_bins_clamps_both_edges():
+    # STUMBLE-9: int(x * 16) at x==1.0 (rightmost pixel of an inclusive 0-1
+    # mapping) lands in bin 16, one past the array — the study verified this
+    # by running the unclamped expression. Confirm the bug is real, then
+    # confirm bins() removes it.
+    x = np.array([1.0], dtype=np.float32)
+    unclamped = (x * 16.0).astype(np.int32)
+    assert unclamped[0] == 16
+    assert bins(x, 16)[0] == 15
+    # Below 0 an index wraps to the far end of the band array and quietly
+    # reads another band; imported maps can sit slightly out of range.
+    assert bins(np.array([-0.2, -5.0], np.float32), 16).tolist() == [0, 0]
+
+
+def test_bins_clamps_far_and_infinite_x_the_same_on_every_platform():
+    # A warped x can land far outside 0-1. Cast to int32 before the clamp, a
+    # value past the int32 range is undefined: arm64 saturates, x86-64 gives
+    # INT_MIN (band 0 for a far positive x), and numpy warns.
+    x = np.array([np.inf, -np.inf, 3e9, -3e9, 1.4e8], np.float32)
+    assert bins(x, 16).tolist() == [15, 0, 15, 0, 15]
+
+
+def test_a_nan_coordinate_reads_index_0_on_every_platform():
+    # NaN cast to int32 gives 0 on arm64 and INT_MIN on x86-64, where a
+    # lookup table then raises IndexError. The suite turns numpy's cast
+    # warning into an error, so this also proves no NaN reaches the cast.
+    nan = np.array([np.nan, 0.5], np.float32)
+    assert bins(nan, 16).tolist() == [0, 8]
+    from pewpew.color import EMBER, gradient_lut, sample
+
+    np.testing.assert_array_equal(sample(gradient_lut(EMBER), nan)[0], gradient_lut(EMBER)[0])
+
+
+def test_bins_generalizes_n():
+    x = np.array([0.0, 0.5, 0.999, 1.0], dtype=np.float32)
+    for n in (4, 15, 32):
+        expected = np.minimum((x * n).astype(np.int32), n - 1)
+        assert np.array_equal(bins(x, n), expected)
+        assert bins(x, n).max() <= n - 1

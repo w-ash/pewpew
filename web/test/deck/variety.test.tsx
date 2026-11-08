@@ -273,7 +273,7 @@ test("on a phone down to 360 px the two share one line under the looks", async (
     expect(Math.max(...tops.map((r) => r.right))).toBeLessThanOrEqual(row.right + 1);
     const saved = screen.getByRole("button", { name: /^warm/ }).element().getBoundingClientRect();
     expect(tops[0]!.top).toBeGreaterThan(saved.bottom - 1);
-    screen.unmount();
+    await screen.unmount();
   }
   await page.viewport(414, 896);
 });

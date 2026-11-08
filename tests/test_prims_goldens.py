@@ -115,7 +115,7 @@ def test_numpy_floor_keeps_scalar_math_in_float32() -> None:
 
 
 def _f64(value):
-    """`value` with every number a NumPy float64 scalar, as `kit.wave` and `np.mean` return."""
+    """`value` with every number a NumPy float64 scalar, as `vec.wave` and `np.mean` return."""
     return tuple(map(np.float64, value)) if isinstance(value, tuple) else np.float64(value)
 
 
@@ -150,7 +150,7 @@ SCALAR_ARGS: dict[str, tuple[Callable[..., object], dict[str, object]]] = {
 
 @pytest.mark.parametrize("name", list(SCALAR_ARGS))
 def test_a_numpy_float64_argument_keeps_a_prim_float32(name: str) -> None:
-    """`kit.wave`, `np.sin(t)` and `np.mean` give NumPy float64 scalars, which
+    """`vec.wave`, `np.sin(t)` and `np.mean` give NumPy float64 scalars, which
     are not weak under NEP 50: a prim takes each scalar as a Python float,
     so its result is float32 and the same bytes as with Python floats."""
     prim, args = SCALAR_ARGS[name]

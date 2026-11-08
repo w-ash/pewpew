@@ -13,13 +13,14 @@ sources:
 typecheck:
     uv run basedpyright
 
-# Both pages in web/: install from the lockfile, type-check, run the unit tests
+# Both pages in web/: install from the lockfile, type-check, lint (oxlint, type-aware), run the unit tests
 # (Chromium and WebKit), then build the control page into
 # src/pewpew/sinks/web/index.html and the studio into web/dist/studio.
 # The studio's E2E (`pnpm -C web e2e`) is not in the gate.
 web:
     pnpm install --frozen-lockfile
     pnpm -C web check
+    pnpm -C web lint
     pnpm -C web test
     pnpm -C web build
 

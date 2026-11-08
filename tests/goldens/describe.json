@@ -1408,6 +1408,25 @@
             "label": "z"
           }
         ]
+      },
+      {
+        "name": "shape",
+        "kind": "choice",
+        "label": "Shape",
+        "help": "Sine rises and falls; saw climbs from 0 to 1, then jumps back to 0, so a palette wraps round",
+        "group": "",
+        "widget": "",
+        "default": "sine",
+        "options": [
+          {
+            "value": "sine",
+            "label": "Sine"
+          },
+          {
+            "value": "saw",
+            "label": "Saw"
+          }
+        ]
       }
     ],
     "palette": [

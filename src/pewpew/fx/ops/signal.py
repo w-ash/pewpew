@@ -32,8 +32,8 @@ from typing import ClassVar
 
 from pewpew.fx.graph import Node
 from pewpew.fx.op import REGISTRY, Cost, FrameCtx, Op, Rate, stream
+from pewpew.fx.prims.vec import TWO_PI
 from pewpew.fx.types import Fn, Port, Sig, Ty
-from pewpew.kit import TWO_PI
 from pewpew.params import Choice, Float
 
 Range = tuple[float, float]

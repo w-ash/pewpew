@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { displayRgb, gradientCss, linearRgb, toDisplay } from "../../src/params/color";
 
-test("linear HSV matches pewpew.kit.hsv at the primaries and between", () => {
+test("linear HSV matches pewpew.color.hsv at the primaries and between", () => {
   const rgb = (h: number, s: number, v: number) => linearRgb({ h, s, v }).map((c) => +c.toFixed(9));
   expect(rgb(0, 1, 1)).toEqual([1, 0, 0]);
   expect(rgb(120, 1, 1)).toEqual([0, 1, 0]);

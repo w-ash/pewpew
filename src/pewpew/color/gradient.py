@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from pewpew.color.lab import linear_srgb, oklab, turned
-from pewpew.kit import bins, hsv
+from pewpew.color.rgb import bins, hsv
 from pewpew.params.values import HSV, Gradient, Stop
 
 LUT_SIZE = 256
@@ -30,7 +30,7 @@ def gradient_lut(gradient: Gradient, shift: float = 0.0) -> np.ndarray:
 
     Entry `i` is the color at the middle of `i/LUT_SIZE` to
     `(i+1)/LUT_SIZE`, the positions `sample` reads it for. Each stop's
-    color converts from HSV as `pewpew.hsv` does; between two stops the
+    color converts from HSV as `pewpew.color.hsv` does; between two stops the
     color moves in a straight line in OKLab, so a blend keeps its hue. A
     color outside the gamut, a turned one too, keeps its lightness and hue
     and loses chroma until it fits: no channel is clamped on its own.

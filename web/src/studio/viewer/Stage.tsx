@@ -105,6 +105,7 @@ function CameraRig({
       start: performance.now(),
       ms: 650,
     };
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- a view press (`generation`) or a new controller re-aims the camera; a rig or size change must not
   }, [view, generation, controls]);
 
   useEffect(() => {
@@ -177,7 +178,7 @@ export function Stage({ rig, catalog }: StageProps) {
         ...new Set(
           rig?.fixtures.flatMap((f) => [
             f.type_id,
-            ...Object.values(f.attachments ?? {}),
+            ...Object.values(f.attachments ?? {}).filter((a) => a !== null),
           ]) ?? [],
         ),
       ]
@@ -186,6 +187,7 @@ export function Stage({ rig, catalog }: StageProps) {
     [rig],
   );
   // The error belongs to the models it was raised for.
+  // oxlint-disable-next-line react/set-state-in-effect -- drops the error of the models a new key replaces; render-time reset would need a key prop on the loader
   useEffect(() => setModelError(null), [modelKey]);
   const missing = useMemo(
     () => (rig && catalog ? missingAssemblies(rig, catalog) : []),

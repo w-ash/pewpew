@@ -90,7 +90,7 @@ def ticks(features: AudioFeatures, seconds: float) -> list[tuple[float, FeatureF
 
 
 def beats(features: AudioFeatures, seconds: float) -> np.ndarray:
-    """The beat times patterns see over `seconds`."""
+    """The beat times a program sees over `seconds`."""
     return np.array(beat_times(ticks(features, seconds)))
 
 

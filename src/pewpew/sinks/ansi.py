@@ -22,7 +22,7 @@ from typing import Self, TextIO
 
 import numpy as np
 
-from pewpew.kit import bins
+from pewpew.color import bins
 from pewpew.sinks.sink import RateGate, to_display_u8
 
 _RESET = "\x1b[0m"

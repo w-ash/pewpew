@@ -1,4 +1,4 @@
-"""Color math past `pewpew.kit.hsv`: OKLab and gradients.
+"""Color math: HSV, OKLab and gradients.
 
 ADR-001 keeps linear RGB as the working space and allows OKLab as a
 blending helper that converts back to it. A `Palette` param's value is a
@@ -24,6 +24,7 @@ from pewpew.color.gradient import (
     sample,
 )
 from pewpew.color.lab import linear_srgb, oklab, turn_hue
+from pewpew.color.rgb import bins, hsv
 
 __all__ = [
     "AURORA",
@@ -36,7 +37,9 @@ __all__ = [
     "OCEAN",
     "PRESETS",
     "SYNTHWAVE",
+    "bins",
     "gradient_lut",
+    "hsv",
     "linear_srgb",
     "oklab",
     "sample",

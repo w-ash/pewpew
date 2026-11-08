@@ -32,7 +32,7 @@ draws come from the whole look seed and its own id.
 
 Containment: signals run outside every layer's renderer. A signal that
 raises, or gives anything but a finite number, holds its last value and
-becomes `error`, a `PatternError` whose path is `signals.<sid>`, and the
+becomes `error`, a `RenderFailure` whose path is `signals.<sid>`, and the
 stack renders on; a route that cannot move its knob is its signal's
 error. Each failure site is logged once; a frame with no failure clears
 the error.
@@ -62,7 +62,7 @@ from pewpew.fx.ops import OPS
 from pewpew.fx.ops.signal import Range, SignalOp, ranges
 from pewpew.params import Float, ParamSet
 from pewpew.params.kinds import Parsed, Ranged
-from pewpew.render import PatternError, contain
+from pewpew.render import RenderFailure, contain
 
 
 def signal_problems(signals: Graph | None, routes: Sequence[Route] | None) -> list[str]:
@@ -199,7 +199,7 @@ class Modulation:
         self._shown: tuple[str, ...] = ()
         self._live: Mapping[str, float] = MappingProxyType({})
         self._tick = 0
-        self._error: PatternError | None = None
+        self._error: RenderFailure | None = None
         self._logged: set[tuple] = set()
 
     def _make(self, node: Node, span: Range, seed: int) -> _Signal:
@@ -216,7 +216,7 @@ class Modulation:
     # ---- state (any thread) ---------------------------------------------
 
     @property
-    def error(self) -> PatternError | None:
+    def error(self) -> RenderFailure | None:
         """The current contained failure of a signal or a route, or None."""
         return self._error
 

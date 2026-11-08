@@ -12,7 +12,7 @@ first half of each period: under the 3 Hz flash limit (Epilepsy Society,
 2023; WCAG 2.2 SC 2.3.1).
 
 The master still applies, so blackout hides a blink and a low master dims
-it. The rest of the frame keeps the pattern.
+it. The rest of the frame keeps the look.
 
 Thread discipline as for `Master`: `check` runs anywhere; `start`, `stop`,
 `rebind` and `apply` belong to the loop thread (reach them through

@@ -84,7 +84,7 @@ _SLACK = 1e-9  # seconds: a delay of whole ticks lands on its tick despite float
 
 
 def frame_of(levels: Levels, beat_phase: float) -> FeatureFrame:
-    """The frame a pattern reads, from levels and a phase."""
+    """The frame a program reads, from levels and a phase."""
     return FeatureFrame(levels.bands, levels.volume, levels.bass, levels.mid, levels.high, beat_phase)
 
 

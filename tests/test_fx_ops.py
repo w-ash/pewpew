@@ -25,7 +25,7 @@ from pewpew.fx.op import Op, axis_choice, reach
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.source import DRIFT
 from pewpew.mapping import extents, grid, lattice, line
-from pewpew.metrics import LIVENESS_RMS, rms
+from pewpew.metrics import FLASH_LIMIT, LIVENESS_RMS, measure, rms
 from pewpew.params import Float, ParamSet
 from pewpew.params.probes import probes
 from pewpew.render import SlotClock
@@ -223,3 +223,35 @@ def test_a_noise_drifts_across_its_wrap_without_a_jump(py: str, nid: str) -> Non
     calm = steps(program, 30)
     across = steps(program, 30, (nid, DRIFT / 2 - 0.4))  # the wrap comes about 12 frames in
     assert across.max() < 1.5 * calm.max()
+
+
+def test_a_saw_osc_wraps_within_zero_to_one_and_the_sine_default_is_unchanged() -> None:
+    """`shape="saw"` climbs 0 to 1 along the room, then jumps back."""
+    saw = run(program_of('osc(2.5, 0.3, shape="saw")'), line(64), 40)
+    assert saw.dtype == np.float32
+    assert saw.min() >= 0.0 and saw.max() < 1.0
+    assert saw.max() > 0.97 and saw.min() < 0.03
+    assert (np.diff(saw[0, :, 0]) < 0).sum() in (2, 3), "2.5 stripes wrap two or three times"
+    np.testing.assert_array_equal(run(program_of("osc(2.5, 0.3)"), line(64), 4),
+                                  run(program_of('osc(2.5, 0.3, shape="sine")'), line(64), 4))
+
+
+def test_a_saw_osc_keeps_its_phase_across_a_rate_change() -> None:
+    """The saw reads the same `sync` phase as the sine, so a new rate moves it on from where it is."""
+    renderer = hosted(program_of('osc(1, 0.25, shape="saw")'), line(16))
+    op = op_of(renderer, "osc")
+    renderer.advance_to(1.0)
+    assert op.phase("sync") == pytest.approx(0.25)
+    renderer.bound.node_params["osc"].set("sync", 1.0)
+    renderer.advance_to(1.5)
+    assert op.phase("sync") == pytest.approx(-0.25)
+
+
+def test_a_saw_osc_wrap_counts_as_a_flash_and_stays_within_the_gate_at_the_top_rate() -> None:
+    """A saw's wrap is a hard edge, so a bright-to-dark palette over it counts
+    flashes; `sync` tops out at 1 Hz, one wrap a second, inside the limit."""
+    def flashes(rate: float) -> float:
+        frames = run(program_of(f'osc(1, {rate}, shape="saw").palette("ember")'), line(32), 180)
+        return measure(frames, FPS).flash_rate_max
+
+    assert 0.0 < flashes(1.0) <= FLASH_LIMIT

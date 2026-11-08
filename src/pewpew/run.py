@@ -87,7 +87,7 @@ from pewpew.mapping import DEFAULT_MAP, dimensions, parse_map
 from pewpew.pace import PaceStats
 from pewpew.power import PowerCap, PowerLimiter, power_stage
 from pewpew.reload import Watch
-from pewpew.render import PatternError
+from pewpew.render import RenderFailure
 from pewpew.room.blink import Blink
 from pewpew.room.live import RoomLive
 from pewpew.room.map import RoomMap, load_room
@@ -615,7 +615,7 @@ def status_line(*sources: tuple[Source, Any]) -> Callable[[], Status | None]:
         for tag, source in sources:
             err = source.error
             if err:
-                return Status(tag, str(err), err.path if isinstance(err, PatternError) else None)
+                return Status(tag, str(err), err.path if isinstance(err, RenderFailure) else None)
         return None
 
     return status

@@ -9,6 +9,14 @@ series (batch mode).
 
 ### Added
 
+- Add a `shape` arg to `osc`: `saw` climbs from 0 to 1 and jumps back, so a palette
+  over it wraps round (a rainbow that restarts at red) where the default `sine`
+  plays it up and back. The sine renders as before.
+- Lint the front end for bugs with oxlint and its type-aware rules (`pnpm -C web lint`,
+  in `just web`, so `just check` and CI): `correctness`, the React hooks and React
+  Compiler rules, the promise rules and `no-param-reassign`. No style rules. It
+  found a null fixture attachment in the model-reload key, and a few promises the
+  tests left unawaited.
 - Record one effect system (ADR-025, Proposed): a look over the op catalog is
   the only effect. The gallery, the `pattern` op, hand-written Python
   patterns and fixture units are to go, `run LOOKS` replaces `run PATTERN`,
@@ -740,6 +748,12 @@ series (batch mode).
 
 ### Changed
 
+- Name things for the domain. `PatternError` is `RenderFailure` and its
+  `pattern` field is `layer`; `pewpew.kit` is gone (`hsv` and `bins` are in
+  `pewpew.color`, `TWO_PI`, `wave` and `fade` in `pewpew.fx.prims.vec`);
+  `pewpew.classinfo` is gone; comments and docs no longer call a layer or
+  program a pattern. No wire field or golden changes. A look that hangs
+  while it is built at launch is named in the stall marker (tested).
 - Modules take precise names: `harness` is `pewpew.testing`, `sinks/base.py`
   is `sinks/sink.py`, `agent.py` is `mcp_cli.py`, `command.py` is
   `cli_args.py`, and the rig catalog's JSON lives in `rig/catalog_entries/`.
