@@ -135,7 +135,8 @@ def test_a_look_that_checks_comes_back_with_every_param_written_out():
     assert normalized(result) == {
         "seed": 3, "fade": 2.0, "cycle": False, "layers": [{
             "id": "base", "opacity": 1.0, "blend": "normal", "enabled": True, "out": "tint",
-            "nodes": {"waves": {"op": "osc", "args": {"freq": 4.0, "sync": 0.1, "offset": 0.0, "axis": "x"}},
+            "nodes": {"waves": {"op": "osc", "args": {"freq": 4.0, "sync": 0.1, "offset": 0.0, "axis": "x",
+                                                       "shape": "sine"}},
                       "tint": {"op": "palette", "in": ["waves"], "args": {
                           "palette": tint["args"]["palette"], "shift": 0.0, "cycle": 0.0}}},
         }],
@@ -245,7 +246,7 @@ def test_a_program_checks_node_by_node_with_every_knob_written_out():
     assert result.ok
     nodes = normalized(result)["layers"][0]["nodes"]
     assert nodes["fold"] == {"op": "kaleid", "in": ["waves"], "args": {"sides": 5, "plane": "auto"}}
-    assert nodes["waves"]["args"] == {"freq": 8.0, "sync": 0.1, "offset": 0.0, "axis": "x"}
+    assert nodes["waves"]["args"] == {"freq": 8.0, "sync": 0.1, "offset": 0.0, "axis": "x", "shape": "sine"}
     assert check_look(normalized(result)).look_normalized == result.look_normalized
 
 

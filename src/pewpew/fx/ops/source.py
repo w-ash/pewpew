@@ -60,7 +60,8 @@ class Osc(Op, op="osc"):
     shape = Choice("sine", {"sine": "Sine", "saw": "Saw"},
                    help="Sine rises and falls; saw climbs from 0 to 1, then jumps back to 0, so a palette wraps round")
     along = MappingProxyType({"freq": "axis"})
-    examples = ("osc(8, 0.1)", 'osc(3, 0.15, axis="u").palette("ocean")', 'osc(0.8, 0.1, shape="saw").palette("candy", cycle=0.03)')
+    examples = ("osc(8, 0.1)", 'osc(3, 0.15, axis="u").palette("ocean")',
+                'osc(0.8, 0.1, shape="saw").palette("candy", cycle=0.03)')
     cost = Cost(2.5, 2.4)
 
     def build(self, inputs: Sequence[Fn]) -> Fn:

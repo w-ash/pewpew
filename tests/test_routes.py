@@ -271,7 +271,7 @@ def test_the_builder_refuses_a_signal_where_it_cannot_go() -> None:
         osc(8).palette(lfo())
     with pytest.raises(ValueError, match=r"routes\[0\]: unknown knob 'layers.top.osc.freq'"):
         look(layer("base", tint()), routes=[lfo().to("layers.top.osc.freq", depth=1)])
-    with pytest.raises(ValueError, match=r"^osc: unknown param 'synk'; params: freq, sync, offset, axis$"):
+    with pytest.raises(ValueError, match=r"^osc: unknown param 'synk'; params: freq, sync, offset, axis, shape$"):
         osc(8, synk=lfo(0.1))  # type: ignore[call-arg]  # on purpose
     assert signal_problems(Graph((Node("a", "env"),)), None) == ["signals.a: env reads 1 signal(s) ('gate'), got 0"]
 

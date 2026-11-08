@@ -321,7 +321,7 @@ async def test_a_wrong_argument_gets_its_did_you_mean_and_the_corrected_call(cli
 
 @pytest.mark.parametrize(("tool", "look", "says"), [
     ("look_check", FREK, [("unknown-key at layers.base.waves.frek: layers.base.waves: unknown param 'frek' "
-                          "(did you mean 'freq'?); params: freq, sync, offset, axis"),
+                          "(did you mean 'freq'?); params: freq, sync, offset, axis, shape"),
                          "  fix: rename 'frek' to 'freq'"]),
     ("look_render", {"layers": [{"id": "base", "nodes": {"x": {"op": "kaleidd", "args": {}}}}]},
      ["  fix: set layers.base.x.op to 'kaleid'"]),

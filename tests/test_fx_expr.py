@@ -41,8 +41,8 @@ def test_a_literal_is_parsed_when_written_in_the_params_words() -> None:
         osc(8).kaleid(40)
     with pytest.raises(ValueError, match=r"palette.shift must be within 0.0..360.0"):
         osc(8).palette("ocean", shift=999)
-    with pytest.raises(TypeError, match="takes 4 args"):
-        osc(1, 2, 3, 4, 5)  # type: ignore[call-arg]  # on purpose
+    with pytest.raises(TypeError, match="takes 5 args"):
+        osc(1, 2, 3, 4, 5, 6)  # type: ignore[call-arg]  # on purpose
     with pytest.raises(TypeError, match="got 'freq' twice"):
         osc(1, freq=2)  # type: ignore[call-arg]  # on purpose
 

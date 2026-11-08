@@ -186,7 +186,7 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "glow", "args": {"pattern": "solid"}}}}]}}),
      "look 'a': layers.b.w: unknown op 'glow'"),
     (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "osc", "args": {"pattern": "solid"}}}}]}}),
-     "look 'a': layers.b.w: unknown param 'pattern'; params: freq, sync, offset, axis"),
+     "look 'a': layers.b.w: unknown param 'pattern'; params: freq, sync, offset, axis, shape"),
     (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"args": {"pattern": "solid"}}}}]}}),
      "look 'a': layers.b.w: 'op' is missing; name the node's op, one of "),
     (looks_file(looks={"a": {"layers": [{"id": "b", "nodes": {"w": {"op": "pattern",
