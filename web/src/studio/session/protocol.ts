@@ -8,9 +8,6 @@
 import type { TypedMessage } from "../../wire/protocol";
 import type { Arrangement } from "../api/types";
 
-/** The gamma the session's frames are encoded with (`DISPLAY_GAMMA`, src/pewpew/sinks/sink.py). */
-export const DISPLAY_GAMMA = 2.2;
-
 const FRAME_HEADER_BYTES = 8;
 
 /** What the studio sends besides the wire's requests. */
@@ -19,28 +16,25 @@ export type StudioMessage =
   | { type: "pause" }
   | { type: "resume" };
 
-/** What the studio reads besides the wire's states: the rig bound, with its pixel count, and the
- * streamed frame's estimated draw. */
-export type StudioServerMessage =
-  | { type: "bound"; n: number }
-  | { type: "power"; watts: number; uncapped_watts: number };
+/** What the studio reads besides the wire's states: the streamed frame's estimated draw. The bound
+ * rig's pixel count is the wire's map, which a `layout` replaces. */
+export type StudioServerMessage = {
+  type: "power";
+  watts: number;
+  uncapped_watts: number;
+};
 
 const isNum = (v: unknown): v is number =>
   typeof v === "number" && Number.isFinite(v);
 
-/** The types the studio reads itself. Its `hello` is not the engine's (it has
- * no map and no gamma), and it needs nothing read: it comes on connect, which
- * opens the wire's state, and after each bind, which the per-frame states
- * follow again as they are. */
-export const STUDIO_TYPES = ["hello", "bound", "power"] as const;
+/** The types the studio reads itself, the wire not having them yet. */
+export const STUDIO_TYPES = ["power"] as const;
 
-/** A studio message; null for a malformed one, and for a `hello`. */
+/** A studio message; null for a malformed one. */
 export function parseStudioMessage(
   msg: TypedMessage,
 ): StudioServerMessage | null {
   switch (msg.type) {
-    case "bound":
-      return isNum(msg.n) ? { type: "bound", n: msg.n } : null;
     case "power":
       if (!isNum(msg.watts)) return null;
       return {

@@ -1,8 +1,8 @@
 /**
  * A mock `/ws/session`, for dev and tests only. It follows the backend's
  * behavior (src/pewpew/studio/session.py, docs/studio/contracts.md): the
- * session starts in `tide` on a 256-pixel placeholder; `hello` comes on
- * connect and after each bind, the per-frame states after it; a request with
+ * session starts in `tide` on a 256-pixel placeholder; the engine's `hello` comes
+ * on connect, the per-frame states after it, and a `layout` after each bind; a request with
  * an `id` is answered with `ack` or `refused`, and one without is answered
  * only when refused; while paused, every request but `pause`, `resume` and
  * `bind` is refused. A failed bind is `refused` with `control: "bind"`.
@@ -22,6 +22,10 @@ const PLACEHOLDER_N = 256;
 const NO_FILE = ["recall", "save", "keep", "delete", "rename", "cycle", "favorite", "fade"];
 const NO_BOARDS = ["scan", "rebind", "blink"];
 
+/** `n` positions along x in the unit box: the mock has no rig geometry to send. */
+const line = (n: number) =>
+  Array.from({ length: n }, (_, i) => [n > 1 ? i / (n - 1) : 0, 0, 0]);
+
 const sessionLink = ws.link(/\/ws\/session$/);
 
 export const sessionHandler = sessionLink.addEventListener(
@@ -39,12 +43,22 @@ export const sessionHandler = sessionLink.addEventListener(
     const states = () => {
       for (const msg of aura.states()) send(msg);
     };
-    const hello = () => {
-      send({ type: "hello", n, fps: FPS, capabilities: ["ack", "look"] });
-      states();
-    };
+    const shape = () => ({
+      n,
+      total: n,
+      positions: line(n),
+      is3d: false,
+      room: null,
+    });
 
-    hello();
+    send({
+      type: "hello",
+      ...shape(),
+      display_gamma: 2.2,
+      build: null,
+      capabilities: ["ack", "look"],
+    });
+    states();
     const timer = setInterval(() => {
       if (paused) return;
       t += 1 / FPS;
@@ -110,13 +124,7 @@ export const sessionHandler = sessionLink.addEventListener(
             const rig = mockCompile(msg.arrangement as Arrangement);
             n = rig.n;
             cap = powerOf(msg.arrangement as Arrangement);
-            send({
-              type: "bound",
-              n,
-              catalog_digest: rig.catalog_digest,
-              issues: rig.issues,
-            });
-            hello();
+            send({ type: "layout", ...shape() });
           } catch (e) {
             send({
               type: "refused",

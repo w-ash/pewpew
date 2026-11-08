@@ -97,7 +97,7 @@ rig.to_json()          # dict without numpy: the body of POST /api/compile's res
   `current_a`. A feed's `connector_a` includes the PSU's output connector (`psu.connector`). Each
   output gives `fps`, the wire's rate at most the firmware's `min_frame_interval_s`. New warnings:
   `relies_on_cap_and_fuse` and `psu_full_white_overload`.
-- **Session.** `Session.bind(mapping, catalog_digest=..., issues=..., limiter=...)`.
+- **Session.** `Session.bind(mapping, *, limiter)`.
   Each frame passes the master, then the limiter (an `after` stage), before it is quantized. A
   frame that fails is dropped and the limiter stays bound. The arrangement's `max_brightness`
   stays in the limiter, and `uncapped_watts` is the draw of the frame at the master's level,
@@ -136,8 +136,11 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
 `pewpew.sinks.preview.StateTexts` and `answer_request` give.
 
 - **Server to client, text:**
-  - `{"type":"hello","n","fps","capabilities":["ack","look"]}`, sent on connect and after each
-    successful bind. Every per-frame message below goes again after it;
+  - the preview's `hello`, sent on connect (`n`, `total`, `positions`, `is3d`, `room` null,
+    `display_gamma`, `build` null, `capabilities`: `["ack","look"]`), and after each successful
+    bind a `layout`, the same fields without the last three. A frame that follows a `layout` is
+    laid out for its positions. A rig over the pixel limit never binds: compile rejects it.
+    The per-frame messages are not sent again after a `layout`;
   - the preview's per-frame messages, each sent with a frame when its text changes:
     `{"type":"status","error","source","path"}` (a render error, `"render"`, and the address of
     the part that raised it, or three nulls), `{"type":"declare","params":[spec]}` (every knob
@@ -149,13 +152,13 @@ typed in `web/src/wire/protocol.ts`), with the same wire text: the session sends
   - `{"type":"ack","id","control"}`, to the client that asked, for an accepted request that
     carries an `id`;
   - `{"type":"refused","control","name","id","reason"}`, to the client that asked only.
-    `control` is the request's `type` (null when it is not text), `bind` (with `issues` when
-    the arrangement does not compile), `session` or `message`; `name` is the knob of a refused
+    `control` is the request's `type` (null when it is not text), or one of the studio's own:
+    `bind` (with `issues` when the arrangement does not compile), `session` or `message`; `name` is the knob of a refused
     `set`. A request with no `id` that names no control is passed over. The reason never names a
     path;
-  - `{"type":"bound","n","catalog_digest","issues"}`, always followed by a `hello`;
-  - `{"type":"power","watts","uncapped_watts"}` at about 2 Hz: the effect power of the streamed
-    frame under the arrangement's power cap, and of the same frame without it.
+  - `{"type":"power","watts","uncapped_watts"}`, a per-frame message like the others, changing at
+    about 2 Hz: the effect power of the streamed frame under the arrangement's power cap, and of
+    the same frame without it.
 - **Server to client, binary:** a `<fI` header (engine `t` as float32, a uint32 sequence number,
   little-endian) followed by `n*3` uint8 display-ready RGB in rig pixel order. The frame is the
   capped one. The client drops

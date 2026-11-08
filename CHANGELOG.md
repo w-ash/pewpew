@@ -761,6 +761,9 @@ series (batch mode).
   same frame as a room map, `line` and `grid`, so an effect on an arrangement
   lays out as it does on a room. A flat axis and a single point now map to 0
   (they were 0.5). Looks tuned on an arrangement need one retune in the studio.
+- The hosted studio's session speaks the engine's wire: the engine's hello, a
+  `layout` after each bind, and a `power` state. The `bound` message and the
+  session's own hello are gone.
 - Dependencies: websockets 17.4 (the wire client opens its socket with
   `legacy=True`, as 17.1 asks of a caller that closes it), pytest 9.2,
   numba 0.68.1, watchfiles 1.3, msw 3 for the studio's mock mode, and

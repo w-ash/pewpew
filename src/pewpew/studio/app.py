@@ -8,6 +8,15 @@ of `examples/` (`PEWPEW_STUDIO_EXAMPLES` names another folder), which
 is imported on first use. While it or manifold3d is missing, catalog entries
 carry no assembly URL and the GLB route answers 503.
 
+The websocket speaks the engine's wire (`pewpew.sinks.preview`): the
+`hello` on connect, a `layout` after each bind, the per-frame states with
+the binary frames, `ack` and `refused`. The `refused` message names the
+refused control, as the preview does, and the studio adds three controls of
+its own: `session` (the session is refused or ends: the server is full, the
+visitor was evicted, or it sat paused too long), `message` (a message the
+socket does not accept: binary, or over the size limit) and `bind` (the
+arrangement did not compile, with `issues` then, or no look runs on it).
+
 Routes are plain `def` where they block, which FastAPI runs in its threadpool.
 Production runs `python -m pewpew studio`, which sets uvicorn's websocket
 message cap and shutdown bound (docs/studio/contracts.md).
@@ -298,9 +307,7 @@ def create_app(
         limiter = getattr(rig, "limiter", None)
         return {
             "mapping": rig.mapping,
-            "catalog_digest": rig.catalog_digest,
-            "issues": [_issue(i) for i in rig.issues],
-            # A rig without a limiter streams uncapped, with no power messages.
+            # A rig without a limiter streams uncapped, with no power readings.
             "limiter": None if limiter is None else limiter(),
         }
 
@@ -427,9 +434,9 @@ def create_app(
         pump: asyncio.Future | None = None
         try:
             outbox = Outbox(asyncio.get_running_loop())
-            session = Session(outbox, starts, fps=fps)
+            session = Session(outbox, starts, fps=fps, max_pixels=limits.max_pixels)
             registry.add(session, ticket, lambda: outbox.close_with(refusal("session", EVICTED)))
-            outbox.hello(session.hello())
+            outbox.control(session.hello())
             session.start()
             pump = asyncio.ensure_future(outbox.pump(ws))
             visitor = _Visitor(

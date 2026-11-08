@@ -1,9 +1,8 @@
 // A page's one connection to the engine. Engine restarts are routine, so a
 // closed socket reconnects after a second; one that answers with another page
 // build (an upgrade) reloads the tab, since this page cannot drive its wire.
-// A page whose server speaks more than the wire (the studio's `bind`, `bound`)
-// sends and reads its own messages through the same connection; one whose
-// server sends no engine hello opens the store's state itself (`onOpen`).
+// A page whose server speaks more than the wire (the studio's `bind`, `power`)
+// sends and reads its own messages through the same connection.
 import { asServerMessage, parseFrame, parseTyped, type ClientMessage, type RequestId, type Sender, type TypedMessage } from "./protocol";
 import type { WireStore } from "./store";
 
@@ -19,8 +18,7 @@ export interface SocketOptions {
   readonly reload?: () => void;
   /** Called as each connection opens, before any message on it. */
   readonly onOpen?: () => void;
-  /** The message types the page reads itself, in place of the store: its own (the studio's `bound`), or
-   * its own of a name the wire has (the studio's `hello`, which is not the engine's). */
+  /** The message types the page reads itself, in place of the store: its own (the studio's `power`). */
   readonly ownTypes?: readonly string[];
   /** Reads a message of `ownTypes`. */
   readonly onOwnMessage?: (msg: TypedMessage) => void;

@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 /** What the studio's own messages say; the wire's states are in the session's `WireStore`. */
 export interface SessionState {
-  /** Pixel count of the rig the server last bound; null until the first `bound`. */
+  /** Pixel count of the rig the server last bound; null until the first `layout`. */
   boundN: number | null;
   /** The streamed frame's estimated draw, under the power cap. */
   watts: number | null;

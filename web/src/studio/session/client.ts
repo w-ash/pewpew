@@ -4,8 +4,8 @@
  * reads its states through them, and this client adds the studio's own.
  *
  * The server starts each session on a placeholder rig, so the client binds
- * as soon as the socket opens and drops frames until `bound` gives the real
- * pixel count. A tab that is hidden sends `pause`, because Fly bills egress
+ * as soon as the socket opens and drops frames until the first `layout` gives
+ * the real pixel count. A tab that is hidden sends `pause`, because Fly bills egress
  * (docs/studio/plan.md, "Share links").
  *
  * The server also pauses a session after 10 minutes with no message from the
@@ -15,11 +15,11 @@
 import type { Frame } from "../../wire/protocol";
 import { Socket } from "../../wire/socket";
 import { WireStore } from "../../wire/store";
+import type { MapShape } from "../../room/layout";
 import type { Arrangement } from "../api/types";
 import { type SessionState, useSession } from "../store/session";
 import { frameBus } from "../viewer/frameBus";
 import {
-  DISPLAY_GAMMA,
   parseStudioMessage,
   STUDIO_TYPES,
   type StudioMessage,
@@ -74,6 +74,10 @@ export class SessionClient {
   private lastFrameAt = 0;
   private stallTimer: ReturnType<typeof setInterval> | null = null;
   private stopFrames: (() => void) | null = null;
+  private stopWire: (() => void) | null = null;
+  /** The wire's connection count and map as last seen, to tell a `layout` from a `hello`. */
+  private seenSession = 0;
+  private seenMap: MapShape | null = null;
   private readonly store: NonNullable<SessionClientOptions["store"]>;
   private readonly visibility: SessionClientOptions["visibility"];
   private readonly activity: SessionClientOptions["activity"];
@@ -114,6 +118,7 @@ export class SessionClient {
       this.activity?.addEventListener(type, this.onActivity, { passive: true });
     this.stallTimer = setInterval(this.checkStall, STALL_MS / 2);
     this.stopFrames = this.wire.subscribeFrame(this.onWireFrame);
+    this.stopWire = this.wire.subscribe(this.onWireState);
     this.socket.start();
   }
 
@@ -124,6 +129,7 @@ export class SessionClient {
     if (this.stallTimer) clearInterval(this.stallTimer);
     if (this.bindTimer) clearTimeout(this.bindTimer);
     this.stopFrames?.();
+    this.stopWire?.();
     this.socket.stop();
   }
 
@@ -148,8 +154,6 @@ export class SessionClient {
   }
 
   private onOpen = () => {
-    // The server sends no engine hello: the connection opens the wire's state.
-    this.wire.opened({ gamma: DISPLAY_GAMMA, map: null });
     if (this.bindTimer) {
       clearTimeout(this.bindTimer);
       this.bindTimer = null;
@@ -189,6 +193,20 @@ export class SessionClient {
       this.store.setState({ stalled });
   };
 
+  /** The first `layout` of a connection is the bound rig: its pixel count. A `hello` is the placeholder. */
+  private onWireState = () => {
+    const { session, map } = this.wire.getState();
+    const layout = session === this.seenSession && map !== this.seenMap && map !== null;
+    this.seenSession = session;
+    this.seenMap = map;
+    if (!layout) return;
+    // Backoff resets only once a bind works, so a session that dies on
+    // every bind retries ever more slowly instead of once a second.
+    this.retryMs = RETRY_MIN_MS;
+    this.lastFrameAt = performance.now();
+    this.store.setState({ boundN: map.n });
+  };
+
   /** A frame the wire received: shown only when it is as long as the bound rig. */
   private onWireFrame = () => {
     const frame = this.wire.getFrame();
@@ -206,13 +224,6 @@ export class SessionClient {
 
   private handle(msg: StudioServerMessage) {
     switch (msg.type) {
-      case "bound":
-        // Backoff resets only once a bind works, so a session that dies on
-        // every bind retries ever more slowly instead of once a second.
-        this.retryMs = RETRY_MIN_MS;
-        this.lastFrameAt = performance.now();
-        this.store.setState({ boundN: msg.n });
-        break;
       case "power":
         this.store.setState({
           watts: msg.watts,

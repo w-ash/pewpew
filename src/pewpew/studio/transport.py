@@ -2,14 +2,14 @@
 
 The session thread posts through `loop.call_soon_threadsafe`. Frames and power
 readings keep only the newest value, so a slow client loses frames and never
-queues them. Discrete messages (hello, bound, refused) keep their order; their
-queue is bounded, and overflow closes the socket. A hello drops the pending
-frame, because that frame predates it, and every per-frame message goes
-again after it.
+queues them. Discrete messages (hello, layout, refused) keep their order;
+their queue is bounded, and overflow closes the socket. A `layout` drops the
+pending frame: a frame laid out for the map before it must not follow it, and
+the next frame carries the whole state.
 
-Beside each frame the pump sends each per-frame message whose text has
-changed since this client last got it, as the preview does
-(`pewpew.sinks.preview.changed_texts`).
+Beside each frame the pump sends each per-frame message (the `power`
+reading among them) whose text has changed since this client last got it,
+as the preview does (`pewpew.sinks.preview.changed_texts`).
 """
 
 from __future__ import annotations
@@ -32,10 +32,8 @@ class Outbox:
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
         self._event = asyncio.Event()
-        # Each message, and whether it is a hello.
-        self._control: deque[tuple[dict, bool]] = deque()
+        self._control: deque[dict | str] = deque()
         self._frame: FramePayload | None = None
-        self._power: tuple[float, float] | None = None
         self._dead = False
         self._closing = False
         self.overflow = False
@@ -51,14 +49,11 @@ class Outbox:
     def frame(self, payload: FramePayload) -> None:
         self._post(self._put_frame, payload)
 
-    def hello(self, message: dict) -> None:
+    def control(self, message: dict | str) -> None:
+        self._post(self._put_control, message)
+
+    def layout(self, message: dict | str) -> None:
         self._post(self._put_control, message, True)
-
-    def control(self, message: dict) -> None:
-        self._post(self._put_control, message, False)
-
-    def power(self, watts: float, uncapped_watts: float) -> None:
-        self._post(self._put_power, (watts, uncapped_watts))
 
     def closed(self) -> None:
         self._post(self._put_dead)
@@ -75,22 +70,18 @@ class Outbox:
         self._frame = payload
         self._event.set()
 
-    def _put_control(self, message: dict, hello: bool) -> None:
+    def _put_control(self, message: dict | str, new_map: bool = False) -> None:
         if len(self._control) >= MAX_CONTROL_BACKLOG:
             self.overflow = True
         else:
-            self._control.append((message, hello))
-            if hello:
-                self._frame = None
+            self._control.append(message)
+            if new_map:
+                self._frame = None  # packed for the old map
         self._event.set()
 
     def _put_close(self, message: dict) -> None:
-        self._control.append((message, False))
+        self._control.append(message)
         self._closing = True
-        self._event.set()
-
-    def _put_power(self, reading: tuple[float, float]) -> None:
-        self._power = reading
         self._event.set()
 
     def _put_dead(self) -> None:
@@ -108,15 +99,10 @@ class Outbox:
             if self.overflow or self._dead:
                 return
             while self._control:
-                message, hello = self._control.popleft()
-                await ws.send_text(json.dumps(message))
-                if hello:
-                    last.clear()
+                message = self._control.popleft()
+                await ws.send_text(message if isinstance(message, str) else json.dumps(message))
             if self._closing:
                 return
-            if self._power is not None:
-                (watts, uncapped), self._power = self._power, None
-                await ws.send_text(json.dumps({"type": "power", "watts": watts, "uncapped_watts": uncapped}))
             payload, self._frame = self._frame, None
             if payload is None:
                 continue

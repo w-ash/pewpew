@@ -6,10 +6,11 @@ no asyncio. One port serves the page (any HTTP GET), the floor plan
 
 Wire protocol. web/src/wire/protocol.ts types every message and says
 what its fields mean. Each message has one source here: `hello` and
-`layout` are `_View.of` (`room` is `RoomMap.describe()`), `status` is the
+`layout` are `View.of` (`room` is `RoomMap.describe()`), `status` is the
 `status` supplier, and `declare`, `params`, `mod`, `aura`, `health` and
 `catalog` are the control's states (`pewpew.aura.control.wire_states`),
-made text by `StateTexts`, which the studio uses too. A state that is the
+made text by `StateTexts`, which the studio uses too; `power`, the
+estimated draw of the streamed frame, is given to it by the studio only. A state that is the
 same object as the last one read keeps its text, so the large `catalog`
 is serialized once, and again only when it changes (an op file loads).
 `mod`, the live values of the knobs a route drives, changes every frame,
@@ -93,12 +94,12 @@ logger = logging.getLogger(__name__)
 # and is never sent.
 _MESSAGES = {
     "status": None, "declare": "params", "params": "values", "mod": "values", "aura": None, "health": None,
-    "catalog": None,
+    "catalog": None, "power": None,
 }
 # How often the `mod` message's values are read, at most, a second.
 MOD_HZ = 10.0
 # (frame bytes, current view, the current text of each of `_MESSAGES`)
-_Payload = tuple[bytes, "_View", "tuple[str | None, ...]"]
+_Payload = tuple[bytes, "View", "tuple[str | None, ...]"]
 
 # How long `stop()` waits on each client that does not answer the close.
 CLOSE_TIMEOUT_S = 1.0
@@ -108,11 +109,18 @@ FRAME_HEADER = struct.Struct("<fI")  # a binary frame's engine time and sequence
 PLAN_URL = "/plan"
 
 
+def pack_frame(t: float, seq: int, frame: np.ndarray) -> bytes:
+    """A binary frame: the `FRAME_HEADER` for engine time `t` and sequence
+    number `seq`, then `frame` (float RGB, one row a pixel) as display-ready
+    bytes. The studio sends the same bytes (pewpew.studio.session)."""
+    return FRAME_HEADER.pack(t, seq) + to_display_u8(frame).tobytes()
+
+
 def message(kind: str, state: Any) -> str:
     """The wire text of the `kind` message of `_MESSAGES` for `state`: the
     status, the declarations, the values, the live values, the `aura`
-    state, the health or the catalog. The studio sends the same text
-    (pewpew.studio.session)."""
+    state, the health, the catalog or the power reading. The studio sends
+    the same text (pewpew.studio.session)."""
     key = _MESSAGES[kind]
     return json.dumps({"type": kind, **(state if key is None else {key: state})})
 
@@ -136,7 +144,7 @@ _PLAN_MISSING = "the floor plan image was not found or is not a file; drawing th
 
 
 @dataclass(frozen=True)
-class _View:
+class View:
     """The positions clients draw, swapped whole by `remap`.
 
     `generation` counts remaps; a client compares it with the one it last
@@ -159,7 +167,10 @@ class _View:
         room: dict | None = None,
         plan_image: Path | None = None,
         capabilities: tuple[str, ...] = (),
-    ) -> _View:
+        build: str | None = None,
+    ) -> View:
+        """The view of `mapping`, decimated to `max_pixels`. `build` is the
+        page's build stamp, which the hello carries."""
         mapping = np.asarray(mapping, dtype=np.float32)
         n = len(mapping)
         idx = np.linspace(0.0, n - 1, max_pixels).round().astype(np.int64) if n > max_pixels else None
@@ -185,7 +196,7 @@ class _View:
         }
         return cls(
             generation, n, idx,
-            json.dumps({"type": "hello", **shape, "display_gamma": DISPLAY_GAMMA, "build": page_build(),
+            json.dumps({"type": "hello", **shape, "display_gamma": DISPLAY_GAMMA, "build": build,
                         "capabilities": list(capabilities)}),
             json.dumps({"type": "layout", **shape}),
             served,
@@ -333,8 +344,15 @@ class StateTexts:
         # Each message's last state and its text, by message type: see `_text`.
         self._texts: dict[str, tuple[object, str]] = {}
 
-    def __call__(self, status: tuple[str, str, str | None] | None) -> tuple[str | None, ...]:
+    def __call__(
+        self, status: tuple[str, str, str | None] | None, power: dict[str, float] | None = None,
+    ) -> tuple[str | None, ...]:
+        """The texts for `status` and, when a source has one, the latest
+        `power` reading `{"watts", "uncapped_watts"}`, replaced whole by each
+        new one."""
         states: dict[str, Any] = {"status": status_state(status)}
+        if power is not None:
+            states["power"] = power
         if self._control is not None:
             states |= wire_states(self._control, self._mod_values(self._control))
         return tuple(self._text(kind, states.get(kind)) for kind in _MESSAGES)
@@ -420,7 +438,7 @@ class PreviewSink:
         self._max_pixels = max_pixels
         # A client's `id` is answered only when there is a control to ask.
         self._capabilities = ("ack", *control.capabilities) if control is not None else ()
-        self._view = _View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities)
+        self._view = View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities, page_build())
         self._control = control
         self._states = StateTexts(control, now)
         self._gate = RateGate(max_fps, now=now, sleep=sleep)
@@ -502,8 +520,8 @@ class PreviewSink:
         `plan_image` as the constructor takes them. Every open page gets a
         `layout` message before the first such frame. Call it after the
         renderer was rebound, from the thread that feeds `send`'s frames."""
-        self._view = _View.of(
-            mapping, self._max_pixels, self._view.generation + 1, room, plan_image, self._capabilities,
+        self._view = View.of(
+            mapping, self._max_pixels, self._view.generation + 1, room, plan_image, self._capabilities, page_build(),
         )
 
     def send(self, t: float, frame: np.ndarray) -> None:
@@ -517,9 +535,8 @@ class PreviewSink:
             clients = list(self._clients.values())
         if not clients:
             return
-        u8 = to_display_u8(frame if view.idx is None else frame[view.idx])
         self._seq = (self._seq + 1) & 0xFFFFFFFF
-        data = FRAME_HEADER.pack(t, self._seq) + u8.tobytes()
+        data = pack_frame(t, self._seq, frame if view.idx is None else frame[view.idx])
         messages = self._states(status)
         for client in clients:
             client.driver.submit(t, (data, view, messages))

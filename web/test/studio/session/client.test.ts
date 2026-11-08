@@ -49,12 +49,27 @@ function harness(hidden = false) {
   };
 }
 
-const bound = (n: number) => ({
-  type: "bound",
-  n,
-  catalog_digest: "d",
-  issues: [],
+/** The engine's hello, sent on connect: the placeholder rig. */
+const hello = (n: number) => ({
+  type: "hello",
+  ...shape(n),
+  display_gamma: 2.2,
+  build: null,
+  capabilities: ["ack", "look"],
 });
+
+/** The layout after a bind: the bound rig. */
+const bound = (n: number) => ({ type: "layout", ...shape(n) });
+
+function shape(n: number) {
+  return {
+    n,
+    total: n,
+    positions: Array.from({ length: n }, (_, i) => [i / n, 0, 0]),
+    is3d: false,
+    room: null,
+  };
+}
 
 describe("SessionClient", () => {
   beforeEach(() => {
@@ -106,6 +121,7 @@ describe("SessionClient", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
+    h.socket().receive(hello(256));
     h.socket().receive(bound(1));
     h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(3)));
     vi.advanceTimersByTime(STALL_MS);
@@ -124,6 +140,7 @@ describe("SessionClient", () => {
     const h = harness();
     h.client.start();
     h.socket().open();
+    h.socket().receive(hello(64));
     h.socket().receive(encodeFrame(0.1, 1, new Uint8Array(64 * 3)));
     expect(h.frames).toHaveLength(0);
     h.socket().receive(bound(128));
@@ -133,16 +150,18 @@ describe("SessionClient", () => {
     expect(h.store.getState().boundN).toBe(128);
   });
 
-  it("opens the wire on connect, which a studio hello leaves alone", () => {
+  it("opens the wire on the engine's hello, which a layout leaves open", () => {
     const h = harness();
     h.client.start();
-    expect(h.client.wire.getState().connected).toBe(false);
     h.socket().open();
+    expect(h.client.wire.getState().connected).toBe(false);
+    h.socket().receive(hello(256));
     expect(h.client.wire.getState()).toMatchObject({
       connected: true,
       gamma: 2.2,
       session: 1,
     });
+    expect(h.store.getState().boundN).toBeNull();
     h.socket().receive({
       type: "declare",
       params: [
@@ -164,13 +183,8 @@ describe("SessionClient", () => {
       type: "params",
       values: { "layers.base.waves.freq": 4 },
     });
-    // The hello after a bind: every state follows again as it is.
-    h.socket().receive({
-      type: "hello",
-      n: 64,
-      fps: 30,
-      capabilities: ["ack", "look"],
-    });
+    // The layout after a bind leaves every state as it is.
+    h.socket().receive(bound(64));
     const wire = h.client.wire;
     expect(wire.getState().session).toBe(1);
     const [freq] = wire.getState().params;
@@ -225,6 +239,7 @@ describe("SessionClient", () => {
     h.client.start();
     const first = h.socket();
     first.open();
+    first.receive(hello(256));
     first.receive(bound(64));
     first.receive({ type: "power", watts: 1, uncapped_watts: 2 });
     first.close();

@@ -23,8 +23,10 @@ Each frame passes the master, then the bound rig's `PowerLimiter`, an
 light (architecture §2 stage 3). Beside each frame go the current text of
 every per-frame message the preview sends (`pewpew.sinks.preview.StateTexts`):
 the status, the knobs, their values, the driven knobs' live values, the
-aura state and the catalog. The `mod` values are read at most
-`MOD_HZ` times a second of engine time.
+aura state, the catalog and the `power` reading. The `mod` values are read
+at most `MOD_HZ` times a second of engine time. The session speaks the
+engine's wire: its `View` (`pewpew.sinks.preview`) gives the `hello` on
+connect and the `layout` after each bind, and `pack_frame` the frames.
 
 The session never touches asyncio. It reports through a `SessionSink`,
 whose methods run on the loop thread (or, for an answer, the thread that
@@ -50,8 +52,8 @@ from pewpew.compose import Look
 from pewpew.lab.check import ready
 from pewpew.mapping import grid
 from pewpew.power import PowerLimiter
-from pewpew.sinks.preview import FRAME_HEADER, StateTexts, refusal
-from pewpew.sinks.sink import to_display_u8
+from pewpew.sinks.preview import StateTexts, View, pack_frame, refusal
+from pewpew.studio.limits import MAX_PIXELS
 
 logger = logging.getLogger(__name__)
 
@@ -91,24 +93,19 @@ class FramePayload:
 @dataclass(frozen=True)
 class _Bind:
     mapping: np.ndarray
-    catalog_digest: str
-    issues: list
     limiter: PowerLimiter | None
 
 
 class SessionSink(Protocol):
     def frame(self, payload: FramePayload) -> None: ...
 
-    def hello(self, message: dict) -> None:
-        """The `hello` message: every per-frame message follows it again."""
+    def control(self, message: dict | str) -> None:
+        """A discrete text message: a dict to serialize, or its text."""
         ...
 
-    def control(self, message: dict) -> None:
-        """A discrete text message."""
-        ...
-
-    def power(self, watts: float, uncapped_watts: float) -> None:
-        """The estimated draw of the streamed frame, and of the same frame without the cap."""
+    def layout(self, message: dict | str) -> None:
+        """The layout for a new map: as `control`, and it drops the frame
+        packed for the old map."""
         ...
 
     def closed(self) -> None:
@@ -117,11 +114,20 @@ class SessionSink(Protocol):
 
 
 class Session:
-    def __init__(self, sink: SessionSink, looks: Mapping[str, Look], *, fps: float = FPS, seed: int = 0) -> None:
+    def __init__(
+        self,
+        sink: SessionSink,
+        looks: Mapping[str, Look],
+        *,
+        fps: float = FPS,
+        seed: int = 0,
+        max_pixels: int = MAX_PIXELS,
+    ) -> None:
         """A session that starts in the first of `looks` on a 16 x 16 grid,
         which every example look renders on, its made looks seeded from
-        `seed`; a bind falls back on `looks` in order. Raises as
-        `Compositor` does for a look it cannot start."""
+        `seed`; a bind falls back on `looks` in order. A rig over
+        `max_pixels` is decimated evenly in the stream, as in the preview.
+        Raises as `Compositor` does for a look it cannot start."""
         self._looks = looks
         look = next(iter(looks.values()))
         self._aura = build_aura_pipeline(look, grid(16, 16), seed=seed, accept_looks=True, max_making=1)
@@ -130,11 +136,14 @@ class Session:
         self._sink = sink
         self._fps = fps
         self._texts = StateTexts(self._aura.control, now=lambda: self._aura.fader.t)
+        self._max_pixels = max_pixels
+        self._capabilities = ("ack", *self._aura.control.capabilities)
+        self._view = View.of(self._aura.fader.current.mapping, max_pixels, 0, capabilities=self._capabilities)
         self._loop = self._aura.loop(fps, after=[self._limit], on_frame=[self._on_frame])
         self._seq = 0
         self._limiter: PowerLimiter | None = None
-        # The power reading of the frame `_limit` capped last, when one was due.
-        self._reading: tuple[float, float] | None = None
+        # The last power reading `_limit` took, replaced whole by each new one: the `power` state.
+        self._power: dict[str, float] | None = None
         self._logged: set[type] = set()
         self._power_every = max(1, round(fps / POWER_HZ))
         self._lock = threading.Lock()
@@ -202,11 +211,12 @@ class Session:
 
     # -- messages out ------------------------------------------------------
 
-    def hello(self) -> dict[str, Any]:
-        """The `hello` message: the pixel count, the frame rate and what a
-        client may rely on (the preview's `capabilities`)."""
-        return {"type": "hello", "n": self.n, "fps": self._fps,
-                "capabilities": ["ack", *self._aura.control.capabilities]}
+    def hello(self) -> str:
+        """The `hello` message text, as the preview sends it: the positions
+        of the bound rig, the display gamma and what a client may rely on
+        (`capabilities`). It carries no build stamp: the studio page is built
+        apart from its server."""
+        return self._view.hello
 
     def _status(self) -> tuple[str, str, str | None] | None:
         """The render error and the address of the part that raised, else
@@ -224,7 +234,6 @@ class Session:
         rig's cap, keeping the power reading when one is due. An uncapped
         limiter runs only then. Never raises: a frame the limiter refuses
         goes out black, never uncapped."""
-        self._reading = None
         limiter = self._limiter
         due = (self._seq + 1) % self._power_every == 0
         if limiter is None or not (limiter.cap.caps or due):
@@ -236,7 +245,7 @@ class Session:
                 logger.exception("the power limit refused a frame; it goes out black")
             return np.zeros(frame.shape, dtype=np.float32)
         if due and limited.watts is not None and limited.uncapped_watts is not None:
-            self._reading = (limited.watts, limited.uncapped_watts)
+            self._power = {"watts": limited.watts, "uncapped_watts": limited.uncapped_watts}
         return limited.frame
 
     def _on_frame(self, t: float, frame: np.ndarray) -> None:
@@ -244,10 +253,9 @@ class Session:
         dropped."""
         self._seq = (self._seq + 1) & 0xFFFFFFFF
         try:
-            data = FRAME_HEADER.pack(t, self._seq) + to_display_u8(frame).tobytes()
-            self._sink.frame(FramePayload(data, self._texts(self._status())))
-            if self._reading is not None:
-                self._sink.power(*self._reading)
+            view = self._view
+            data = pack_frame(t, self._seq, frame if view.idx is None else frame[view.idx])
+            self._sink.frame(FramePayload(data, self._texts(self._status(), self._power)))
         except Exception as exc:
             if self._first(exc):
                 logger.exception("dropped a frame")
@@ -272,19 +280,17 @@ class Session:
         self,
         mapping: np.ndarray,
         *,
-        catalog_digest: str,
-        issues: list,
         limiter: PowerLimiter | None,
     ) -> None:
         """Ask for a rebind to a compiled rig's mapping; engine time
         continues.
 
         `limiter` caps the rig's frames and estimates their power; None
-        streams them uncapped with no power messages. A later bind replaces
-        a pending one."""
+        streams them uncapped with no new power readings. A later bind
+        replaces a pending one."""
         with self._lock:
             queue = self._next_bind is None
-            self._next_bind = _Bind(mapping, catalog_digest, issues, limiter)
+            self._next_bind = _Bind(mapping, limiter)
         if queue:
             self._aura.calls.call_soon(self._apply_bind)
 
@@ -309,9 +315,12 @@ class Session:
                 return
             self._fallback = (fader.current, f"the look could not run on this arrangement ({exc}), so {name} runs")
         self._limiter = bind.limiter
-        self._sink.control({"type": "bound", "n": self.n, "catalog_digest": bind.catalog_digest,
-                            "issues": bind.issues})
-        self._sink.hello(self.hello())
+        if bind.limiter is None:
+            self._power = None  # no new readings: drop the old rig's
+        self._view = View.of(
+            fader.current.mapping, self._max_pixels, self._view.generation + 1, capabilities=self._capabilities,
+        )
+        self._sink.layout(self._view.layout)
 
     def _cut_to_one_that_runs(self) -> str | None:
         """Cut to the first of the session's looks that starts on the

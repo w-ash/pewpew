@@ -33,7 +33,7 @@ from fakes import FakeTime
 from pewpew.power import Limited, PowerCap, PowerLimiter
 from pewpew.rig import EXAMPLES, load_catalog
 from pewpew.sinks.preview import message, status_state
-from pewpew.sinks.sink import to_display_u8
+from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
 from pewpew.studio.app import create_app
 from pewpew.studio.limits import Limits, RateLimiter, address_key, client_ip
 from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, example_looks, start_looks
@@ -292,7 +292,10 @@ def test_store_is_idempotent():
 def test_hello_then_frames_of_the_right_length(client):
     with client.websocket_connect("/ws/session") as ws:
         hello = json.loads(ws.receive_text())
-        assert hello == {"type": "hello", "n": 256, "fps": FPS, "capabilities": ["ack", "look"]}
+        assert hello["type"] == "hello" and hello["n"] == hello["total"] == 256
+        assert hello["display_gamma"] == DISPLAY_GAMMA and hello["build"] is None
+        assert hello["capabilities"] == ["ack", "look"] and hello["room"] is None and not hello["is3d"]
+        assert len(hello["positions"]) == 256
         first = read_until(ws, is_frame)
         second = read_until(ws, is_frame)
         assert len(first) == 8 + 3 * hello["n"]
@@ -306,9 +309,8 @@ def test_bind_keeps_t_and_changes_n(client):
         for _ in range(5):
             before = read_until(ws, is_frame)
         ws.send_text(json.dumps({"type": "bind", "arrangement": {"n": 16}}))
-        bound = read_until(ws, is_type("bound"))
-        assert bound["n"] == 16 and bound["catalog_digest"] == "digest-1"
-        assert read_until(ws, is_type("hello"))["n"] == 16
+        layout = read_until(ws, is_type("layout"))
+        assert layout["n"] == layout["total"] == 16 and len(layout["positions"]) == 16
         after = read_until(ws, lambda m: is_frame(m) and len(m) == 8 + 48)
         assert header(after)[0] > header(before)[0] > 0
 
@@ -507,10 +509,7 @@ def test_real_rig_compiles_and_binds_golden_rings():
         with c.websocket_connect("/ws/session") as ws:
             ws.receive_text()
             ws.send_text(json.dumps({"type": "bind", "arrangement": GOLDEN}))
-            bound = read_until(ws, is_type("bound"))
-            assert bound["n"] == 3072
-            assert bound["issues"] == body["issues"]
-            assert read_until(ws, is_type("hello"))["n"] == 3072
+            assert read_until(ws, is_type("layout"))["n"] == 3072
             assert len(read_until(ws, is_frame)) == 8 + 3 * 3072
 
 
@@ -521,19 +520,15 @@ class RecordingSink:
     def __init__(self):
         self.controls = []
         self.frames = []
-        self.powers = []
 
     def frame(self, payload):
         self.frames.append(payload)
 
-    def hello(self, message):
-        self.controls.append(message)
-
     def control(self, message):
         self.controls.append(message)
 
-    def power(self, watts, uncapped_watts):
-        self.powers.append((watts, uncapped_watts))
+    def layout(self, message):
+        self.controls.append(message)
 
     def closed(self):
         pass
@@ -552,20 +547,23 @@ def test_pending_binds_coalesce_into_one_closure():
     sink = RecordingSink()
     session = stepped(sink)
     for n in range(4, 500):
-        session.bind(plane(n), catalog_digest="d", issues=[], limiter=None)
+        session.bind(plane(n), limiter=None)
     assert len(session._aura.calls._queue) == 1  # one apply closure for every bind above
     session._loop.run(frames=1)
     assert session.n == 499
-    assert [m["type"] for m in sink.controls] == ["bound", "hello"]
-    assert sink.controls[1] == session.hello() and sink.controls[1]["n"] == 499
+    assert [json.loads(m)["type"] for m in sink.controls] == ["layout"]
+    layout, hello = json.loads(sink.controls[0]), json.loads(session.hello())
+    assert layout["n"] == 499 and hello["n"] == 499  # a hello after a bind describes the bound rig
+    assert hello == {**layout, "type": "hello", "display_gamma": DISPLAY_GAMMA, "build": None,
+                     "capabilities": ["ack", "look"]}
 
 
 def test_a_bind_the_look_cannot_run_on_cuts_to_the_first_look_that_runs_and_says_so():
     sink = RecordingSink()
     session = stepped(sink)
-    session.bind(STRIP, catalog_digest="d", issues=[], limiter=None)  # tide folds a plane: a strip has none
+    session.bind(STRIP, limiter=None)  # tide folds a plane: a strip has none
     session._loop.run(frames=2)
-    assert [m["type"] for m in sink.controls] == ["bound", "hello"] and session.n == 8
+    assert [json.loads(m)["type"] for m in sink.controls] == ["layout"] and session.n == 8
     first = next(name for name, look in STARTS.items() if name != START)  # copper-tide runs on a strip
     stack = json.loads(sink.frames[-1].texts[4])["stack"]
     assert [layer["id"] for layer in stack["layers"]] == [layer.id for layer in STARTS[first].layers]
@@ -579,7 +577,7 @@ def test_a_bind_the_look_cannot_run_on_cuts_to_the_first_look_that_runs_and_says
 def test_a_bind_no_look_can_run_on_is_refused_and_the_old_map_stays():
     sink = RecordingSink()
     session = stepped(sink, looks={START: START_LOOK})
-    session.bind(STRIP, catalog_digest="d", issues=[], limiter=None)
+    session.bind(STRIP, limiter=None)
     session._loop.run(frames=2)
     assert sink.controls[-1]["type"] == "refused" and sink.controls[-1]["control"] == "bind"
     assert session.n == 256 and len(sink.frames[-1].data) == 8 + 3 * 256
@@ -631,11 +629,11 @@ def test_the_cap_runs_after_the_master_and_streams_both_power_readings():
 
     sink, halve = RecordingSink(), Halve()
     session = stepped(sink, fps=POWER_HZ)  # a power reading every frame
-    session.bind(plane(8), catalog_digest="d", issues=[], limiter=cast(PowerLimiter, halve))
+    session.bind(plane(8), limiter=cast(PowerLimiter, halve))
     session._loop.run(frames=2)
     assert session._loop._after == (session._aura.master.apply, session._limit)
     assert sink.frames[-1].data[8:] == to_display_u8(halve.seen[-1] * np.float32(0.5)).tobytes()
-    assert sink.powers[-1] == (1.0, 2.0)
+    assert json.loads(sink.frames[-1].texts[-1]) == {"type": "power", "watts": 1.0, "uncapped_watts": 2.0}
     assert session.control.master(0.0) is None
     session._loop.run(frames=1)
     assert not halve.seen[-1].any()  # the limiter gets the frame at the master's level
@@ -653,7 +651,7 @@ def test_a_failed_frame_is_dropped_and_the_cap_stays_bound():
 
     sink = Flaky()
     session = stepped(sink)
-    session.bind(plane(8), catalog_digest="d", issues=[], limiter=PowerLimiter(PowerCap(max_brightness=0.0)))
+    session.bind(plane(8), limiter=PowerLimiter(PowerCap(max_brightness=0.0)))
     session._loop.run(frames=3)
     assert sink.failed and len(sink.frames) == 2
     assert all(not any(data[8:]) for data in sink.frames)  # still black: the cap held
@@ -672,9 +670,26 @@ def test_an_uncapped_limiter_runs_only_when_a_reading_is_due():
 
     counting = Counting()
     session = stepped(RecordingSink())
-    session.bind(plane(8), catalog_digest="d", issues=[], limiter=cast(PowerLimiter, counting))
+    session.bind(plane(8), limiter=cast(PowerLimiter, counting))
     session._loop.run(frames=3 * session._power_every)
     assert counting.calls == 3
+
+
+def test_a_bind_to_a_rig_without_a_limiter_clears_the_power_reading():
+    class Fixed:
+        cap = PowerCap(max_brightness=0.5)
+
+        def __call__(self, frame):
+            return Limited(frame, 0.5, 1.0, 2.0)
+
+    sink = RecordingSink()
+    session = stepped(sink, fps=POWER_HZ)
+    session.bind(plane(8), limiter=cast(PowerLimiter, Fixed()))
+    session._loop.run(frames=2)
+    assert json.loads(sink.frames[-1].texts[-1])["watts"] == 1.0
+    session.bind(plane(8), limiter=None)
+    session._loop.run(frames=2)
+    assert sink.frames[-1].texts[-1] is None
 
 
 def test_frames_carry_the_previews_states_in_its_wire_text():
@@ -682,13 +697,15 @@ def test_frames_carry_the_previews_states_in_its_wire_text():
     session = stepped(sink, seed=3)
     session._loop.run(frames=2)
     control = session.control
-    texts = dict(zip(["status", "declare", "params", "mod", "aura", "health", "catalog"], sink.frames[-1].texts))
+    kinds = ["status", "declare", "params", "mod", "aura", "health", "catalog", "power"]
+    texts = dict(zip(kinds, sink.frames[-1].texts))
     assert texts["status"] == message("status", status_state(None))
     assert texts["declare"] == message("declare", control.describe())
     assert texts["params"] == message("params", control.values())
     assert texts["aura"] == message("aura", control.state())
     assert texts["catalog"] == message("catalog", control.catalog())
     assert texts["health"] is None  # a session has no health monitor
+    assert texts["power"] is None  # nor a power reading before a rig with a limiter is bound
     assert json.loads(texts["aura"])["master"] == START_LOOK.master  # the start look's master
 
 
@@ -847,7 +864,7 @@ def test_real_rig_streams_capped_power_from_the_arrangement_block():
     with TestClient(real_app()) as c, c.websocket_connect("/ws/session") as ws:
         ws.receive_text()
         ws.send_text(json.dumps({"type": "bind", "arrangement": {**GOLDEN, "power": {"max_brightness": 0.184}}}))
-        read_until(ws, is_type("bound"))
+        read_until(ws, is_type("layout"))
         power = read_until(ws, is_type("power"))
         assert power["uncapped_watts"] > 0 and power["watts"] == pytest.approx(0.184 * power["uncapped_watts"])
 
@@ -931,7 +948,7 @@ def test_concurrent_compiles_are_bounded():
         assert c.post("/api/compile", json={"n": 1}).status_code == 200
 
 
-def test_bind_takes_issues_from_the_rig_and_never_serializes_it():
+def test_bind_never_serializes_the_rig():
     warning = {"level": "warning", "code": "unwired", "message": "no wiring", "ref": None}
     rigs = []
 
@@ -942,7 +959,7 @@ def test_bind_takes_issues_from_the_rig_and_never_serializes_it():
     with TestClient(make_app(compile=compile_fn)) as c, c.websocket_connect("/ws/session") as ws:
         ws.receive_text()
         ws.send_text(json.dumps({"type": "bind", "arrangement": {}}))
-        assert read_until(ws, is_type("bound"))["issues"] == [warning]
+        assert read_until(ws, is_type("layout"))["n"] == 4
     assert rigs[0].to_json_calls == 0
 
 
@@ -1045,31 +1062,109 @@ def test_committed_openapi_matches_the_app():
     assert committed == create_app().openapi(), "run: uv run python scripts/export_openapi.py"
 
 
+# -- the wire contract ------------------------------------------------------------
+
+SESSION_GOLDEN = ROOT / "tests" / "goldens" / "session.json"
+CARDS = ("osc", "kaleid")  # the catalog cards the golden keeps, so an op added to the catalog does not change it
+
+
+def capture_session() -> dict:
+    """What a visitor is sent over `/ws/session`, as the golden holds it: the greeting (the hello,
+    then each per-frame state once), the `layout` after a bind, a `power` reading, and the
+    `refused` message of each control the studio adds (`bind`, `session`, `message`) and of a
+    request made while paused."""
+    app = make_app(limits=Limits(max_sessions=1))
+    with TestClient(app) as c, c.websocket_connect("/ws/session", headers={"Fly-Client-IP": "1.1.1.1"}) as ws:
+        greeting = [json.loads(ws.receive_text())]
+        while greeting[-1]["type"] != "catalog":  # the last of the states a frame brings first
+            message = read_until(ws, lambda m: not is_frame(m))
+            greeting.append(message)
+        # The live values are read at the engine time of whichever frame the mailbox kept.
+        mod = next(m for m in greeting if m["type"] == "mod")
+        mod["values"] = dict.fromkeys(mod["values"], 0.0)
+        catalog = greeting[-1]
+        catalog["cards"] = [card for card in catalog["cards"] if card["name"] in CARDS]
+        ws.send_text(json.dumps({"type": "bind", "arrangement": {"n": 16, "power": True}}))
+        layout = read_until(ws, is_type("layout"))
+        power = read_until(ws, is_type("power"))
+        ws.send_text(json.dumps({"type": "bind", "arrangement": {"bad": 1}}))
+        bind = read_until(ws, is_type("refused"))
+        ws.send_bytes(b"\x00")
+        refused_message = read_until(ws, is_type("refused"))
+        with c.websocket_connect("/ws/session", headers={"Fly-Client-IP": "2.2.2.2"}) as full:
+            session = json.loads(full.receive_text())
+        ws.send_text(json.dumps({"type": "pause"}))
+        assert wait_for(lambda: session_of(c).paused)
+        ws.send_text(json.dumps({"type": "look", "look": LOOKS["warp-lane"], "id": 4}))
+        paused = read_until(ws, is_type("refused"))
+    return {
+        "greeting": greeting,
+        "layout": layout,
+        "power": power,
+        "refused": {"bind": bind, "session": session, "message": refused_message, "paused": paused},
+    }
+
+
+def dump_session(live: dict) -> str:
+    """The golden's text: one line a message, so a review reads a diff by message."""
+    lines = []
+    for key, value in live.items():
+        if isinstance(value, list):
+            body = ",\n".join("    " + json.dumps(m, ensure_ascii=False) for m in value)
+            lines.append(f'  "{key}": [\n{body}\n  ]')
+        elif key == "refused":
+            body = ",\n".join(f'    "{k}": {json.dumps(m, ensure_ascii=False)}' for k, m in value.items())
+            lines.append(f'  "{key}": {{\n{body}\n  }}')
+        else:
+            lines.append(f'  "{key}": {json.dumps(value, ensure_ascii=False)}')
+    return "{\n" + ",\n".join(lines) + "\n}\n"
+
+
+def test_the_golden_is_the_live_session_wire(regen_goldens: bool):
+    live = capture_session()
+    if regen_goldens:
+        SESSION_GOLDEN.write_text(dump_session(live))
+    assert json.loads(SESSION_GOLDEN.read_text()) == live, "run `uv run pytest --regen-goldens` and review the diff"
+
+
+def test_the_session_golden_speaks_the_engines_wire():
+    golden = json.loads(SESSION_GOLDEN.read_text())
+    assert [m["type"] for m in golden["greeting"]] == ["hello", "status", "declare", "params", "mod", "aura", "catalog"]
+    hello, layout = golden["greeting"][0], golden["layout"]
+    assert set(hello) == set(layout) | {"display_gamma", "build", "capabilities"}
+    assert layout["type"] == "layout" and layout["n"] == len(layout["positions"]) == 16
+    assert set(golden["power"]) == {"type", "watts", "uncapped_watts"}
+    assert {r["control"] for r in golden["refused"].values()} == {"bind", "session", "message", "look"}
+
+
 # -- the outbox (finding 9) ------------------------------------------------------------
 
 
-def test_a_hello_drops_the_frame_queued_before_it():
-    class Recorder:
-        def __init__(self):
-            self.sent = []
+class _Recorder:
+    def __init__(self):
+        self.sent = []
 
-        async def send_text(self, text):
-            self.sent.append(json.loads(text))
+    async def send_text(self, text):
+        self.sent.append(json.loads(text))
 
-        async def send_bytes(self, data):
-            self.sent.append(data)
+    async def send_bytes(self, data):
+        self.sent.append(data)
 
+
+def _pump_kinds(control, new_map=False):
+    """Queue a frame, send `control` after a pending one, and return the kinds sent.
+    `new_map` sends it as a layout."""
     status = message("status", status_state(None))
     declare = message("declare", [{"name": "layers.base.osc.freq", "kind": "float"}])
 
     async def scenario():
         box = Outbox(asyncio.get_running_loop())
-        ws = Recorder()
+        ws = _Recorder()
         pump = asyncio.ensure_future(box.pump(cast(Any, ws)))
         box.frame(FramePayload(b"ONE", (status, declare)))
         await asyncio.sleep(0.01)
         box.frame(FramePayload(b"OLD", (status, declare)))
-        box.hello({"type": "hello", "n": 2})
+        (box.layout if new_map else box.control)(control)
         await asyncio.sleep(0.01)
         box.frame(FramePayload(b"NEW", (status, declare)))
         await asyncio.sleep(0.01)
@@ -1078,10 +1173,20 @@ def test_a_hello_drops_the_frame_queued_before_it():
         return ws.sent
 
     sent = asyncio.run(scenario())
+    return sent, [m if isinstance(m, bytes) else m["type"] for m in sent]
+
+
+def test_a_layout_drops_the_frame_queued_before_it():
+    sent, kinds = _pump_kinds('{"type": "layout", "n": 2}', new_map=True)
     assert b"OLD" not in sent
-    kinds = [m if isinstance(m, bytes) else m["type"] for m in sent]
-    # Each state goes again after the hello, though its text has not changed.
-    assert kinds == [b"ONE", "status", "declare", "hello", b"NEW", "status", "declare", "bye"]
+    # The states are absolute: a layout does not send them again.
+    assert kinds == [b"ONE", "status", "declare", "layout", b"NEW", "bye"]
+
+
+def test_an_ack_keeps_the_frame_queued_before_it():
+    sent, kinds = _pump_kinds({"type": "ack", "id": 1})
+    assert b"OLD" in sent and b"NEW" in sent
+    assert kinds.index("ack") < kinds.index("bye")
 
 
 # -- unexpected input (finding 11) -------------------------------------------------------

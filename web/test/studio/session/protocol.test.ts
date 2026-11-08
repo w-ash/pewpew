@@ -8,15 +8,7 @@ import {
 } from "../../../src/studio/session/protocol";
 
 describe("parseStudioMessage", () => {
-  it("reads bound and power; a power with one reading is uncapped", () => {
-    expect(
-      parseStudioMessage({
-        type: "bound",
-        n: 3072,
-        catalog_digest: "d",
-        issues: [],
-      }),
-    ).toEqual({ type: "bound", n: 3072 });
+  it("reads power; a power with one reading is uncapped", () => {
     expect(
       parseStudioMessage({ type: "power", watts: 12, uncapped_watts: 40 }),
     ).toEqual({ type: "power", watts: 12, uncapped_watts: 40 });
@@ -27,17 +19,9 @@ describe("parseStudioMessage", () => {
     });
   });
 
-  it("reads nothing from the studio's hello, and drops a malformed message", () => {
-    expect(STUDIO_TYPES).toContain("hello");
-    expect(
-      parseStudioMessage({
-        type: "hello",
-        n: 256,
-        fps: 30,
-        capabilities: ["ack", "look"],
-      }),
-    ).toBeNull();
-    expect(parseStudioMessage({ type: "bound", n: "many" })).toBeNull();
+  it("leaves the engine's hello and layout to the wire, and drops a malformed message", () => {
+    expect(STUDIO_TYPES).toEqual(["power"]);
+    expect(parseStudioMessage({ type: "layout", n: 256 })).toBeNull();
     expect(parseStudioMessage({ type: "power" })).toBeNull();
   });
 });
