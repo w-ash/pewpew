@@ -50,9 +50,11 @@ Tiers (CLAUDE.md T-7): streaming to real boards is tier-1 bench actuation,
 so `--dry-run` prints the plan and sends nothing, and a real run appends a
 `bench-soak` audit record (`pewpew.audit`) before the rig starts (the rig
 then appends its own `ddp-stream` record). `--loopback` sends nothing off
-this machine: each controller with pixels gets its own listener, by id,
-every other controller loses its host, and the run aborts unless every
-DDP target is a loopback address. Its audit records go to a log in the
+this machine: each controller that already has a host and drives pixels
+gets its own listener, by id, every other controller loses its host, and
+the run aborts unless every DDP target is a loopback address. A controller
+that drives pixels but has no host gets no listener, so the run aborts in
+`stream_refusals`. Its audit records go to a log in the
 temp dir.
 
     uv run python -m bench.bench_soak --loopback --duration 1200 --label loopback-<host>
@@ -403,6 +405,15 @@ class Recorder:
         return ProbeLoop
 
 
+def probe_installed(rec: Recorder):
+    """Patch the loop class the aura builds with `rec`'s probe loop."""
+    from unittest import mock
+
+    from pewpew.aura import pipeline
+
+    return mock.patch.object(pipeline, "PacedLoop", rec.probe_class())
+
+
 class LogTap(logging.Handler):
     """Every `pewpew` log record, timestamped on the bench's clock."""
 
@@ -646,10 +657,7 @@ def run(args: argparse.Namespace) -> None:
 def soak(args, rig_argv: list[str], child: subprocess.Popen, meta: dict, config: dict,
          schedule: list[dict]) -> dict:
     """Run the rig on this thread until the duration is up; return the doc."""
-    from unittest import mock
-
     import pewpew.__main__ as cli
-    from pewpew.aura import pipeline
 
     rec = Recorder(args.duration, args.fps)
     tap = LogTap(rec.t0)
@@ -701,7 +709,7 @@ def soak(args, rig_argv: list[str], child: subprocess.Popen, meta: dict, config:
     thread.start()
     started = time.perf_counter()
     try:
-        with mock.patch.object(pipeline, "PacedLoop", rec.probe_class()):
+        with probe_installed(rec):
             cli.main(rig_argv)
     finally:
         gc.callbacks.remove(rec.gc_hook)

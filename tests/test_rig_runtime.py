@@ -35,6 +35,22 @@ def test_the_plan_view_draws_the_canopy_as_the_room_compiler_did(example):
     assert view["fixture_of"] == example.fixture_of.tolist() and view["plan"] is None
 
 
+def test_a_base_type_and_its_variant_draw_the_same_length():
+    doc = {
+        "format": "pewpew.arrangement", "version": 1,
+        "fixtures": [
+            {"id": "plain", "type": "clen-360-tube-1500", "pose": {"position_m": [0.0, 0.0, 0.0]}},
+            {"id": "dimmed", "type": "clen-360-tube-1500", "pose": {"position_m": [0.0, 1.0, 0.0]},
+             "dims": {"length": 1.5}},
+        ],
+    }
+    rig = compile_doc(doc, CATALOG)
+    assert rig.types["clen-360-tube-1500"].span_m != 1.5  # the pixels span less than the tube
+    drawn = {f["id"]: abs(f["end"][0] - f["start"][0]) + abs(f["end"][1] - f["start"][1])
+             for f in plan_view(rig)["fixtures"]}
+    assert drawn["plain"] == pytest.approx(drawn["dimmed"], rel=1e-4)
+
+
 def test_the_rig_view_carries_what_a_3d_view_places():
     rig = compile_doc(arrangement(bar("a", pixels=4), bar("b", pixels=4, start=[0.0, 1.0], end=[1.0, 1.0], chain=2)),
                       CATALOG)

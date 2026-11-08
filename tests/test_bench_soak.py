@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -22,6 +21,7 @@ from bench.bench_soak import (
     check_loopback,
     health_summary,
     prepare,
+    probe_installed,
     sliders,
     summarize,
     trend,
@@ -132,7 +132,7 @@ def test_loopback_refuses_a_port_per_target_mismatch(tmp_path):
 
 def test_the_probe_loop_replaces_the_loop_the_aura_builds(fake_ops):
     rec = Recorder(1.0, 60.0)
-    with mock.patch.object(pipeline, "PacedLoop", rec.probe_class()):
+    with probe_installed(rec):  # the patch soak() installs around the rig run
         loop = pipeline.build_aura_pipeline(solid(1.0), line(4)).loop(60.0)
     assert rec.loop is loop
 

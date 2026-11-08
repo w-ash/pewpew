@@ -103,6 +103,28 @@ def _group_size(group: Mapping[str, Any], cap: int) -> int:
     return size
 
 
+def oversized_list(arrangement: Mapping[str, Any], cap: int) -> str | None:
+    """The key of the first list or object in `arrangement` with more than
+    `cap` entries, else None.
+
+    Walks all of the raw JSON, so a list the rig model caps at its own larger
+    limit (feeds, chains, controllers, tags, dims) is held to `cap` too, and
+    a list added to the model later is held without a change here.
+    """
+    pending: list[tuple[str, Any]] = [("arrangement", arrangement)]
+    while pending:
+        key, node = pending.pop()
+        if isinstance(node, dict):
+            if len(node) > cap:
+                return key
+            pending.extend((str(k), v) for k, v in node.items())
+        elif isinstance(node, list):
+            if len(node) > cap:
+                return key
+            pending.extend((key, v) for v in node)
+    return None
+
+
 @dataclass(eq=False)
 class Ticket:
     """One admitted socket. `Admission.release` frees it once."""

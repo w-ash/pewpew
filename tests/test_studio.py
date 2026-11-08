@@ -895,6 +895,82 @@ def test_the_studio_holds_its_own_fixture_cap_under_the_rig_files():
         assert c.post("/api/compile", json={**doc, "fixtures": free[:MAX_FIXTURES]}).status_code == 200
 
 
+def _doc(**parts) -> dict:
+    return {"format": "pewpew.arrangement", "version": 1, **parts}
+
+
+def _capped_lists() -> set[str]:
+    """`Model.field` of every list or object the rig model caps at its MAX_FIXTURES."""
+    found: set[str] = set()
+    schema = rig_models.Arrangement.model_json_schema()
+
+    def walk(node: Any, owner: str, field: str) -> None:
+        if isinstance(node, dict):
+            if rig_models.MAX_FIXTURES in (node.get("maxItems"), node.get("maxProperties")):
+                found.add(f"{owner}.{field}")
+            for child in node.values():
+                walk(child, owner, field)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child, owner, field)
+
+    for name, definition in {"Arrangement": schema, **schema["$defs"]}.items():
+        for prop, sub in definition.get("properties", {}).items():
+            walk(sub, name, prop)
+    return found
+
+
+def _probe(n: int) -> dict[str, dict]:
+    """An arrangement with `n` entries in each capped list, by `Model.field`."""
+    return {
+        "Arrangement.groups": _doc(groups=[{"preset": "ring", "count": 1}] * n),
+        "Arrangement.fixtures": _doc(fixtures=[{}] * n),
+        "Arrangement.controllers": _doc(controllers=[{}] * n),
+        "Arrangement.psus": _doc(psus=[{}] * n),
+        "Wiring.chains": _doc(wiring={"chains": [{}] * n}),
+        "Wiring.feeds": _doc(wiring={"feeds": [{}] * n}),
+        "Chain.fixtures": _doc(wiring={"chains": [{"fixtures": ["a"] * n}]}),
+        "PsuPlacement.powers": _doc(psus=[{"powers": ["a"] * n}]),
+        "FixturePlacement.tags": _doc(fixtures=[{"tags": ["a"] * n}]),
+        "FixturePlacement.dims": _doc(fixtures=[{"dims": {f"d{i}": 1.0 for i in range(n)}}]),
+        "RingGroup.tags": _doc(groups=[{"tags": ["a"] * n}]),
+        "RingGroup.dims": _doc(groups=[{"dims": {f"d{i}": 1.0 for i in range(n)}}]),
+        "ArrayGroup.tags": _doc(groups=[{"tags": ["a"] * n}]),
+        "ArrayGroup.dims": _doc(groups=[{"dims": {f"d{i}": 1.0 for i in range(n)}}]),
+    }
+
+
+def test_the_probes_cover_every_list_the_rig_model_caps():
+    assert set(_probe(1)) == _capped_lists()
+
+
+@pytest.mark.parametrize("field", sorted(_capped_lists()))
+def test_every_list_the_rig_model_caps_is_held_to_the_studio_cap(field):
+    calls = []
+    with TestClient(make_app(compile=counting_compile(calls))) as c:
+        r = c.post("/api/compile", json=_probe(MAX_FIXTURES + 1)[field])
+        assert r.status_code == 422 and r.json()["issues"][0]["code"] in {"too_many_entries", "too_many_fixtures"}
+        assert str(MAX_FIXTURES) in r.json()["issues"][0]["message"]
+    assert calls == []
+
+
+@pytest.mark.parametrize("key", ["feeds", "controllers", "psus", "chains"])
+def test_a_list_over_the_studio_cap_is_refused_with_its_name_and_one_at_the_cap_compiles(key):
+    calls = []
+    wiring = key in {"feeds", "chains"}
+
+    def doc(n: int) -> dict:
+        return _doc(wiring={key: [{}] * n}) if wiring else _doc(**{key: [{}] * n})
+
+    with TestClient(make_app(compile=counting_compile(calls))) as c:
+        r = c.post("/api/compile", json=doc(MAX_FIXTURES + 1))
+        issue = r.json()["issues"][0]
+        assert r.status_code == 422 and issue["code"] == "too_many_entries" and key in issue["message"]
+        assert calls == []
+        assert c.post("/api/compile", json=doc(MAX_FIXTURES)).status_code == 200
+    assert len(calls) == 1
+
+
 def test_pixel_cap():
     """The default compile (`compile_doc`) holds the pixel limit: one 64 px bar fits 64, two do not."""
     with TestClient(real_app(limits=Limits(max_pixels=64))) as c:

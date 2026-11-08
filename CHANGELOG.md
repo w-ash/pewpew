@@ -1351,6 +1351,11 @@ series (batch mode).
 
 ### Fixed
 
+- The hosted studio holds every list of an arrangement (feeds, chains, controllers,
+  PSUs, tags, dims) to its 200-entry cap again, not the rig model's 2048; a longer
+  list is refused as `too_many_entries` before compiling.
+- A fixture type with a `length` dim draws at that length whether or not a placement
+  sets dims; the base type drew at its pixels' span.
 - `bench/bench_soak.py --loopback` gives each controller that receives DDP its own
   listener by controller id, removes every other controller's host, and aborts
   unless every DDP target is a loopback address; it gave listener ports by

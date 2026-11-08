@@ -61,6 +61,7 @@ from pewpew.studio.limits import (
     address_key,
     client_ip,
     declared_fixtures,
+    oversized_list,
 )
 from pewpew.studio.session import START, Session, SessionRegistry, example_looks, start_looks
 from pewpew.studio.store import ID_PATTERN, Store, arrangement_id, canonical_json, store_from_env
@@ -282,6 +283,11 @@ def create_app(
         if declared_fixtures(arrangement, limits.max_fixtures) > limits.max_fixtures:
             raise CompileFailure(
                 [_error("too_many_fixtures", f"limit of {limits.max_fixtures} fixtures per arrangement")]
+            )
+        too_long = oversized_list(arrangement, limits.max_fixtures)
+        if too_long is not None:
+            raise CompileFailure(
+                [_error("too_many_entries", f"limit of {limits.max_fixtures} entries in a list ({too_long})")]
             )
         wait = compile_limiter.allow(key)
         if wait is not None:

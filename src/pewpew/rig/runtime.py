@@ -208,11 +208,16 @@ def fixture_spans(rig: CompiledRig) -> tuple[tuple[str, int, int], ...]:
 # ---- what the preview draws -------------------------------------------------------
 
 
-def _ends(rig: CompiledRig) -> list[tuple[np.ndarray, np.ndarray]]:
+def _ends(rig: CompiledRig, catalog: Catalog) -> list[tuple[np.ndarray, np.ndarray]]:
     """Each fixture's strip ends in plan-frame meters: its pixel 0 end, then
-    the far end. A strip is as long as its `length` dim, which a placement's
-    dims set (a variant type); any other type is as long as its pixels' span."""
+    the far end. A strip is as long as its type's `length` dim (a variant's
+    own, or the catalog's for a base type); a type with none is as long as
+    its pixels' span."""
     lengths = {v.id: v.dims["length"] for v in rig.variants if "length" in v.dims}
+    for type_id in rig.types.keys() - lengths.keys():
+        length = catalog.dims(type_id).get("length")
+        if length is not None:
+            lengths[type_id] = length
     out = []
     for f in rig.fixtures:
         spec = rig.types[f.type_id]
@@ -223,7 +228,7 @@ def _ends(rig: CompiledRig) -> list[tuple[np.ndarray, np.ndarray]]:
     return out
 
 
-def plan_view(rig: CompiledRig) -> dict[str, Any]:
+def plan_view(rig: CompiledRig, catalog: Catalog | None = None) -> dict[str, Any]:
     """The flat drawing of `rig`, JSON-ready: each fixture's strip ends
     normalized (x, y), its pitch in meters and its input end; each pixel's
     fixture; and the floor plan's corner, normalized, and its normalized
@@ -245,7 +250,7 @@ def plan_view(rig: CompiledRig) -> dict[str, Any]:
                 "end": norm(b),
                 "input": "start",
             }
-            for f, (a, b) in zip(rig.fixtures, _ends(rig))
+            for f, (a, b) in zip(rig.fixtures, _ends(rig, catalog or load_catalog()))
         ],
         "fixture_of": rig.fixture_of.tolist(),
         "plan": plan,
