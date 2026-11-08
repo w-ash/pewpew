@@ -99,6 +99,7 @@ def build_aura_pipeline(
     layout: Layout | None = None,
     accept_looks: bool = False,
     max_making: int | None = None,
+    max_book_bytes: int | None = None,
     timeout: float = ASK_TIMEOUT_S,
     make_variety: Callable[[Deck], Variety] | None = None,
     submit: Submit = in_background,
@@ -112,7 +113,8 @@ def build_aura_pipeline(
     without it there are no looks and no triggers. A book with no
     `looks_path` keeps its changes in memory (`Looks`). `gallery`, `blink`,
     `boards`, `health`, `layout`, `accept_looks`, `max_making` and
-    `timeout` are as for `AuraControl`.
+    `timeout` are as for `AuraControl`, and `max_book_bytes` as `max_bytes`
+    for `Looks`.
     `make_variety(deck)` makes the made looks' `Variety` (default: one
     seeded from `seed`), and `submit` is how the looks make a fresh slot's
     look (`Looks`). Raises as `Compositor` does."""
@@ -132,7 +134,7 @@ def build_aura_pipeline(
     variety = make_variety(deck) if make_variety is not None else Variety(deck, seed=seed)
     looks = None
     if book is not None:
-        looks = Looks(looks_path, book, deck, master, variety=variety, submit=submit)
+        looks = Looks(looks_path, book, deck, master, variety=variety, submit=submit, max_bytes=max_book_bytes)
     triggers = Triggers(
         book.triggers if book is not None else {}, looks=looks, features=features, log=trigger_log,
         log_max=trigger_log_max,

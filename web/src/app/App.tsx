@@ -75,6 +75,14 @@ function Loaded({ children }: { children: ReactNode }) {
   );
 }
 
+/** Before the first hello, the stage says why the server refused the page (a full Gallery, an unknown
+ * share), else that it waits. */
+function WaitingNote() {
+  // No session yet: the link is "waiting".
+  const text = useWire((s) => !s.session && (s.refusals.session?.reason ?? connectionText("waiting", "stage")));
+  return text && <p className="stage-note">{text}</p>;
+}
+
 /** Phone: the canvas on top, a scrolling slot, the deck pinned at the bottom.
  * Wide: the canvas beside a side panel, the deck at the top of it over the
  * slot. The slot shows the editor (the look and its main knobs, the layers,
@@ -170,7 +178,7 @@ function Shell() {
             blackout
           </p>
         )}
-        {link === "waiting" && <p className="stage-note">{connectionText(link, "stage")}</p>}
+        <WaitingNote />
       </div>
       {lost && (
         <Banner tone="lost" ref={measureCover}>

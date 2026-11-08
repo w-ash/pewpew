@@ -43,8 +43,10 @@ RIG_MEASURED = 18_473
 RIG_BUDGET = round(RIG_MEASURED * 1.03)
 # What Publish, export looks and the Gallery's chrome load on demand
 # (web/src/share), gzipped file by file: SHARE_MEASURED bytes as built on
-# 2026-11-08, plus 3%.
-SHARE_MEASURED = 2_482
+# 2026-11-08 with Publish's confirmation of what a share makes public (its
+# name, public notes and looks), plus 3%; 2,482 before it, with the
+# reconnect backoff the socket now holds.
+SHARE_MEASURED = 2_727
 SHARE_BUDGET = round(SHARE_MEASURED * 1.03)
 
 # The token names RA-27c §3.8 retired, and the classes RA-27b §6.1 did: a

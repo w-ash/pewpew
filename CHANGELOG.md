@@ -17,7 +17,11 @@ series (batch mode).
   answers 303 to `/a/{id}`. A share is `{format: "pewpew.share", version: 1,
   arrangement, looks}`: board hosts, the floor plan, triggers and notes are left out
   and each look is checked. Old links to a bare arrangement open with the example
-  looks.
+  looks. Before the press, Publish shows as plain text everything the share makes
+  public: the arrangement's name, its public notes (with a switch to leave them out
+  of this share) and the looks' names.
+- An arrangement's `public_notes` (format v1, optional): free text that may travel
+  with a share. Its `notes` stay internal: every share and export leaves them out.
 - Export looks: `export` asks for the saved looks as a looks file (`looks` names
   them, `null` for all) and `exported` answers with the file in place of an ack. The
   Console has "export looks"; the hello offers `export` when the aura has a looks
@@ -25,7 +29,14 @@ series (batch mode).
 - The Gallery (the hosted studio): serves the Console's page, shows a shared layout
   read-only in 3D, and gives each visitor an in-memory book of looks for the visit
   (save, rename, favorite) with export. Its hello offers `ack`, `look`, `export`,
-  `pause` and `gallery`.
+  `pause` and `gallery`. A session never runs the idle cycle. Its memory is bounded:
+  the book to a share's size, one export on its way at a time and 10 a minute, and an
+  outbox of 256 messages and 1 MiB that closes the socket on overflow, even to a
+  client that reads nothing. A stored share that cannot be read is refused with "this
+  share can't be opened"; a share the store cannot write is a 503 and is not cached.
+- The page backs its reconnects off after a connection refused or closed before a
+  hello (twice the last wait, to 10 s, with jitter), on the Console and the Gallery,
+  and shows the refusal's reason in place of the wait.
 - Layout editing in the Console: on an arrangement run, `layout` opens the
   arrangement editor beside the build-day tools, and `report` the power, wiring
   and controller report with the live draw and the power cap, both loaded on

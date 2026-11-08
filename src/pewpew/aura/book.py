@@ -248,7 +248,15 @@ class LookBook:
         return replace(self, current=name)
 
     def to_bytes(self) -> bytes:
-        doc = {
+        return (json.dumps(self.to_json(), indent=2) + "\n").encode()
+
+    def size(self) -> int:
+        """The bytes of the file as compact JSON, as a share measures it."""
+        return len(json.dumps(self.to_json(), separators=(",", ":")).encode())
+
+    def to_json(self) -> dict[str, Any]:
+        """The looks file as JSON values."""
+        doc: dict[str, Any] = {
             "version": VERSION,
             "current": self.current,
             "looks": {name: encode_look(look) for name, look in self.looks.items()},
@@ -260,7 +268,7 @@ class LookBook:
             doc["favorites"] = list(self.favorites)
         if self.notes is not None:
             doc["notes"] = self.notes
-        return (json.dumps(doc, indent=2) + "\n").encode()
+        return doc
 
 
 # ---- reading and writing the file -----------------------------------------

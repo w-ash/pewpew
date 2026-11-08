@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { decodeParam } from "../../src/params/kinds";
 import { setParam } from "../../src/wire/protocol";
-import { RECONNECT_MS, Socket, socketUrl } from "../../src/wire/socket";
+import { RECONNECT_MAX_MS, RECONNECT_MS, Socket, socketUrl } from "../../src/wire/socket";
 import { WireStore } from "../../src/wire/store";
 import { record } from "../fixtures/describe";
 import { FakeWebSocket } from "../fixtures/fakeWebSocket";
@@ -141,17 +141,6 @@ test("an ask goes with an id and settles on the engine's answer to that id, take
   expect(settled.at(-1)).toBe("vary false");
 });
 
-test("a stop settles what was asked, untaken, though a start comes before the close event", async () => {
-  const { socket, ws } = setup();
-  // A real socket's close event comes later.
-  ws.close = () => {};
-  const asked = socket.ask({ type: "surprise", seed: null });
-  socket.stop();
-  socket.start();
-  FakeWebSocket.made[1]!.open();
-  expect(await asked).toBe(false);
-});
-
 test("an ask the socket cannot send settles at once, not taken", async () => {
   const { socket, ws } = setup();
   ws.readyState = 0;
@@ -185,29 +174,38 @@ test("an exported answers an export's ask, taken, and the store keeps it before 
   expect(await asked).toEqual([true, file]);
 });
 
-test("the wait before a reconnect is the page's to give, and a stopped socket stays closed", () => {
+/** Close the newest socket, after a hello when `greeted`; how long until the next one opens, in ms. */
+function waitAfterClose(greeted: boolean): number {
+  const ws = FakeWebSocket.made.at(-1)!;
+  if (greeted) ws.onmessage!({ data: JSON.stringify(hello()) });
+  ws.close();
+  const made = FakeWebSocket.made.length;
+  let waited = 0;
+  while (FakeWebSocket.made.length === made && waited < 60_000) {
+    vi.advanceTimersByTime(1);
+    waited++;
+  }
+  return waited;
+}
+
+test("refused before a hello, the socket waits twice as long each time, to the most; a hello starts again", () => {
   vi.useFakeTimers();
-  FakeWebSocket.made = [];
-  const socket = new Socket(new WireStore(), {
-    url: "ws://test/ws",
-    WebSocket: FakeWebSocket as unknown as typeof WebSocket,
-    build: null,
-  });
-  socket.start();
-  FakeWebSocket.made[0]!.close();
-  vi.advanceTimersByTime(RECONNECT_MS - 1);
-  expect(FakeWebSocket.made).toHaveLength(1);
-  vi.advanceTimersByTime(1);
-  expect(FakeWebSocket.made).toHaveLength(2);
-  socket.retryMs = () => 5000;
-  FakeWebSocket.made[1]!.close();
-  vi.advanceTimersByTime(4999);
-  expect(FakeWebSocket.made).toHaveLength(2);
-  vi.advanceTimersByTime(1);
-  expect(FakeWebSocket.made).toHaveLength(3);
-  socket.stop();
-  vi.advanceTimersByTime(60_000);
-  expect(FakeWebSocket.made).toHaveLength(3);
+  vi.spyOn(Math, "random").mockReturnValue(0);
+  setup();
+  expect([1, 2, 3, 4, 5].map(() => waitAfterClose(false))).toEqual([RECONNECT_MS, 2000, 4000, 8000, RECONNECT_MAX_MS]);
+  expect(waitAfterClose(false)).toBe(RECONNECT_MAX_MS);
+  expect(waitAfterClose(true)).toBe(RECONNECT_MS);
+  expect(waitAfterClose(false)).toBe(2 * RECONNECT_MS);
+  vi.restoreAllMocks();
+});
+
+test("each wait is less up to half at random", () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  setup();
+  expect(waitAfterClose(true)).toBe(0.75 * RECONNECT_MS);
+  expect(waitAfterClose(false)).toBe(1.5 * RECONNECT_MS);
+  vi.restoreAllMocks();
 });
 
 test("the socket's URL follows the page: its scheme, host and query, and a share's id from its path", () => {

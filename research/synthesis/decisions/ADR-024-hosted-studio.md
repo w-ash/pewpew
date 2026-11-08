@@ -184,6 +184,14 @@ engine's page, the **Console**, publishes. Code names stay (`studio`,
   before the envelope leaves the Console, and the Console shows "This is
   public: anyone with the link sees this layout and these looks. Board
   addresses are removed." before the press.
+- **Internal and public notes.** An arrangement has two free-text fields:
+  `notes`, internal, which never leave the machine (stripped from every
+  share and export, and again when the Gallery checks one), and
+  `public_notes`, which may travel with a share. The arrangement's `name`
+  is public. Before the press, Publish shows as plain text everything the
+  share makes public (the name, the public notes with a switch to leave
+  them out of this share, and the looks' names); what is right to make
+  public is the author's call, share by share.
 - **The Gallery serves the Console's build** at `/` and `/a/{id}` (title
   `pewpew Gallery`) with the same hashed files, `/parts.json` and prebuilt
   GLBs, and one websocket `/ws?a=<id>` per visitor. The hello's
@@ -192,7 +200,14 @@ engine's page, the **Console**, publishes. Code names stay (`studio`,
   `/api/arrangements*` and `/ws/session` are gone.
 - **Gallery looks are an in-memory book for the visit.** A visitor saves,
   renames and favorites looks and exports them; the server stores nothing
-  of them, and a new session starts from the share's looks.
+  of them, and a new session starts from the share's looks with the idle
+  cycle off.
+- **A session's memory is bounded.** Its book grows to a share's size at
+  most (256 KiB of compact JSON, 64 looks); one `export` at a time is on
+  its way, at most 10 a minute; its outbox holds 256 messages and 1 MiB of
+  text, serialized as queued, and an overflow closes the socket even
+  mid-send. A page refused before a hello backs its reconnects off
+  exponentially with jitter, to 10 s.
 
 ### Consequences
 

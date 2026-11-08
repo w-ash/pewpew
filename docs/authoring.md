@@ -116,6 +116,13 @@ A's `host` in the arrangement file, also in an `--unattended` run, and the
 new board set is audit-logged before any frame goes to it; it is refused on a
 room file (migrate it first).
 
+An arrangement has a `name` and two free-text fields. `notes` are internal:
+they stay on this machine, and every share and export leaves them out.
+`public_notes` may travel with a share. The `name` is public too: a share
+carries it. Publish shows the name, the public notes and the looks' names
+before it posts, with a switch to leave the public notes out of that share
+(docs/studio/README.md).
+
 ### Layout editing in the Console
 
 On an arrangement run, `layout` in the Console's top bar (or `L`) opens the

@@ -2,8 +2,10 @@
 
     {"format": "pewpew.share", "version": 1, "arrangement": {...}, "looks": {...}}
 
-`arrangement` is an arrangement with no `controllers[].host` and no `plan`:
-a share never names a board's address or holds the floor-plan image.
+`arrangement` is an arrangement with no `controllers[].host`, no `plan`
+and no `notes`: a share never names a board's address, holds the
+floor-plan image or carries the internal notes. Its `name` and
+`public_notes` travel with it.
 `looks` is a looks file, version 4 (`pewpew.aura.book`), of the chosen
 looks only, with no `triggers` and no `notes`. Its `current` is the book's
 current look when it is chosen, else the first chosen.
@@ -61,10 +63,14 @@ def content_id(canonical: str) -> str:
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
+_PRIVATE = {"plan", "notes"}  # an arrangement's keys a share never carries
+
+
 def stripped(arrangement: Mapping[str, Any]) -> dict[str, Any]:
-    """`arrangement` with no `plan` and no `host` on any controller. Keeps
-    a controller that is not an object as it is, for the compiler to refuse."""
-    out = {key: value for key, value in arrangement.items() if key != "plan"}
+    """`arrangement` with no `plan`, no `notes` and no `host` on any
+    controller. Keeps a controller that is not an object as it is, for the
+    compiler to refuse."""
+    out = {key: value for key, value in arrangement.items() if key not in _PRIVATE}
     controllers = out.get("controllers")
     if isinstance(controllers, list):
         out["controllers"] = [
@@ -106,7 +112,8 @@ def check(
     """The checked envelope of `doc` (parsed JSON) and its looks book.
 
     It is stripped again, and its looks file is written again from the
-    parsed book, so a stored share has no host, plan, trigger or note. The
+    parsed book, so a stored share has no host, plan, trigger or internal
+    note. The
     canonical text is at most `max_bytes`; the arrangement declares at
     most `max_fixtures` fixtures and has no list or object longer than
     that; the looks file parses (its own limits: `MAX_LOOKS`, ...) and each

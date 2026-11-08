@@ -22,7 +22,8 @@ HTTP:
   `303 See Other` to `/a/{id}`. Every refusal is one short line of
   `text/plain`, which the browser shows in the tab the form opened: 413 too
   large, 415 not a form, 422 not a share, or one that does not check or
-  compile, 429 over the rate limit, 503 too busy to compile.
+  compile, 429 over the rate limit, 503 too busy to compile or a store
+  that cannot write. A share is cached once it is stored.
 - `GET /health/live`.
 
 No response carries a CORS header, and there is no API schema or docs page.
@@ -36,9 +37,14 @@ apply only to a share no session has opened lately. A session sends the
 `exported` and `refused`. The `refused` message names the refused control,
 as the preview does, and the Gallery adds two controls of its own:
 `session` (the session is refused or ends: the server is full, the share is
-unknown or does not compile, no look starts on it, the visitor was evicted,
-or it sat paused too long) and `message` (a message the socket does not
-accept: binary, or over the size limit).
+unknown, cannot be read or does not compile, no look starts on it, the
+visitor was evicted, or it sat paused too long) and `message` (a message the
+socket does not accept: binary, or over the size limit). A session has at
+most one `export` on its way at a time (from the request until its
+`exported` is sent) and `Limits.exports_per_minute`; its book is held to the
+size of a share (`Limits.max_body_bytes`, `pewpew.aura.book.MAX_LOOKS`
+looks), and its outbox to `transport.MAX_CONTROL_BYTES`, so a client that
+does not read cannot pin more.
 
 Production runs `python -m pewpew studio`, which sets uvicorn's websocket
 message cap and shutdown bound (docs/studio/contracts.md).
@@ -68,7 +74,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect, HTTPConnection
 
 from pewpew import share
-from pewpew.aura.book import LookBook, examples_book
+from pewpew.aura.book import LookBook, LookError, examples_book
 from pewpew.jsonfile import loads
 from pewpew.rig import EXAMPLES, load_catalog
 from pewpew.rig.runtime import compile_doc, plan_view, rig_view
@@ -100,6 +106,9 @@ CACHED_SHARES = 32  # compiled shares kept by id
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
 PAUSED = "the session is paused; send resume first"
 UNKNOWN = "no share has this link"
+UNREADABLE = "this share can't be opened"
+NO_STORE = "the Gallery can't store shares right now"
+EXPORTING = "an export is still on its way to this page; ask again once it has arrived"
 SHARES_URL = "/api/shares"
 FORM = "application/x-www-form-urlencoded"
 # Percent-encoding writes a byte as three, so the form may be three times the envelope it carries.
@@ -130,6 +139,14 @@ class Busy(Exception):
 
 class Unknown(Exception):
     """No share is stored under the id."""
+
+
+class Unreadable(Exception):
+    """The share's stored row cannot be read."""
+
+
+class StoreDown(Exception):
+    """The store did not write a share."""
 
 
 def _issue(obj: Any) -> dict:
@@ -276,7 +293,7 @@ def create_app(
 
     def open_share(id: str | None, key: str) -> Shared:
         """The compiled share `id`, or the default share for None, compiled
-        on a miss. Blocks. Raises Unknown, CompileFailure or Busy."""
+        on a miss. Blocks. Raises Unknown, Unreadable, CompileFailure or Busy."""
         nonlocal default_share
         if id is None:
             with default_lock:  # the first visitors wait for one compile
@@ -291,19 +308,27 @@ def create_app(
         text = db().get(id)
         if text is None:
             raise Unknown(UNKNOWN)
-        found = shared_of(*share.read(text, book), key)
+        try:
+            found = shared_of(*share.read(text, book), key)
+        except (LookError, ValueError, KeyError, TypeError):  # a row this Gallery cannot read
+            logger.warning("the stored share %s cannot be read", id, exc_info=True)
+            raise Unreadable(UNREADABLE) from None
         shares.put(id, found)
         return found
 
     def save(doc: object, key: str) -> str:
-        """Check, compile and store the share `doc`; its id. Blocks.
-        Raises ShareError, CompileFailure or Busy."""
+        """Check, compile and store the share `doc`, then cache it; its id.
+        Blocks. Raises ShareError, CompileFailure, Busy or StoreDown."""
         envelope, looks = share.check(doc, max_bytes=limits.max_body_bytes, max_fixtures=limits.max_fixtures)
         text = share.canonical_json(envelope)
         id_ = share.content_id(text)
-        if shares.get(id_) is None:
-            shares.put(id_, shared_of(envelope, looks, key))
-        db().put(id_, text)
+        compiled = shares.get(id_) or shared_of(envelope, looks, key)
+        try:
+            db().put(id_, text)
+        except Exception:  # sqlite3, psycopg or the network: logged, and never named to the visitor
+            logger.warning("the store did not write share %s", id_, exc_info=True)
+            raise StoreDown(NO_STORE) from None
+        shares.put(id_, compiled)
         return id_
 
     def stored(id: str) -> bool:
@@ -401,6 +426,8 @@ def create_app(
             return _text(422, f"this layout does not compile: {reasons}"[:2000])
         except Busy as exc:
             return exc.response()
+        except StoreDown as exc:
+            return _text(503, str(exc))
         # 303: the browser fetches the share's page with a GET (RFC 9110 §15.4.4).
         return RedirectResponse(f"/a/{id_}", status_code=303)
 
@@ -422,22 +449,27 @@ def create_app(
             await ws.close(code=1013)
             return
         session: Session | None = None
+        outbox: Outbox | None = None
         pump: asyncio.Future | None = None
         try:
             try:
                 shared = await asyncio.to_thread(open_share, ws.query_params.get("a"), key)
                 outbox = Outbox(asyncio.get_running_loop())
-                session = Session(outbox, shared, fps=fps, max_pixels=limits.max_pixels)
-            except (Unknown, CompileFailure, Busy, NoLook) as exc:
+                session = Session(outbox, shared, fps=fps, max_pixels=limits.max_pixels,
+                                  max_book_bytes=limits.max_body_bytes)
+            except (Unknown, Unreadable, CompileFailure, Busy, NoLook) as exc:
                 reason = str(exc) if not isinstance(exc, CompileFailure) else f"this layout does not compile: {exc}"
                 await ws.send_text(json.dumps(refusal("session", reason)))
-                await ws.close(code=1013 if isinstance(exc, Busy) else 1008)
+                # An unreadable row is the Gallery's own fault: a normal close.
+                await ws.close(code=1013 if isinstance(exc, Busy) else 1000 if isinstance(exc, Unreadable) else 1008)
                 return
             registry.add(session, ticket, lambda: outbox.close_with(refusal("session", EVICTED)))
             outbox.control(session.hello())
             session.start()
             pump = asyncio.ensure_future(outbox.pump(ws))
-            visitor = _Visitor(ws, session, outbox, pump, limits.max_body_bytes, idle_timeout_s, paused_timeout_s)
+            exports = RateLimiter(limits.exports_per_minute, limits.export_burst)
+            visitor = _Visitor(ws, session, outbox, pump, limits.max_body_bytes, idle_timeout_s, paused_timeout_s,
+                               exports)
             await visitor.serve()
         except Exception:
             logger.debug("session socket ended", exc_info=True)
@@ -449,7 +481,7 @@ def create_app(
                 registry.discard(session)
             admission.release(ticket)
             with suppress(Exception):  # already closed
-                await ws.close()
+                await ws.close(code=1008 if outbox is not None and outbox.overflow else 1000)
 
     return app
 
@@ -465,6 +497,7 @@ class _Visitor:
     max_bytes: int
     idle_timeout_s: float
     paused_timeout_s: float
+    exports: RateLimiter  # this session's alone
 
     async def serve(self) -> None:
         """Return when the client leaves, the pump ends, or a limit closes the socket."""
@@ -526,18 +559,29 @@ class _Visitor:
         """`pause` and `resume` are the session's own; any other message
         goes whole to the aura's control, which may block until the loop
         thread answers, so it runs on a worker thread; while the session is
-        paused, it is refused at once. A message that gets no reply
+        paused, it is refused at once, as is an `export` while another is on
+        its way or over the rate. A message that gets no reply
         (`unanswered`) gets none either way."""
         session, outbox = self.session, self.outbox
+        why = PAUSED if session.paused else self._export_refused() if kind == "export" else None
         if kind == "pause":
             session.pause()
         elif kind == "resume":
             session.resume()
         elif unanswered(msg):
             return
-        elif session.paused:
+        elif why is not None:
             name = msg.get("name") if kind == "set" else None
-            outbox.control(refusal(kind if isinstance(kind, str) else None, PAUSED,
+            outbox.control(refusal(kind if isinstance(kind, str) else None, why,
                                    name=name if isinstance(name, str) else None, id=msg.get("id")))
         else:
             await asyncio.to_thread(answer_request, session.control, msg, outbox.control)
+
+    def _export_refused(self) -> str | None:
+        """Why an `export` may not go now, or None."""
+        if self.outbox.exports:
+            return EXPORTING
+        wait = self.exports.allow("export")
+        if wait is not None:
+            return f"limit of {self.exports.per_minute:g} exports per minute; try again in {int(wait) + 1} s"
+        return None

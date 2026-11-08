@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import re
+import sqlite3
 import sys
 import threading
 import time
@@ -39,11 +40,11 @@ from pewpew.rig import models as rig_models
 from pewpew.rig.runtime import compile_doc
 from pewpew.sinks.preview import _MESSAGES, message, page, page_build, status_state, web_file, web_files
 from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
-from pewpew.studio.app import create_app
-from pewpew.studio.limits import MAX_FIXTURES, Limits, RateLimiter, address_key, client_ip
+from pewpew.studio.app import EXPORTING, NO_STORE, UNREADABLE, _Visitor, create_app
+from pewpew.studio.limits import MAX_BODY_BYTES, MAX_FIXTURES, Limits, RateLimiter, address_key, client_ip
 from pewpew.studio.session import FramePayload, NoLook, Session, Shared
 from pewpew.studio.store import SqliteStore
-from pewpew.studio.transport import Outbox
+from pewpew.studio.transport import MAX_CONTROL_BACKLOG, MAX_CONTROL_BYTES, Outbox
 
 FPS = 120.0  # fast enough that a test waits milliseconds, not seconds
 ROOT = Path(__file__).resolve().parents[1]
@@ -293,6 +294,23 @@ def test_the_deleted_routes_are_gone(client):
 def test_the_client_ip_prefers_the_fly_header():
     assert client_ip({"fly-client-ip": "9.9.9.9"}, "10.0.0.1") == "9.9.9.9"
     assert client_ip({}, "10.0.0.1") == "10.0.0.1"
+
+
+class FailingStore(SqliteStore):
+    """A store whose writes fail, as a database that is down does."""
+
+    def put(self, id: str, canonical: str) -> None:
+        raise sqlite3.OperationalError("database is locked")
+
+
+def test_a_share_the_store_cannot_write_is_a_503_line_and_never_cached(caplog):
+    with TestClient(make_app(store=FailingStore(":memory:"))) as c:
+        r = post(c)
+        assert (r.status_code, r.text) == (503, NO_STORE + "\n")
+        assert "locked" not in r.text and "did not write" in caplog.text
+        assert len(state_of(c).shares._shares) == 0
+        id_ = share.content_id(share.canonical_json(share.check(ENVELOPE)[0]))
+        assert c.get(f"/a/{id_}").status_code == 404
 
 
 def test_the_store_is_idempotent():
@@ -553,6 +571,34 @@ def test_an_old_bare_row_opens_with_the_example_looks():
             assert [item["name"] for item in aura["looks"]["items"]] == list(BOOK.looks)
 
 
+@pytest.mark.parametrize("row", [
+    '{"format": "pewpew.share", "version": 1}',  # no arrangement, no looks
+    '{"format": "pewpew.share", "version": 1, "arrangement": {}, "looks": {"version": 3}}',  # looks of another version
+    '{"format": "pewpew.thing"}',
+    "[1, 2]",
+])
+def test_a_stored_row_that_cannot_be_read_is_refused_logged_and_closed_normally(row, caplog):
+    store = SqliteStore(":memory:")
+    with TestClient(make_app(store=store)) as c:
+        id_ = share.content_id(row)
+        store.put(id_, row)
+        with connect(c, id_) as ws:
+            assert json.loads(ws.receive_text()) == {"type": "refused", "control": "session", "id": None,
+                                                     "name": None, "reason": UNREADABLE}
+            with pytest.raises(WebSocketDisconnect) as closed:
+                ws.receive_text()
+            assert closed.value.code == 1000
+        assert id_ in caplog.text and "cannot be read" in caplog.text
+        assert wait_for(lambda: len(state_of(c).admission) == 0)
+
+
+def test_a_session_never_runs_the_idle_cycle_on_a_share_or_the_examples(client):
+    for id_ in (shared(client), None):
+        with connect(client, id_) as ws:
+            assert read_until(ws, is_type("aura"))["looks"]["idle"] is None
+    assert BOOK.cycle.idle is not None and ENVELOPE["looks"]["cycle"]["idle"] is not None  # the books have one
+
+
 def test_each_share_compiles_once_for_every_session_on_it():
     calls = []
     with TestClient(make_app(compile=counting_compile(calls), cached=1)) as c:
@@ -633,6 +679,35 @@ def test_export_answers_with_a_looks_file_of_the_visit(ws):
     ws.send_text(json.dumps({"type": "export", "looks": ["tide"], "share": True, "id": 2}))
     refused = read_until(ws, is_type("refused"))
     assert (refused["control"], refused["id"]) == ("export", 2) and "Gallery" in refused["reason"]
+
+
+def test_exports_are_rate_limited_per_session():
+    with TestClient(make_app(limits=Limits(exports_per_minute=60, export_burst=2))) as c, connect(c) as ws:
+        ws.receive_text()
+        for i in range(2):
+            ws.send_text(json.dumps({"type": "export", "id": i}))
+            assert read_until(ws, lambda m: is_type("exported")(m) or is_type("refused")(m))["type"] == "exported"
+        ws.send_text(json.dumps({"type": "export", "id": 2}))
+        refused = read_until(ws, is_type("refused"))
+        assert (refused["control"], refused["id"]) == ("export", 2) and "60 exports per minute" in refused["reason"]
+
+
+def test_a_visits_book_is_held_to_the_size_of_a_share():
+    session = stepped(RecordingSink(), max_book_bytes=CHOSEN_BOOK.size() + 100)
+    looks = session._aura.looks  # the loop thread's, called here with no loop running
+    assert looks is not None
+    try:
+        assert "limited to" in str(looks.save("copy"))
+        assert looks.rename("tide", "t") is None  # smaller: always allowed
+        assert [name for name in looks.book.looks] == ["t", "warp-lane"]
+        assert looks.book.size() <= CHOSEN_BOOK.size() + 100
+    finally:
+        session.close()
+    plain = stepped(RecordingSink())  # by default, a share's limit
+    try:
+        assert plain._aura.looks is not None and plain._aura.looks._max_bytes == MAX_BODY_BYTES
+    finally:
+        plain.close()
 
 
 def test_a_refused_set_names_the_range_and_never_a_path_and_the_loop_survives(client, ws):
@@ -1050,6 +1125,148 @@ def test_an_ack_keeps_the_frame_queued_before_it_and_the_states_go_only_on_a_cha
     sent = asyncio.run(scenario())
     kinds = [m if isinstance(m, bytes) else m["type"] for m in sent]
     assert kinds == [b"ONE", "status", "declare", "ack", b"OLD", b"NEW", "bye"]
+
+
+class _Stuck:
+    """A client that reads nothing once its first `reads` sends have gone: each later send never returns."""
+
+    def __init__(self, reads: int = 1):
+        self.reads = reads
+        self.sent: list[Any] = []
+
+    async def send_text(self, text):
+        await self._send(json.loads(text) if text.startswith("{") else text)
+
+    async def send_bytes(self, data):
+        await self._send(data)
+
+    async def _send(self, message):
+        if len(self.sent) >= self.reads:
+            await asyncio.Event().wait()
+        self.sent.append(message)
+
+
+def test_the_outbox_holds_its_bytes_and_overflow_stops_a_send_that_never_returns():
+    async def scenario():
+        box = Outbox(asyncio.get_running_loop(), max_bytes=10_000)
+        ws = _Stuck(reads=0)
+        pump = asyncio.ensure_future(box.pump(cast(Any, ws)))
+        box.control("x" * 50_000)  # over the cap, into an empty queue: a big rig's hello
+        await asyncio.sleep(0.01)
+        assert box.queued == 50_000 and not pump.done()  # held in a send the client does not read
+        box.control({"type": "exported", "file": "y" * 100})
+        await asyncio.sleep(0.01)
+        assert box.overflow and box.queued == 0
+        await asyncio.wait_for(asyncio.gather(pump, return_exceptions=True), 1)
+        return pump
+
+    assert asyncio.run(scenario()).cancelled()
+
+
+def test_an_export_counts_until_it_is_sent_and_the_backlog_counts_messages():
+    async def scenario():
+        box = Outbox(asyncio.get_running_loop())
+        ws = _Stuck(reads=1)
+        pump = asyncio.ensure_future(box.pump(cast(Any, ws)))
+        box.control({"type": "exported", "id": 1})
+        await asyncio.sleep(0.01)
+        assert box.exports == 0 and ws.sent == [{"type": "exported", "id": 1}]
+        box.control({"type": "exported", "id": 2})
+        await asyncio.sleep(0.01)
+        assert box.exports == 1  # stuck in its send
+        for i in range(MAX_CONTROL_BACKLOG):
+            box.control({"type": "ack", "id": i})
+        await asyncio.sleep(0.01)
+        assert box.overflow
+        await asyncio.wait_for(asyncio.gather(pump, return_exceptions=True), 1)
+
+    asyncio.run(scenario())
+
+
+class _Client:
+    """A websocket whose client sends `messages` and then waits, and reads nothing."""
+
+    def __init__(self, messages: list[dict], box: Outbox):
+        self.inbound = [{"type": "websocket.receive", "text": json.dumps(m)} for m in messages]
+        self.box = box
+        self.peak = 0
+        self.stuck = _Stuck(reads=0)
+
+    async def receive(self):
+        self.peak = max(self.peak, self.box.queued)
+        if self.inbound:
+            return self.inbound.pop(0)
+        await asyncio.Event().wait()
+
+    async def send_text(self, text):
+        await self.stuck.send_text(text)
+
+    async def send_bytes(self, data):
+        await self.stuck.send_bytes(data)
+
+
+def live(sink, book=CHOSEN_BOOK) -> Session:
+    """A started session on a plane of 8, on the wall clock."""
+    session = Session(sink, Shared(plane(8), None, None, None, book), fps=FPS)
+    session.start()
+    return session
+
+
+def test_a_client_that_reads_nothing_and_asks_256_exports_is_closed_with_bounded_memory():
+    book = share.chosen(BOOK, list(BOOK.looks)[:6])  # the 6 example looks that start on a plane
+
+    async def scenario():
+        box = Outbox(asyncio.get_running_loop())
+        session = live(box, book)
+        client = _Client([{"type": "export", "id": i} for i in range(256)], box)
+        box.control(session.hello())
+        pump = asyncio.ensure_future(box.pump(cast(Any, client)))
+        visitor = _Visitor(cast(Any, client), session, box, pump, MAX_BODY_BYTES, 60.0, 60.0, RateLimiter(10, 3))
+        try:
+            await asyncio.wait_for(visitor.serve(), 10)
+        finally:
+            session.close()
+            pump.cancel()
+        return client, box
+
+    client, box = asyncio.run(scenario())
+    assert box.overflow and not client.inbound and client.stuck.sent == []
+    assert 0 < client.peak <= MAX_CONTROL_BYTES  # the hello, one export and the refusals of the rest
+
+
+def test_a_second_export_while_one_is_on_its_way_is_refused():
+    async def scenario():
+        box = Outbox(asyncio.get_running_loop())
+        session = live(box)
+        client = _Client([{"type": "export", "id": 1}, {"type": "export", "id": 2}], box)
+        client.stuck.reads = 99
+        pump = asyncio.ensure_future(box.pump(cast(Any, client)))
+        hold = asyncio.Event()
+        real_send = client.stuck.send_text
+
+        async def slow(text):  # the first export's send is held until the second is answered
+            if json.loads(text).get("type") == "exported":
+                await hold.wait()
+            await real_send(text)
+
+        client.send_text = slow
+        visitor = _Visitor(cast(Any, client), session, box, pump, MAX_BODY_BYTES, 60.0, 60.0, RateLimiter(10, 3))
+        serving = asyncio.ensure_future(visitor.serve())
+        for _ in range(200):
+            await asyncio.sleep(0.01)
+            if any(isinstance(m, dict) and m.get("id") == 2 for m in client.stuck.sent):
+                break
+        hold.set()
+        await asyncio.sleep(0.05)
+        serving.cancel()
+        pump.cancel()
+        session.close()
+        return client.stuck.sent
+
+    sent = asyncio.run(scenario())
+    answers = {m["id"]: m for m in sent if isinstance(m, dict) and m.get("id") in (1, 2)}
+    assert answers[2]["type"] == "refused" and answers[2]["reason"] == EXPORTING
+    assert answers[1]["type"] == "exported"
 
 
 # -- the wire contract ------------------------------------------------------------------------

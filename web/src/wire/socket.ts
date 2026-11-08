@@ -1,12 +1,15 @@
 // The page's one connection to its server, the engine or the Gallery. Engine
-// restarts are routine, so a closed socket reconnects after a second; one that
-// answers with another page build (an upgrade) reloads the tab, since this
-// page cannot drive its wire. The Gallery's page backs its reconnects off
-// (`retryMs`).
+// restarts are routine, so a socket closed after its hello reconnects within a
+// second; one refused or closed before a hello (a full Gallery, an engine that
+// is down) waits twice as long each time, to RECONNECT_MAX_MS. One that answers
+// with another page build (an upgrade) reloads the tab, since this page cannot
+// drive its wire.
 import { asServerMessage, parseFrame, parseTyped, type ClientMessage, type RequestId, type Sender } from "./protocol";
 import type { WireStore } from "./store";
 
 export const RECONNECT_MS = 1000;
+/** The longest wait before a reconnect. */
+export const RECONNECT_MAX_MS = 10_000;
 
 export interface SocketOptions {
   /** By default the page's own (`socketUrl`). */
@@ -35,11 +38,8 @@ export function socketUrl(loc: Pick<Location, "protocol" | "host" | "pathname" |
 /** The connection. */
 export class Socket implements Sender {
   private ws: WebSocket | null = null;
-  private stopped = false;
-  private retry: ReturnType<typeof setTimeout> | null = null;
-  /** The wait before the next reconnect, asked at each close: RECONNECT_MS, unless the Gallery's page sets
-   * a backoff (share/backoff.ts). */
-  retryMs = (): number => RECONNECT_MS;
+  /** The last wait before a reconnect. */
+  private wait = RECONNECT_MS / 2;
   /** Messages a drag produces, held to the next animation frame, the newest per slot. */
   private readonly pending = new Map<string, ClientMessage>();
   private flushing = false;
@@ -69,7 +69,6 @@ export class Socket implements Sender {
   private readonly flushOnHide = () => this.flush();
 
   start(): void {
-    this.stopped = false;
     const ws = new this.WS(this.options.url ?? socketUrl(location));
     this.ws = ws;
     ws.binaryType = "arraybuffer";
@@ -89,23 +88,16 @@ export class Socket implements Sender {
     };
     ws.onclose = () => {
       if (this.ws !== ws) return;
+      // RECONNECT_MS after a hello, else twice the last wait; each less up to half at random, so the pages a
+      // full Gallery refused do not all come back at once.
+      this.wait = Math.min(this.store.getState().connected ? RECONNECT_MS : this.wait * 2, RECONNECT_MAX_MS);
       this.ws = null;
       this.pending.clear();
       for (const settle of this.asked.values()) settle(false);
       this.asked.clear();
       this.store.disconnected();
-      if (!this.stopped) this.retry = setTimeout(() => this.start(), this.retryMs());
+      setTimeout(() => this.start(), this.wait * (1 - Math.random() / 2));
     };
-  }
-
-  /** Close the connection for good: no reconnect follows. What it asked settles now, untaken: a `start`
-   * before the close event comes opens a new connection, which answers none of it. */
-  stop(): void {
-    this.stopped = true;
-    if (this.retry) clearTimeout(this.retry);
-    this.ws?.close();
-    for (const settle of this.asked.values()) settle(false);
-    this.asked.clear();
   }
 
   /** Send now, after anything held, so the engine sees requests in the order made. */

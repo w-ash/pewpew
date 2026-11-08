@@ -824,12 +824,16 @@ class Arrangement(_Model):
     version step: a file without it reads as before, and a reader older than
     the block refuses a file that has it, as an unknown field. `power` with
     no limits caps nothing. `plan` puts a floor-plan image under the map.
+    `name` is public: a share carries it. `notes` are internal and never
+    leave the machine: a share and an export drop them (`pewpew.share`).
+    `public_notes` may travel with a share.
     """
 
     format: Literal["pewpew.arrangement"]
     version: Literal[1]
     name: str = ""
     notes: str = ""
+    public_notes: str = ""
     groups: Capped[Group] = []
     fixtures: Capped[FixturePlacement] = []
     controllers: Capped[ControllerPlacement] = []

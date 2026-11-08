@@ -1,12 +1,9 @@
-// A Gallery session's idle pause, and its reconnects that back off.
+// A Gallery session's idle pause.
 import { act } from "react";
 import { afterEach, expect, test } from "vitest";
-import { backoff, RECONNECT_MAX_MS } from "../../src/share/backoff";
 import { useIdlePause } from "../../src/share/useIdlePause";
-import { RECONNECT_MS } from "../../src/wire/socket";
 import { encodeFrame, parseFrame } from "../../src/wire/protocol";
-import { WireStore } from "../../src/wire/store";
-import { galleryGreeting, hello } from "../fixtures/messages";
+import { galleryGreeting } from "../fixtures/messages";
 import { renderWired } from "../harness";
 
 let hidden = false;
@@ -61,17 +58,4 @@ test("off (no `pause` capability), it sends nothing", async () => {
   setHidden(true);
   setHidden(false);
   expect(pauses(sent)).toEqual([]);
-});
-
-test("the Gallery's reconnects double while none has a hello, to the most, and start again after one that has", () => {
-  const store = new WireStore();
-  const wait = backoff(store);
-  store.receive(hello());
-  store.disconnected();
-  expect(wait()).toBe(RECONNECT_MS);
-  expect([wait(), wait(), wait(), wait(), wait()]).toEqual([2000, 4000, 8000, RECONNECT_MAX_MS, RECONNECT_MAX_MS]);
-  store.receive(hello());
-  store.disconnected();
-  expect(wait()).toBe(RECONNECT_MS);
-  expect(wait()).toBe(2 * RECONNECT_MS);
 });

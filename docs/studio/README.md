@@ -35,8 +35,22 @@ No route sends CORS headers.
 The hello's `capabilities` are `ack`, `look`, `export`, `pause` and `gallery`. The layout is
 read-only. The visitor's looks are an in-memory book for the visit: save, rename, favorite, and
 `export` them as a looks file. Nothing is stored on the server, and the Gallery never sends
-`health`, `arrangement` or `report`. A session pauses after 10 minutes without a message
-(`pause` and `resume`).
+`health`, `arrangement` or `report`. The idle cycle is off: a session plays what the visitor
+picks. A session pauses after 10 minutes without a message (`pause` and `resume`).
+
+A session holds bounded memory, since the Gallery is public:
+
+- Its book grows to the size of a share at most (256 KiB of compact JSON, 64 looks); a save or a
+  rename that grows it past that is refused.
+- One `export` at a time is on its way (from the request until its `exported` is sent), and at
+  most 10 a minute, 3 at once; another is refused.
+- Its queue of discrete messages holds at most 256 messages and 1 MiB of text (a larger hello goes
+  alone); past either, the socket closes, even mid-send to a client that does not read.
+
+A page whose connection is refused or closed before a hello (a full Gallery, an unknown share)
+reconnects after twice its last wait, to 10 s, less up to half at random, and shows the
+refusal's reason in place of the wait. A stored share that cannot be read is refused with "this
+share can't be opened" and the socket closes normally.
 
 ## The share envelope
 
@@ -44,7 +58,9 @@ read-only. The visitor's looks are an in-memory book for the visit: save, rename
 {"format": "pewpew.share", "version": 1, "arrangement": {...}, "looks": {...looks file v4...}}
 ```
 
-- `arrangement`: every `controllers[].host` removed, no `plan` (no floor plan in v1).
+- `arrangement`: every `controllers[].host` removed, no `plan` (no floor plan in v1), and no
+  `notes`. The arrangement's `notes` are internal and never leave the machine; its `name` and
+  `public_notes` travel with the share.
 - `looks`: only the chosen looks, each checked with `pewpew.lab.check.ready`; no `triggers`, no
   `notes`.
 - The id is the first 128 bits of SHA-256 over the canonical JSON (sorted keys, compact),
@@ -56,13 +72,17 @@ read-only. The visitor's looks are an in-memory book for the visit: save, rename
 ## Publish from the Console
 
 On an attended arrangement run the Console offers Publish (the hello has `publish`). Pick looks
-(default: the current look and the favorites), press Next, read "This is public: anyone with the
-link sees this layout and these looks. Board addresses are removed.", then press Publish. The
+(default: the current look and the favorites) and press Next. The page then shows, as plain
+text, everything the share makes public: the arrangement's name, its public notes (with a switch
+to leave them out of this share) and the looks' names, then "This is public: anyone with the link
+sees this layout and these looks. Board addresses are removed." What is right to make public is
+the author's call, share by share. Press Publish. The
 page submits a top-level form POST to `{gallery}/api/shares` in a new tab, with `rel="noreferrer"`
 so the Console's LAN address is not sent. The gallery is `--gallery URL`, default
 `https://pewpew.fly.dev`. The Gallery answers `303` to `/a/{id}`, or with a plain-text error:
 413 too large, 415 wrong content type, 422 not a share, does not check or does not compile,
-429 more than 10 shares a minute from one address.
+429 more than 10 shares a minute from one address, 503 busy compiling or the store cannot
+write ("the Gallery can't store shares right now"). A share is cached only once it is stored.
 
 The Console's "export looks" saves the same looks as a looks file (`export` with `share: false`).
 

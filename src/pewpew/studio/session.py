@@ -3,8 +3,9 @@
 A session builds what `python -m pewpew run` builds (ADR-025,
 `pewpew.aura.pipeline`) on one share (`Shared`): its compiled rig's
 mapping and power limit, and its looks book, kept in memory (`Looks` with
-no file), so a save, a rename or a favorite lasts for the visit and an
-`export` hands back a looks file. It has no boards and no rig file, takes
+no file) and held to `max_book_bytes`, so a save, a rename or a favorite
+lasts for the visit and an `export` hands back a looks file. The idle cycle
+is off (`idle` null): a visit plays what the visitor picks. It has no boards and no rig file, takes
 whole looks (`accept_looks`), and makes at most one look at a time for a
 `surprise` or a `vary`. It starts in the book's current look, else in the
 first that starts on the mapping; with none, it is refused (`NoLook`).
@@ -36,7 +37,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
 import numpy as np
@@ -47,7 +48,7 @@ from pewpew.aura.pipeline import AuraPipeline, build_aura_pipeline
 from pewpew.compose import LayerError
 from pewpew.power import PowerLimiter, PowerMeter
 from pewpew.sinks.preview import StateTexts, View, pack_frame, page_build
-from pewpew.studio.limits import MAX_PIXELS
+from pewpew.studio.limits import MAX_BODY_BYTES, MAX_PIXELS
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +99,9 @@ class SessionSink(Protocol):
 
 def _start(shared: Shared, **kw: Any) -> AuraPipeline:
     """The aura of `shared` in the book's current look, else the first
-    that starts on the mapping. Raises NoLook when none starts."""
-    book = shared.book
+    that starts on the mapping, with the idle cycle off. Raises NoLook
+    when none starts."""
+    book = replace(shared.book, cycle=replace(shared.book.cycle, idle=None))
     names = [*([book.current] if book.current is not None else []), *(n for n in book.looks if n != book.current)]
     for name in names:
         try:
@@ -123,11 +125,13 @@ class Session:
         fps: float = FPS,
         seed: int = 0,
         max_pixels: int = MAX_PIXELS,
+        max_book_bytes: int = MAX_BODY_BYTES,
     ) -> None:
         """A session on `shared`, its made looks seeded from `seed`. A rig
         over `max_pixels` is decimated evenly in the stream, as in the
-        preview. Raises NoLook when no look of the book starts."""
-        self._aura = _start(shared, seed=seed, accept_looks=True, max_making=1)
+        preview; the book grows to `max_book_bytes` at most
+        (`LookBook.size`). Raises NoLook when no look of the book starts."""
+        self._aura = _start(shared, seed=seed, accept_looks=True, max_making=1, max_book_bytes=max_book_bytes)
         self._sink = sink
         self._texts = StateTexts(self._aura.control, now=lambda: self._aura.fader.t)
         self._view = View.of(

@@ -65,3 +65,14 @@ test("the engine's page is the Console: its name, flat first, layout mode, the h
   expect(document.querySelector(".health-chip")).not.toBeNull();
   await expect.element(screen.getByText("Shared layout · read-only")).not.toBeInTheDocument();
 });
+
+test("before any hello, the stage says why the server refused the page, in place of the wait", async () => {
+  const { screen, receive } = await renderWired(<App />, []);
+  await expect.element(screen.getByText(/^Waiting for the pewpew laptop/)).toBeVisible();
+  const reason = "the server is at its limit of 20 live sessions; try again shortly";
+  receive({ type: "refused", control: "session", name: null, id: null, reason });
+  const notes = () => [...document.querySelectorAll(".stage-note")].map((note) => note.textContent);
+  await expect.poll(notes).toEqual([reason]);
+  receive(galleryGreeting()[0]!);
+  await expect.poll(notes).not.toContain(reason);
+});

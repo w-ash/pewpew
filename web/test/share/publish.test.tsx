@@ -5,7 +5,7 @@ import { App } from "../../src/app/App";
 import { EMPTY_ARRANGEMENT, useDoc } from "../../src/arrange/doc";
 import { createHistory } from "../../src/arrange/history";
 import { PARTS_URL } from "../../src/rig/loadParts";
-import { PUBLIC_NOTE } from "../../src/share/Publish";
+import { PUBLIC_NOTE, YOUR_CALL } from "../../src/share/Publish";
 import type { ServerMessage } from "../../src/wire/protocol";
 import { first, GREETING, hello, LATER } from "../fixtures/messages";
 import { renderWired } from "../harness";
@@ -50,7 +50,9 @@ const run = (capabilities: readonly string[]): readonly ServerMessage[] => [
 ];
 const PUBLISHES = run(["ack", "look", "arrange", "export", "publish"]);
 const GALLERY = "https://gallery.example";
-const ENVELOPE = { format: "pewpew.share", version: 1, arrangement: { fixtures: [] }, looks: { version: 4, current: "warm", looks: {}, cycle: [] } };
+const ENVELOPE = { format: "pewpew.share", version: 1, arrangement: { fixtures: [] }, looks: { version: 4, current: "warm", looks: { warm: {} }, cycle: [] } };
+/** A share of a layout with a name and public notes. */
+const NOTED = { ...ENVELOPE, arrangement: { name: "porch rig", public_notes: "Two rings.\n<b>not markup</b>", fixtures: [] } };
 
 async function openPublish(heard = PUBLISHES) {
   const wired = await renderWired(<App />, heard);
@@ -86,6 +88,38 @@ test("Publish picks the current look and the favorites, asks for the share, and 
   ]);
   // The form is gone once submitted.
   expect(document.querySelector("form")).toBeNull();
+});
+
+test("the confirmation shows, as plain text, everything the share makes public, and the public notes can stay out", async () => {
+  const { screen, receive, answer } = await openPublish();
+  const panel = screen.getByRole("region", { name: "publish" });
+  await panel.getByRole("button", { name: "next" }).click();
+  receive({ type: "exported", id: 1, file: NOTED, gallery: GALLERY });
+  await answer();
+  await expect.element(panel.getByText(YOUR_CALL)).toBeVisible();
+  const shown = (panel.element() as HTMLElement).innerText;
+  for (const part of ["porch rig", "Two rings.", "<b>not markup</b>", "warm", PUBLIC_NOTE]) expect(shown).toContain(part);
+  expect(panel.element().querySelector("b")).toBeNull();
+  const notes = panel.getByRole("switch", { name: "share the public notes" });
+  await expect.element(notes).toBeChecked();
+  await notes.click();
+  await expect.element(panel.getByText("(left out of this share)")).toBeVisible();
+  await panel.getByRole("button", { name: "publish" }).click();
+  const { public_notes: _, ...without } = NOTED.arrangement;
+  expect(JSON.parse(posted[0]!.fields[0]!.value)).toEqual({ ...NOTED, arrangement: without });
+  await notes.click();
+  await panel.getByRole("button", { name: "publish" }).click();
+  expect(JSON.parse(posted[1]!.fields[0]!.value)).toEqual(NOTED);
+});
+
+test("a share with no name and no public notes says so and has no switch", async () => {
+  const { screen, receive, answer } = await openPublish();
+  const panel = screen.getByRole("region", { name: "publish" });
+  await panel.getByRole("button", { name: "next" }).click();
+  receive({ type: "exported", id: 1, file: ENVELOPE, gallery: GALLERY });
+  await answer();
+  await expect.element(panel.getByText("(none)")).toBeVisible();
+  await expect.element(panel.getByRole("switch")).not.toBeInTheDocument();
 });
 
 test("a refused export shows its reason in place and posts nothing", async () => {

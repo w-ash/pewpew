@@ -151,11 +151,14 @@ class Looks:
 
     def __init__(
         self, path: Path | None, book: LookBook, deck: Deck, master: Master, *, variety: Variety | None = None,
-        submit: Submit = in_background,
+        submit: Submit = in_background, max_bytes: int | None = None,
     ) -> None:
         """The looks of `book`, saved to the looks file at `path`, or kept
-        in memory alone when `path` is None."""
+        in memory alone when `path` is None. With `max_bytes`, a change
+        that grows the book past that size (`LookBook.size`) is refused, so
+        a Gallery visit's book stays the size of a share."""
         self._path = None if path is None else Path(path)
+        self._max_bytes = max_bytes
         self._book = book
         # The look the file names, which a restart comes back in: the
         # current look, or while none is, the last one.
@@ -645,6 +648,9 @@ class Looks:
         before while that look is in it, so a restart comes back in it."""
         kept = book.current is None and self._restart in book.looks
         on_file = book.with_current(self._restart) if kept else book
+        # A book over the limit from the start may still change, but not grow.
+        if self._max_bytes is not None and book.size() > max(self._max_bytes, self._book.size()):
+            return f"the looks are limited to {self._max_bytes} bytes; delete a look first"
         try:
             if self._path is not None:
                 write_atomic(self._path, on_file.to_bytes())

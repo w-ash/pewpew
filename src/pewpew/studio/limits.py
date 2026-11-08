@@ -25,6 +25,8 @@ COMPILES_PER_MINUTE = 60
 COMPILE_BURST = 10
 MAX_CONCURRENT_COMPILES = 2
 COMPILE_WAIT_S = 5.0
+EXPORTS_PER_MINUTE = 10  # per session
+EXPORT_BURST = 3
 MAX_TRACKED_ADDRESSES = 10_000
 
 
@@ -40,6 +42,8 @@ class Limits:
     compile_burst: int = COMPILE_BURST
     max_concurrent_compiles: int = MAX_CONCURRENT_COMPILES
     compile_wait_s: float = COMPILE_WAIT_S
+    exports_per_minute: int = EXPORTS_PER_MINUTE
+    export_burst: int = EXPORT_BURST
 
 
 def client_ip(headers: Mapping[str, str], peer: str | None) -> str:
@@ -198,6 +202,7 @@ class RateLimiter:
         now: Callable[[], float] = time.monotonic,
         max_keys: int = MAX_TRACKED_ADDRESSES,
     ) -> None:
+        self.per_minute = per_minute
         self._rate = per_minute / 60.0
         self._burst = float(per_minute if burst is None else burst)
         self._refill_s = self._burst / self._rate

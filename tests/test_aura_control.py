@@ -301,6 +301,9 @@ def test_a_share_export_strips_the_boards_and_the_plan_and_names_the_gallery():
     env = answer.file
     assert env["format"] == "pewpew.share" and env["version"] == 1
     assert env["arrangement"]["controllers"] == [{"id": "A", "profile": "x"}] and "plan" not in env["arrangement"]
+    noted = booked_rig(layout=HostedLayout({"notes": "internal", "public_notes": "for anyone"}), gallery=GALLERY)
+    arrangement = noted.control.request({"type": "export", "looks": ["blue"], "share": True}).file["arrangement"]
+    assert "notes" not in arrangement and arrangement["public_notes"] == "for anyone"
     assert list(env["looks"]["looks"]) == ["blue"] and env["looks"]["current"] == "blue"
     assert not rig.calls._queue  # an export reads the book on the caller's thread
 
@@ -310,7 +313,7 @@ def test_a_share_over_a_limit_is_refused_with_its_reason():
     rig = booked_rig(layout=HostedLayout(too_many), gallery=GALLERY)
     refused = rig.control.request({"type": "export", "share": True})
     assert isinstance(refused, Refusal) and "would refuse" in refused.reason and "200 fixtures" in refused.reason
-    huge = {"notes": "x" * 300_000}
+    huge = {"public_notes": "x" * 300_000}
     refused = booked_rig(layout=HostedLayout(huge), gallery=GALLERY).control.request({"type": "export", "share": True})
     assert isinstance(refused, Refusal) and "at most 262144 bytes" in refused.reason
 

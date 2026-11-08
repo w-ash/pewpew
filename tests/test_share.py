@@ -38,6 +38,17 @@ def test_an_envelope_strips_every_board_address_and_the_plan():
     assert checked["arrangement"] == env["arrangement"]
 
 
+def test_internal_notes_never_reach_an_envelope_and_the_name_and_public_notes_do():
+    noted = {**ARRANGEMENT, "name": "porch", "notes": "internal", "public_notes": "for anyone"}
+    env = share.envelope(noted, BOOK, ["tide"])
+    assert "notes" not in env["arrangement"]
+    assert (env["arrangement"]["name"], env["arrangement"]["public_notes"]) == ("porch", "for anyone")
+    checked, _ = share.check({**env, "arrangement": noted})  # a client's notes are stripped again
+    assert checked["arrangement"] == env["arrangement"] and "internal" not in share.canonical_json(checked)
+    unnoted = {k: v for k, v in env["arrangement"].items() if k != "public_notes"}
+    assert "public_notes" not in share.check({**env, "arrangement": unnoted})[0]["arrangement"]
+
+
 def test_triggers_and_notes_are_dropped_and_the_cycle_and_favorites_keep_only_chosen_looks():
     tide, warp = BOOK.looks["tide"], BOOK.looks["warp-lane"]
     book = LookBook({"tide": tide, "warp-lane": warp, "milk": BOOK.looks["milk-bloom"]}, "milk",
@@ -96,7 +107,7 @@ def test_an_old_bare_row_reads_as_an_envelope_with_the_example_looks():
 
 
 def test_a_share_over_the_size_cap_is_refused():
-    env = share.envelope({**ARRANGEMENT, "notes": "x" * MAX_BODY_BYTES}, BOOK, ["tide"])
+    env = share.envelope({**ARRANGEMENT, "public_notes": "x" * MAX_BODY_BYTES}, BOOK, ["tide"])
     with pytest.raises(share.ShareError, match=f"at most {MAX_BODY_BYTES} bytes"):
         share.check(env)
     small = share.envelope(ARRANGEMENT, BOOK, ["tide"])

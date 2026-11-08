@@ -828,7 +828,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A rig as the user or the studio writes it (format v1).\n\nEvery block after `wiring` is optional and was added to v1 without a\nversion step: a file without it reads as before, and a reader older than\nthe block refuses a file that has it, as an unknown field. `power` with\nno limits caps nothing. `plan` puts a floor-plan image under the map.",
+  "description": "A rig as the user or the studio writes it (format v1).\n\nEvery block after `wiring` is optional and was added to v1 without a\nversion step: a file without it reads as before, and a reader older than\nthe block refuses a file that has it, as an unknown field. `power` with\nno limits caps nothing. `plan` puts a floor-plan image under the map.\n`name` is public: a share carries it. `notes` are internal and never\nleave the machine: a share and an export drop them (`pewpew.share`).\n`public_notes` may travel with a share.",
   "properties": {
     "format": {
       "const": "pewpew.arrangement",
@@ -848,6 +848,11 @@
     "notes": {
       "default": "",
       "title": "Notes",
+      "type": "string"
+    },
+    "public_notes": {
+      "default": "",
+      "title": "Public Notes",
       "type": "string"
     },
     "groups": {
