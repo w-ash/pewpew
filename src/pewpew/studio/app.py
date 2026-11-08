@@ -41,7 +41,8 @@ unknown, cannot be read or does not compile, no look starts on it, the
 visitor was evicted, or it sat paused too long) and `message` (a message the
 socket does not accept: binary, or over the size limit). A session has at
 most one `export` on its way at a time (from the request until its
-`exported` is sent) and `Limits.exports_per_minute`; its book is held to the
+`exported` is sent), and an address `Limits.exports_per_minute` over all its
+sockets; its book is held to the
 size of a share (`Limits.max_body_bytes`, `pewpew.aura.book.MAX_LOOKS`
 looks), and its outbox to `transport.MAX_CONTROL_BYTES`, so a client that
 does not read cannot pin more.
@@ -103,6 +104,7 @@ logger = logging.getLogger(__name__)
 IDLE_TIMEOUT_S = 600.0  # no inbound message for this long pauses a session
 PAUSED_TIMEOUT_S = 1800.0  # paused for this long closes it
 CACHED_SHARES = 32  # compiled shares kept by id
+BROKEN_TTL_S = 600.0  # how long a stored share that cannot be read or compiled stays refused from memory
 EVICTED = "closed after a long pause to make room for another visitor; reload to continue"
 PAUSED = "the session is paused; send resume first"
 UNKNOWN = "no share has this link"
@@ -211,6 +213,37 @@ class _Shares:
                 self._shares.popitem(last=False)
 
 
+class _Broken:
+    """Ids of stored shares that cannot be read or compiled, each with its
+    refusal, kept for `ttl_s` and at most `size` of them (the oldest leave
+    first); thread-safe. A reconnecting tab asks again every few seconds,
+    so the answer comes from here, not from the store and the compiler."""
+
+    def __init__(self, size: int, ttl_s: float, now: Callable[[], float] = time.monotonic) -> None:
+        self._size = size
+        self._ttl_s = ttl_s
+        self._now = now
+        self._lock = threading.Lock()
+        self._refused: OrderedDict[str, tuple[float, Exception]] = OrderedDict()
+
+    def get(self, id: str) -> Exception | None:
+        with self._lock:
+            found = self._refused.get(id)
+            if found is None:
+                return None
+            if found[0] <= self._now():
+                del self._refused[id]
+                return None
+            return found[1]
+
+    def put(self, id: str, refusal: Exception) -> None:
+        with self._lock:
+            self._refused[id] = (self._now() + self._ttl_s, refusal)
+            self._refused.move_to_end(id)
+            while len(self._refused) > self._size:
+                self._refused.popitem(last=False)
+
+
 def create_app(
     *,
     catalog: Any = None,
@@ -223,6 +256,7 @@ def create_app(
     idle_timeout_s: float = IDLE_TIMEOUT_S,
     paused_timeout_s: float = PAUSED_TIMEOUT_S,
     cached: int = CACHED_SHARES,
+    broken_ttl_s: float = BROKEN_TTL_S,
 ) -> FastAPI:
     """The Gallery app. `default` is the arrangement of the share `/` runs
     (default: the packaged `golden-rings`), with the example looks in
@@ -230,10 +264,12 @@ def create_app(
     limits = limits or Limits()
     admission = Admission(limits)
     save_limiter = RateLimiter(limits.saves_per_minute)
+    export_limiter = RateLimiter(limits.exports_per_minute, limits.export_burst)
     compile_limiter = RateLimiter(limits.compiles_per_minute, limits.compile_burst)
     compile_slots = threading.BoundedSemaphore(limits.max_concurrent_compiles)
     registry = SessionRegistry()
     shares = _Shares(cached)
+    broken = _Broken(cached, broken_ttl_s)
     compile_fn = compile or functools.partial(compile_doc, max_pixels=limits.max_pixels)
     if examples is None:
         examples = Path(os.environ.get("PEWPEW_STUDIO_EXAMPLES", _EXAMPLES))
@@ -305,6 +341,10 @@ def create_app(
         found = shares.get(id)
         if found is not None:
             return found
+        refused = broken.get(id)
+        if refused is not None:
+            logger.debug("the stored share %s is refused from memory", id)
+            raise refused.with_traceback(None)
         text = db().get(id)
         if text is None:
             raise Unknown(UNKNOWN)
@@ -312,7 +352,13 @@ def create_app(
             found = shared_of(*share.read(text, book), key)
         except (LookError, ValueError, KeyError, TypeError):  # a row this Gallery cannot read
             logger.warning("the stored share %s cannot be read", id, exc_info=True)
-            raise Unreadable(UNREADABLE) from None
+            refused = Unreadable(UNREADABLE)
+            broken.put(id, refused)
+            raise refused from None
+        except CompileFailure as exc:  # logged once here, answered from memory after
+            logger.warning("the stored share %s does not compile: %s", id, exc)
+            broken.put(id, exc)
+            raise
         shares.put(id, found)
         return found
 
@@ -467,9 +513,8 @@ def create_app(
             outbox.control(session.hello())
             session.start()
             pump = asyncio.ensure_future(outbox.pump(ws))
-            exports = RateLimiter(limits.exports_per_minute, limits.export_burst)
             visitor = _Visitor(ws, session, outbox, pump, limits.max_body_bytes, idle_timeout_s, paused_timeout_s,
-                               exports)
+                               export_limiter, key)
             await visitor.serve()
         except Exception:
             logger.debug("session socket ended", exc_info=True)
@@ -497,7 +542,8 @@ class _Visitor:
     max_bytes: int
     idle_timeout_s: float
     paused_timeout_s: float
-    exports: RateLimiter  # this session's alone
+    exports: RateLimiter  # shared by every socket, counted under `key`
+    key: str  # this visitor's address
 
     async def serve(self) -> None:
         """Return when the client leaves, the pump ends, or a limit closes the socket."""
@@ -581,7 +627,7 @@ class _Visitor:
         """Why an `export` may not go now, or None."""
         if self.outbox.exports:
             return EXPORTING
-        wait = self.exports.allow("export")
+        wait = self.exports.allow(self.key)
         if wait is not None:
             return f"limit of {self.exports.per_minute:g} exports per minute; try again in {int(wait) + 1} s"
         return None

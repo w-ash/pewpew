@@ -41,7 +41,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from pewpew.aura.book import MAX_FAVORITES, MAX_LOOKS, MAX_NAME, LookBook, check_name
+from pewpew.aura.book import MAX_FAVORITES, MAX_LOOKS, MAX_NAME, CycleConfig, LookBook, check_name
 from pewpew.aura.deck import Deck
 from pewpew.aura.director import Director, Slot
 from pewpew.aura.master import Master
@@ -151,12 +151,15 @@ class Looks:
 
     def __init__(
         self, path: Path | None, book: LookBook, deck: Deck, master: Master, *, variety: Variety | None = None,
-        submit: Submit = in_background, max_bytes: int | None = None,
+        submit: Submit = in_background, max_bytes: int | None = None, idle_off: bool = False,
     ) -> None:
         """The looks of `book`, saved to the looks file at `path`, or kept
         in memory alone when `path` is None. With `max_bytes`, a change
         that grows the book past that size (`LookBook.size`) is refused, so
-        a Gallery visit's book stays the size of a share."""
+        a Gallery visit's book stays the size of a share; a recall's change
+        of the current look does not count. With `idle_off`, the idle cycle
+        never starts, whatever the book's `cycle.idle` says."""
+        self._idle_off = idle_off
         self._path = None if path is None else Path(path)
         self._max_bytes = max_bytes
         self._book = book
@@ -206,6 +209,7 @@ class Looks:
     def state(self) -> dict:
         """The page's view of the looks; JSON-ready, names only."""
         book = self._book
+        cycle = self._cycle()
         fading = self._fading if self._fader.fading else None
         progress = self._fader.progress
         pending = self._pending
@@ -223,8 +227,8 @@ class Looks:
             "cycling": self._director.running,
             # When the idle cycle starts (seconds without input; None: never)
             # and how long each look plays, shortest and longest.
-            "idle": book.cycle.idle,
-            "dwell": list(book.cycle.dwell),
+            "idle": cycle.idle,
+            "dwell": list(cycle.dwell),
             # The made look that plays unsaved, by the name it offers.
             "made": None if self._made is None else self._made.label,
             # The name a save with none gives the live state now (`offered`),
@@ -556,15 +560,21 @@ class Looks:
                 return
             book = self._book
             # Unsaved edits are not idle: the wait starts again, so the cycle never drops them.
-            if self._director.due(t, book.cycle) and self.changed():
+            cycle = self._cycle()
+            if self._director.due(t, cycle) and self.changed():
                 self._director.touch(t)
-            if (slot := self._director.tick(t, book.in_cycle, book.cycle)) is not None:
+            if (slot := self._director.tick(t, book.in_cycle, cycle)) is not None:
                 self._play_slot(slot)
-            seed = self._director.coming(book.in_cycle, book.cycle)
+            seed = self._director.coming(book.in_cycle, cycle)
             if seed is not None and (self._making is None or self._making[0] != seed):
                 self._making = (seed, self._make(seed))
         except Exception as exc:  # noqa: BLE001  the aura must not end over a look
             self._fail(f"look recall failed: {describe_exception(exc)}")
+
+    def _cycle(self) -> CycleConfig:
+        """The book's cycle settings as they run: with the idle cycle off when `idle_off`."""
+        cycle = self._book.cycle
+        return replace(cycle, idle=None) if self._idle_off else cycle
 
     def _make(self, seed: int) -> Future[Made]:
         """Start making the look of a fresh slot from `seed` off the loop thread."""
@@ -648,8 +658,11 @@ class Looks:
         before while that look is in it, so a restart comes back in it."""
         kept = book.current is None and self._restart in book.looks
         on_file = book.with_current(self._restart) if kept else book
-        # A book over the limit from the start may still change, but not grow.
-        if self._max_bytes is not None and book.size() > max(self._max_bytes, self._book.size()):
+        # A book over the limit from the start may still change, but not grow;
+        # which look is current is no growth, so a recall always lands.
+        if self._max_bytes is not None and book.with_current(self._book.current).size() > max(
+            self._max_bytes, self._book.size()
+        ):
             return f"the looks are limited to {self._max_bytes} bytes; delete a look first"
         try:
             if self._path is not None:

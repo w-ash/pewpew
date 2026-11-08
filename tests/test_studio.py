@@ -692,6 +692,83 @@ def test_exports_are_rate_limited_per_session():
         assert (refused["control"], refused["id"]) == ("export", 2) and "60 exports per minute" in refused["reason"]
 
 
+def test_export_limits_hold_across_reconnects_from_one_address():
+    with TestClient(make_app(limits=Limits(exports_per_minute=60, export_burst=2))) as c:
+        for i in range(2):
+            with connect(c) as ws:
+                ws.receive_text()
+                ws.send_text(json.dumps({"type": "export", "id": i}))
+                assert read_until(ws, lambda m: is_type("exported")(m) or is_type("refused")(m))["type"] == "exported"
+        with connect(c) as ws:  # a new socket from the same address
+            ws.receive_text()
+            ws.send_text(json.dumps({"type": "export", "id": 9}))
+            refused = read_until(ws, is_type("refused"))
+            assert refused["id"] == 9 and "60 exports per minute" in refused["reason"]
+        with connect(c, headers={"fly-client-ip": "203.0.113.9"}) as ws:  # another address has its own
+            ws.receive_text()
+            ws.send_text(json.dumps({"type": "export", "id": 1}))
+            assert read_until(ws, lambda m: is_type("exported")(m) or is_type("refused")(m))["type"] == "exported"
+
+
+def test_an_export_keeps_the_shares_idle_setting_while_the_session_never_cycles(client):
+    idle = ENVELOPE["looks"]["cycle"]["idle"]
+    assert idle is not None
+    with connect(client, shared(client)) as ws:
+        assert read_until(ws, is_type("aura"))["looks"]["idle"] is None
+        ws.send_text(json.dumps({"type": "export", "id": 1}))
+        assert read_until(ws, is_type("exported"))["file"]["cycle"]["idle"] == idle
+
+
+def test_a_stored_row_that_cannot_be_read_or_compiled_is_answered_from_memory_after_the_first_open(caplog):
+    gets: list[str] = []
+    store = SqliteStore(":memory:")
+    real_get = store.get
+    store.get = lambda id: gets.append(id) or real_get(id)
+    unreadable = "[1, 2]"
+    with TestClient(make_app(store=store)) as c:
+        id_ = share.content_id(unreadable)
+        store.put(id_, unreadable)
+        for _ in range(3):
+            with connect(c, id_) as ws:
+                assert json.loads(ws.receive_text())["reason"] == UNREADABLE
+    assert gets == [id_]
+    assert caplog.text.count("cannot be read") == 1
+
+
+def test_an_arrangement_that_does_not_compile_takes_one_compile_for_all_its_opens(caplog):
+    compiles = []
+
+    def compile(arrangement, catalog):
+        compiles.append(1)
+        raise ValueError("no")
+
+    store = SqliteStore(":memory:")
+    text = share.canonical_json(ENVELOPE)
+    id_ = share.content_id(text)
+    with TestClient(make_app(store=store, compile=compile, default=ring(3))) as c:
+        store.put(id_, text)
+        for _ in range(3):
+            with connect(c, id_) as ws:
+                assert "does not compile" in json.loads(ws.receive_text())["reason"]
+    assert len(compiles) == 1
+    assert caplog.text.count("does not compile") == 1
+
+
+def test_a_closed_outbox_closes_the_socket_with_1008(monkeypatch):
+    class Unread(Outbox):  # sends nothing, so the backlog fills
+        async def pump(self, ws):
+            self._sender = asyncio.current_task()
+            await asyncio.Event().wait()
+
+    monkeypatch.setattr("pewpew.studio.app.Outbox", Unread)
+    monkeypatch.setattr("pewpew.studio.transport.MAX_CONTROL_BACKLOG", 3)
+    with TestClient(make_app()) as c, connect(c) as ws:
+        for i in range(6):
+            ws.send_text(json.dumps({"type": "export", "id": i}))
+        event = ws.receive()
+        assert event["type"] == "websocket.close" and event["code"] == 1008
+
+
 def test_a_visits_book_is_held_to_the_size_of_a_share():
     session = stepped(RecordingSink(), max_book_bytes=CHOSEN_BOOK.size() + 100)
     looks = session._aura.looks  # the loop thread's, called here with no loop running
@@ -708,6 +785,21 @@ def test_a_visits_book_is_held_to_the_size_of_a_share():
         assert plain._aura.looks is not None and plain._aura.looks._max_bytes == MAX_BODY_BYTES
     finally:
         plain.close()
+
+
+def test_at_the_book_limit_a_recall_lands_and_a_favorite_or_fade_is_refused(caplog):
+    book = CHOSEN_BOOK.with_current("tide")  # "warp-lane" is the longer name
+    session = stepped(RecordingSink(), book=book, max_book_bytes=book.size())
+    looks = session._aura.looks
+    assert looks is not None
+    try:
+        assert looks.recall("warp-lane") is None
+        assert looks.book.current == "warp-lane" and "still names" not in caplog.text
+        assert "limited to" in str(looks.set_favorite("tide", True))
+        assert "limited to" in str(looks.set_fade("tide", 12.34567))
+        assert looks.book.current == "warp-lane"
+    finally:
+        session.close()
 
 
 def test_a_refused_set_names_the_range_and_never_a_path_and_the_loop_survives(client, ws):
@@ -1221,7 +1313,7 @@ def test_a_client_that_reads_nothing_and_asks_256_exports_is_closed_with_bounded
         client = _Client([{"type": "export", "id": i} for i in range(256)], box)
         box.control(session.hello())
         pump = asyncio.ensure_future(box.pump(cast(Any, client)))
-        visitor = _Visitor(cast(Any, client), session, box, pump, MAX_BODY_BYTES, 60.0, 60.0, RateLimiter(10, 3))
+        visitor = _Visitor(cast(Any, client), session, box, pump, MAX_BODY_BYTES, 60.0, 60.0, RateLimiter(10, 3), "a")
         try:
             await asyncio.wait_for(visitor.serve(), 10)
         finally:
@@ -1250,14 +1342,19 @@ def test_a_second_export_while_one_is_on_its_way_is_refused():
             await real_send(text)
 
         client.send_text = slow
-        visitor = _Visitor(cast(Any, client), session, box, pump, MAX_BODY_BYTES, 60.0, 60.0, RateLimiter(10, 3))
+        visitor = _Visitor(cast(Any, client), session, box, pump, MAX_BODY_BYTES, 60.0, 60.0, RateLimiter(10, 3), "a")
         serving = asyncio.ensure_future(visitor.serve())
+        # The refusal of export 2 queues behind export 1, which is held in its send.
+        for _ in range(200):
+            await asyncio.sleep(0.01)
+            if box.exports == 1 and len(box._control) >= 2:
+                break
+        assert box.exports == 1 and len(box._control) >= 2
+        hold.set()
         for _ in range(200):
             await asyncio.sleep(0.01)
             if any(isinstance(m, dict) and m.get("id") == 2 for m in client.stuck.sent):
                 break
-        hold.set()
-        await asyncio.sleep(0.05)
         serving.cancel()
         pump.cancel()
         session.close()

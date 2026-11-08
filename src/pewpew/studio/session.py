@@ -37,7 +37,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 import numpy as np
@@ -101,11 +101,11 @@ def _start(shared: Shared, **kw: Any) -> AuraPipeline:
     """The aura of `shared` in the book's current look, else the first
     that starts on the mapping, with the idle cycle off. Raises NoLook
     when none starts."""
-    book = replace(shared.book, cycle=replace(shared.book.cycle, idle=None))
+    book = shared.book
     names = [*([book.current] if book.current is not None else []), *(n for n in book.looks if n != book.current)]
     for name in names:
         try:
-            aura = build_aura_pipeline(book.looks[name], shared.mapping, book=book, **kw)
+            aura = build_aura_pipeline(book.looks[name], shared.mapping, book=book, idle_off=True, **kw)
         except (LayerError, ValueError):  # ValueError: a signal or route the stack cannot run
             logger.debug("look %r does not start on the share", name, exc_info=True)
             continue

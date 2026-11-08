@@ -30,10 +30,10 @@ series (batch mode).
   read-only in 3D, and gives each visitor an in-memory book of looks for the visit
   (save, rename, favorite) with export. Its hello offers `ack`, `look`, `export`,
   `pause` and `gallery`. A session never runs the idle cycle. Its memory is bounded:
-  the book to a share's size, one export on its way at a time and 10 a minute, and an
+  the book to a share's size, one export on its way at a time and 10 a minute an address, and an
   outbox of 256 messages and 1 MiB that closes the socket on overflow, even to a
   client that reads nothing. A stored share that cannot be read is refused with "this
-  share can't be opened"; a share the store cannot write is a 503 and is not cached.
+  share can't be opened" (and answered from memory for ten minutes, not re-read each reconnect); a share the store cannot write is a 503 and is not cached.
 - The page backs its reconnects off after a connection refused or closed before a
   hello (twice the last wait, to 10 s, with jitter), on the Console and the Gallery,
   and shows the refusal's reason in place of the wait.

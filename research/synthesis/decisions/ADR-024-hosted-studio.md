@@ -204,7 +204,7 @@ engine's page, the **Console**, publishes. Code names stay (`studio`,
   cycle off.
 - **A session's memory is bounded.** Its book grows to a share's size at
   most (256 KiB of compact JSON, 64 looks); one `export` at a time is on
-  its way, at most 10 a minute; its outbox holds 256 messages and 1 MiB of
+  its way, at most 10 a minute an address; its outbox holds 256 messages and 1 MiB of
   text, serialized as queued, and an overflow closes the socket even
   mid-send. A page refused before a hello backs its reconnects off
   exponentially with jitter, to 10 s.
