@@ -213,7 +213,7 @@ def _write(
             replies[str(message["id"])] = Answer.of(message)
 
     answers: list[Answer] = []
-    with _connect(url, addresses, keep, timeout) as client:
+    with _connect(url, addresses, keep) as client:
         if LOOK not in (client.hello(timeout).get("capabilities") or ()):
             raise Forbidden(f"{client.url}: {LACKS_LOOK}")
         for message in planned:
@@ -230,7 +230,7 @@ def _write(
     return Pushed(url, False, ok, addresses, planned, tuple(answers), client.url, str(log))
 
 
-def _connect(url: str, addresses: Sequence[str], keep: Callable[[dict[str, Any]], None], timeout: float) -> Client:
+def _connect(url: str, addresses: Sequence[str], keep: Callable[[dict[str, Any]], None]) -> Client:
     """A client of the engine at the first of `addresses` that answers,
     each in the place of `url`'s host."""
     failure: Unreachable | None = None
