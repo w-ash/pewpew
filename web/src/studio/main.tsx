@@ -10,7 +10,7 @@ import "./studio.css";
 async function start() {
   if (import.meta.env.MODE === "mock") {
     const { worker } = await import("./mocks/browser");
-    await worker.start({ onUnhandledRequest: "bypass", quiet: true });
+    await worker.start({ onUnhandledFrame: "bypass", quiet: true });
   }
   const root = document.getElementById("root");
   if (!root) throw new Error("Root element not found");
