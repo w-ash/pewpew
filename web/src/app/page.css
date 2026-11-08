@@ -1547,6 +1547,17 @@
     0 0 0 2px var(--surface-region),
     0 0 0 4px var(--focus);
 }
+/* Under a finger the marker's box is --hit square; its dot stays 12 px. The strip's bottom margin grows by the
+   same 4 px so the box clears the row below. */
+@media (pointer: coarse) {
+  .palette-strip {
+    margin-bottom: var(--hit);
+  }
+  .stop-marker {
+    width: var(--hit);
+    height: var(--hit);
+  }
+}
 .stop-head {
   display: flex;
   flex-wrap: wrap;

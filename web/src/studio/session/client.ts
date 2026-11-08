@@ -9,8 +9,8 @@
  * (docs/studio/plan.md, "Share links").
  *
  * The server also pauses a session after 10 minutes with no message from the
- * client. When frames stop while the tab shows, the store's frame gap
- * grows, and the next pointer or key press on the page sends `resume`.
+ * client. When frames stop while the tab shows (or none follow a hello or
+ * layout), the store's frame gap grows, and the next pointer or key press on the page sends `resume`.
  */
 import { frameGap, STALE_MS } from "../../health/health";
 import { Socket } from "../../wire/socket";
@@ -136,7 +136,7 @@ export class SessionClient {
   /** A press while frames are stale asks the server to resume, at most once per stale spell. */
   private onActivity = () => {
     const now = performance.now();
-    if (!frameGap(now, this.wire.lastFrameAt) || now - this.resumedAt < STALE_MS) return;
+    if (!frameGap(now, this.wire.heardAt()) || now - this.resumedAt < STALE_MS) return;
     this.resumedAt = now;
     this.socket.send({ type: "resume" });
   };

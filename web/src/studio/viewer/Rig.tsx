@@ -108,8 +108,14 @@ export function Rig({ rig, frames, catalog, selected, accent, onPick }: RigProps
     [rig, assemblies],
   );
   const seen = useRef<Frame | null>(null);
+  // A new texture starts empty: the frame it would show has not been seen by it.
+  const seenKey = useRef(key);
   useFrame(() => {
     const f = frames.getFrame();
+    if (seenKey.current !== key) {
+      seenKey.current = key;
+      seen.current = null;
+    }
     if (f === seen.current) return;
     seen.current = f;
     if (f) uploadFrame(texture, layout, f.rgb);

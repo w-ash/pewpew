@@ -250,9 +250,21 @@
 
 /* ---- the stage's status, over the canvas ------------------------------------------------------- */
 
-.studio-status {
+/* The stage's foot: the Console's status bar, in the flow above the status line, so it never covers the toolbar. */
+.studio-foot {
   position: absolute;
   inset: auto var(--space-xs) var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  pointer-events: none;
+}
+.studio-foot > .status-bar {
+  position: static;
+  border-radius: var(--radius-control);
+  pointer-events: auto;
+}
+.studio-status {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;

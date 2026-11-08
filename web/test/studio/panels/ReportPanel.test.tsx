@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { act } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -100,6 +101,21 @@ describe("ReportPanel", () => {
     );
     await expect.element(summary.getByText("2 · 1")).toBeInTheDocument();
     await expect.element(summary.getByText("2 · 80.0% (240.0 W)")).toBeInTheDocument();
+  });
+
+  it("shows the live watts from the wire's power reading", async () => {
+    const live = new WireStore();
+    live.receive({ type: "power", watts: 42.5, uncapped_watts: 60 });
+    const screen = await render(
+      <WireContext.Provider value={{ ...wire, store: live }}>
+        <ReportPanel stale={false} issues={[]} report={report} />
+      </WireContext.Provider>,
+    );
+    const stat = screen.getByTestId("report-watts");
+    await expect.poll(() => stat.element().textContent).toContain("42.5 W");
+    await expect.poll(() => stat.element().textContent).toContain("60.0 W uncapped");
+    act(() => live.receive({ type: "power", watts: 10, uncapped_watts: 10 }));
+    await expect.poll(() => stat.element().textContent).toBe("10.0 W");
   });
 
   it("collapses every section and the warnings by default", async () => {

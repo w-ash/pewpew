@@ -332,18 +332,20 @@ export function Stage({ rig, catalog }: StageProps) {
           </ToggleButton>
         </div>
       </div>
-      <StatusBar planNote={null} />
-      <StageStatus
-        rig={rig}
-        modelError={modelError}
-        onRetry={retryModels}
-        missing={missing}
-      />
+      <div className="studio-foot">
+        <StatusBar planNote={null} />
+        <StageStatus
+          rig={rig}
+          modelError={modelError}
+          onRetry={retryModels}
+          missing={missing}
+        />
+      </div>
     </div>
   );
 }
 
-function StageStatus({
+export function StageStatus({
   rig,
   modelError,
   onRetry,
@@ -356,15 +358,18 @@ function StageStatus({
 }) {
   const down = useConnectionText("status");
   const n = useWire((s) => s.map?.n);
+  const bound = useWire((s) => s.bound);
   const t = useFrameValue((f) => f?.t.toFixed(1) ?? null);
-  const stalled = useFrameGap() > 0;
+  const stalled = useFrameGap(true) > 0;
   return (
     <div className="studio-status t-caption">
       <span data-testid="stage-status">
         {down ??
-          (stalled
-            ? "paused while idle · tap to resume"
-            : `live · ${n} px${t !== null ? ` · t=${t} s` : ""}`)}
+          (!bound
+            ? "binding…"
+            : stalled
+              ? "paused while idle · tap to resume"
+              : `live · ${n} px${t !== null ? ` · t=${t} s` : ""}`)}
         {rig ? ` · ${rig.fixtures.length} fixtures` : ""}
       </span>
       {modelError && (

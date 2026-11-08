@@ -109,6 +109,31 @@ describe("SessionClient", () => {
     expect(frameGap(performance.now(), h.wire.lastFrameAt)).toBe(0);
   });
 
+  it("resumes once after a layout that no frame follows, as after a reconnect or a pause while hidden", () => {
+    const h = harness();
+    h.client.start();
+    h.socket().open();
+    vi.advanceTimersByTime(10);
+    h.greet();
+    h.socket().receive(SESSION_LAYOUT);
+    vi.advanceTimersByTime(STALE_MS - 1);
+    h.press();
+    expect(h.socket().types()).toEqual([]);
+    vi.advanceTimersByTime(2);
+    h.press();
+    h.press();
+    expect(h.socket().types()).toEqual(["resume"]);
+    // A reconnect starts the spell over from its own hello.
+    h.socket().close();
+    vi.advanceTimersByTime(1000);
+    h.socket().open();
+    h.greet();
+    h.socket().receive(SESSION_LAYOUT);
+    vi.advanceTimersByTime(STALE_MS + 1);
+    h.press();
+    expect(h.socket().types()).toEqual(["resume"]);
+  });
+
   it("opens the wire on the engine's hello, which a layout leaves open", () => {
     const h = harness();
     h.client.start();

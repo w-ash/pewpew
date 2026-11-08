@@ -260,3 +260,14 @@ test("every message decodes through the wire and the store, and reads through th
   expect(planUrl(roomOf(map))).toBe("/plan?v=1");
   expect(makeLayout(map, { width: 400, height: 400, dpr: 1 }, null).fixtures.map((f) => f.id)).toEqual(["a", "b"]);
 });
+
+test("a refusal that comes before the hello survives it, and one from the last connection does not", () => {
+  const store = new WireStore();
+  store.receive({ type: "refused", control: "session", name: null, id: null, reason: "server full" });
+  for (const msg of SESSION_GREETING) store.receive(msg);
+  expect(store.getState().refusals.session).toMatchObject({ reason: "server full" });
+  store.receive({ type: "refused", control: "bind", name: null, id: null, reason: "bad rig" });
+  store.disconnected();
+  for (const msg of SESSION_GREETING) store.receive(msg);
+  expect(store.getState().refusals).toEqual({});
+});

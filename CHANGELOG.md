@@ -776,6 +776,10 @@ series (batch mode).
   (`-n auto --dist loadfile`), about 35 s serial to 15 s. `-n 0` or bare `uv run pytest`
   runs it serially; `-n` alone defaults to `--dist loadfile`. Under xdist the process
   pool's jobs start per module on first read.
+- The Console and the studio share one web wire and chrome: the connection text,
+  the refusal banner, `Banner`, the side-panel slot and the breakpoint. The studio's
+  mock mode (`vite --mode mock`, the in-browser mock server) is removed; it runs
+  against the studio backend.
 - Arrangements map into the plan frame (x right, y up the plan, z height), the
   same frame as a room map, `line` and `grid`, so an effect on an arrangement
   lays out as it does on a room. A flat axis and a single point now map to 0

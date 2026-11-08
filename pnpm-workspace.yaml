@@ -4,4 +4,5 @@ packages:
   - web
 allowBuilds:
   esbuild: true
+  # orval still pulls msw in as a dependency until a later section; its install script is allowed until then.
   msw: true
