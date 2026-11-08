@@ -208,15 +208,16 @@ class FakeLayout:
     def __init__(self, editable: bool) -> None:
         self.editable = editable
         self.sent: list[object] = []
-        self.doc = {"format": "pewpew.arrangement"}
+        self.state = {"arrangement": {"format": "pewpew.arrangement"} if editable else None,
+                      "base": "b0" if editable else None}
         self.findings = {"issues": [], "report": None}
 
-    def arrange(self, doc: object) -> Refusal | None:
-        self.sent.append(doc)
+    def arrange(self, doc: object, base: object) -> Refusal | None:
+        self.sent.append((doc, base))
         return None if doc else Refusal("empty", issues=({"code": "empty"},))
 
-    def arrangement(self) -> object:
-        return self.doc if self.editable else None
+    def arrangement(self) -> dict:
+        return self.state
 
     def report(self) -> dict:
         return self.findings
@@ -226,11 +227,13 @@ def test_arrange_goes_to_the_layout_and_leaves_the_looks_alone():
     layout = FakeLayout(editable=True)
     rig = osc_rig(layout=layout)
     assert rig.control.capabilities == ("arrange",)
-    assert rig.control.request({"type": "arrange", "arrangement": {"a": 1}}) is None and layout.sent == [{"a": 1}]
+    assert rig.control.request({"type": "arrange", "arrangement": {"a": 1}, "base": "b0"}) is None
+    assert layout.sent == [({"a": 1}, "b0")]
     assert rig.control.request({"type": "arrange", "arrangement": {}}) == Refusal("empty", issues=({"code": "empty"},))
-    assert not rig.calls._queue  # not operator input: nothing reaches the loop thread
+    assert layout.sent[-1] == ({}, None)  # the layout refuses an arrange without a base
+    assert not rig.calls._queue  # not operator input: the looks are not touched
     states = control.wire_states(rig.control, {})
-    assert states["arrangement"] is layout.doc and states["report"] is layout.findings
+    assert states["arrangement"] is layout.state and states["report"] is layout.findings
     assert osc_rig(layout=FakeLayout(editable=False), accept_looks=True).control.capabilities == ("look",)
     bare = control.wire_states(osc_rig().control, {})
     assert bare["arrangement"] is None and bare["report"] is None

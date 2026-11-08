@@ -8,7 +8,9 @@ import { useMedia } from "../design/useMedia";
 import { useRefusal, useWire, useWireContext } from "../wire/store";
 import { entityOf, fixturesOf, poseOf, setPose } from "../arrange/arrangement";
 import { useDoc } from "../arrange/doc";
-import { useRigIsCurrent } from "../arrange/sync";
+import { sameJson, useRigIsCurrent } from "../arrange/sync";
+import type { Selection } from "../arrange/arrangement";
+import type { Arrangement } from "../arrange/types";
 import { dragPreview } from "./dragPreview";
 import { Gizmo, type GizmoMode, type GizmoSpace, gizmoActivity } from "./Gizmo";
 import type { SelectItem } from "../design/Select";
@@ -20,6 +22,36 @@ import { Rig } from "./Rig";
 import { FOV, rigBounds, type ViewName } from "./views";
 
 const NO_SELECTION: ReadonlySet<number> = new Set();
+
+/** What a drag committed: the entity it moved, and that entity's entry once moved. */
+interface Committed {
+  readonly selection: Selection;
+  readonly entry: unknown;
+}
+
+/** The entry of `selection` in `arrangement`: the fixture or the group as the file holds it. */
+function entryOf(arrangement: Arrangement, selection: Selection): unknown {
+  const list: readonly { id: string }[] = selection.kind === "group" ? arrangement.groups : arrangement.fixtures;
+  return list.find((e) => e.id === selection.id) ?? null;
+}
+
+/** Commit the pose a drag of `selection` ended at, and hold its preview until the view draws it. */
+export function commitDrag(selection: Selection, pose: Parameters<typeof setPose>[2]): void {
+  const doc = useDoc.getState();
+  const before = doc.history.present;
+  doc.commit(setPose(before, selection, pose));
+  const after = useDoc.getState().history.present;
+  if (after === before) dragPreview.clear();
+  else dragPreview.hold({ selection, entry: entryOf(after, selection) } satisfies Committed);
+}
+
+/** Ends a held drag preview once the editor's arrangement no longer holds what the drag committed (an
+ * undo, a redo, an edit of the entity, a load): the view then draws the engine's last layout until its
+ * next one, never a pose the document does not hold. */
+export function dropStalePreview(arrangement: Arrangement): void {
+  const held = dragPreview.held as Committed | null;
+  if (held && !sameJson(entryOf(arrangement, held.selection), held.entry)) dragPreview.clear();
+}
 const noPick = () => {};
 const GIZMO_ITEMS: readonly SelectItem[] = [
   { value: "translate", label: "Move" },
@@ -30,7 +62,7 @@ const GIZMO_ITEMS: readonly SelectItem[] = [
  * type's assembly. Loaded only when the stage shows 3D (app/App.tsx), with three.js in its own files.
  * While `editing` (the layout panel's arrangement editor is open), a press picks a fixture or group, and a
  * gizmo moves or turns it: the pose commits on release, and the dragged fixtures follow the gizmo until
- * the engine's next layout, or its refusal, draws them again. */
+ * the engine's next layout, or its refusal, draws them again, or the editor no longer holds that pose. */
 export default function Stage3D({ editing }: { editing: boolean }) {
   const { store } = useWireContext();
   const map = useWire((s) => s.map);
@@ -40,6 +72,7 @@ export default function Stage3D({ editing }: { editing: boolean }) {
   const [mode, setMode] = useState<GizmoMode>("translate");
   const [space, setSpace] = useState<GizmoSpace>("world");
   useEffect(() => dragPreview.clear(), [map, refusal]);
+  useEffect(() => dropStalePreview(arrangement), [arrangement]);
   const rig: ViewRig | null = useMemo(
     () => (map?.rig ? { n: map.n, total: map.total, fixtures: map.rig.fixtures, types: map.rig.types } : null),
     [map],
@@ -103,10 +136,7 @@ export default function Stage3D({ editing }: { editing: boolean }) {
             fixtures={[...selected]}
             mode={mode}
             space={space}
-            onCommit={(next) => {
-              const doc = useDoc.getState();
-              doc.commit(setPose(doc.history.present, selection, next));
-            }}
+            onCommit={(next) => commitDrag(selection, next)}
           />
         )}
       </Canvas>

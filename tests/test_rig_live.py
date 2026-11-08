@@ -4,6 +4,7 @@ the board rebind, and `run --map`."""
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import shutil
 import threading
@@ -17,6 +18,7 @@ from fakes import (
     EXAMPLE_RIG,
     FLOW,
     LEGACY_ROOM,
+    LoopThread,
     UdpRecorder,
     arrangement,
     bar,
@@ -50,7 +52,7 @@ from pewpew.rig.runtime import (
 )
 from pewpew.rig_cli import DEFAULT_CONTROLLER, DEFAULT_TYPE
 from pewpew.room.blink import Blink
-from pewpew.room.live import RigLive
+from pewpew.room.live import CHANGED_ON_DISK, RigLive
 from pewpew.sinks.ddp import Board
 
 TWO_BARS = arrangement(bar("a"), bar("b", chain=2, start=[0.0, 1.0], end=[1.0, 1.0]))
@@ -228,7 +230,7 @@ def test_a_legacy_room_of_240_fixtures_loads_runs_reloads_and_migrates(tmp_path,
     assert "board A" in out and "board B" in out
     assert recorder.sent == [] and not audit_log.exists()
 
-    rig_live = RigLive(path, rig, data, hosted(FLOW, rig.mapping), Calls().call_soon, ddp=None, argv=["run"])
+    rig_live = RigLive(path, rig, data, hosted(FLOW, rig.mapping), Calls(), ddp=None, argv=["run"])
     assert "960 px in 240 fixtures on 2 controller(s)" in rig_live.apply(data)
 
     out_file = tmp_path / "big.arrangement.json"
@@ -282,7 +284,7 @@ class Harness(RigLive):
     rec: UdpRecorder
 
 
-def live(tmp_path, program=None, blink=None, **kw):
+def live(tmp_path, program=None, blink=None, calls=None, **kw):
     """A running-aura stand-in: rig file, renderer, started DDP sink, and
     the rig's live reload the runner builds, whose new rigs land in
     `shown`, as the preview's would; `rec` records what the sink sends."""
@@ -292,8 +294,8 @@ def live(tmp_path, program=None, blink=None, **kw):
     r, data = load_rig(path)
     renderer = hosted(program or FLOW, r.mapping)
     sink, rec, _ = ddp_sink(list(ddp_targets(r)), r.n)
-    calls = Calls()
-    rig_live = Harness(path, r, data, renderer, calls.call_soon, ddp=sink, argv=["run"], blink=blink, **kw)
+    calls = Calls() if calls is None else calls
+    rig_live = Harness(path, r, data, renderer, calls, ddp=sink, argv=["run"], blink=blink, **kw)
     rig_live.shown = []
     rig_live.listeners.append(rig_live.shown.append)
     rig_live.calls = calls
@@ -352,7 +354,7 @@ def legacy_live(tmp_path):
         rig = parse_rig(data)
     renderer = hosted(FLOW, rig.mapping)
     calls = Calls()
-    return path, data, renderer, RigLive(path, rig, data, renderer, calls.call_soon, ddp=None, argv=["run"])
+    return path, data, renderer, RigLive(path, rig, data, renderer, calls, ddp=None, argv=["run"])
 
 
 def test_use_for_a_is_refused_on_a_legacy_room_file(tmp_path):
@@ -429,7 +431,7 @@ def test_a_rollback_that_also_fails_draws_the_error_frame_until_a_good_reload(tm
     path, doc, renderer, sink, _ = live(tmp_path, ramp(needs))
     fader = Crossfader(renderer)
     r, data = load_rig(path)
-    rig_live = RigLive(path, r, data, fader, Calls().call_soon, ddp=sink, argv=["run"])
+    rig_live = RigLive(path, r, data, fader, Calls(), ddp=sink, argv=["run"])
     bars[0] = 5  # no setup runs until the next bind
     write(path, arrangement(bar("a")))
     assert rig_live.reloader.reload() is False and "needs 5 bars" in (rig_live.error or "")
@@ -610,7 +612,31 @@ def three_bars_on_two_boards():
     )
 
 
-def test_arrange_compiles_once_audits_writes_atomically_then_commits_on_the_loop(tmp_path, audit_log, monkeypatch):
+def base_of(rig_live: RigLive) -> str | None:
+    """The digest an arrange built on the file as it runs names."""
+    return rig_live.arrangement()["base"]
+
+
+def arranged(rig_live: Harness, doc, base=None) -> Refusal | None:
+    """`rig_live.arrange(doc, base)` with its loop thread running; `base`
+    is the running file's when not given."""
+    with LoopThread(rig_live.calls):
+        return rig_live.arrange(doc, base_of(rig_live) if base is None else base)
+
+
+def file_bytes(doc) -> bytes:
+    """The bytes an arrange writes for `doc`."""
+    return (json.dumps(doc, indent=2, ensure_ascii=False) + "\n").encode()
+
+
+class Busy(Calls):
+    """A loop that never answers in time: each ask is late, and its step never runs."""
+
+    def ask(self, fn, late, timeout=0.0, *, definite=False):
+        return late
+
+
+def test_arrange_writes_adopts_audits_and_answers_once_the_rig_is_live(tmp_path, audit_log, monkeypatch):
     from pewpew.rig import runtime
     from pewpew.room import live as live_module
 
@@ -618,26 +644,28 @@ def test_arrange_compiles_once_audits_writes_atomically_then_commits_on_the_loop
     compiles = []
     compile_doc_ = runtime.compile_doc
     monkeypatch.setattr(runtime, "compile_doc", lambda *a, **kw: compiles.append(1) or compile_doc_(*a, **kw))
-    at_write, at_commit = [], []
+    steps, at_commit = [], []
     write_atomic = live_module.write_atomic
     monkeypatch.setattr(live_module, "write_atomic",
-                        lambda *a, **kw: at_write.append(audit_log.read_text()) or write_atomic(*a, **kw))
+                        lambda *a, **kw: steps.append(("write", audit_log.exists())) or write_atomic(*a, **kw))
+    adopt = rig_live.reloader.adopt
+    monkeypatch.setattr(rig_live.reloader, "adopt", lambda d: steps.append(("adopt", audit_log.exists())) or adopt(d))
     commit = sink.commit
     monkeypatch.setattr(sink, "commit", lambda layout: at_commit.append(audit_log.read_text()) or commit(layout))
-    new = three_bars_on_two_boards()
-    assert rig_live.editable and rig_live.arrange(new) is None
-    assert json.loads(path.read_text()) == new and path.read_text().endswith("}\n")
-    assert [p.name for p in tmp_path.iterdir() if p.name != path.name] == []  # no temp file left
-    assert rig_live.arrangement() is new and renderer.n == 128  # applied on the loop thread only
-    [arranged] = [json.loads(line) for line in at_write[0].splitlines()]  # audited before the write
-    assert arranged["action"] == "arrange" and arranged["pixels"] == 192 and arranged["fixtures"] == 3
-    rig_live.calls.drain()
-    assert compiles == [1] and rig_live.error is None
+    new, old_base = three_bars_on_two_boards(), base_of(rig_live)
+    assert rig_live.editable and arranged(rig_live, new) is None
+    # The answer comes once the rig runs.
     assert renderer.n == 192 and [b.spec for b in sink.boards] == ["10.0.0.11:4048=0+128", "10.0.0.12:4048=128+64"]
+    assert steps == [("write", False), ("adopt", False)]  # the audit record follows the write and the adopt
+    assert path.read_bytes() == file_bytes(new)
+    assert [p.name for p in tmp_path.iterdir() if p.name != path.name] == []  # no temp file left
+    assert compiles == [1] and rig_live.error is None
     [shown] = rig_live.shown
     assert rig_live.rig is shown and rig_live.report() == shown.findings()
+    digest = hashlib.sha256(file_bytes(new)).hexdigest()
+    assert rig_live.arrangement() == {"arrangement": new, "base": digest} and digest != old_base
     actions = [json.loads(line)["action"] for line in at_commit[0].splitlines()]
-    assert actions == ["arrange", "ddp-relayout"]  # the relayout is audited before the sink takes it
+    assert actions == ["arrange", "ddp-relayout"]  # both audited before the sink takes the new boards
 
 
 def test_arrange_is_skipped_by_the_watcher_that_sees_its_write(tmp_path, audit_log):
@@ -652,26 +680,31 @@ def test_arrange_is_skipped_by_the_watcher_that_sees_its_write(tmp_path, audit_l
     _path, _doc, renderer, _sink, rig_live = live(tmp_path, edits=True, watch=watch)
     rig_live.start()
     try:
-        assert rig_live.arrange(three_bars_on_two_boards()) is None
+        assert arranged(rig_live, three_bars_on_two_boards()) is None
         fired.set()  # the event for our own write
-        wait_until(lambda: len(rig_live.calls._queue) == 2)
+        wait_until(lambda: len(rig_live.calls._queue) == 1)
         rig_live.calls.drain()
     finally:
         rig_live.stop()
     assert len(rig_live.shown) == 1 and renderer.n == 192 and rig_live.error is None
 
 
-@pytest.mark.parametrize("edits, doc, reason", [
-    (False, TWO_BARS, "layout edits are off in an unattended run"),
-    (True, "rig.arrangement.json", "an arrangement is a JSON object"),
-    (True, [TWO_BARS], "an arrangement is a JSON object"),
+CURRENT = object()
+
+
+@pytest.mark.parametrize("edits, doc, base, reason", [
+    (False, TWO_BARS, CURRENT, "layout edits are off in an unattended run"),
+    (True, "rig.arrangement.json", CURRENT, "an arrangement is a JSON object"),
+    (True, [TWO_BARS], CURRENT, "an arrangement is a JSON object"),
+    (True, TWO_BARS, None, "an arrange names the layout it edits: `base`, from the engine's `arrangement`"),
+    (True, TWO_BARS, "0" * 64, "the layout changed; showing the current one"),
 ])
-def test_arrange_refuses_what_it_must_not_write_and_writes_nothing(tmp_path, audit_log, edits, doc, reason):
+def test_arrange_refuses_what_it_must_not_write_and_writes_nothing(tmp_path, audit_log, edits, doc, base, reason):
     path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=edits)
     data = path.read_bytes()
-    assert rig_live.arrange(doc) == Refusal(reason)
+    assert rig_live.arrange(doc, base_of(rig_live) if base is CURRENT else base) == Refusal(reason)
     assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
-    assert rig_live.arrangement() is (None if not edits else rig_live.doc)
+    assert rig_live.arrangement()["arrangement"] is (None if not edits else rig_live.doc)
 
 
 def test_arrange_refuses_an_arrangement_that_does_not_compile_with_every_issue(tmp_path, audit_log):
@@ -679,17 +712,17 @@ def test_arrange_refuses_an_arrangement_that_does_not_compile_with_every_issue(t
     data = path.read_bytes()
     broken = copy.deepcopy(doc)
     broken["wiring"]["chains"][0]["fixtures"] += ["ghost", "phantom"]
-    refused = rig_live.arrange(broken)
+    refused = rig_live.arrange(broken, base_of(rig_live))
     assert refused is not None and refused.reason == "the arrangement does not compile: chain A-1: no fixture 'ghost'"
     assert [i["message"] for i in refused.issues] == ["no fixture 'ghost'", "no fixture 'phantom'"]
     assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
-    assert rig_live.arrangement() is rig_live.doc and rig_live.doc == doc
+    assert rig_live.arrangement()["arrangement"] is rig_live.doc and rig_live.doc == doc
 
 
 def test_arrange_refuses_a_rig_the_boards_cannot_take(tmp_path, audit_log):
     path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=True)
     data = path.read_bytes()
-    refused = rig_live.arrange(over_cap_doc())
+    refused = rig_live.arrange(over_cap_doc(), base_of(rig_live))
     assert refused is not None and refused.reason.startswith("the boards cannot take this map: ")
     assert "output_over_cap" in {i["code"] for i in refused.issues}
     assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
@@ -697,10 +730,10 @@ def test_arrange_refuses_a_rig_the_boards_cannot_take(tmp_path, audit_log):
 
 def test_arrange_is_refused_on_a_legacy_room_file(tmp_path):
     path, data, *_, _ = legacy_live(tmp_path)
-    rig_live = RigLive(path, parse_rig(data, notices=[]), data, hosted(FLOW, line(4)), Calls().call_soon, ddp=None,
+    rig_live = RigLive(path, parse_rig(data, notices=[]), data, hosted(FLOW, line(4)), Calls(), ddp=None,
                        argv=["run"], edits=True)
-    assert not rig_live.editable and rig_live.arrangement() is None
-    refused = rig_live.arrange(TWO_BARS)
+    assert not rig_live.editable and rig_live.arrangement() == {"arrangement": None, "base": None}
+    refused = rig_live.arrange(TWO_BARS, hashlib.sha256(data).hexdigest())
     assert refused is not None and "migrate" in refused.reason and str(tmp_path) not in refused.reason
     assert path.read_bytes() == data
 
@@ -710,17 +743,132 @@ def test_arrange_without_a_ddp_sink_writes_no_audit_record(tmp_path, audit_log):
     write(path, TWO_BARS)
     r, data = load_rig(path)
     calls = Calls()
-    rig_live = RigLive(path, r, data, hosted(FLOW, r.mapping), calls.call_soon, ddp=None, argv=["run"], edits=True)
-    assert rig_live.arrange(three_bars_on_two_boards()) is None
-    calls.drain()
+    rig_live = RigLive(path, r, data, hosted(FLOW, r.mapping), calls, ddp=None, argv=["run"], edits=True)
+    with LoopThread(calls):
+        assert rig_live.arrange(three_bars_on_two_boards(), hashlib.sha256(data).hexdigest()) is None
     assert rig_live.rig.n == 192 and not audit_log.exists()
+
+
+@pytest.mark.usefixtures("fake_ops")
+def test_an_arrange_whose_rig_does_not_run_is_refused_and_the_file_put_back(tmp_path, audit_log):
+    """A program's setup raises on the new geometry: the refusal says why,
+    the file holds its old bytes, the old rig runs, and once the cause is
+    gone the same edit applies."""
+    bars = [2]
+
+    def needs(op, ctx):
+        if ctx.n > bars[0] * 64:
+            raise RuntimeError(f"at most {bars[0]} bars")
+
+    path, doc, renderer, sink, rig_live = live(tmp_path, ramp(needs), edits=True)
+    data, state, boards = path.read_bytes(), rig_live.arrangement(), list(sink.boards)
+    new = three_bars_on_two_boards()
+    refused = arranged(rig_live, new)
+    assert refused is not None
+    assert refused.reason.startswith("the layout did not run, so the map was not changed: RuntimeError: at most 2 bars")
+    assert path.read_bytes() == data and renderer.n == 128 and list(sink.boards) == boards
+    assert rig_live.arrangement() is state and rig_live.doc == doc and rig_live.shown == []
+    assert rig_live.reloader.reload() is False  # the old bytes' digest is adopted again: nothing to reload
+    bars[0] = 3
+    assert arranged(rig_live, new) is None  # the same edit, sent again
+    assert path.read_bytes() == file_bytes(new) and renderer.n == 192 and rig_live.arrangement()["arrangement"] == new
+
+
+def test_an_arrange_the_loop_does_not_answer_in_time_is_refused_and_the_file_put_back(tmp_path, audit_log):
+    path, _doc, renderer, _sink, rig_live = live(tmp_path, edits=True, calls=Busy())
+    data = path.read_bytes()
+    refused = rig_live.arrange(three_bars_on_two_boards(), base_of(rig_live))
+    assert refused == Refusal("the engine is busy, so the layout did not change; send it again")
+    assert path.read_bytes() == data and renderer.n == 128 and rig_live.reloader.reload() is False
+
+
+def test_an_arrange_that_cannot_write_the_map_file_adopts_and_audits_nothing(tmp_path, audit_log):
+    path, _doc, renderer, _sink, rig_live = live(tmp_path, edits=True)
+    data, base, new = path.read_bytes(), base_of(rig_live), three_bars_on_two_boards()
+    tmp_path.chmod(0o500)  # no temporary file beside the map
+    try:
+        refused = rig_live.arrange(new, base)
+    finally:
+        tmp_path.chmod(0o700)
+    assert refused == Refusal("could not write the map file")
+    assert path.read_bytes() == data and not audit_log.exists() and renderer.n == 128 and base_of(rig_live) == base
+    path.write_bytes(file_bytes(new))  # a save of the same bytes is not skipped: their digest was never adopted
+    assert rig_live.reloader.reload() is True and renderer.n == 192
+
+
+def test_an_arrange_that_cannot_write_its_audit_record_puts_the_file_back(tmp_path, audit_log, monkeypatch):
+    from pewpew import audit
+
+    path, _doc, renderer, _sink, rig_live = live(tmp_path, edits=True)
+    data = path.read_bytes()
+
+    def unwritable(*a, **kw):
+        raise OSError("read-only")
+
+    monkeypatch.setattr(audit, "record", unwritable)
+    refused = rig_live.arrange(three_bars_on_two_boards(), base_of(rig_live))
+    assert refused == Refusal("could not write the audit log, so the map was not changed")
+    assert path.read_bytes() == data and renderer.n == 128 and not rig_live.calls._queue
+
+
+def test_an_arrange_whose_file_cannot_be_put_back_says_so(tmp_path, audit_log, monkeypatch):
+    from pewpew.room import live as live_module
+
+    _path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=True, calls=Busy())
+    writes = []
+    write_atomic = live_module.write_atomic
+
+    def once(*a, **kw):
+        writes.append(1)
+        if len(writes) > 1:
+            raise OSError("disk full")
+        write_atomic(*a, **kw)
+
+    monkeypatch.setattr(live_module, "write_atomic", once)
+    refused = rig_live.arrange(three_bars_on_two_boards(), base_of(rig_live))
+    assert refused is not None and refused.reason.endswith("; the map file could not be put back")
+    assert rig_live.error is not None and "did not run" in rig_live.error
+
+
+def test_an_arrange_built_before_a_rebind_is_refused_and_the_new_host_kept(tmp_path, audit_log):
+    path, doc, _renderer, sink, rig_live = live(tmp_path, edits=True)
+    base = base_of(rig_live)
+    edited = copy.deepcopy(doc)
+    edited["name"] = "edited before the rebind"
+    assert rig_live.rebind("A", "192.0.2.20") is None
+    # Before the rebind's reload has run, the file on disk is not the one that runs.
+    assert rig_live.arrange(edited, base) == Refusal(CHANGED_ON_DISK)
+    rig_live.calls.drain()
+    assert base_of(rig_live) != base  # the rebind's file has a digest of its own
+    assert rig_live.arrange(edited, base) == Refusal("the layout changed; showing the current one")
+    assert [c["host"] for c in json.loads(path.read_text())["controllers"]] == ["192.0.2.20"]
+    assert sink.boards[0].host == "192.0.2.20" and rig_live.doc["controllers"][0]["host"] == "192.0.2.20"
+
+
+def test_of_two_arranges_on_one_base_the_second_is_refused(tmp_path, audit_log):
+    path, doc, renderer, _sink, rig_live = live(tmp_path, edits=True)
+    base = base_of(rig_live)
+    other = copy.deepcopy(doc)
+    other["name"] = "the other tab"
+    assert arranged(rig_live, three_bars_on_two_boards(), base) is None
+    assert arranged(rig_live, other, base) == Refusal("the layout changed; showing the current one")
+    assert path.read_bytes() == file_bytes(three_bars_on_two_boards()) and renderer.n == 192
 
 
 def test_the_report_is_one_object_per_rig(tmp_path):
     path, doc, _renderer, _sink, rig_live = live(tmp_path, edits=True)
     report = rig_live.report()
     assert report == rig_live.rig.findings() and rig_live.report() is report
-    assert rig_live.arrangement() is rig_live.doc and rig_live.doc == doc
+    state = rig_live.arrangement()
+    assert state["arrangement"] is rig_live.doc and rig_live.doc == doc and rig_live.arrangement() is state
     write(path, three_bars_on_two_boards())
     assert rig_live.reloader.reload() is True
-    assert rig_live.report() is not report and rig_live.arrangement() == three_bars_on_two_boards()
+    assert rig_live.report() is not report and rig_live.arrangement()["arrangement"] == three_bars_on_two_boards()
+    assert rig_live.arrangement()["base"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_a_room_file_saved_over_the_arrangement_ends_the_edits(tmp_path):
+    path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=True)
+    shutil.copy(LEGACY_ROOM, path)
+    assert rig_live.reloader.reload() is True
+    assert not rig_live.editable and rig_live.arrangement() == {"arrangement": None, "base": None}

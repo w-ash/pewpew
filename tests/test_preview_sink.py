@@ -10,9 +10,11 @@ client and contains a dead client without losing the live ones.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import http.client
 import json
 import re
+import shutil
 import socket
 import struct
 import time
@@ -26,7 +28,9 @@ from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
 from fakes import (
+    LEGACY_ROOM,
     FakeTime,
+    LoopThread,
     arrangement,
     aura_rig,
     bar,
@@ -994,7 +998,7 @@ def editable_rig(folder: Path, *, edits: bool = True):
     data = json.dumps(doc).encode()
     path.write_bytes(data)
     rig = aura_rig(mapping=line(2))
-    rig.layout = RigLive(path, compile_doc(doc, load_catalog()), data, rig.fader, rig.calls.call_soon, ddp=None,
+    rig.layout = RigLive(path, compile_doc(doc, load_catalog()), data, rig.fader, rig.calls, ddp=None,
                          argv=["run"], watch=no_watch, edits=edits)
     rig.control.layout = rig.layout
     return rig, doc
@@ -1008,21 +1012,26 @@ def test_the_rig_files_states_and_the_power_reading_reach_a_client_as_they_chang
         ws, greeting = greet(sink)
         with ws:
             assert "arrange" in greeting["hello"]["capabilities"] and "power" not in greeting
-            assert greeting["arrangement"]["arrangement"] == doc
+            base = hashlib.sha256((tmp_path / "rig.arrangement.json").read_bytes()).hexdigest()
+            assert greeting["arrangement"] == {"type": "arrangement", "arrangement": doc, "base": base}
             assert greeting["report"] == {"type": "report", **rig.layout.rig.findings()}
             reading[0] = {"watts": 1.0, "uncapped_watts": 2.0}
             two = arrangement(bar("a", pixels=2), bar("b", pixels=2, chain=2, start=[0.0, 1.0], end=[1.0, 1.0]))
-            ws.send(json.dumps({"type": "arrange", "id": "e1", "arrangement": two}))
-            assert next_of(ws, "ack") == {"type": "ack", "id": "e1", "control": "arrange"}
-            rig.calls.drain()  # the commit, on the loop thread
+            with LoopThread(rig.calls):  # the commit, on the loop thread
+                ws.send(json.dumps({"type": "arrange", "id": "e1", "arrangement": two, "base": base}))
+                assert next_of(ws, "ack") == {"type": "ack", "id": "e1", "control": "arrange"}
+            assert rig.layout.rig.n == 4  # acked once it runs
             sink.send(0.0, np.zeros((2, 3), np.float32))
             seen = {kind: next_of(ws, kind) for kind in ("power", "arrangement", "report")}
             assert seen["power"] == {"type": "power", "watts": 1.0, "uncapped_watts": 2.0}
-            assert seen["arrangement"]["arrangement"] == two and rig.layout.rig.n == 4
+            assert seen["arrangement"]["arrangement"] == two and seen["arrangement"]["base"] != base
             assert seen["report"]["report"]["totals"]["pixels"] == 4
-            ws.send(json.dumps({"type": "arrange", "id": "e2", "arrangement": {"format": "pewpew.arrangement"}}))
+            ws.send(json.dumps({"type": "arrange", "id": "e2", "arrangement": two, "base": base}))
+            assert next_of(ws, "refused")["reason"] == "the layout changed; showing the current one"
+            ws.send(json.dumps({"type": "arrange", "id": "e3", "arrangement": {"format": "pewpew.arrangement"},
+                                "base": seen["arrangement"]["base"]}))
             refused = next_of(ws, "refused")
-            assert (refused["control"], refused["id"]) == ("arrange", "e2") and refused["issues"]
+            assert (refused["control"], refused["id"]) == ("arrange", "e3") and refused["issues"]
             assert refused["reason"].startswith("the arrangement does not compile")
             ws.send(json.dumps({"type": "blackout", "id": "b", "on": "x"}))
             assert "issues" not in next_of(ws, "refused")  # only a refusal with issues carries them
@@ -1034,7 +1043,21 @@ def test_an_unattended_rig_offers_no_layout_edit(tmp_path):
     sink = preview_sink(line(2), control=rig.control)
     assert json.loads(sink._view.hello)["capabilities"] == ["ack"]
     texts = dict(zip(preview._MESSAGES, sink._texts(None)))
-    assert texts["arrangement"] is None and texts["report"] is not None
+    assert texts["report"] is not None
+    assert json.loads(texts["arrangement"] or "") == {"type": "arrangement", "arrangement": None, "base": None}
+
+
+@pytest.mark.usefixtures("fake_ops")
+def test_a_room_file_saved_over_the_arrangement_tells_a_client_the_edits_have_ended(tmp_path):
+    rig, _doc = editable_rig(tmp_path)
+    with preview_sink(line(2), control=rig.control) as sink:
+        ws, greeting = greet(sink)
+        with ws:
+            assert greeting["arrangement"]["arrangement"] is not None
+            shutil.copy(LEGACY_ROOM, tmp_path / "rig.arrangement.json")
+            assert rig.layout.reloader.reload() is True
+            sink.send(0.0, np.zeros((2, 3), np.float32))
+            assert next_of(ws, "arrangement") == {"type": "arrangement", "arrangement": None, "base": None}
 
 
 def test_a_refusal_carries_its_issues_only_when_it_has_some():

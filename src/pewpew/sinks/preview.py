@@ -18,11 +18,13 @@ the `power` supplier (the run's power limit on a rig, or the studio's),
 and `declare`, `params`, `mod`, `aura`, `health`, `catalog`,
 `arrangement` and `report` are the control's states
 (`pewpew.aura.control.wire_states`), made text by `StateTexts`, which the
-studio uses too. `arrangement` is the rig file's arrangement while the
-page may edit it, and `report` the running rig's issues and electrical
-report. A state that is the same object as the last one read keeps its
-text, so the large `catalog` is serialized once, and again only when it
-changes (an op file loads).
+studio uses too. `arrangement` is the rig file's arrangement and its
+digest, `base`, while the page may edit it, and both null once it may not
+(a room map file saved over it, an unattended run), so a page stops
+editing; `report` is the running rig's issues and electrical report. A
+state that is the same object as the last one read keeps its text, so the
+large `catalog` is serialized once, and again only when it changes (an op
+file loads).
 `mod`, the live values of the knobs a route drives, changes every frame,
 so it is read at most `MOD_HZ` times a second on the injected clock, and
 sent no more often (ADR-006 amendment "layered paths"). The hello
@@ -107,7 +109,7 @@ logger = logging.getLogger(__name__)
 # and is never sent.
 _MESSAGES = {
     "status": None, "declare": "params", "params": "values", "mod": "values", "aura": None, "health": None,
-    "catalog": None, "power": None, "arrangement": "arrangement", "report": None,
+    "catalog": None, "power": None, "arrangement": None, "report": None,
 }
 # How often the `mod` message's values are read, at most, a second.
 MOD_HZ = 10.0

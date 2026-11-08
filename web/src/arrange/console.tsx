@@ -15,6 +15,9 @@ import { useEditorKeys } from "./keys";
 import { IssueList, ReportPanel } from "./ReportPanel";
 import { useArrangeSync, useEngineArrangement, useRigIsCurrent } from "./sync";
 
+// Where focus may be for Delete and Backspace to delete what is selected: the layout panel and the 3D view.
+const EDITOR_SCOPE = ".arrange-panel, .stage-3d";
+
 // The parts catalog, or null when it does not load: the editor then offers the default fixture type and
 // no attachments, and the 3D view says why it draws no models.
 let parts: { readonly key: string; readonly promise: Promise<PartsCatalog | null> } | null = null;
@@ -39,7 +42,7 @@ function useEditor() {
  * and redo are this page's. Open only on a run that takes `arrange`. */
 export function ArrangeSlot({ onClose, onReport }: { onClose(): void; onReport(): void }) {
   const { refused } = useArrangeSync();
-  useEditorKeys(false);
+  useEditorKeys(false, EDITOR_SCOPE);
   const { engine, rig, editor, current } = useEditor();
   const catalog = use(partsOrNull(`${rig?.catalog_digest ?? ""}#0`));
   const refusal = useRefusal("arrange");

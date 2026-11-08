@@ -57,8 +57,10 @@ export interface WireState {
   readonly catalog: Catalog | null;
   /** The streamed frame's estimated draw; null before a reading. */
   readonly power: PowerState | null;
-  /** The arrangement file the engine runs, for the layout editor; null unless the run takes `arrange`. */
+  /** The arrangement file the engine runs, for the layout editor; null while the page may not edit it. */
   readonly arrangement: Arrangement | null;
+  /** The digest of that file, which an `arrange` names as its `base`; null with no arrangement. */
+  readonly arrangementBase: string | null;
   /** The running rig's issues and report; null before the engine sends them. */
   readonly report: ReportState | null;
   /** The engine's error, which outlives a refusal. */
@@ -76,11 +78,14 @@ type Listener = () => void;
 
 const INITIAL: WireState = {
   connected: false, capabilities: [], gamma: null, map: null, params: [], aura: null, health: null, catalog: null,
-  power: null, arrangement: null, report: null, error: null, refusals: {}, paramRefusals: {}, session: 0, bound: false,
+  power: null, arrangement: null, arrangementBase: null, report: null, error: null, refusals: {}, paramRefusals: {},
+  session: 0, bound: false,
 };
 
-/** Whether the run takes layout edits: a rig, and the hello's "arrange" capability. */
-export const canArrange = (s: WireState): boolean => !!s.map?.rig && s.capabilities.includes("arrange");
+/** Whether the run takes layout edits: a rig, the hello's "arrange" capability, and an arrangement the
+ * engine still offers to edit. */
+export const canArrange = (s: WireState): boolean =>
+  !!s.map?.rig && s.capabilities.includes("arrange") && s.arrangement !== null;
 
 /** `next`, reusing every part of `prev` that is equal to it, so a message
  * that changes one field leaves the identity of the others alone. */
@@ -215,7 +220,7 @@ export class WireStore {
     this.clearFrame();
     this.update({
       connected: true, capabilities, gamma, map, params: this.declare([]), aura: null, catalog: null,
-      power: null, arrangement: null, report: null, error: null, refusals, paramRefusals,
+      power: null, arrangement: null, arrangementBase: null, report: null, error: null, refusals, paramRefusals,
       session: this.state.session + 1, bound: false,
     });
   }
@@ -267,7 +272,7 @@ export class WireStore {
         break;
       }
       case "arrangement":
-        this.update({ arrangement: msg.arrangement });
+        this.update({ arrangement: msg.arrangement, arrangementBase: msg.base });
         break;
       case "report": {
         const { type: _, ...report } = msg;

@@ -1289,7 +1289,8 @@
             }
           ]
         }
-      }
+      },
+      "base": "c2f1ab801eac6580cf80da10fbbd484a3f32048ae5a3ad0563e1996665fab6d9"
     },
     {
       "type": "report",
@@ -1956,7 +1957,8 @@
       "fixture"
     ],
     "arrange": [
-      "arrangement"
+      "arrangement",
+      "base"
     ]
   }
 }

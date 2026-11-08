@@ -107,7 +107,7 @@ def capture(folder: Path) -> dict:
     data = (json.dumps(lit, indent=2) + "\n").encode()
     (folder / "rig.arrangement.json").write_bytes(data)
     rig.control.layout = RigLive(
-        folder / "rig.arrangement.json", compile_doc(lit, load_catalog()), data, rig.fader, rig.calls.call_soon,
+        folder / "rig.arrangement.json", compile_doc(lit, load_catalog()), data, rig.fader, rig.calls,
         ddp=None, argv=["run"], watch=no_watch, edits=True,
     )
     with preview_sink(line(2), control=rig.control, status=status, power=lambda: POWER) as sink:
@@ -133,7 +133,8 @@ def capture(folder: Path) -> dict:
                 layer = next_text(ws)
             broken = arrangement(bar("a", pixels=2), boards={"A": HOST})
             broken["wiring"]["chains"][0]["fixtures"].append("ghost")
-            ws.send(json.dumps({"type": "arrange", "id": 9, "arrangement": broken}))
+            ws.send(json.dumps({"type": "arrange", "id": 9, "arrangement": broken,
+                                "base": by_type["arrangement"]["base"]}))
             arranged = next_text(ws)
             ws.send(json.dumps({"type": "blackout", "id": "b1", "on": False}))
             ack = next_text(ws)

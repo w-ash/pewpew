@@ -97,9 +97,10 @@ class Control(Protocol):
         "add layer" cards; the same object until it changes."""
         ...
 
-    def arrangement(self) -> Any:
-        """The run's arrangement as the page edits it, or None when it
-        cannot be edited; the same object until it changes."""
+    def arrangement(self) -> dict[str, Any] | None:
+        """The run's arrangement as the page edits it and its digest,
+        `{"arrangement", "base"}`, both None when it cannot be edited, or
+        None without a rig file; the same object until it changes."""
         ...
 
     def report(self) -> dict | None:

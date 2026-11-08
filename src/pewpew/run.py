@@ -288,7 +288,7 @@ class Run:
         # The plan's rule is "refused unattended unless --accept-looks", and the
         # command line refuses --accept-looks with --unattended.
         self.rig = None if rig is None else RigLive(
-            Path(args.map), rig, launch.geometry.data, self.aura.fader, self.aura.calls.call_soon,
+            Path(args.map), rig, launch.geometry.data, self.aura.fader, self.aura.calls,
             ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch, follow=launch.follow,
             edits=not args.unattended,
         )

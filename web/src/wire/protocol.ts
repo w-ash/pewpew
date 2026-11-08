@@ -142,11 +142,13 @@ interface PowerMessage {
   readonly uncapped_watts: number;
 }
 
-/** The arrangement file as the engine last loaded or wrote it, which the layout editor edits. Sent only
- * when the run takes `arrange`. */
+/** The arrangement file as the engine last loaded or wrote it, which the layout editor edits, and its
+ * digest, which an `arrange` built on it names. Both null once the page may not edit it (a room map file
+ * saved over it, an unattended run). Sent only on a rig file. */
 interface ArrangementMessage {
   readonly type: "arrangement";
-  readonly arrangement: Arrangement;
+  readonly arrangement: Arrangement | null;
+  readonly base: string | null;
 }
 
 /** The running rig's issues and its power, wiring and controller report (null when it has none). Sent on
@@ -262,8 +264,10 @@ export type ClientMessage =
   /** Replace the arrangement file with `arrangement` and run it: the engine compiles it once, refuses it
    * with its `issues` when it does not compile or its boards cannot take it, else writes the file whole
    * (atomically, audit-logged when DDP is on) and applies it as a save of the file reloads. Needs the
-   * "arrange" capability: refused in an unattended run, on a room map file and on any other map. */
-  | { readonly type: "arrange"; readonly arrangement: Arrangement };
+   * "arrange" capability: refused in an unattended run, on a room map file and on any other map. `base`
+   * is the `arrangement` message's digest of the file it edited: refused when the file has changed since.
+   * Answered once the edit runs or is refused; a refused one leaves the file as it was. */
+  | { readonly type: "arrange"; readonly arrangement: Arrangement; readonly base: string };
 
 /** The inbound type a refusal names. */
 export type Control = ClientMessage["type"];

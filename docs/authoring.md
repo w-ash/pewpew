@@ -127,14 +127,21 @@ the live draw and the power cap. With the panel open, the 3D view picks a
 fixture or group on a press and moves or turns it with a gizmo.
 
 Each edit runs live. Once edits settle (0.4 s), the page sends the whole
-arrangement in one `arrange` request: the engine compiles it once, refuses
-it with every issue when it does not compile or its boards cannot take it
-(nothing is written), else writes the file whole and atomically and applies
-it as a save of the file does, audit-logged when DDP is on. The engine
-rewrites the file as indented JSON, so a hand-kept layout of the file is
-lost on the first edit. Undo and redo are the page's own; an arrangement
-that comes from elsewhere (a save by hand, another tab) replaces the page's
-history. Edits are off in an `--unattended` run, and on a room map file.
+arrangement in one `arrange` request, one at a time, naming the digest of
+the file it edited (`base`): the engine refuses it when the file has
+changed since (a save by hand, "use for A", another tab), and the page then
+shows the current layout. Otherwise the engine compiles it once, refuses it
+with every issue when it does not compile or its boards cannot take it
+(nothing is written), else writes the file whole and atomically,
+audit-logged when DDP is on, and applies it as a save of the file does. It
+answers once the new rig runs; when the rig does not run (a program's setup
+raises on the new geometry), the edit is refused and the file holds its old
+bytes again. The engine rewrites the file as indented JSON, so a hand-kept
+layout of the file is lost on the first edit. Undo and redo are the page's
+own; an arrangement that comes from elsewhere replaces the page's history.
+Delete and Backspace delete the selection only with focus in the layout
+panel or the 3D view. Edits are off in an `--unattended` run and on a room
+map file, and stop when a room map file is saved over the arrangement.
 
 Coordinates are Contain-normalized: the rig's long axis spans 0–1 and the
 short axis is centred inside it, so (0.5, 0.5) is the middle of the rig but

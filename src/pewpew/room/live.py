@@ -18,17 +18,24 @@ logged as a warning.
 `_commit` audits the new board set as a relayout before any frame goes
 there. It works in an `--unattended` run too, audited the same way.
 
-`arrange` runs on a connection thread: it compiles the new arrangement
-once, checks that the boards can take it, writes an `arrange` audit
-record when the run streams DDP, writes the file atomically, then queues
-`_commit` with the rig it compiled. The reloader adopts the new file's
-digest before the write, so the watcher's event for it applies nothing.
-It is off unless the run allows edits (`edits`; an unattended run does
-not).
+`arrange` runs on a connection thread and answers only once the edit is
+live or refused. It takes the arrangement and its `base`: the digest of
+the file the page edited (`arrangement`). Under one lock, in this order,
+it refuses a stale `base` or a file that changed on disk since it last
+loaded, compiles the arrangement once, checks that the boards can take
+it, writes the file atomically, adopts the new digest in the reloader (so
+the watcher's event for the write applies nothing), writes an `arrange`
+audit record when the run streams DDP, then waits for `_commit` on the
+loop thread. A refusal at any step after the write puts the old bytes
+back atomically and adopts their digest again, so the file, the running
+rig and the page agree: the edit did not happen. It is off unless the run
+allows edits (`edits`; an unattended run does not).
 
 Both rewrites are refused on a room map file, and every refusal names no
 path. `arrangement` and `report` are what the page draws of the file and
-of the running rig.
+of the running rig. A file's digest is the sha256 of its bytes; a reload,
+a rebind and an arrange each change it, so an arrange built on an older
+file is refused.
 
 The rig stack is imported only when a rig file is reloaded or rebound, so
 a run on a synthetic map never loads it.
@@ -45,9 +52,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pewpew import audit
-from pewpew.errors import Refusal, scrub
+from pewpew.errors import Refusal, describe_exception, scrub
 from pewpew.jsonfile import write_atomic
-from pewpew.reload import CallSoon, FileReloader, Watch
+from pewpew.pace import Calls
+from pewpew.reload import FileReloader, Watch
 from pewpew.render import Live
 from pewpew.room.blink import Blink
 from pewpew.sinks.ddp import Board, DdpSink, Layout
@@ -59,6 +67,10 @@ logger = logging.getLogger(__name__)
 
 NO_EDITS = "layout edits are off in an unattended run"
 NOT_AN_OBJECT = "an arrangement is a JSON object"
+NO_BASE = "an arrange names the layout it edits: `base`, from the engine's `arrangement`"
+STALE = "the layout changed; showing the current one"
+CHANGED_ON_DISK = "the map file changed since it last loaded, so it was not overwritten"
+LATE = "the engine is busy, so the layout did not change; send it again"
 
 
 class RigLive:
@@ -68,8 +80,8 @@ class RigLive:
     each reload's (`ddp_targets`); without it, the sink keeps its own
     boards (`run --ddp`). With `edits`, `arrange` may write the file.
 
-    `doc` is the file's parsed JSON as the last reload applied it or
-    `arrange` wrote it; None for a room map file.
+    `doc` is the file's parsed JSON as the last reload or `arrange`
+    applied it; None for a room map file.
     """
 
     def __init__(
@@ -78,7 +90,7 @@ class RigLive:
         rig: CompiledRig,
         data: bytes,
         live: Live,
-        call_soon: CallSoon,
+        calls: Calls,
         *,
         ddp: DdpSink | None,
         argv: list[str],
@@ -94,22 +106,24 @@ class RigLive:
         self.rig = rig
         doc = read_doc(data)
         self.doc: Any = None if is_room(doc) else doc
+        # The digest of the bytes `doc` came from.
+        self._digest = hashlib.sha256(data).hexdigest()
         # Called with each new rig once it is live, on the loop thread.
         self.listeners: list[Callable[[CompiledRig], None]] = []
         self._live = live
-        self._call_soon = call_soon
+        self._calls = calls
         self._ddp = ddp
         self._follow = follow
         self._edits = edits
         self._targets: tuple[tuple[str, ...], tuple[Board, ...]] = ((), ())
         self._report: dict[str, Any] = {}
+        self._arrangement: dict[str, Any] = {}
         self._take(rig)
+        self._publish()
         self._argv = argv
         self._blink = blink
         self._lock = threading.Lock()
-        self.reloader = FileReloader(
-            self.path, hashlib.sha256(data).hexdigest(), call_soon, self.apply, noun="map", watch=watch,
-        )
+        self.reloader = FileReloader(self.path, self._digest, calls.call_soon, self.apply, noun="map", watch=watch)
 
     @property
     def error(self) -> str | None:
@@ -135,10 +149,17 @@ class RigLive:
         names, boards = self._targets
         return names if self._ddp is not None and boards == tuple(self._ddp.boards) else ()
 
-    def arrangement(self) -> Any:
-        """The file's arrangement (`doc`) while `editable`, else None. The
-        same object until it changes. Any thread."""
-        return self.doc if self.editable else None
+    def arrangement(self) -> dict[str, Any]:
+        """`{"arrangement", "base"}`: the file's arrangement (`doc`) and the
+        digest an `arrange` built on it names, both None while the file is
+        not `editable`. The same object until it changes. Any thread."""
+        return self._arrangement
+
+    def _publish(self) -> None:
+        """Make the `arrangement` state of `doc` and its digest."""
+        editable = self.editable
+        self._arrangement = {"arrangement": self.doc if editable else None,
+                             "base": self._digest if editable else None}
 
     def report(self) -> dict[str, Any]:
         """The running rig's `issues` and electrical `report` as JSON
@@ -183,12 +204,12 @@ class RigLive:
         rig = rig_of(doc, notices=notices)
         for notice in notices:
             logger.warning("%s", notice)
-        return self._commit(rig, None if is_room(doc) else doc)
+        return self._commit(rig, None if is_room(doc) else doc, hashlib.sha256(data).hexdigest())
 
-    def _commit(self, rig: CompiledRig, doc: Any) -> str:
-        """Make `rig`, compiled from the file's `doc`, live (the module
-        docstring). Loop thread only; raises what a failed step raises,
-        with no path in it."""
+    def _commit(self, rig: CompiledRig, doc: Any, digest: str) -> str:
+        """Make `rig`, compiled from the file's `doc` whose bytes have
+        `digest`, live (the module docstring). Loop thread only; raises what
+        a failed step raises, with no path in it."""
         from pewpew.rig.runtime import fixture_spans
 
         old = self.rig
@@ -208,6 +229,8 @@ class RigLive:
             self._blink.rebind(fixture_spans(rig))
         self._take(rig)
         self.doc = doc
+        self._digest = digest
+        self._publish()
         for listener in self.listeners:
             listener(rig)
         return (
@@ -236,13 +259,15 @@ class RigLive:
             except OSError:
                 return "could not write the map file"
         logger.info("controller %s: map file now gives %s", controller, address)
-        self._call_soon(self.reloader.reload)
+        self._calls.call_soon(self.reloader.reload)
         return None
 
-    def arrange(self, doc: object) -> Refusal | None:
-        """Write the arrangement `doc` to the file and make it live on the
-        loop thread (the module docstring). Any thread; returns a refusal
-        that names no path, or None. A refusal writes nothing."""
+    def arrange(self, doc: object, base: object) -> Refusal | None:
+        """Write the arrangement `doc`, built on the file whose digest is
+        `base`, and make it live (the module docstring). Any thread but the
+        loop's, which it waits for; returns a refusal that names no path, or
+        None once the edit is live. After a refusal the file holds the bytes
+        it held before."""
         from pewpew.rig import RigError, load_catalog
         from pewpew.rig.models import Issue
         from pewpew.rig.runtime import ROOM_REWRITE, compile_doc
@@ -254,6 +279,10 @@ class RigLive:
                 return Refusal(ROOM_REWRITE)
             if not isinstance(doc, dict):
                 return Refusal(NOT_AN_OBJECT)  # only a dict reaches the compiler: a string is never a path
+            if not isinstance(base, str):
+                return Refusal(NO_BASE)
+            if base != self._digest:
+                return Refusal(STALE)
             try:
                 rig = compile_doc(doc, load_catalog())
             except (ValueError, OverflowError) as exc:  # RigError and ValidationError are ValueErrors
@@ -267,23 +296,52 @@ class RigLive:
                 data = (json.dumps(doc, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
             except (TypeError, ValueError):
                 return Refusal("the arrangement is not plain JSON")
+            try:
+                old = self.path.read_bytes()
+            except OSError:
+                return Refusal("could not read the map file")
+            if hashlib.sha256(old).hexdigest() != base:
+                return Refusal(CHANGED_ON_DISK)
+            try:
+                write_atomic(self.path, data)  # a watcher and a reader never see half a file
+            except OSError:
+                return Refusal("could not write the map file")
+            digest = hashlib.sha256(data).hexdigest()
+            self.reloader.adopt(digest)  # the watcher's event for the write applies nothing
             if self._ddp is not None:
                 try:
                     audit.record("arrange", argv=self._argv, map=str(self.path), pixels=rig.n,
                                  fixtures=len(rig.fixtures))
                 except OSError:
-                    return Refusal("could not write the audit log, so the map was not changed")
-            # Before the write, so the watcher's event for it applies nothing.
-            self.reloader.adopt(hashlib.sha256(data).hexdigest())
-            try:
-                write_atomic(self.path, data)  # a watcher and a reader never see half a file
-            except OSError:
-                return Refusal("could not write the map file")
-            self.doc = doc
-            # Under the lock, so the commits run in the order of the writes.
-            self._call_soon(lambda: self.reloader.run(lambda: self._commit(rig, doc)))
+                    return self._put_back(old, base, "could not write the audit log, so the map was not changed")
+            reason = self._calls.ask(lambda: self._arranged(rig, doc, digest), LATE, definite=True)
+            if reason is not None:
+                return self._put_back(old, base, reason)
         logger.info("map file rewritten from the page: %d px in %d fixtures", rig.n, len(rig.fixtures))
         return None
+
+    def _arranged(self, rig: CompiledRig, doc: Any, digest: str) -> str | None:
+        """`_commit` an arrangement the page wrote; why it did not run, or
+        None. Loop thread only; never raises."""
+        try:
+            summary = self._commit(rig, doc, digest)
+        except Exception as exc:  # a raising setup, a sink that cannot take the layout, ...
+            logger.warning("the layout from the page did not run", exc_info=True)
+            return f"the layout did not run, so the map was not changed: {describe_exception(exc)}"
+        self.reloader.error = None
+        logger.info("%s", summary)
+        return None
+
+    def _put_back(self, old: bytes, digest: str, reason: str) -> Refusal:
+        """Write `old`, the file's bytes before an arrange, back and adopt
+        their `digest` again; the refusal for `reason`. Under the lock."""
+        try:
+            write_atomic(self.path, old)
+        except OSError:
+            self.reloader.error = "the map file holds a layout that did not run: undo the edit or save the file again"
+            reason = f"{reason}; the map file could not be put back"
+        self.reloader.adopt(digest)
+        return Refusal(scrub(reason))
 
 
 def _refused(issues: tuple[Any, ...]) -> Refusal:

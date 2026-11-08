@@ -15,11 +15,16 @@ series (batch mode).
   demand. With the panel open, the 3D view moves or turns the selected fixture
   with a gizmo. Each edit runs live once edits settle: the engine compiles the
   arrangement once, refuses it with its issues or writes the file atomically,
-  audit-logged when DDP is on, and applies it as a save does. Undo is the page's.
-  Edits are off in an `--unattended` run and on a room map file. The engine
-  sends the file's arrangement, the rig's issues and report, and on a rig the
-  estimated draw at most twice a second (`arrangement`, `report`, `power`), and
-  takes `arrange`; its hello offers `arrange` when edits are on.
+  audit-logged when DDP is on, and answers once it runs; an edit whose rig does
+  not run is refused and the file put back. Each edit names the file it was
+  built on, so one built on a file that changed since (a save, "use for A",
+  another tab) is refused and the page shows the current layout. Undo is the
+  page's. Delete and Backspace delete only with focus in the layout panel or
+  the 3D view. Edits are off in an `--unattended` run and on a room map file,
+  and stop when a room map file is saved over the arrangement. The engine
+  sends the file's arrangement and its digest, the rig's issues and report, and
+  on a rig the estimated draw at most twice a second (`arrangement`, `report`,
+  `power`), and takes `arrange`; its hello offers `arrange` when edits are on.
 - The Console's 3D view: on an arrangement run, a 2D/3D switch on the stage draws
   the rig in 3D, each fixture from its type's model, lit by the live frames (a
   decimated map is colored from the nearest pixel sent). Each lit LED glows with at

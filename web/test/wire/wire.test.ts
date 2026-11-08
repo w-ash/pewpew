@@ -155,7 +155,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
   },
   power: { keys: keys<Message<"power">>({ type: true, watts: true, uncapped_watts: true }) },
   // The arrangement is the file's own JSON, which the engine checks (rig/models.py).
-  arrangement: { keys: keys<Message<"arrangement">>({ type: true, arrangement: true }) },
+  arrangement: { keys: keys<Message<"arrangement">>({ type: true, arrangement: true, base: true }) },
   report: {
     keys: keys<Message<"report">>({ type: true, issues: true, report: true }),
     fields: {
@@ -210,7 +210,7 @@ const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   scan: {},
   rebind: { board: true, address: true },
   blink: { fixture: true },
-  arrange: { arrangement: true },
+  arrange: { arrangement: true, base: true },
 };
 
 /** Where `value` has other keys than `shape`, recording each shape a value reached in `seen`. */
@@ -304,6 +304,10 @@ test("every message decodes through the wire and the store, and reads through th
   expect(store.getState().arrangement).toEqual(first("arrangement").arrangement);
   expect(store.getState().report?.report?.totals.pixels).toBe(2);
   expect(canArrange(store.getState())).toBe(true); // the later layout is a rig
+  expect(store.getState().arrangementBase).toBe(first("arrangement").base);
+  // A room map file saved over the arrangement: the engine offers no layout to edit.
+  store.receive({ type: "arrangement", arrangement: null, base: null });
+  expect(canArrange(store.getState())).toBe(false);
 
   const catalog = store.getState().catalog!;
   const shelfOf = (c: Card): Shelf | undefined => [...shelve(catalog.cards)].find(([, held]) => held.some((h) => h.card === c))?.[0];

@@ -36,9 +36,11 @@ fired from the page stands in for a room event and leaves the idle cycle
 alone.
 
 An `arrange` writes a whole new arrangement to the run's rig file and
-makes it live (`Layout`, pewpew.room.live.RigLive): only in a run on an
-arrangement map that allows edits, which an unattended run does not. A
-refused one carries the compile's `issues`.
+makes it live (`Layout`, pewpew.room.live.RigLive), and answers once it
+is live or refused: only in a run on an arrangement map that allows
+edits, which an unattended run does not. It names its `base`, the digest
+of the arrangement it edited, and is refused when the file has changed
+since. A refused one carries the compile's `issues`.
 """
 
 from __future__ import annotations
@@ -104,7 +106,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "scan": (),
     "rebind": (("board", None), ("address", None)),
     "blink": (("fixture", None),),
-    "arrange": (("arrangement", None),),
+    "arrange": (("arrangement", None), ("base", None)),
 }
 
 NO_LOOKS = "this engine takes no looks: start it with `python -m pewpew run ... --preview --accept-looks`"
@@ -136,12 +138,14 @@ class Layout(Protocol):
         """Whether `arrange` may write the file."""
         ...
 
-    def arrange(self, doc: object) -> Refusal | None:
-        """Write the arrangement `doc` and make it live; why not, or None."""
+    def arrange(self, doc: object, base: object) -> Refusal | None:
+        """Write the arrangement `doc`, built on the file whose digest is
+        `base`, and make it live; why not, or None once it is live."""
         ...
 
-    def arrangement(self) -> Any:
-        """The file's arrangement while `editable`, else None; the same object until it changes."""
+    def arrangement(self) -> dict[str, Any]:
+        """`{"arrangement", "base"}`: the file's arrangement and its digest
+        while `editable`, else both None; the same object until it changes."""
         ...
 
     def report(self) -> dict | None:
@@ -244,8 +248,9 @@ class AuraControl:
         """The latest health snapshot, or None when the run has no monitor."""
         return self._health() if self._health is not None else None
 
-    def arrangement(self) -> Any:
-        """The rig file's arrangement while it is editable, else None."""
+    def arrangement(self) -> dict[str, Any] | None:
+        """The rig file's `{"arrangement", "base"}` (`Layout.arrangement`),
+        or None without a rig file."""
         layout = self.layout
         return layout.arrangement() if layout is not None else None
 
@@ -493,12 +498,13 @@ class AuraControl:
             self._calls.call_soon(lambda: blink.start(fixture))  # type: ignore[arg-type]
         return reason
 
-    def arrange(self, arrangement: object) -> Refusal | str | None:
-        """Write `arrangement` to the run's rig file and make it live (`Layout.arrange`)."""
+    def arrange(self, arrangement: object, base: object = None) -> Refusal | str | None:
+        """Write `arrangement`, built on the file whose digest is `base`, to
+        the run's rig file and make it live (`Layout.arrange`)."""
         layout = self.layout
         if layout is None:
             return NO_LAYOUT
-        return layout.arrange(arrangement)
+        return layout.arrange(arrangement, base)
 
     # ---- the loop thread -------------------------------------------------------
 
