@@ -1,6 +1,6 @@
 # ADR-025: One effect system — looks over the op catalog, everywhere
 
-Status: Proposed (2026-11-07)
+Status: Accepted (2026-11-07)
 
 ## Context
 
