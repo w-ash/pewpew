@@ -11,6 +11,12 @@
   flex-direction: column;
   gap: var(--space-lg);
 }
+/* What became of the last edit stays in view under the pinned header (--head-h) while the list scrolls. */
+.arrange-panel > .banner {
+  position: sticky;
+  top: var(--head-h, 0px);
+  z-index: 2;
+}
 
 /* The list of fixtures and groups: rows of a list, a name and what it is. */
 .arrange-entities > li > .tile {

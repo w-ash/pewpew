@@ -98,6 +98,62 @@ describe("edits", () => {
     ).toEqual(["outer"]);
   });
 
+  it("deletes a chained fixture from its chain, and moves the feeds of that chain to match", () => {
+    const wired: Arrangement = {
+      ...withBar(),
+      fixtures: ["a", "b", "c", "d"].map((id) => ({ id, type: "clen-rgbw-bar-1m" })),
+      wiring: {
+        chains: [
+          { id: "A-1", controller: "A", output: "rmt0", fixtures: ["a", "b", "c"] },
+          { id: "A-2", controller: "A", output: "rmt1", fixtures: ["d"] },
+        ],
+        feeds: [
+          { id: "f-ab", psu: "p", chain: "A-1", first: 0, count: 2, cable: "c", length_m: 1 },
+          { id: "f-c", psu: "p", chain: "A-1", first: 2, count: 1, cable: "c", length_m: 1 },
+          { id: "f-d", psu: "p", chain: "A-2", first: 0, count: 1, cable: "c", length_m: 1 },
+        ],
+      },
+    };
+    const noB = remove(wired, { kind: "fixture", id: "b" });
+    expect(noB.fixtures.map((f) => f.id)).toEqual(["a", "c", "d"]);
+    expect(noB.wiring).toEqual({
+      chains: [
+        { id: "A-1", controller: "A", output: "rmt0", fixtures: ["a", "c"] },
+        { id: "A-2", controller: "A", output: "rmt1", fixtures: ["d"] },
+      ],
+      feeds: [
+        { id: "f-ab", psu: "p", chain: "A-1", first: 0, count: 1, cable: "c", length_m: 1 },
+        { id: "f-c", psu: "p", chain: "A-1", first: 1, count: 1, cable: "c", length_m: 1 },
+        { id: "f-d", psu: "p", chain: "A-2", first: 0, count: 1, cable: "c", length_m: 1 },
+      ],
+    });
+    // The last fixture of a chain takes the chain, which names at least one, and its feeds with it.
+    const ids = (list: unknown) => (list as { id: string }[]).map((e) => e.id);
+    const noD = remove(wired, { kind: "fixture", id: "d" });
+    expect(ids(noD.wiring!.chains)).toEqual(["A-1"]);
+    expect(ids(noD.wiring!.feeds)).toEqual(["f-ab", "f-c"]);
+    // A feed left with no fixture goes.
+    expect(ids(remove(wired, { kind: "fixture", id: "c" }).wiring!.feeds)).toEqual(["f-ab", "f-d"]);
+    // A fixture in no chain leaves the wiring as it was.
+    const unchained = { ...wired, fixtures: [...wired.fixtures, { id: "e", type: "clen-rgbw-bar-1m" }] };
+    expect(remove(unchained, { kind: "fixture", id: "e" }).wiring).toBe(wired.wiring);
+  });
+
+  it("deletes a group's members from the chains", () => {
+    const wired: Arrangement = {
+      ...DEFAULT_ARRANGEMENT,
+      wiring: {
+        chains: [
+          { id: "r", controller: "A", output: "rmt0", fixtures: ["inner/0", "inner/1", "outer/0"] },
+          { id: "s", controller: "A", output: "rmt1", fixtures: ["inner/2"] },
+        ],
+      },
+    };
+    expect(remove(wired, { kind: "group", id: "inner" }).wiring).toEqual({
+      chains: [{ id: "r", controller: "A", output: "rmt0", fixtures: ["outer/0"] }],
+    });
+  });
+
   it("flips a bar's data direction and keeps its end pieces where they were", () => {
     const flipped = flip(withBar(), { kind: "fixture", id: "bar-1" })
       ?.fixtures[0];

@@ -1066,3 +1066,9 @@ def test_a_refusal_carries_its_issues_only_when_it_has_some():
         "type": "refused", "control": "arrange", "name": None, "id": 1, "reason": "bad", "issues": [issue]}
     assert preview.answer("arrange", 1, Refusal("bad")) == {
         "type": "refused", "control": "arrange", "name": None, "id": 1, "reason": "bad"}
+
+
+def test_a_stale_arrange_refusal_carries_the_current_arrangement_and_base():
+    current = {"arrangement": {"format": "pewpew.arrangement", "version": 1}, "base": "b2"}
+    assert preview.answer("arrange", 1, Refusal("stale", current=current)) == {
+        "type": "refused", "control": "arrange", "name": None, "id": 1, "reason": "stale", **current}

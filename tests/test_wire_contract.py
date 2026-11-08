@@ -9,7 +9,8 @@ holds a new client's greeting, its `catalog` cut to two cards (`CARDS`)
 and its report's `basis` to one fact,
 then one example of each message whose fields the greeting leaves empty
 (a held trigger, a refusal, a look and a layer refused with their ids, an
-arrangement refused with its issues, an ack, a render error, a scan, the
+arrangement refused with its issues and one built on a stale file with the
+current one, an ack, a render error, a scan, the
 layout of a rig with a floor plan), and the controls a client may send.
 The page builds its test messages from it and checks every key against
 its types (web/test/wire/wire.test.ts), so a renamed key fails both
@@ -136,6 +137,8 @@ def capture(folder: Path) -> dict:
             ws.send(json.dumps({"type": "arrange", "id": 9, "arrangement": broken,
                                 "base": by_type["arrangement"]["base"]}))
             arranged = next_text(ws)
+            ws.send(json.dumps({"type": "arrange", "id": 10, "arrangement": lit, "base": "0" * 64}))
+            stale = next_text(ws)
             ws.send(json.dumps({"type": "blackout", "id": "b1", "on": False}))
             ack = next_text(ws)
             rig.renderer().bound.render = lambda: (_ for _ in ()).throw(RuntimeError("boom"))
@@ -162,7 +165,7 @@ def capture(folder: Path) -> dict:
     report["basis"] = report["basis"][:1]  # its sources' wording follows the catalog
     return {
         "greeting": greeting,
-        "later": [held, refused, refused_look, layer, arranged, ack, error, scan, layout],
+        "later": [held, refused, refused_look, layer, arranged, stale, ack, error, scan, layout],
         "controls": {name: [field for field, _ in fields] for name, fields in REQUESTS.items()},
     }
 
@@ -181,9 +184,12 @@ def test_the_golden_holds_every_server_message_and_the_greeting_in_order() -> No
         "report",
     ]
     assert [m["type"] for m in golden["later"]] == [
-        "aura", "refused", "refused", "refused", "refused", "ack", "status", "health", "layout",
+        "aura", "refused", "refused", "refused", "refused", "refused", "ack", "status", "health", "layout",
     ]
     assert golden["later"][4]["control"] == "arrange" and golden["later"][4]["issues"]
+    stale = golden["later"][5]
+    assert stale["control"] == "arrange" and stale["base"] == golden["greeting"][-2]["base"]
+    assert stale["arrangement"] == golden["greeting"][-2]["arrangement"]
     assert "arrange" in golden["greeting"][0]["capabilities"]
 
 

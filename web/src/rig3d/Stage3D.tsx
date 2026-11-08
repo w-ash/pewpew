@@ -4,16 +4,15 @@ import { Suspense, use, useEffect, useMemo, useState } from "react";
 import { Button, ToggleButton } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
 import { Segments } from "../design/Segments";
-import { useMedia } from "../design/useMedia";
-import { useRefusal, useWire, useWireContext } from "../wire/store";
-import { entityOf, fixturesOf, poseOf, setPose } from "../arrange/arrangement";
+import { useMedia, WIDE } from "../design/useMedia";
+import { useWire, useWireContext, type WireStore } from "../wire/store";
+import { asArrangement, entityOf, fixturesOf, poseOf, setPose } from "../arrange/arrangement";
 import { useDoc } from "../arrange/doc";
-import { sameJson, useRigIsCurrent } from "../arrange/sync";
+import { GizmoToolbar, useGizmoTools } from "../arrange/gizmoTools";
+import { useRigIsCurrent } from "../arrange/sync";
 import type { Selection } from "../arrange/arrangement";
-import type { Arrangement } from "../arrange/types";
-import { dragPreview } from "./dragPreview";
-import { Gizmo, type GizmoMode, type GizmoSpace, gizmoActivity } from "./Gizmo";
-import type { SelectItem } from "../design/Select";
+import { dragPreview, heldPose, presentOffsets } from "./dragPreview";
+import { Gizmo, gizmoActivity } from "./Gizmo";
 import { CameraRig, REDUCED_MOTION, SPIN_SPEED, useAccent, useCameraView, VIEW_ITEMS } from "./CameraRig";
 import type { ViewRig } from "./instances";
 import { loadParts } from "../rig/loadParts";
@@ -23,56 +22,57 @@ import { FOV, rigBounds, type ViewName } from "./views";
 
 const NO_SELECTION: ReadonlySet<number> = new Set();
 
-/** What a drag committed: the entity it moved, and that entity's entry once moved. */
-interface Committed {
-  readonly selection: Selection;
-  readonly entry: unknown;
-}
-
-/** The entry of `selection` in `arrangement`: the fixture or the group as the file holds it. */
-function entryOf(arrangement: Arrangement, selection: Selection): unknown {
-  const list: readonly { id: string }[] = selection.kind === "group" ? arrangement.groups : arrangement.fixtures;
-  return list.find((e) => e.id === selection.id) ?? null;
-}
-
-/** Commit the pose a drag of `selection` ended at, and hold its preview until the view draws it. */
+/** Commit the pose a drag of `selection` ended at. The view draws the editor's arrangement
+ * (`useEditorPoses`), so the drag's own preview ends as it commits. */
 export function commitDrag(selection: Selection, pose: Parameters<typeof setPose>[2]): void {
   const doc = useDoc.getState();
-  const before = doc.history.present;
-  doc.commit(setPose(before, selection, pose));
-  const after = useDoc.getState().history.present;
-  if (after === before) dragPreview.clear();
-  else dragPreview.hold({ selection, entry: entryOf(after, selection) } satisfies Committed);
+  doc.commit(setPose(doc.history.present, selection, pose));
+  dragPreview.clear();
 }
 
-/** Ends a held drag preview once the editor's arrangement no longer holds what the drag committed (an
- * undo, a redo, an edit of the entity, a load): the view then draws the engine's last layout until its
- * next one, never a pose the document does not hold. */
-export function dropStalePreview(arrangement: Arrangement): void {
-  const held = dragPreview.held as Committed | null;
-  if (held && !sameJson(entryOf(arrangement, held.selection), held.entry)) dragPreview.clear();
+/** While `on`, draw each fixture at its pose in the editor's arrangement, not the engine's compile of
+ * the last one it took: an edit, an undo or a redo shows at once, and the engine's echo changes nothing
+ * on screen. Kept in step synchronously, so a drag's commit and the end of its preview land in one frame. */
+function useEditorPoses(store: WireStore, on: boolean): void {
+  useEffect(() => {
+    if (!on) return;
+    let seen: unknown[] = [];
+    const update = () => {
+      const state = store.getState();
+      const present = useDoc.getState().history.present;
+      const fixtures = state.map?.rig?.fixtures ?? null;
+      const now = [fixtures, present, state.arrangement];
+      if (now.every((v, i) => v === seen[i])) return;
+      seen = now;
+      dragPreview.offset(fixtures ? presentOffsets(fixtures, present, asArrangement(state.arrangement)) : null);
+    };
+    update();
+    const offWire = store.subscribe(update);
+    const offDoc = useDoc.subscribe(update);
+    return () => {
+      offWire();
+      offDoc();
+      dragPreview.offset(null);
+    };
+  }, [store, on]);
 }
+
 const noPick = () => {};
-const GIZMO_ITEMS: readonly SelectItem[] = [
-  { value: "translate", label: "Move" },
-  { value: "rotate", label: "Rotate" },
-];
 
 /** The rig in 3D, drawn from the engine's `rig` (`hello`, `layout`) and its frames, each fixture from its
  * type's assembly. Loaded only when the stage shows 3D (app/App.tsx), with three.js in its own files.
- * While `editing` (the layout panel's arrangement editor is open), a press picks a fixture or group, and a
- * gizmo moves or turns it: the pose commits on release, and the dragged fixtures follow the gizmo until
- * the engine's next layout, or its refusal, draws them again, or the editor no longer holds that pose. */
+ * While `editing` (the layout panel's arrangement editor is open), each fixture is drawn at its pose in
+ * the editor's arrangement, a press picks a fixture or group, and a gizmo moves or turns it: the dragged
+ * fixtures follow the gizmo, and the pose commits on release. */
 export default function Stage3D({ editing }: { editing: boolean }) {
   const { store } = useWireContext();
   const map = useWire((s) => s.map);
-  const refusal = useRefusal("arrange");
   const arrangement = useDoc((s) => s.history.present);
   const selection = useDoc((s) => (editing ? s.selection : null));
-  const [mode, setMode] = useState<GizmoMode>("translate");
-  const [space, setSpace] = useState<GizmoSpace>("world");
-  useEffect(() => dragPreview.clear(), [map, refusal]);
-  useEffect(() => dropStalePreview(arrangement), [arrangement]);
+  const mode = useGizmoTools((s) => s.mode);
+  const space = useGizmoTools((s) => s.space);
+  const wide = useMedia(WIDE);
+  useEditorPoses(store, editing);
   const rig: ViewRig | null = useMemo(
     () => (map?.rig ? { n: map.n, total: map.total, fixtures: map.rig.fixtures, types: map.rig.types } : null),
     [map],
@@ -91,7 +91,16 @@ export default function Stage3D({ editing }: { editing: boolean }) {
   const selected = useMemo(() => new Set(fixturesOf(fixtures ?? [], selection)), [fixtures, selection]);
   // A pose read from the engine's compile only while that is the compile of the editor's arrangement.
   const current = useRigIsCurrent();
-  const pose = selection ? poseOf(arrangement, selection, current ? (fixtures ?? []) : []) : null;
+  // An aimed fixture's pose made here when the engine has not compiled the editor's arrangement yet (an undo
+  // in flight), so the gizmo stays on it.
+  const pose = selection
+    ? (poseOf(arrangement, selection, current ? (fixtures ?? []) : []) ?? heldPose(arrangement, selection))
+    : null;
+  const shown = editing && selection !== null && pose !== null;
+  useEffect(() => {
+    useGizmoTools.setState({ shown });
+    return () => useGizmoTools.setState({ shown: false });
+  }, [shown]);
   return (
     <div className="stage stage-3d">
       <Canvas
@@ -130,7 +139,7 @@ export default function Stage3D({ editing }: { editing: boolean }) {
             )}
           </Suspense>
         </ErrorBoundary>
-        {editing && selection && pose && (
+        {shown && selection && pose && (
           <Gizmo
             pose={pose}
             fixtures={[...selected]}
@@ -155,20 +164,8 @@ export default function Stage3D({ editing }: { editing: boolean }) {
         </p>
       )}
       <div className="stage-3d-controls">
-        {editing && selection && (
-          <>
-            <Segments className="stage-veil" label="Gizmo" items={GIZMO_ITEMS} value={mode} onChange={(m) => setMode(m as GizmoMode)} />
-            <ToggleButton
-              className="stage-veil"
-              variant="tertiary"
-              pressed={space === "local"}
-              onPressedChange={(local) => setSpace(local ? "local" : "world")}
-              title="Gizmo axes"
-            >
-              {space === "world" ? "World" : "Local"}
-            </ToggleButton>
-          </>
-        )}
+        {/* On a phone the layout panel holds the gizmo's tools, so they cover none of the small canvas. */}
+        {shown && wide && <GizmoToolbar className="stage-veil" />}
         <Segments
           className="stage-veil"
           label="Camera view"

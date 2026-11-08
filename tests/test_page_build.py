@@ -35,9 +35,11 @@ GZIP_BUDGET = 230_500
 THREE_D_MEASURED = 280_196
 THREE_D_BUDGET = round(THREE_D_MEASURED * 1.03)
 # What the layout editor and the report load on demand (web/src/arrange and
-# zustand), gzipped file by file: RIG_MEASURED bytes as built on 2026-11-08,
-# plus 3%. The 3D view loads them too: it edits through the editor's store.
-RIG_MEASURED = 16_436
+# zustand), gzipped file by file: RIG_MEASURED bytes as built on 2026-11-08
+# with the sync that survives a reconnect, the delete that unwires and the
+# phone's gizmo tools, plus 3%; 16,436 before them. The 3D view loads them
+# too: it edits through the editor's store.
+RIG_MEASURED = 18_074
 RIG_BUDGET = round(RIG_MEASURED * 1.03)
 
 # The token names RA-27c §3.8 retired, and the classes RA-27b §6.1 did: a

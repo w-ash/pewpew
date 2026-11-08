@@ -129,19 +129,31 @@ fixture or group on a press and moves or turns it with a gizmo.
 Each edit runs live. Once edits settle (0.4 s), the page sends the whole
 arrangement in one `arrange` request, one at a time, naming the digest of
 the file it edited (`base`): the engine refuses it when the file has
-changed since (a save by hand, "use for A", another tab), and the page then
-shows the current layout. Otherwise the engine compiles it once, refuses it
-with every issue when it does not compile or its boards cannot take it
-(nothing is written), else writes the file whole and atomically,
-audit-logged when DDP is on, and applies it as a save of the file does. It
-answers once the new rig runs; when the rig does not run (a program's setup
-raises on the new geometry), the edit is refused and the file holds its old
-bytes again. The engine rewrites the file as indented JSON, so a hand-kept
+changed since (a save by hand, "use for A", another tab), sending the
+current layout with the refusal, and the page shows that layout. Otherwise
+the engine compiles it once, refuses it with every issue when it does not
+compile or its boards cannot take it (nothing is written), else writes the
+file whole and atomically, audit-logged when DDP is on, and applies it as a
+save of the file does. It answers once the new rig runs; when the rig does
+not run (a program's setup raises on the new geometry), every part of the
+run takes the old rig again, the edit is refused and the file holds its old
+bytes again. Once the new rig runs the edit stands: a later part that fails
+(the preview, the power cap) puts a warning on the status line. A refused
+edit is not sent again by itself: `send again` sends it, and so do an undo
+and a redo. The engine rewrites the file as indented JSON, so a hand-kept
 layout of the file is lost on the first edit. Undo and redo are the page's
-own; an arrangement that comes from elsewhere replaces the page's history.
-Delete and Backspace delete the selection only with focus in the layout
-panel or the 3D view. Edits are off in an `--unattended` run and on a room
-map file, and stop when a room map file is saved over the arrangement.
+own; an arrangement that comes from elsewhere replaces the page's history,
+and when the history held an edit the engine had not taken, the panel says
+it was not applied. While the connection is down the editor is read-only;
+on a reconnect to the same file the history stays and an edit not yet taken
+goes again. With the panel open, the 3D view draws each fixture at the
+pose the editor holds, so an edit, an undo or a redo shows before the
+engine answers. Deleting a fixture or a group takes it out of its chain
+(a chain left empty goes) and moves the chain's feeds to match. Delete and
+Backspace delete the selection only after a press or focus in the layout
+panel or the 3D view, never after one on a deck button or blank page. Edits
+are off in an `--unattended` run and on a room map file, and stop when a
+room map file is saved over the arrangement.
 
 Coordinates are Contain-normalized: the rig's long axis spans 0–1 and the
 short axis is centred inside it, so (0.5, 0.5) is the middle of the rig but

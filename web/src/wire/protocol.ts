@@ -181,6 +181,10 @@ interface RefusedMessage {
   readonly reason: string;
   /** Every problem of an arrangement the engine did not compile (an `arrange`, the studio's `bind`). */
   readonly issues?: readonly RigIssue[];
+  /** For an `arrange` built on a file that has changed: the engine's current arrangement and its digest,
+   * as the `arrangement` message gives them, which the page takes as that message. */
+  readonly arrangement?: Arrangement | null;
+  readonly base?: string | null;
 }
 
 /** An accepted request that carried an `id`, to the client that sent it. */

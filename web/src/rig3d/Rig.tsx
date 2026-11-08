@@ -42,14 +42,20 @@ function assemblyOf(gltf: Gltf): Assembly {
   return a;
 }
 
-/** Moves the batch's dragged fixtures by the drag preview's delta, and puts the rest at their compiled poses. */
+/** Puts the batch's fixtures at their compiled poses, each moved by its offset and, while dragged, by the
+ * drag preview's delta (dragPreview.ts). */
 function followDrag(mesh: InstancedMesh, batch: InstanceBatch, scratch: { base: Matrix4; out: Matrix4 }) {
-  const { delta, fixtures } = dragPreview;
+  const { delta, fixtures, offsets } = dragPreview;
   const array = mesh.instanceMatrix.array as Float32Array;
   for (let k = 0; k < batch.count; k++) {
-    if (delta && fixtures.has(batch.fixtureIndex[k]!)) {
+    const i = batch.fixtureIndex[k]!;
+    const offset = offsets?.get(i);
+    const dragged = delta !== null && fixtures.has(i);
+    if (offset || dragged) {
       scratch.base.fromArray(batch.matrices, k * 16);
-      scratch.out.multiplyMatrices(delta, scratch.base).toArray(array, k * 16);
+      if (offset) scratch.base.premultiply(offset);
+      if (dragged) scratch.base.premultiply(delta);
+      scratch.base.toArray(array, k * 16);
     } else {
       array.set(batch.matrices.subarray(k * 16, k * 16 + 16), k * 16);
     }
@@ -241,7 +247,7 @@ function LedGlow({ batches, assemblies, texture, selected }: GlowProps) {
     setGlowViewport(material, gl.domElement.height, gl.getPixelRatio());
     if (dragPreview.version === seen.current) return;
     seen.current = dragPreview.version;
-    placePoints(points, batches, dragPreview.delta, dragPreview.fixtures);
+    placePoints(points, batches, dragPreview.delta, dragPreview.fixtures, dragPreview.offsets);
     sprites.geometry.getAttribute("position").needsUpdate = true;
   });
 
@@ -320,6 +326,7 @@ function PartInstances({
     if (dragPreview.version === seen.current) return;
     seen.current = dragPreview.version;
     followDrag(mesh, batch, scratch);
+    mesh.computeBoundingSphere(); // a fixture moved off its compiled pose is still drawn
   });
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {

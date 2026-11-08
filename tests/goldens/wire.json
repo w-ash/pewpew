@@ -1550,6 +1550,62 @@
       ]
     },
     {
+      "type": "refused",
+      "control": "arrange",
+      "name": null,
+      "id": 10,
+      "reason": "the layout changed; showing the current one",
+      "arrangement": {
+        "format": "pewpew.arrangement",
+        "version": 1,
+        "controllers": [
+          {
+            "id": "A",
+            "profile": "esp32s3-devkitc1-ahct125",
+            "host": "192.168.1.50"
+          }
+        ],
+        "fixtures": [
+          {
+            "id": "a",
+            "type": "strip",
+            "pose": {
+              "position_m": [
+                0.5,
+                0.0,
+                0.0
+              ],
+              "aim": {
+                "axis": [
+                  1.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "dims": {
+              "pixels": 2,
+              "length": 1.0,
+              "pitch": 0.5
+            }
+          }
+        ],
+        "wiring": {
+          "chains": [
+            {
+              "id": "A-1",
+              "controller": "A",
+              "output": "rmt0",
+              "fixtures": [
+                "a"
+              ]
+            }
+          ]
+        }
+      },
+      "base": "c2f1ab801eac6580cf80da10fbbd484a3f32048ae5a3ad0563e1996665fab6d9"
+    },
+    {
       "type": "ack",
       "id": "b1",
       "control": "blackout"

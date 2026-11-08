@@ -109,17 +109,20 @@ export function glowPoints(batches: readonly InstanceBatch[], assemblies: Readon
 const m = new Matrix4();
 const v = new Vector3();
 
-/** Writes each point's world position from its batch's matrices, with `delta` on top for `moved` fixtures
- * (a drag in progress, dragPreview.ts). */
+/** Writes each point's world position from its batch's matrices, each fixture moved by its entry in
+ * `offsets`, then by `delta` for `moved` fixtures (a drag in progress, dragPreview.ts). */
 export function placePoints(
   points: GlowPoints,
   batches: readonly InstanceBatch[],
   delta: Matrix4 | null,
   moved: ReadonlySet<number>,
+  offsets: ReadonlyMap<number, Matrix4> | null = null,
 ): void {
   for (let p = 0; p < points.count; p++) {
     const b = batches[points.batchOf[p]!]!;
     m.fromArray(b.matrices, points.instanceOf[p]! * 16);
+    const offset = offsets?.get(points.fixture[p]!);
+    if (offset) m.premultiply(offset);
     if (delta && moved.has(points.fixture[p]!)) m.premultiply(delta);
     v.fromArray(points.local, p * 3).applyMatrix4(m).toArray(points.world, p * 3);
   }

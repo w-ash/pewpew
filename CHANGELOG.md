@@ -16,15 +16,26 @@ series (batch mode).
   with a gizmo. Each edit runs live once edits settle: the engine compiles the
   arrangement once, refuses it with its issues or writes the file atomically,
   audit-logged when DDP is on, and answers once it runs; an edit whose rig does
-  not run is refused and the file put back. Each edit names the file it was
-  built on, so one built on a file that changed since (a save, "use for A",
-  another tab) is refused and the page shows the current layout. Undo is the
-  page's. Delete and Backspace delete only with focus in the layout panel or
-  the 3D view. Edits are off in an `--unattended` run and on a room map file,
-  and stop when a room map file is saved over the arrangement. The engine
-  sends the file's arrangement and its digest, the rig's issues and report, and
-  on a rig the estimated draw at most twice a second (`arrangement`, `report`,
-  `power`), and takes `arrange`; its hello offers `arrange` when edits are on.
+  not run is refused, every part of the run takes the old rig again, and the
+  file is put back; once it runs, a later part that fails (the preview, the
+  power cap) leaves the edit in place with a warning on the status line. Each
+  edit names the file it was built on, so one built on a file that changed
+  since (a save, "use for A", another tab) is refused with the current layout,
+  which the page then shows. Undo is the page's; a refused edit goes again on
+  `send again`, or on an undo and a redo. While the connection is down the
+  editor is read-only; on a reconnect to the same file the page keeps its
+  history and sends what the engine has not taken, and when the layout changed
+  meanwhile it shows that layout with a notice that the unsent edit was not
+  applied. The 3D view draws the editor's poses, so a drag, an undo or a redo
+  shows at once; on a phone the gizmo's tools sit in the layout panel, off the
+  canvas. Deleting a fixture or group takes it out of its chain and feeds too.
+  Delete and Backspace delete only after a press or focus in the layout panel
+  or the 3D view. Edits are off in an `--unattended` run and on a room map
+  file, and stop when a room map file is saved over the arrangement. The
+  engine sends the file's arrangement and its digest, the rig's issues and
+  report, and on a rig the estimated draw at most twice a second
+  (`arrangement`, `report`, `power`), and takes `arrange`; its hello offers
+  `arrange` when edits are on.
 - The Console's 3D view: on an arrangement run, a 2D/3D switch on the stage draws
   the rig in 3D, each fixture from its type's model, lit by the live frames (a
   decimated map is colored from the nearest pixel sent). Each lit LED glows with at

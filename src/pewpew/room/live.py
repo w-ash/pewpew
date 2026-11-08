@@ -7,11 +7,14 @@ a layout edit. It checks everything that can fail before it changes
 anything: the rig may stream (`pewpew.rig.runtime.stream_refusals`), the
 DDP sink accepts the new boards, and the audit record of a changed board
 set is written (no packet goes to a target without one). Then the running
-look is rebound; if a program's `setup` raises on the new geometry, the
-last good geometry is bound again and the step fails. Only then do the
-sinks, the blink and each listener take the new rig. A reload (`apply`)
-first compiles the file; a room map file reloads too, with its deprecation
-logged as a warning.
+look, the DDP sink and the blink take the new rig; if any of them raises
+(a program's `setup` on the new geometry), each one that took it takes the
+last good rig again and the step fails: the new rig never ran. Once all
+three have it, the new rig runs and nothing puts the old one back: the
+state and each listener take it, and a listener that raises leaves a
+warning in `error` (`_commit`'s second value) while the new rig runs. A
+reload (`apply`) first compiles the file; a room map file reloads too,
+with its deprecation logged as a warning.
 
 `rebind` runs on a connection thread: it rewrites the controller's host
 (`pewpew.rig.runtime.rebind_host`) atomically, then queues a reload, where
@@ -28,8 +31,13 @@ the watcher's event for the write applies nothing), writes an `arrange`
 audit record when the run streams DDP, then waits for `_commit` on the
 loop thread. A refusal at any step after the write puts the old bytes
 back atomically and adopts their digest again, so the file, the running
-rig and the page agree: the edit did not happen. It is off unless the run
-allows edits (`edits`; an unattended run does not).
+rig and the page agree: the edit did not happen. Once the new rig runs,
+the edit is answered as done even when a listener failed (the warning is
+the status line's), since the file and the engine both hold it. A refusal
+for a stale `base` or a changed file carries the engine's current
+`arrangement` state, so the page shows it without waiting for the next
+broadcast. It is off unless the run allows edits (`edits`; an unattended
+run does not).
 
 Both rewrites are refused on a room map file, and every refusal names no
 path. `arrangement` and `report` are what the page draws of the file and
@@ -118,7 +126,9 @@ class RigLive:
         self._targets: tuple[tuple[str, ...], tuple[Board, ...]] = ((), ())
         self._report: dict[str, Any] = {}
         self._arrangement: dict[str, Any] = {}
-        self._take(rig)
+        # What failed after the last new rig ran (a listener), or None.
+        self._warning: str | None = None
+        self._take(*self._taking(rig))
         self._publish()
         self._argv = argv
         self._blink = blink
@@ -127,8 +137,9 @@ class RigLive:
 
     @property
     def error(self) -> str | None:
-        """Why the last reload failed, or None (a status line source)."""
-        return self.reloader.error
+        """Why the last reload failed, or what failed once its rig ran, or
+        None (a status line source)."""
+        return self.reloader.error or self._warning
 
     @property
     def editable(self) -> bool:
@@ -167,14 +178,19 @@ class RigLive:
         Any thread."""
         return self._report
 
-    def _take(self, rig: CompiledRig) -> None:
-        """Hold `rig`, its findings and, with `follow`, the names and boards it streams to."""
+    def _taking(self, rig: CompiledRig) -> tuple[CompiledRig, dict[str, Any], tuple | None]:
+        """What `_take` holds of `rig`: it, its findings and, with `follow`,
+        the names and boards it streams to. Changes nothing."""
         from pewpew.rig.runtime import ddp_targets, target_names
 
-        self._report = rig.findings()
+        return rig, rig.findings(), (target_names(rig), ddp_targets(rig)) if self._follow else None
+
+    def _take(self, rig: CompiledRig, report: dict[str, Any], targets: tuple | None) -> None:
+        """Hold what `_taking` made of `rig`. Never raises."""
+        self._report = report
         self.rig = rig
-        if self._follow:
-            self._targets = (target_names(rig), ddp_targets(rig))
+        if targets is not None:
+            self._targets = targets
 
     def _boards(self, rig: CompiledRig) -> tuple[tuple[Board, ...], Layout | None]:
         """The boards the DDP sink takes for `rig` and its checked layout,
@@ -204,39 +220,59 @@ class RigLive:
         rig = rig_of(doc, notices=notices)
         for notice in notices:
             logger.warning("%s", notice)
-        return self._commit(rig, None if is_room(doc) else doc, hashlib.sha256(data).hexdigest())
+        summary, _warning = self._commit(rig, None if is_room(doc) else doc, hashlib.sha256(data).hexdigest())
+        return summary
 
-    def _commit(self, rig: CompiledRig, doc: Any, digest: str) -> str:
+    def _commit(self, rig: CompiledRig, doc: Any, digest: str) -> tuple[str, str | None]:
         """Make `rig`, compiled from the file's `doc` whose bytes have
-        `digest`, live (the module docstring). Loop thread only; raises what
-        a failed step raises, with no path in it."""
+        `digest`, live (the module docstring). Loop thread only. Raises
+        what a failed step raises, with no path in it, only when the old rig
+        still runs; returns the summary and, when a listener failed once
+        the new rig ran, the warning `error` then gives."""
         from pewpew.rig.runtime import fixture_spans
 
         old = self.rig
         boards, layout = self._boards(rig)
+        taken = self._taking(rig)
         if self._ddp is not None and boards != tuple(self._ddp.boards):
             audit.record(
                 "ddp-relayout", argv=self._argv, targets=[b.spec for b in boards], fps=self._ddp.max_fps,
             )
+        old_layout = self._ddp.layout if self._ddp is not None else None
         try:
             self._live.rebind(rig.mapping)
+            if self._ddp is not None and layout is not None:
+                self._ddp.commit(layout)
+            if self._blink is not None:
+                self._blink.rebind(fixture_spans(rig))
         except Exception:
+            # Each part takes the old rig again, so no part runs the new one.
             self._live.rebind(old.mapping)
+            if self._ddp is not None and old_layout is not None:
+                self._ddp.commit(old_layout)
+            if self._blink is not None:
+                self._blink.rebind(fixture_spans(old))
             raise
-        if self._ddp is not None and layout is not None:
-            self._ddp.commit(layout)
-        if self._blink is not None:
-            self._blink.rebind(fixture_spans(rig))
-        self._take(rig)
+        # The new rig runs: from here on, nothing puts the old one back.
+        self._take(*taken)
         self.doc = doc
         self._digest = digest
         self._publish()
+        failed: list[str] = []
         for listener in self.listeners:
-            listener(rig)
-        return (
+            try:
+                listener(rig)
+            except Exception as exc:  # the rig runs; the warning says what did not follow it
+                logger.warning("a part of the run did not take the new map", exc_info=True)
+                failed.append(describe_exception(exc))
+        self._warning = None if not failed else (
+            f"the new map runs, but a part of the run did not take it: {'; '.join(failed)}"
+        )
+        summary = (
             f"map reloaded (t={self._live.t:.3f}): {rig.n} px in "
             f"{len(rig.fixtures)} fixtures on {len(rig.controllers)} controller(s)"
         )
+        return summary, self._warning
 
     def rebind(self, controller: str, address: str) -> str | None:
         """Point controller `controller` at `address` by rewriting its host
@@ -282,7 +318,7 @@ class RigLive:
             if not isinstance(base, str):
                 return Refusal(NO_BASE)
             if base != self._digest:
-                return Refusal(STALE)
+                return Refusal(STALE, current=self._arrangement)
             try:
                 rig = compile_doc(doc, load_catalog())
             except (ValueError, OverflowError) as exc:  # RigError and ValidationError are ValueErrors
@@ -301,7 +337,7 @@ class RigLive:
             except OSError:
                 return Refusal("could not read the map file")
             if hashlib.sha256(old).hexdigest() != base:
-                return Refusal(CHANGED_ON_DISK)
+                return Refusal(CHANGED_ON_DISK, current=self._arrangement)
             try:
                 write_atomic(self.path, data)  # a watcher and a reader never see half a file
             except OSError:
@@ -322,9 +358,10 @@ class RigLive:
 
     def _arranged(self, rig: CompiledRig, doc: Any, digest: str) -> str | None:
         """`_commit` an arrangement the page wrote; why it did not run, or
-        None. Loop thread only; never raises."""
+        None once it runs, even with a warning. Loop thread only; never
+        raises."""
         try:
-            summary = self._commit(rig, doc, digest)
+            summary, _warning = self._commit(rig, doc, digest)
         except Exception as exc:  # a raising setup, a sink that cannot take the layout, ...
             logger.warning("the layout from the page did not run", exc_info=True)
             return f"the layout did not run, so the map was not changed: {describe_exception(exc)}"

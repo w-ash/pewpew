@@ -35,8 +35,10 @@ binary frame is a `<fI` header (engine `t`, sequence number) and `n*3`
 display-ready RGB: gamma and quantization happen here, once (Q-1). Every
 text message is absolute state, so the last write wins on every tab.
 `refused` goes only to the client that asked; its reason names a param,
-layer, look, fixture or cap, never a path, and for an `arrange` that does
-not compile, its `issues` list every finding. Each inbound message goes
+layer, look, fixture or cap, never a path; for an `arrange` that does
+not compile, its `issues` list every finding, and for one built on a file
+that has changed, its `arrangement` and `base` are the engine's current
+ones, as the `arrangement` message gives them. Each inbound message goes
 whole to `Control.request`, in the order it came; a request that answers
 later (a look to make) is answered when its future is done, and the
 messages after it are read meanwhile (`answer_request`, which the studio
@@ -347,13 +349,15 @@ def _zipped_response(
 
 
 def answer(control: str | None, rid: object, refused: Refusal | None) -> dict[str, Any] | None:
-    """The answer to a request: `refused` with that refusal's reason, and
-    its `issues` when it has any, else `ack` when it carries an `id`,
-    `rid`, else None. An accepted request without an id needs no reply:
-    the next frame carries the whole state, and every tab converges on what
-    won."""
+    """The answer to a request: `refused` with that refusal's reason, its
+    `issues` when it has any and the fields of its `current` state, else
+    `ack` when it carries an `id`, `rid`, else None. An accepted request
+    without an id needs no reply: the next frame carries the whole state,
+    and every tab converges on what won."""
     if refused is not None:
-        extra = {"issues": list(refused.issues)} if refused.issues else {}
+        extra: dict[str, object] = {"issues": list(refused.issues)} if refused.issues else {}
+        if refused.current is not None:
+            extra |= refused.current
         return refusal(control, refused.reason, name=refused.name, id=rid, **extra)
     return None if rid is None else {"type": "ack", "id": rid, "control": control}
 

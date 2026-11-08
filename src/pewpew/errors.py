@@ -37,12 +37,15 @@ class Refusal:
     knob (`layers.base.waves.freq`), or a part of a look sent whole
     (`layers.base.waves.op`, `master`); None when no one part is to
     blame. `issues` are the findings of an arrangement that does not
-    compile, each as JSON (`pewpew.rig.models.Issue`). All cross the
-    preview socket, so none names a path."""
+    compile, each as JSON (`pewpew.rig.models.Issue`). `current` is the
+    state the client takes in place of what it sent: an `arrange` refused
+    because the file changed carries the engine's `{"arrangement", "base"}`.
+    All cross the preview socket, so none names a path."""
 
     reason: str
     name: str | None = None
     issues: tuple[Mapping[str, object], ...] = ()
+    current: Mapping[str, object] | None = None
 
 
 class Worded(ValueError):

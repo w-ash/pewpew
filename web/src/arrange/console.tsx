@@ -8,14 +8,17 @@ import { Panel } from "../design/Panel";
 import { LayoutTools } from "../layout/LayoutTools";
 import { loadParts } from "../rig/loadParts";
 import type { PartsCatalog } from "../rig/parts";
+import { useMedia, WIDE } from "../design/useMedia";
 import { canArrange, useRefusal, useWire } from "../wire/store";
 import { ArrangementPanel } from "./ArrangementPanel";
 import { useDocEditor } from "./doc";
+import { GizmoToolbar, useGizmoTools } from "./gizmoTools";
 import { useEditorKeys } from "./keys";
 import { IssueList, ReportPanel } from "./ReportPanel";
-import { useArrangeSync, useEngineArrangement, useRigIsCurrent } from "./sync";
+import { retryArrange, useArrangeSync, useArrangeSyncState, useEngineArrangement, useRigIsCurrent } from "./sync";
 
-// Where focus may be for Delete and Backspace to delete what is selected: the layout panel and the 3D view.
+// Where the last press or focus must be for Delete and Backspace to delete what is selected: the layout
+// panel and the 3D view.
 const EDITOR_SCOPE = ".arrange-panel, .stage-3d";
 
 // The parts catalog, or null when it does not load: the editor then offers the default fixture type and
@@ -37,27 +40,54 @@ function useEditor() {
   return { engine, rig, editor, current };
 }
 
-/** The layout panel: the build-day tools (input-end markers, blink), the engine's refusal of the last
- * edit with its issues, and the arrangement editor. Each edit runs live once edits settle (sync.ts); undo
- * and redo are this page's. Open only on a run that takes `arrange`. */
+/** The layout panel: the build-day tools (input-end markers, blink), what became of the last edit (the
+ * engine's refusal with its issues, or edits a layout from elsewhere replaced), and the arrangement
+ * editor. Each edit runs live once edits settle (sync.ts); undo and redo are this page's. Open only on a
+ * run that takes `arrange`; read-only while the connection is down. On a phone, the 3D view's gizmo
+ * tools sit here, off its small canvas. */
 export function ArrangeSlot({ onClose, onReport }: { onClose(): void; onReport(): void }) {
-  const { refused } = useArrangeSync();
+  const { refused, notice } = useArrangeSync();
   useEditorKeys(false, EDITOR_SCOPE);
   const { engine, rig, editor, current } = useEditor();
   const catalog = use(partsOrNull(`${rig?.catalog_digest ?? ""}#0`));
   const refusal = useRefusal("arrange");
   const problems = useWire((s) => s.report?.issues.filter((i) => i.level !== "warning").length ?? 0);
+  const connected = useWire((s) => s.connected);
+  const wide = useMedia(WIDE);
+  const gizmo = useGizmoTools((s) => s.shown) && !wide;
   return (
     <Panel title="layout" onClose={onClose}>
       <div className="arrange-panel">
         <LayoutTools />
-        {refused && refusal && (
-          <Banner>
-            <div className="fields">
-              <span>The engine did not take this edit: {refusal.reason}</span>
-              {refusal.issues.length > 0 && <IssueList issues={refusal.issues} />}
-            </div>
+        {!connected ? (
+          <Banner tone="warning">
+            Reconnecting to the engine: the layout is read-only until it is back. An edit not yet taken goes
+            then, unless the layout changed meanwhile.
           </Banner>
+        ) : notice ? (
+          <Banner tone="warning" onDismiss={() => useArrangeSyncState.setState({ notice: null })}>
+            {notice}
+          </Banner>
+        ) : (
+          refused &&
+          refusal && (
+            <Banner>
+              <div className="fields">
+                <span>The engine did not take this edit: {refusal.reason}</span>
+                {refusal.issues.length > 0 && <IssueList issues={refusal.issues} />}
+                {!current && (
+                  <div className="row wrap">
+                    <Button onPress={retryArrange}>send again</Button>
+                  </div>
+                )}
+              </div>
+            </Banner>
+          )
+        )}
+        {gizmo && (
+          <div className="row wrap" role="group" aria-label="Gizmo tools">
+            <GizmoToolbar />
+          </div>
         )}
         <div className="row wrap">
           <Button onPress={onReport} title="power, wiring and controllers of the running rig">

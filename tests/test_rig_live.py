@@ -52,7 +52,7 @@ from pewpew.rig.runtime import (
 )
 from pewpew.rig_cli import DEFAULT_CONTROLLER, DEFAULT_TYPE
 from pewpew.room.blink import Blink
-from pewpew.room.live import CHANGED_ON_DISK, RigLive
+from pewpew.room.live import CHANGED_ON_DISK, STALE, RigLive
 from pewpew.sinks.ddp import Board
 
 TWO_BARS = arrangement(bar("a"), bar("b", chain=2, start=[0.0, 1.0], end=[1.0, 1.0]))
@@ -702,7 +702,10 @@ CURRENT = object()
 def test_arrange_refuses_what_it_must_not_write_and_writes_nothing(tmp_path, audit_log, edits, doc, base, reason):
     path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=edits)
     data = path.read_bytes()
-    assert rig_live.arrange(doc, base_of(rig_live) if base is CURRENT else base) == Refusal(reason)
+    refused = rig_live.arrange(doc, base_of(rig_live) if base is CURRENT else base)
+    assert refused is not None and refused.reason == reason
+    # A stale base gets the layout that runs, to show in place of the edit; no other refusal carries one.
+    assert refused.current is (rig_live.arrangement() if reason == STALE else None)
     assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
     assert rig_live.arrangement()["arrangement"] is (None if not edits else rig_live.doc)
 
@@ -774,6 +777,51 @@ def test_an_arrange_whose_rig_does_not_run_is_refused_and_the_file_put_back(tmp_
     assert path.read_bytes() == file_bytes(new) and renderer.n == 192 and rig_live.arrangement()["arrangement"] == new
 
 
+class Raises:
+    """A part of the run that raises the `n`th time it takes a new rig, and takes it otherwise."""
+
+    def __init__(self, take, n=1):
+        self.take, self.n, self.calls = take, n, 0
+
+    def __call__(self, *a):
+        self.calls += 1
+        if self.calls == self.n:
+            raise RuntimeError("lost the new rig")
+        self.take(*a)
+
+
+def test_an_arrange_whose_blink_fails_after_the_rebind_runs_the_old_rig_everywhere(tmp_path, audit_log, monkeypatch):
+    """The renderer and the sink have taken the new rig when the blink raises: both take the old one back,
+    the file is put back, and the page is refused."""
+    path, _doc, renderer, sink, rig_live = live(tmp_path, blink=Blink([]), edits=True)
+    blink = rig_live._blink
+    assert blink is not None
+    monkeypatch.setattr(blink, "rebind", Raises(blink.rebind))
+    data, state, layout = path.read_bytes(), rig_live.arrangement(), sink.layout
+    refused = arranged(rig_live, three_bars_on_two_boards())
+    assert refused is not None and "RuntimeError: lost the new rig" in refused.reason
+    assert renderer.n == 128 and sink.layout is layout and blink._fixtures == tuple(fixture_spans(rig_live.rig))
+    assert path.read_bytes() == data and rig_live.arrangement() is state and rig_live.shown == []
+    assert rig_live.reloader.reload() is False and rig_live.error is None
+
+
+def test_an_arrange_whose_listener_fails_once_the_rig_runs_keeps_the_new_file_and_warns(tmp_path, audit_log):
+    """The new rig runs everywhere but one listener: the edit is done (the file, the state and the engine
+    hold it), and the status line says what did not follow it."""
+    path, _doc, renderer, sink, rig_live = live(tmp_path, edits=True)
+    rig_live.listeners.insert(0, Raises(lambda rig: None))
+    new = three_bars_on_two_boards()
+    assert arranged(rig_live, new) is None
+    assert renderer.n == 192 and len(sink.boards) == 2 and len(rig_live.shown) == 1  # the later listener ran
+    digest = hashlib.sha256(file_bytes(new)).hexdigest()
+    assert path.read_bytes() == file_bytes(new) and rig_live.arrangement() == {"arrangement": new, "base": digest}
+    error = rig_live.error
+    assert error is not None and "the new map runs, but" in error and "lost the new rig" in error
+    assert rig_live.reloader.reload() is False  # the new bytes' digest is adopted: nothing to reload
+    write(path, TWO_BARS)
+    assert rig_live.reloader.reload() is True and rig_live.error is None  # a clean reload clears the warning
+
+
 def test_an_arrange_the_loop_does_not_answer_in_time_is_refused_and_the_file_put_back(tmp_path, audit_log):
     path, _doc, renderer, _sink, rig_live = live(tmp_path, edits=True, calls=Busy())
     data = path.read_bytes()
@@ -837,10 +885,10 @@ def test_an_arrange_built_before_a_rebind_is_refused_and_the_new_host_kept(tmp_p
     edited["name"] = "edited before the rebind"
     assert rig_live.rebind("A", "192.0.2.20") is None
     # Before the rebind's reload has run, the file on disk is not the one that runs.
-    assert rig_live.arrange(edited, base) == Refusal(CHANGED_ON_DISK)
+    assert rig_live.arrange(edited, base) == Refusal(CHANGED_ON_DISK, current=rig_live.arrangement())
     rig_live.calls.drain()
     assert base_of(rig_live) != base  # the rebind's file has a digest of its own
-    assert rig_live.arrange(edited, base) == Refusal("the layout changed; showing the current one")
+    assert rig_live.arrange(edited, base) == Refusal(STALE, current=rig_live.arrangement())
     assert [c["host"] for c in json.loads(path.read_text())["controllers"]] == ["192.0.2.20"]
     assert sink.boards[0].host == "192.0.2.20" and rig_live.doc["controllers"][0]["host"] == "192.0.2.20"
 
@@ -851,7 +899,8 @@ def test_of_two_arranges_on_one_base_the_second_is_refused(tmp_path, audit_log):
     other = copy.deepcopy(doc)
     other["name"] = "the other tab"
     assert arranged(rig_live, three_bars_on_two_boards(), base) is None
-    assert arranged(rig_live, other, base) == Refusal("the layout changed; showing the current one")
+    refused = arranged(rig_live, other, base)
+    assert refused == Refusal(STALE, current={"arrangement": three_bars_on_two_boards(), "base": base_of(rig_live)})
     assert path.read_bytes() == file_bytes(three_bars_on_two_boards()) and renderer.n == 192
 
 

@@ -177,8 +177,10 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
     },
   },
   refused: {
-    keys: keys<Required<Message<"refused">>>({ type: true, control: true, name: true, id: true, reason: true, issues: true }),
-    optional: ["issues"],
+    keys: keys<Required<Message<"refused">>>({
+      type: true, control: true, name: true, id: true, reason: true, issues: true, arrangement: true, base: true,
+    }),
+    optional: ["issues", "arrangement", "base"],
     fields: { issues: RIG.fields!.issues! },
   },
   ack: { keys: keys<Message<"ack">>({ type: true, id: true, control: true }) },
@@ -299,7 +301,10 @@ test("every message decodes through the wire and the store, and reads through th
   expect(store.getState().power).toEqual({ watts: SESSION_POWER.watts, uncapped_watts: SESSION_POWER.uncapped_watts });
   expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.osc.freq" });
   expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.osc.osc.freq" });
-  expect(store.getState().refusals.arrange?.issues.map((i) => i.code)).toEqual(["unresolved_ref"]);
+  // The last arrange refusal is of a stale file: it carries the engine's arrangement, which the store takes.
+  const arrangeRefusals = LATER.filter((m) => m.type === "refused" && m.control === "arrange");
+  expect(arrangeRefusals.map((m) => m.type === "refused" && m.issues?.map((i) => i.code))).toEqual([["unresolved_ref"], undefined]);
+  expect(store.getState().refusals.arrange).toMatchObject({ reason: "the layout changed; showing the current one" });
   expect(store.getState().capabilities).toContain("arrange");
   expect(store.getState().arrangement).toEqual(first("arrangement").arrangement);
   expect(store.getState().report?.report?.totals.pixels).toBe(2);

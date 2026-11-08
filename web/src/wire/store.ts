@@ -289,6 +289,10 @@ export class WireStore {
         this.update({
           refusals: { ...this.state.refusals, [msg.control]: refusal },
           paramRefusals: msg.control === "set" && msg.name ? { ...paramRefusals, [msg.name]: refusal } : paramRefusals,
+          // A stale `arrange` is refused with the engine's current arrangement: the page shows it now.
+          ...(msg.control === "arrange" && msg.arrangement !== undefined
+            ? { arrangement: msg.arrangement, arrangementBase: msg.base ?? null }
+            : {}),
         });
         break;
       }

@@ -296,6 +296,11 @@ class DdpSink:
         return self._layout.boards
 
     @property
+    def layout(self) -> Layout:
+        """The layout every frame goes to, which `commit` takes back."""
+        return self._layout
+
+    @property
     def n_pixels(self) -> int:
         return self._layout.n_pixels
 

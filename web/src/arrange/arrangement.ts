@@ -45,7 +45,7 @@ export type RingEnd = "inner" | "outer";
 export { IDENTITY_POSE };
 
 /** The group a compiled fixture came from: its `group`, else the `group/k` its id names. */
-function groupOf(f: Placed): string | null {
+export function groupOf(f: Placed): string | null {
   if (f.group !== undefined) return f.group;
   const slash = f.id.lastIndexOf("/");
   return slash > 0 ? f.id.slice(0, slash) : null;
@@ -206,11 +206,73 @@ export function duplicate(
   };
 }
 
+/** A chain of `wiring.chains`, as far as the editor reads it. */
+interface ChainRef {
+  id?: unknown;
+  fixtures?: unknown;
+}
+
+/** A feed of `wiring.feeds`: it powers `count` fixtures of `chain` from index `first`. */
+interface FeedRef {
+  chain?: unknown;
+  first?: unknown;
+  count?: unknown;
+}
+
+/** `wiring` without the fixtures `gone` matches: each chain loses them (a chain left with none goes, as a
+ * chain names at least one), and each feed keeps the fixtures it powered that are left, or goes with none. */
+function unwire(wiring: Arrangement["wiring"], gone: (id: string) => boolean): Arrangement["wiring"] {
+  if (!wiring || !Array.isArray(wiring.chains)) return wiring;
+  const chains: ChainRef[] = wiring.chains;
+  // Per chain id: how many fixtures it keeps, and for each old index, how many before it went.
+  const kept = new Map<unknown, { left: number; before: number[] }>();
+  let changed = false;
+  const nextChains = chains.flatMap((c) => {
+    if (!Array.isArray(c?.fixtures)) return [c];
+    const before: number[] = [];
+    let removed = 0;
+    const fixtures = c.fixtures.filter((id: unknown) => {
+      before.push(removed);
+      const drop = typeof id === "string" && gone(id);
+      if (drop) removed++;
+      return !drop;
+    });
+    before.push(removed);
+    kept.set(c.id, { left: fixtures.length, before });
+    if (removed === 0) return [c];
+    changed = true;
+    return fixtures.length ? [{ ...c, fixtures }] : [];
+  });
+  if (!changed) return wiring;
+  const feeds = Array.isArray(wiring.feeds)
+    ? wiring.feeds.flatMap((f: FeedRef) => {
+        const k = kept.get(f?.chain);
+        if (!k || typeof f.first !== "number" || typeof f.count !== "number") return [f];
+        if (k.left === 0) return [];
+        // How many went before index `i`; an index past the chain's end counts every one that went.
+        const went = (i: number) => k.before[Math.min(Math.max(i, 0), k.before.length - 1)]!;
+        const first = f.first - went(f.first);
+        const count = f.count - (went(f.first + f.count) - went(f.first));
+        if (count <= 0) return [];
+        return first === f.first && count === f.count ? [f] : [{ ...f, first, count }];
+      })
+    : wiring.feeds;
+  return { ...wiring, chains: nextChains, ...(feeds !== undefined && { feeds }) };
+}
+
+/**
+ * Delete a fixture or a group, and every reference to it: a chain lists it no more (a chain left empty
+ * goes), and a feed powers what is left of its run (a feed left with none goes). A group's members are
+ * its `group/k` fixtures.
+ */
 export function remove(
   arrangement: Arrangement,
   selection: Selection,
 ): Arrangement {
-  return selection.kind === "fixture"
+  const prefix = `${selection.id}/`;
+  const gone = selection.kind === "fixture" ? (id: string) => id === selection.id : (id: string) => id.startsWith(prefix);
+  const wiring = unwire(arrangement.wiring, gone);
+  const rest = selection.kind === "fixture"
     ? {
         ...arrangement,
         fixtures: arrangement.fixtures.filter((f) => f.id !== selection.id),
@@ -219,6 +281,7 @@ export function remove(
         ...arrangement,
         groups: arrangement.groups.filter((g) => g.id !== selection.id),
       };
+  return wiring === arrangement.wiring ? rest : { ...rest, wiring };
 }
 
 function swapEnds(attach: FixtureEntry["attach"]): FixtureEntry["attach"] {
