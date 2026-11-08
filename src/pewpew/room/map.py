@@ -81,6 +81,7 @@ from typing import Any
 import numpy as np
 
 from pewpew.jsonfile import ProblemsError, is_number, parse_json
+from pewpew.mapping import contain
 from pewpew.sinks.ddp import HOST_RULE, Board, board_host, parse_target
 
 # WLED v16.0.1 `MAX_LEDS_PER_BUS` and `MAX_LEDS` (ESP32 and S3), from
@@ -538,16 +539,8 @@ def _compile(specs: list[_Spec], boards: dict[str, tuple[str, int]], plan: Plan 
     meters = np.concatenate(points)
     fixture_of = np.repeat(np.arange(len(fixtures)), [f.pixels for f in fixtures])
 
-    lo, hi = meters.min(axis=0), meters.max(axis=0)
-    extent = hi - lo
-    longest = float(extent.max()) or 1.0  # a single pixel: everything at 0
-    # Division, not a reciprocal multiply, so the longest axis lands on
-    # exactly 0 and 1. Centred per axis; a flat axis stays at 0, not 0.5.
-    span = extent / longest
-    offset = np.where(extent > 0, (1.0 - span) / 2.0, 0.0)
-
-    mapping = np.ascontiguousarray((meters - lo) / longest + offset, dtype=np.float32)
-    for array in (meters, mapping, fixture_of):
+    contained = contain(meters)
+    for array in (meters, fixture_of):
         array.setflags(write=False)
 
     ddp_boards: list[Board] = []
@@ -574,12 +567,12 @@ def _compile(specs: list[_Spec], boards: dict[str, tuple[str, int]], plan: Plan 
         board_names=tuple(order),
         outputs=tuple(outputs),
         meters=meters,
-        mapping=mapping,
+        mapping=contained.mapping,
         fixture_of=fixture_of,
-        span=tuple(float(s) for s in span),  # type: ignore[arg-type]
-        extent=tuple(float(e) for e in extent),  # type: ignore[arg-type]
-        scale=1.0 / longest,
-        shift=tuple(float(v) for v in offset - lo / longest),  # type: ignore[arg-type]
+        span=contained.span,
+        extent=contained.extent,
+        scale=contained.scale,
+        shift=contained.shift,
         floor_plan=plan,
     )
 

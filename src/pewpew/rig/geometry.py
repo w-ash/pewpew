@@ -43,6 +43,7 @@ from typing import Any
 
 import numpy as np
 
+from pewpew.mapping import pixel_offsets
 from pewpew.rig.catalog import HOST_PREFIX, Catalog
 from pewpew.rig.models import AttachmentType, FixtureType, Part, Profile
 
@@ -303,7 +304,7 @@ def _pixel_centres(type_id: str, catalog: Catalog) -> np.ndarray:
     if axis is None:
         raise GeometryError("at_pixels needs the pixels of a fixture type")
     count = axis["count"]
-    y = axis["y0"] + (np.arange(count) + 0.5) * axis["span"] / count
+    y = pixel_offsets(count, axis["span"])
     return np.column_stack([np.zeros(count), y, np.full(count, catalog.spec(type_id).z_m)])
 
 

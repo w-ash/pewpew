@@ -10,9 +10,9 @@ import shutil
 import numpy as np
 import pytest
 
-from pewpew.rig import EXAMPLES, RigError, compile_rig, contain, load_arrangement, load_catalog, read_catalog
+from pewpew.rig import EXAMPLES, RigError, compile_rig, load_arrangement, load_catalog, read_catalog
 from pewpew.rig.catalog import CATALOG_ENTRIES_DIR
-from pewpew.rig.pose import from_three, matrix_to_quat, quat_to_matrix
+from pewpew.rig.pose import MVR_C, from_three, matrix_to_quat, quat_to_matrix
 
 BAR = "clen-rgbw-bar-1m"
 TUBE = "clen-360-tube-1500"
@@ -226,18 +226,37 @@ def test_data_in_outer_reverses_world_order_and_keeps_facing():
     assert outer.fixtures[0].attachments == {"end_a": "eye-v0", "end_b": "point-v0"}
 
 
-def test_contain_spans_the_longest_axis_exactly_and_keeps_aspect(golden):
+def test_mapping_is_the_contained_plan_frame(golden):
     m = golden.mapping
     assert m.dtype == np.float32 and m.shape == (golden.n, 3)
     assert not m.flags.writeable
-    ext = np.ptp(golden.positions_m, axis=0)
+    plan = golden.positions_m @ MVR_C.T
+    ext = np.ptp(plan, axis=0)
     longest = int(ext.argmax())
     assert m[:, longest].min() == 0.0 and m[:, longest].max() == 1.0
     np.testing.assert_allclose((m.min(axis=0) + m.max(axis=0)) / 2, 0.5, atol=1e-6)
     np.testing.assert_allclose(np.ptp(m, axis=0), ext / ext.max(), atol=1e-6)
-    assert contain(np.zeros((1, 3)))[0].tolist() == [0.5, 0.5, 0.5]
-    box = contain(np.array([[0, 0, 0], [4.0, 2.0, 1.0]]))
-    assert box.tolist() == [[0.0, 0.25, 0.375], [1.0, 0.75, 0.625]]
+
+
+def at(y: float, z: float, type_id: str = BAR) -> dict:
+    return {"type": type_id, "pose": {"position_m": [0, y, z], "quat_xyzw": [0, 0, 0, 1]}}
+
+
+def test_arrangement_up_is_plan_height_and_arrangement_depth_is_plan_y():
+    fixtures = [
+        {"id": "low", **at(0.0, 0.0)},
+        {"id": "high", **at(2.0, 0.0)},
+        {"id": "back", **at(0.0, -1.0)},
+        {"id": "front", **at(0.0, 1.0)},
+    ]
+    rig = compiled(arrangement(fixtures=fixtures))
+    centre = {f.id: rig.mapping[rig.fixture_of == i].mean(axis=0) for i, f in enumerate(rig.fixtures)}
+    assert centre["high"][2] > centre["low"][2]
+    assert centre["back"][1] > centre["front"][1]
+    # The fixtures differ in the file's y only on `high`, so that is plan z alone.
+    assert centre["high"][1] == pytest.approx(centre["low"][1], abs=1e-6)
+    # Matrices and positions stay y-up.
+    assert rig.positions_m[rig.fixture_of == 1, 1].mean() > rig.positions_m[rig.fixture_of == 0, 1].mean()
 
 
 # ---- wiring order ---------------------------------------------------------------

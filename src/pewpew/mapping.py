@@ -11,6 +11,7 @@ mapping spreads along (`spanned`).
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import NamedTuple
 
 import numpy as np
 
@@ -20,6 +21,49 @@ _FLAT = 1e-3
 
 # The map `run` and the offline renders use when none is named.
 DEFAULT_MAP = "grid:16x16"
+
+
+class Contained(NamedTuple):
+    """A contain-normalized mapping and the transform that made it."""
+
+    mapping: np.ndarray  # (N,3) float32, read-only
+    scale: float  # mapping = positions * scale + shift
+    shift: tuple[float, float, float]
+    span: tuple[float, float, float]  # each axis extent over the longest
+    extent: tuple[float, float, float]  # metres, per axis
+
+
+def contain(positions: np.ndarray) -> Contained:
+    """Fit positions in the unit cube, keeping aspect ratio.
+
+    The longest axis spans exactly [0, 1]. Shorter axes are centred on 0.5.
+    A flat axis, and a single point, map to 0. No points give an empty mapping.
+    """
+    p = np.asarray(positions, dtype=np.float64)
+    if len(p) == 0:
+        empty = np.zeros((0, 3), dtype=np.float32)
+        empty.setflags(write=False)
+        return Contained(empty, 1.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+    lo = p.min(axis=0)
+    extent = p.max(axis=0) - lo
+    longest = float(extent.max()) or 1.0
+    # Division, not a reciprocal multiply, so the longest axis lands on exactly 0 and 1.
+    span = extent / longest
+    offset = np.where(extent > 0, (1.0 - span) / 2.0, 0.0)
+    mapping = np.ascontiguousarray((p - lo) / longest + offset, dtype=np.float32)
+    mapping.setflags(write=False)
+    return Contained(
+        mapping,
+        1.0 / longest,
+        tuple(float(v) for v in offset - lo / longest),  # type: ignore[arg-type]
+        tuple(float(v) for v in span),  # type: ignore[arg-type]
+        tuple(float(v) for v in extent),  # type: ignore[arg-type]
+    )
+
+
+def pixel_offsets(count: int, span: float) -> np.ndarray:
+    """Offsets of `count` pixel centres along a `span`, centred on 0."""
+    return (np.arange(count) + 0.5) * span / count - span / 2
 
 
 def line(n: int) -> np.ndarray:

@@ -25,7 +25,7 @@ from pydantic import ValidationError
 
 from pewpew.jsonfile import TooDeep, loads
 from pewpew.rig.catalog import Catalog, FixtureSpec, load_catalog, read_catalog, validation_issues
-from pewpew.rig.compile import compile_rig, contain
+from pewpew.rig.compile import compile_rig
 from pewpew.rig.migrate import migrate as _migrate
 from pewpew.rig.models import (
     Arrangement,
@@ -95,7 +95,6 @@ __all__ = [
     "RigError",
     "WiringPlan",
     "compile_rig",
-    "contain",
     "load_arrangement",
     "load_catalog",
     "read_catalog",

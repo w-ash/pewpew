@@ -8,7 +8,9 @@ steps are:
 3. Index pixels in data order: controllers in file order, then outputs in
    profile order, then the chain on each output, then pixel j. Unwired
    fixtures follow in authoring order.
-4. Contain-normalize the positions into the float32 mapping `Renderer` takes.
+4. Rotate the positions into the plan frame (x right, y up the plan, z
+   height; `MVR_C`) and contain-normalize them into the float32 mapping
+   `Renderer` takes. `positions_m` and the matrices stay y-up.
 5. Slice per output and per controller.
 6. Report power, wiring and controllers (`pewpew.rig.electrical`).
 
@@ -22,6 +24,7 @@ from typing import Any
 
 import numpy as np
 
+from pewpew.mapping import contain, pixel_offsets
 from pewpew.rig import presets
 from pewpew.rig.catalog import HOST_PREFIX, Catalog
 from pewpew.rig.electrical import boards_w, build_report, effect_power_model, has_conductors, supplies_of
@@ -43,7 +46,7 @@ from pewpew.rig.models import (
     capped,
     value,
 )
-from pewpew.rig.pose import anchor_frame, pose_matrix, to_three
+from pewpew.rig.pose import MVR_C, anchor_frame, pose_matrix, to_three
 from pewpew.rig.wiring import auto_wire
 
 
@@ -77,7 +80,7 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
         spec = catalog.spec(inst.type_id)
         count = spec.count
         rot, origin = inst.matrix[:3, :3], inst.matrix[:3, 3]
-        y = -spec.span_m / 2 + (np.arange(count) + 0.5) * spec.span_m / count
+        y = pixel_offsets(count, spec.span_m)
         positions[start : start + count] = origin + y[:, None] * rot[:, 1] + spec.z_m * rot[:, 2]
         if spec.facing is not None:
             normals[start : start + count] = rot @ np.asarray(spec.facing, dtype=np.float64)
@@ -87,7 +90,7 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
         start += count
 
     with np.errstate(over="ignore", invalid="ignore"):
-        mapping = contain(positions)
+        mapping = contain(positions @ MVR_C.T).mapping
     if not np.isfinite(mapping).all():
         raise RigError([*issues, Issue.error("not_finite", "the pixel positions are too far apart to normalize")])
     report, electrical_issues = build_report(plan, arrangement, instances, slices, catalog)
@@ -112,28 +115,6 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
         ),
         power_cap=arrangement.power.cap,
     )
-
-
-def contain(positions: np.ndarray) -> np.ndarray:
-    """Contain-normalize world positions to read-only float32.
-
-    The longest axis spans exactly [0, 1]; the others keep the same scale and
-    centre on 0.5, so aspect ratios hold (docs/studio/domain-model.md:213).
-    """
-    p = np.asarray(positions, dtype=np.float64)
-    if len(p) == 0:
-        out = np.zeros((0, 3), dtype=np.float32)
-    else:
-        lo = p.min(axis=0)
-        extent = p.max(axis=0) - lo
-        scale = float(extent.max())
-        if scale == 0.0:
-            out = np.full(p.shape, 0.5, dtype=np.float32)
-        else:
-            # (p - lo)/scale is exactly 0 and 1 at the ends of the longest axis.
-            out = ((p - lo) / scale + (scale - extent) / (2 * scale)).astype(np.float32)
-    out.setflags(write=False)
-    return out
 
 
 # ---- expansion -----------------------------------------------------------------

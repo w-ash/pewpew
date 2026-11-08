@@ -210,7 +210,7 @@ This is exactly the prototype's ring loop and basis (docs/studio/prototype/golde
 1. **Expand** groups into instances with world matrices and attachments.
 2. **Wire** the instances, from the explicit wiring or the auto rule below.
 3. **Index** the pixels in data order: controllers in file order, then outputs in profile order, then chain order, then pixel j. Unwired fixtures come last and are flagged. Pixel j sits at local `(0, −span/2 + (j+0.5)·span/n, z_m)` with normal `R·facing`; omnidirectional fixtures get a zero normal. Outputs are `positions_m (N,3) f64`, `normals`, `fixture_of`, `pixel_in_fixture` and `fixture_rows (F,n_max)`. This avoids the 1/63 versus 1/64 trap the backlog warns of (backlog story "Room map file with live 2D simulation").
-4. **Normalize with Contain** (backlog story "Room map file with live 2D simulation"): `(p − mid)/max(ptp) + 0.5` as float32. The result goes unchanged to `Renderer(mapping)` and `rebind` (src/pewpew/render.py:175-200). The engine already sets `index = arange(N)` (src/pewpew/render.py:192), so index follows chain order with no contract change (`Coords`, src/pewpew/fx/types.py:78-81).
+4. **Normalize with Contain** (backlog story "Room map file with live 2D simulation"): `contain(positions_m @ C.T)` as float32 (`contain`, src/pewpew/mapping.py; `C` is `MVR_C`, src/pewpew/rig/pose.py). The plan frame is x right, y up the plan (arrangement −z), z height (arrangement +y), the same frame as room maps, `line` and `grid`. The longest axis spans [0,1], shorter axes centre on 0.5, and a flat axis or a single point maps to 0. `positions_m` and the fixture matrices stay y-up. The result goes unchanged to `Renderer(mapping)` and `rebind` (src/pewpew/render.py:175-200). The engine already sets `index = arange(N)` (src/pewpew/render.py:192), so index follows chain order with no contract change (`Coords`, src/pewpew/fx/types.py:78-81).
 5. **Slices**: per output {start, count, led_type, color_order}, and per controller {start, count} for DDP. WLED reads the pixel format per packet and derives W from RGB (backlog story "DDP 8-bit sink to stock WLED nodes"; WLED v16.0.1 `wled00/e131.cpp:54-57` and `wled00/bus_manager.cpp:275`).
 6. **Report.**
 
@@ -357,7 +357,7 @@ The 2.5 µs bit time is 1/400 kbps (arithmetic); the low-speed mode is on p. 1-2
    - band height 0.50 m, or 0.60 m with attachments
 2. **Basis parity.** Each ring member's R equals the prototype's (side, dir, face) to 1e-12 (docs/studio/prototype/golden-tubes-3d.html:425-430). Quaternion → matrix round-trips, with w ≥ 0.
 3. **Pitch.** Pixel i is at −0.5 + (i+0.5)/64, and the pitch is exactly 0.015625 (backlog story "Room map file with live 2D simulation"). `data_in: outer` reverses world order.
-4. **Contain.** The longest axis spans exactly [0,1], the other axes centre on 0.5, and aspect ratios are preserved.
+4. **Contain.** The longest axis spans exactly [0,1], shorter axes centre on 0.5, a flat axis or a single point maps to 0, and aspect ratios are preserved.
 5. **INV-002 is data-only.** Compiling one tube gives 36 px, 3 B/px, 30 µs/px and 1.5 A. A guard test finds no catalog id in any `rig/*.py`.
 6. **Timing.** `max_px(40e-6, 80e-6, 40) == 623`. A 10-bar chain runs at 38.9 fps. A 6-tube chain takes 216 × 30 µs + 24 µs = 6.50 ms.
 7. **Feeds.** On 4 A at 75%: 2 bars fit (2.133 A), 3 bars fail (3.2 A), and 2 tubes fit at exactly 3.0 A (inclusive); compare RES-033.
