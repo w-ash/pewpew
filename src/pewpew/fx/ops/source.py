@@ -28,6 +28,7 @@ from pewpew.params import Choice, Float, Int
 # 2). A drift phase stays within +-DRIFT / 2, where a float32 step is at
 # most 0.00024 lattice units: under a third of a frame's step at speed 0.05.
 DRIFT = 4096
+_BELOW_ONE = np.nextafter(np.float32(1.0), np.float32(0.0))
 _NOISES = {"gradient": prim.gradient, "value": prim.value}
 
 
@@ -56,13 +57,19 @@ class Osc(Op, op="osc"):
                 help="How fast the stripes travel: crests a second past each point; below 0 they run back")
     offset = Float(0.0, 0.0, 1.0, periodic=True, help="Moves the stripes along by part of a crest")
     axis = _axis_choice("x", help="Which way the stripes run; u runs along a strip from its first light")
+    shape = Choice("sine", {"sine": "Sine", "saw": "Saw"},
+                   help="Sine rises and falls; saw climbs from 0 to 1, then jumps back to 0, so a palette wraps round")
     along = MappingProxyType({"freq": "axis"})
-    examples = ("osc(8, 0.1)", 'osc(3, 0.15, axis="u").palette("ocean")')
+    examples = ("osc(8, 0.1)", 'osc(3, 0.15, axis="u").palette("ocean")', 'osc(0.8, 0.1, shape="saw").palette("candy", cycle=0.03)')
     cost = Cost(2.5, 2.4)
 
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def osc(c: Coords) -> np.ndarray:
-            return wave(c.along(self.axis) * self.freq - (self.phase("sync") - self.offset))
+            turns = c.along(self.axis) * self.freq - (self.phase("sync") - self.offset)
+            if self.shape == "saw":
+                # x - floor(x) can round up to 1.0 for a tiny negative x in float32.
+                return np.minimum(turns - np.floor(turns), _BELOW_ONE)
+            return wave(turns)
 
         return osc
 

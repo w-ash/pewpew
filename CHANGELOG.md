@@ -9,6 +9,9 @@ series (batch mode).
 
 ### Added
 
+- Add a `shape` arg to `osc`: `saw` climbs from 0 to 1 and jumps back, so a palette
+  over it wraps round (a rainbow that restarts at red) where the default `sine`
+  plays it up and back. The sine renders as before.
 - Lint the front end for bugs with oxlint and its type-aware rules (`pnpm -C web lint`,
   in `just web`, so `just check` and CI): `correctness`, the React hooks and React
   Compiler rules, the promise rules and `no-param-reassign`. No style rules. It

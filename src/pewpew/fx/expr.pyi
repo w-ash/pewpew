@@ -116,7 +116,13 @@ def metaballs(
     glow: float | Expr = ...,
 ) -> Expr: ...
 def noise(scale: float | Expr = ..., speed: float | Expr = ..., octaves: int | Expr = ..., kind: str = ...) -> Expr: ...
-def osc(freq: float | Expr = ..., sync: float | Expr = ..., offset: float | Expr = ..., axis: str = ...) -> Expr: ...
+def osc(
+    freq: float | Expr = ...,
+    sync: float | Expr = ...,
+    offset: float | Expr = ...,
+    axis: str = ...,
+    shape: str = ...,
+) -> Expr: ...
 def particles(
     rate: float | Expr = ...,
     life: float | Expr = ...,
