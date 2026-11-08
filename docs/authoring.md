@@ -378,7 +378,7 @@ flashes, as for any look.
 
 ### Example looks
 
-`examples/` holds thirteen looks, one per file: the ten below and three
+`examples/` holds fourteen looks, one per file: the eleven below and three
 small ones the MCP examples use (`mcp-ember`, `mcp-prism`, `mcp-tide`),
 each passing `verify looks
 examples/` (which renders a program on a 16x16 panel) and `verify looks
@@ -401,6 +401,8 @@ along.
   five-fold glint, palettes cycling a golden ratio apart.
 - `turing-garden` (panel): Gray-Scott coral grows from seeds and keeps
   reseeding.
+- `sway` (panel): rainbow bars sway back and forth on a slow `lfo` while
+  `rotate` spins their direction.
 - `depth-charge` (volume): drops fall in a pond of points and rings spread
   through it.
 - `lorenz-lantern` (volume): sixteen Lorenz moths trail light as the
@@ -412,8 +414,8 @@ along.
 - `firefly-ink` (any map): fireflies wander, and their glow bleeds along
   the points.
 
-Each also has signals and routes (a slow `walk` or `lfo` on a hue, a warp
-or a size; the beat or a sound band on what pulses) and a `front` list of
+Each also has signals and routes (a slow `walk` or `lfo` on a hue, a warp,
+a size or a flow; the beat or a sound band on what pulses) and a `front` list of
 the knobs to turn first. In `milk-bloom`, `signals.trip.value` is a macro
 over the feedback's zoom, decay and swirl.
 
