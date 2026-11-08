@@ -13,6 +13,7 @@ import functools
 import json
 import os
 import socket
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields
 
@@ -53,15 +54,6 @@ def push(sink, t: float, frame: np.ndarray) -> None:
         clients = list(sink._clients.values())
     for client in clients:
         assert client.driver.drain()
-
-
-@pytest.fixture
-def patient_open(monkeypatch):
-    """The client's own bound on the websocket handshake, whatever
-    `timeout` the test gives `observe`: its short timeout is for the hello
-    and the frames, and a loaded machine can take longer than that to
-    connect."""
-    monkeypatch.setattr(remote_observe, "Client", lambda url, open_timeout, **kw: Client(url, **kw))
 
 
 @contextlib.contextmanager
@@ -181,7 +173,6 @@ def test_max_frames_bounds_a_long_window():
                              "0.75 s of frames: flash safety needs a window of 1 s or more")
 
 
-@pytest.mark.usefixtures("patient_open")
 def test_an_engine_that_sends_no_frames_gives_state_and_no_metrics():
     with engine(line(4)) as (sink, _):
         seen = observe(f"ws://127.0.0.1:{sink.port}/", 0.05, timeout=0.1)
@@ -242,7 +233,6 @@ def test_a_sheet_that_cannot_be_written_is_a_warning_and_exit_1(tmp_path, monkey
     assert err == f"observe: {doc['warnings'][0]}\n"
 
 
-@pytest.mark.usefixtures("patient_open")
 def test_no_frames_exits_1_with_the_reason_on_stderr(monkeypatch, capsys):
     monkeypatch.setattr(remote_observe, "observe", functools.partial(remote_observe.observe, timeout=0.1))
     with engine(line(4)) as (sink, _):
@@ -274,6 +264,21 @@ def test_an_https_address_is_told_the_preview_speaks_plain_websocket():
     assert str(exc.value).endswith(f"a preview port speaks plain websocket, so give ws://127.0.0.1:{port}/")
 
 
+def test_a_handshake_slower_than_the_read_timeout_still_connects():
+    """`timeout` bounds the hello and the frames, not the handshake."""
+    def slow_handshake(conn, request) -> None:
+        time.sleep(0.3)  # in the server's thread: observe's 0.1 s is long past when it answers
+
+    def hello(conn) -> None:
+        conn.send(json.dumps({"type": "hello", "n": 1, "total": 1, "positions": [[0.0, 0.0, 0.0]],
+                              "display_gamma": 2.2}))
+        conn.recv()
+
+    with fake_engine(hello, process_request=slow_handshake) as url:
+        seen = observe(url, 0.05, timeout=0.1)
+    assert seen.frames == 0
+
+
 def _fails_inside_a_fake_engine() -> str:
     """A test that fails inside `fake_engine`, run on the suite's process
     pool (conftest.py): it returns once the server stops."""
@@ -287,7 +292,6 @@ def _fails_inside_a_fake_engine() -> str:
 JOBS = {"fails inside a fake engine": _fails_inside_a_fake_engine}
 
 
-@pytest.mark.usefixtures("patient_open")
 def test_a_server_that_sends_no_hello_is_not_an_engine():
     def silent(conn) -> None:
         conn.recv()

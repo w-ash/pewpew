@@ -1281,6 +1281,10 @@ series (batch mode).
 
 ### Fixed
 
+- `observe` and `push` give the websocket handshake its own bound
+  (`OPEN_TIMEOUT_S`, 5 s) in the shared client, apart from the read timeout. A
+  short timeout, or a slow network, no longer reports a working engine as
+  unreachable.
 - A restart after a watchdog stall no longer alternates between two looks that
   both hang: the stall marker names the looks that stalled, the restart
   skips every one of them, and it starts the current look again only when

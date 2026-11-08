@@ -256,11 +256,12 @@ def peers(sink: PreviewSink) -> set:
 
 
 @contextlib.contextmanager
-def fake_engine(handler: Callable[[Any], Any]) -> Iterator[str]:
+def fake_engine(handler: Callable[[Any], Any], **serve_kw: Any) -> Iterator[str]:
     """A websocket server on a free port whose connections `handler`
-    serves. Yields its address. However the body ends, the server's exit
+    serves, with `serve_kw` for `serve` (a `process_request` hook delays
+    the handshake). Yields its address. However the body ends, the server's exit
     shuts it down before the pool's exit waits for `serve_forever`."""
-    with ThreadPoolExecutor(1) as pool, serve(handler, "127.0.0.1", 0) as server:
+    with ThreadPoolExecutor(1) as pool, serve(handler, "127.0.0.1", 0, **serve_kw) as server:
         pool.submit(server.serve_forever)
         yield f"ws://127.0.0.1:{server.socket.getsockname()[1]}/"
 

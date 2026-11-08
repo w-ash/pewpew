@@ -18,9 +18,9 @@ Time is engine time, from the frame headers: the window runs from the
 first frame to `seconds` after it, and the rate is the frames over the
 engine time they span (`span`, the first frame to the last). The
 metrics' own `seconds` is frames / fps, as for a rendered sequence, since
-each frame stands for one slot. The wall clock bounds only the waits: `timeout`
-seconds for the connection and the hello, then `seconds + timeout` for
-the frames.
+each frame stands for one slot. The wall clock bounds only the waits: the
+client's `OPEN_TIMEOUT_S` for the connection, `timeout` seconds for the
+hello, then `seconds + timeout` for the frames.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ from pewpew.sinks.sink import from_display_u8
 
 WATCH_S = 2.0  # engine time to watch by default
 MAX_FRAMES = 600  # frames kept at most: 10 s at 60 fps
-TIMEOUT_S = 5.0  # wall time to wait for the engine past what `seconds` needs
+TIMEOUT_S = 5.0  # wall time to wait for the hello and the frames past what `seconds` needs
 FADED = ("a crossfade ran in the window, so the metrics mix the outgoing look with the incoming one; "
          "observe again once the aura state's fading is false")
 
@@ -173,7 +173,8 @@ def capture(
     """Read the engine at `url` (`engine_url` takes it) for `seconds` of
     engine time or `max_frames` frames, whichever comes first.
 
-    Raises Unreachable when nothing answers, or no hello comes, within
+    Raises Unreachable when nothing completes the websocket handshake
+    within the client's `OPEN_TIMEOUT_S`, or no hello follows within
     `timeout` seconds, and ValueError for a bad argument. Frames that stop
     coming end the window `timeout` seconds past `seconds`, with a note.
     """
@@ -189,7 +190,7 @@ def capture(
             fades.append(True)
 
     # Held, so a message that comes after the window cannot change what was read.
-    with Client(url, keep_frames=max_frames, open_timeout=timeout, on_text=note) as client, client.hold():
+    with Client(url, keep_frames=max_frames, on_text=note) as client, client.hold():
         client.hello(timeout)
         whole = client.wait(lambda: _closes(client.frames, seconds, max_frames), seconds + timeout)
         cut = None if whole else "the engine closed the connection" if client.ended else "the frames stopped"

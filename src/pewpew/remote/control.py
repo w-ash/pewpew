@@ -236,7 +236,7 @@ def _connect(url: str, addresses: Sequence[str], keep: Callable[[dict[str, Any]]
     failure: Unreachable | None = None
     for address in addresses:
         try:
-            return Client(with_host(url, address), on_text=keep, open_timeout=timeout)
+            return Client(with_host(url, address), on_text=keep)
         except Unreachable as exc:
             failure = exc
     assert failure is not None  # `writable` returns at least one address

@@ -36,6 +36,7 @@ from pewpew.errors import describe_exception
 from pewpew.jsonfile import loads
 from pewpew.sinks.preview import FRAME_HEADER
 
+OPEN_TIMEOUT_S = 5.0  # how long one attempt waits for the websocket handshake, whatever a caller's read timeouts
 CLOSE_TIMEOUT_S = 2.0  # how long `close` waits for the engine to answer the close
 _SCHEMES = {"ws": "ws", "wss": "wss", "http": "ws", "https": "wss"}
 _EXAMPLE = "ws://127.0.0.1:7447/ or http://127.0.0.1:7447/"
@@ -97,8 +98,9 @@ class Client:
     and only counts them. `on_text` gets each text message once it is kept,
     on the reader thread and while `wait` cannot read, so a caller can
     record more. Connecting makes up to `tries` attempts, `retry_s` apart,
-    each given `open_timeout` seconds, and raises Unreachable when none
-    connects.
+    each given `OPEN_TIMEOUT_S` seconds for the handshake, and raises
+    Unreachable when none connects. The waits for a message (`hello`,
+    `wait`) take their own timeouts.
     """
 
     def __init__(
@@ -109,7 +111,6 @@ class Client:
         on_text: Callable[[dict[str, Any]], None] | None = None,
         tries: int = 1,
         retry_s: float = 0.2,
-        open_timeout: float = 5.0,
     ) -> None:
         self.url = url
         self._on_text = on_text
@@ -118,7 +119,7 @@ class Client:
         self.frames: deque[Frame] = deque(maxlen=keep_frames)
         self.ended = False  # the reader has stopped: the connection closed
         self._cond = threading.Condition()
-        self._ws = _connect(url, tries=tries, retry_s=retry_s, open_timeout=open_timeout)
+        self._ws = _connect(url, tries=tries, retry_s=retry_s)
         self._thread = threading.Thread(target=self._read, name="pewpew-remote-client", daemon=True)
         self._thread.start()
 
@@ -213,7 +214,7 @@ class Client:
             self._cond.notify_all()
 
 
-def _connect(url: str, *, tries: int, retry_s: float, open_timeout: float) -> ClientConnection:
+def _connect(url: str, *, tries: int, retry_s: float) -> ClientConnection:
     """The open connection to `url`, after up to `tries` attempts."""
     failure: Exception | None = None
     for attempt in range(tries):
@@ -221,10 +222,10 @@ def _connect(url: str, *, tries: int, retry_s: float, open_timeout: float) -> Cl
             time.sleep(retry_s)
         try:
             # No proxy: an engine is on this machine or the private network.
-            return connect(url, open_timeout=open_timeout, close_timeout=CLOSE_TIMEOUT_S, proxy=None)
+            return connect(url, open_timeout=OPEN_TIMEOUT_S, close_timeout=CLOSE_TIMEOUT_S, proxy=None)
         except (OSError, WebSocketException) as exc:
             failure = exc
-    raise Unreachable(why_unreachable(url, failure, open_timeout)) from failure
+    raise Unreachable(why_unreachable(url, failure, OPEN_TIMEOUT_S)) from failure
 
 
 def why_unreachable(url: str, exc: BaseException | None, open_timeout: float) -> str:
