@@ -54,8 +54,6 @@ def migrate_room(room: Path, output: Path, *, controller: str, fixture_type: str
     from pewpew.rig.room_import import room_to_arrangement
     from pewpew.room.map import RoomError
 
-    if output.exists():
-        raise SystemExit(f"{output}: already exists; give a new file with -o")
     doc = read_or_exit(room, "room map", lambda: parse_json(room.read_bytes(), RoomError))
     catalog = load_catalog()
     if not catalog.has(controller, "controller"):
@@ -74,7 +72,13 @@ def migrate_room(room: Path, output: Path, *, controller: str, fixture_type: str
     bad = [i for i in rig.issues if i.level in ("error", "violation")]
     if bad:
         return _refuse(output, bad)
-    with output.open("x", encoding="utf-8") as fh:
+    try:
+        fh = output.open("x", encoding="utf-8")
+    except FileExistsError:
+        raise SystemExit(f"{output}: already exists; give a new file with -o") from None
+    except OSError as exc:
+        raise SystemExit(f"{output}: cannot create: {exc.strerror}") from None
+    with fh:
         fh.write(_text(arrangement) + "\n")
     print(f"{output}: {len(arrangement['fixtures'])} fixtures, {rig.n} pixels")
     return 0

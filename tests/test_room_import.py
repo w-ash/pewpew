@@ -202,6 +202,26 @@ def test_the_verb_refuses_to_overwrite(tmp_path, capsys):
         run(ROOM_FILE, "-o", ROOM_FILE)
 
 
+def test_the_verb_refuses_a_dangling_symlink_as_existing(tmp_path):
+    out = tmp_path / "rig.json"
+    out.symlink_to(tmp_path / "elsewhere.json")
+    with pytest.raises(SystemExit) as exc:
+        run(ROOM_FILE, "-o", out)
+    assert "already exists" in str(exc.value)
+    assert not (tmp_path / "elsewhere.json").exists()
+
+
+def test_the_verb_exits_with_one_line_when_the_output_directory_is_missing(tmp_path):
+    out = tmp_path / "missing" / "rig.json"
+    with pytest.raises(SystemExit) as exc:
+        run(ROOM_FILE, "-o", out)
+    message = str(exc.value)
+    assert "\n" not in message
+    assert str(out) in message
+    assert "No such file or directory" in message
+    assert not out.parent.exists()
+
+
 def test_the_verb_exits_nonzero_and_writes_nothing_when_the_profile_does_not_fit(tmp_path, capsys):
     doc = json.loads(ROOM_FILE.read_text())
     doc["fixtures"][0]["output"] = 5
