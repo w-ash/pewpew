@@ -13,7 +13,7 @@ from pewpew.crossfade import Crossfader
 from pewpew.pace import Calls
 from pewpew.room.blink import Blink
 from pewpew.room.live import RoomLive
-from pewpew.room.map import MAX_PER_OUTPUT, RoomError, compile_room, load_room, parse_room, rebind_text
+from pewpew.room.map import RoomError, compile_room, load_room, parse_room, rebind_text, room_caps
 from pewpew.sinks.ddp import Board
 
 PITCH = 1.0 / 64
@@ -103,7 +103,7 @@ def _drop(spec, key):
     "doc, message",
     [
         (room(bar("long", instances=33, step=[1.0, 0.0])),
-         f"board 'A' output 1: 2112 px is over WLED's {MAX_PER_OUTPUT} per output"),
+         f"board 'A' output 1: 2112 px is over WLED's {room_caps()[0]} per output"),
         (room(bar("a"), bar("b", chain=2), bar("c", chain=4)),
          "board 'A' output 1: chain position 3 is empty, so fixture 'c' at 4 has a gap before it"),
         (room(bar("a"), bar("b")), "board 'A' output 1: chain position 1 is claimed by 'a', 'b'"),

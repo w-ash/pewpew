@@ -37,9 +37,9 @@ def edit(path: Path, fn) -> None:
 
 def test_bundled_catalog_loads_every_kind():
     cat = load_catalog()
-    assert set(cat.fixture_types) == {"clen-rgbw-bar-1m", "clen-360-tube-1500"}
+    assert set(cat.fixture_types) == {"clen-rgbw-bar-1m", "clen-360-tube-1500", "strip"}
     assert set(cat.attachment_types) == {"point-v0", "eye-v0"}
-    assert set(cat.of_kind("chipset")) == {"sk6812", "ucs1903n"}
+    assert set(cat.of_kind("chipset")) == {"sk6812", "ucs1903n", "ws2812b"}
     assert set(cat.of_kind("connector")) == {"clen-4pin", "barrel-5.5x2.1"}
     assert set(cat.cables) == {"wire-16awg-pair", "wire-18awg-pair"}
     assert set(cat.psus) == {"meanwell-lrs-350-24", "btf-24v-5a-120w"}
@@ -112,10 +112,11 @@ def test_file_name_must_match_the_id(data_copy):
 
 def test_no_catalog_id_appears_in_rig_code():
     # docs/studio/domain-model.md:151-153: a new fixture is data, never code.
+    # An id as a string literal: "strip" is also a word and a str method.
     ids = [e.id for e in load_catalog()]
     for path in sorted(RIG_SRC.glob("*.py")):
         text = path.read_text()
-        found = [i for i in ids if i in text]
+        found = [i for i in ids if re.search(rf"""["']{re.escape(i)}["'.]""", text)]
         assert not found, f"{path.name} names catalog ids {found}"
 
 

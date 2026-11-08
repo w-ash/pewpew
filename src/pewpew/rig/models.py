@@ -24,10 +24,22 @@ from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, TypeVar, cast
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    PlainValidator,
+    TypeAdapter,
+    WithJsonSchema,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
+from pewpew.floorplan import PLAN_SCHEMA, Plan, parse_plan
 from pewpew.power import MAX_CAP_W, EffectPower, PowerCap, PowerLimiter
+from pewpew.sinks.ddp import parse_target
 
 # ---- shared ------------------------------------------------------------------
 
@@ -37,6 +49,10 @@ Status = Literal["measured", "stated", "inferred", "derived", "assumed"]
 #: group's member count. Checked before any group expands. It also caps the
 #: length of every list in an arrangement.
 MAX_FIXTURES = 200
+
+#: The most pixels one fixture type may have. With MAX_FIXTURES it bounds
+#: what a compile allocates, now that a placement's `dims` can set a count.
+MAX_FIXTURE_PIXELS = 4096
 
 #: The largest |coordinate| of a position, in meters.
 MAX_POSITION_M = 1e4
@@ -106,6 +122,10 @@ class SourcedInt(Sourced):
     v: int
 
 
+class SourcedCount(Sourced):
+    v: int | Expr
+
+
 class SourcedText(Sourced):
     v: str
 
@@ -124,6 +144,8 @@ class SourcedPinmap(Sourced):
 #: A dimension: a number, an expression, or either one with provenance.
 Dim = float | Expr | SourcedNum
 IntFact = int | SourcedInt
+#: A count: a whole number, or an expression over dims that gives one.
+CountFact = int | Expr | SourcedCount
 TextFact = str | SourcedText
 Vec3 = tuple[Num, Num, Num]
 
@@ -237,10 +259,11 @@ class Pixels(_Model):
     """The emitters along the fixture's +y axis, in data order.
 
     Pixel j sits at local (0, -span/2 + (j+0.5)*span/count, z_m). A null
-    `facing` marks an omnidirectional fixture.
+    `facing` marks an omnidirectional fixture. `count` may be an expression
+    over dims; it must give a whole number.
     """
 
-    count: IntFact
+    count: CountFact
     span_m: Dim
     z_m: Dim
     leds_per_pixel: IntFact = 1
@@ -527,13 +550,26 @@ class Pose(_Model):
         return self
 
 
+#: Free labels on a fixture or a group, for selection and views.
+Tags = Capped[Annotated[str, Field(min_length=1)]]
+#: Dims that replace the fixture type's own, by name, for this placement,
+#: such as a parametric strip's `pixels`. Each distinct set compiles to one
+#: variant fixture type (`pewpew.rig.compile.with_variants`).
+DimsOverride = Annotated[dict[str, float], Field(max_length=MAX_FIXTURES)]
+
+
 class FixturePlacement(_Model):
-    """One free fixture. `attach` maps an anchor name to an attachment type."""
+    """One free fixture. `attach` maps an anchor name to an attachment type.
+
+    `dims` replaces the type's dims of the same names; `tags` label it.
+    """
 
     id: RigId
     type: str
     pose: Pose = Pose()
     attach: dict[str, str | None] = {}
+    dims: DimsOverride = {}
+    tags: Tags = []
 
 
 def _cap(count: int, where: str) -> None:
@@ -573,6 +609,8 @@ class RingGroup(_Model):
     data_in: Literal["inner", "outer"] = "inner"
     attach: RingAttach = RingAttach()
     pose: Pose = Pose()
+    dims: DimsOverride = {}
+    tags: Tags = []
 
     @model_validator(mode="after")
     def _size(self) -> RingGroup:
@@ -600,6 +638,8 @@ class ArrayGroup(_Model):
     member: Pose = Pose()
     attach: dict[str, str | None] = {}
     pose: Pose = Pose()
+    dims: DimsOverride = {}
+    tags: Tags = []
 
     @model_validator(mode="after")
     def _shape(self) -> ArrayGroup:
@@ -619,9 +659,28 @@ Group = Annotated[RingGroup | ArrayGroup, Field(discriminator="preset")]
 
 
 class ControllerPlacement(_Model):
+    """A controller board. `host` is where DDP reaches it, `HOST[:PORT]`, HOST an
+    IPv4 address or an mDNS name (`pewpew.sinks.ddp.parse_target`)."""
+
     id: RigId
     profile: str
     position_m: Position | None = None
+    host: str | None = None
+
+    @field_validator("host")
+    @classmethod
+    def _target(cls, host: str | None) -> str | None:
+        if host is not None:
+            try:
+                parse_target(host)
+            except ValueError as exc:
+                raise PydanticCustomError("bad_host", "{reason}", {"reason": str(exc)}) from None
+        return host
+
+    @property
+    def target(self) -> tuple[str, int] | None:
+        """(host, port), or None without a host."""
+        return None if self.host is None else parse_target(self.host)
 
 
 class PsuPlacement(_Model):
@@ -728,6 +787,24 @@ class PowerLimit(_Model):
         return PowerCap(self.max_watts, self.max_brightness)
 
 
+def _plan(raw: Any) -> Plan:
+    if isinstance(raw, Plan):
+        return raw
+    plan, problems = parse_plan(raw, file="arrangement file", frame="plan")
+    if plan is None:
+        raise PydanticCustomError("bad_plan", "{problems}", {"problems": "; ".join(problems)})
+    return plan
+
+
+#: A floor plan in plan-frame meters (x right, y up the plan), checked by
+#: `pewpew.floorplan.parse_plan`, the room map's checker.
+PlanBlock = Annotated[
+    Plan,
+    PlainValidator(_plan),
+    PlainSerializer(lambda plan: plan.to_json()),
+    WithJsonSchema(PLAN_SCHEMA),
+]
+
 ARRANGEMENT_FORMAT = "pewpew.arrangement"
 ARRANGEMENT_VERSION = 1
 
@@ -735,19 +812,23 @@ ARRANGEMENT_VERSION = 1
 class Arrangement(_Model):
     """A rig as the user or the studio writes it (format v1).
 
-    `power` is optional, so a file without it caps nothing. A reader older
-    than the block refuses a file that has it, as an unknown field.
+    Every block after `wiring` is optional and was added to v1 without a
+    version step: a file without it reads as before, and a reader older than
+    the block refuses a file that has it, as an unknown field. `power` with
+    no limits caps nothing. `plan` puts a floor-plan image under the map.
     """
 
     format: Literal["pewpew.arrangement"]
     version: Literal[1]
     name: str = ""
+    notes: str = ""
     groups: Capped[Group] = []
     fixtures: Capped[FixturePlacement] = []
     controllers: Capped[ControllerPlacement] = []
     psus: Capped[PsuPlacement] = []
     wiring: Wiring = Wiring()
     power: PowerLimit = PowerLimit()
+    plan: PlanBlock | None = None
 
     @model_validator(mode="after")
     def _size(self) -> Arrangement:
@@ -817,6 +898,7 @@ class Instance:
 
     `matrix` is the 4x4 world matrix, read-only. `attachments` maps each
     anchor that accepts an attachment to its attachment type id, or None.
+    `type_id` is a variant type when the placement gave `dims`.
     """
 
     id: str
@@ -824,6 +906,8 @@ class Instance:
     group: str | None
     matrix: np.ndarray
     attachments: Mapping[str, str | None]
+    tags: tuple[str, ...] = ()
+    dims: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -853,6 +937,8 @@ class FixtureInstance(_Model):
     of three.js `Matrix4.elements` (https://threejs.org/docs/pages/Matrix4.html).
     The fixture's pixels are `pixel_start .. pixel_start + pixel_count - 1`.
     `attachment_matrices` gives each attachment's frame in world space.
+    `dims` and `tags` are the placement's own; with `dims`, `type_id` names
+    the variant type they compiled to.
     """
 
     id: str
@@ -866,6 +952,26 @@ class FixtureInstance(_Model):
     controller: str | None = None
     output: str | None = None
     chain: str | None = None
+    tags: list[str] = []
+    dims: dict[str, float] = {}
+
+
+class ControllerTarget(_Model):
+    """One controller of a compiled rig and where DDP reaches it; None without a host."""
+
+    id: str
+    profile: str
+    host: str | None
+    port: int | None
+
+
+class Variant(_Model):
+    """A fixture type made from `type` with some dims replaced. `dims` holds
+    every dim of the variant, evaluated."""
+
+    id: str
+    type: str
+    dims: dict[str, float]
 
 
 class OutputSlice(_Model):
@@ -892,11 +998,13 @@ class ControllerSlice(_Model):
 class CompiledRig:
     """A compiled arrangement. Arrays are read-only; pixels are in data order.
 
-    `mapping` is the Contain-normalized float32 table `Renderer` takes.
-    `report` is the `pewpew.rig.electrical.RigReport`, and `power` the
+    `mapping` is the Contain-normalized float32 table `Renderer` takes:
+    `mapping = plan-frame meters * scale + shift`. `report` is the
+    `pewpew.rig.electrical.RigReport`, and `power` the
     `pewpew.power.EffectPower` behind `estimate_effect_power`. `power_cap`
     is the arrangement's cap. `issues` holds at most MAX_ISSUES issues and
-    one count of the rest.
+    one count of the rest. `controllers` holds the declared and the
+    auto-wired ones, in data order; `variants` the types `dims` made.
     """
 
     mapping: np.ndarray
@@ -913,6 +1021,11 @@ class CompiledRig:
     feeds: tuple[Feed, ...] = field(default=())
     power: EffectPower | None = None
     power_cap: PowerCap = field(default_factory=PowerCap)
+    controllers: tuple[ControllerTarget, ...] = ()
+    scale: float = 1.0
+    shift: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    plan: Plan | None = None
+    variants: tuple[Variant, ...] = ()
 
     @property
     def n(self) -> int:
@@ -948,6 +1061,11 @@ class CompiledRig:
             "report": report,
             "positions_m": self.positions_m.tolist(),
             "normals": self.normals.tolist(),
+            "controllers": [c.model_dump(mode="json") for c in self.controllers],
+            "scale": self.scale,
+            "shift": list(self.shift),
+            "plan": None if self.plan is None else self.plan.to_json(),
+            "variants": [v.model_dump(mode="json") for v in self.variants],
         }
 
 

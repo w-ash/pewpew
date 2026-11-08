@@ -82,8 +82,8 @@ from websockets.sync.server import Server, ServerConnection, serve
 
 from pewpew.aura.control import wire_states
 from pewpew.errors import Refusal
+from pewpew.floorplan import IMAGE_TYPES
 from pewpew.jsonfile import loads
-from pewpew.room.map import IMAGE_TYPES
 from pewpew.sinks.sink import DISPLAY_GAMMA, Control, RateGate, SinkDriver, to_display_u8
 
 logger = logging.getLogger(__name__)

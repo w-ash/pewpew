@@ -128,6 +128,25 @@
             "quat_xyzw": null,
             "aim": null
           }
+        },
+        "dims": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "maxProperties": 200,
+          "title": "Dims",
+          "type": "object"
+        },
+        "tags": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Tags",
+          "type": "array"
         }
       },
       "required": [
@@ -268,6 +287,7 @@
     },
     "ControllerPlacement": {
       "additionalProperties": false,
+      "description": "A controller board. `host` is where DDP reaches it, `HOST[:PORT]`, HOST an\nIPv4 address or an mDNS name (`pewpew.sinks.ddp.parse_target`).",
       "properties": {
         "id": {
           "pattern": "^[^/\\s]+$",
@@ -308,6 +328,18 @@
           ],
           "default": null,
           "title": "Position M"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Host"
         }
       },
       "required": [
@@ -381,7 +413,7 @@
     },
     "FixturePlacement": {
       "additionalProperties": false,
-      "description": "One free fixture. `attach` maps an anchor name to an attachment type.",
+      "description": "One free fixture. `attach` maps an anchor name to an attachment type.\n\n`dims` replaces the type's dims of the same names; `tags` label it.",
       "properties": {
         "id": {
           "pattern": "^[^/\\s]+$",
@@ -418,6 +450,25 @@
           "default": {},
           "title": "Attach",
           "type": "object"
+        },
+        "dims": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "maxProperties": 200,
+          "title": "Dims",
+          "type": "object"
+        },
+        "tags": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Tags",
+          "type": "array"
         }
       },
       "required": [
@@ -694,6 +745,25 @@
             "quat_xyzw": null,
             "aim": null
           }
+        },
+        "dims": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "maxProperties": 200,
+          "title": "Dims",
+          "type": "object"
+        },
+        "tags": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Tags",
+          "type": "array"
         }
       },
       "required": [
@@ -758,7 +828,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A rig as the user or the studio writes it (format v1).\n\n`power` is optional, so a file without it caps nothing. A reader older\nthan the block refuses a file that has it, as an unknown field.",
+  "description": "A rig as the user or the studio writes it (format v1).\n\nEvery block after `wiring` is optional and was added to v1 without a\nversion step: a file without it reads as before, and a reader older than\nthe block refuses a file that has it, as an unknown field. `power` with\nno limits caps nothing. `plan` puts a floor-plan image under the map.",
   "properties": {
     "format": {
       "const": "pewpew.arrangement",
@@ -773,6 +843,11 @@
     "name": {
       "default": "",
       "title": "Name",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
       "type": "string"
     },
     "groups": {
@@ -840,6 +915,61 @@
         "max_watts": null,
         "max_brightness": 1.0
       }
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "description": "A floor-plan image, calibrated by two image pixels `meters` apart.",
+          "properties": {
+            "image": {
+              "pattern": "\\.([Pp][Nn][Gg]|[Jj][Pp][Ee]?[Gg]|[Ww][Ee][Bb][Pp]|[Gg][Ii][Ff])$",
+              "type": "string"
+            },
+            "points": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "meters": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "at": {
+              "default": [
+                0.0,
+                0.0
+              ],
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "image",
+            "points",
+            "meters"
+          ],
+          "title": "Plan",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Plan"
     }
   },
   "required": [

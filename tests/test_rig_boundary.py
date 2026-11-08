@@ -199,6 +199,10 @@ def test_every_arrangement_list_is_capped():
     assert codes(arrangement(fixtures=[{"id": f"f{i}", "type": BAR} for i in range(over)])) == {"too_long"}
     chain = lambda i: {"id": f"A{i}", "controller": "c", "output": "o", "fixtures": ["f"]}
     assert codes(arrangement(wiring={"chains": [chain(i) for i in range(over)]})) == {"too_long"}
+    tags = [f"t{i}" for i in range(over)]
+    assert codes(arrangement(fixtures=[{"id": "f", "type": BAR, "tags": tags}])) == {"too_long"}
+    dims = {f"d{i}": 1.0 for i in range(over)}
+    assert codes(arrangement(fixtures=[{"id": "f", "type": BAR, "dims": dims}])) == {"too_long"}
 
 
 def test_a_rig_error_keeps_the_first_issues_errors_first():

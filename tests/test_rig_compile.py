@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
 import shutil
 
 import numpy as np
@@ -420,3 +421,135 @@ def test_to_json_is_plain_json(golden):
     assert out["fixtures"][0]["pixel_count"] == 64
     assert {i["code"] for i in out["issues"]} == {"rests_on_assumed", "psu_full_white_overload"}
     assert out["report"]["totals"]["pixels"] == 3072
+
+
+# ---- the parametric strip, hosts, plan, notes and tags -------------------------
+
+
+def strip(fid, **dims):
+    return {"id": fid, "type": "strip", "dims": dims}
+
+
+def test_strip_pixels_sit_centred_at_their_pitch():
+    rig = compiled(arrangement(fixtures=[strip("s", pixels=4, length=1.0, pitch=0.1)]))
+    np.testing.assert_allclose(rig.positions_m[:, 1], [-0.15, -0.05, 0.05, 0.15], atol=1e-15)
+    assert not rig.positions_m[:, [0, 2]].any()
+
+
+def test_strip_pitch_defaults_to_length_over_pixels():
+    # The room map's rule: a 64-pixel, 1 m strip has a 1/64 m pitch.
+    rig = compiled(arrangement(fixtures=[strip("s", pixels=64, length=1.0)]))
+    y = rig.positions_m[:, 1]
+    assert y[0] == pytest.approx(-0.5 + 1 / 128) and y[-1] == pytest.approx(0.5 - 1 / 128)
+    np.testing.assert_allclose(np.diff(y), 1 / 64)
+
+
+def test_variant_ids_are_deterministic_and_shared_by_equal_dims():
+    doc = arrangement(
+        fixtures=[strip("a", pixels=30, length=0.5), strip("b", length=0.5, pixels=30), strip("c", pixels=10)]
+    )
+    rig, again = compiled(doc), compiled(doc)
+    ids = [f.type_id for f in rig.fixtures]
+    assert ids[0] == ids[1] != ids[2]
+    assert all(re.fullmatch(r"strip\.[0-9a-f]{8}", i) for i in ids)
+    assert ids == [f.type_id for f in again.fixtures]
+    assert [v.id for v in rig.variants] == [ids[0], ids[2]]
+    assert rig.variants[0].type == "strip" and rig.variants[0].dims["pixels"] == 30
+    assert rig.variants[0].dims["pitch"] == pytest.approx(0.5 / 30)
+    assert rig.catalog_digest == load_catalog().digest
+    assert not load_catalog().has(ids[0], "fixture_type")
+
+
+def test_dims_on_a_group_reach_every_member():
+    group = {"id": "row", "preset": "array", "type": "strip", "counts": [3], "steps_m": [[1, 0, 0]]}
+    rig = compiled(arrangement(groups=[{**group, "dims": {"pixels": 8}, "tags": ["canopy"]}]))
+    assert rig.n == 24
+    assert {f.type_id for f in rig.fixtures} == {rig.variants[0].id}
+    assert all(f.tags == ["canopy"] and f.dims == {"pixels": 8.0} for f in rig.fixtures)
+
+
+@pytest.mark.parametrize(
+    ("dims", "code"),
+    [
+        ({"pixels": 2.5}, "bad_value"),
+        ({"pixels": 0}, "bad_expression"),  # the default pitch, length / pixels, divides by 0
+        ({"pixels": 0, "pitch": 0.1}, "bad_value"),
+        ({"pixels": 1e6}, "bad_value"),
+        ({"pixels": 10, "length": 1.0, "pitch": 0.2}, "pixels_past_ends"),
+        ({"colour": 1.0}, "unknown_dim"),
+    ],
+)
+def test_bad_dims_are_errors_that_name_the_placement(dims, code):
+    with pytest.raises(RigError) as exc:
+        compiled(arrangement(fixtures=[strip("s", **dims)]))
+    assert {(i.code, i.ref) for i in exc.value.issues if i.level == "error"} == {(code, "fixtures[0].dims")}
+
+
+def test_a_host_address_used_twice_is_an_error():
+    ctrl = lambda cid, host: {"id": cid, "profile": S3, "host": host}
+    doc = arrangement(controllers=[ctrl("a", "10.0.0.11"), ctrl("b", "10.0.0.11:4048"), ctrl("c", "10.0.0.11:4049")])
+    with pytest.raises(RigError) as exc:
+        compiled(doc)
+    assert [(i.code, i.ref) for i in exc.value.issues] == [("address_used_twice", "b")]
+    assert "10.0.0.11:4048" in exc.value.issues[0].message
+
+
+@pytest.mark.parametrize("host", ["", "10.0.0.11:0", "a b", "10.0.0.11:1:2", "http://x"])
+def test_a_bad_host_is_refused_on_load(host):
+    with pytest.raises(RigError) as exc:
+        load_arrangement(arrangement(controllers=[{"id": "a", "profile": S3, "host": host}]))
+    assert {i.code for i in exc.value.issues} == {"bad_host"}
+
+
+def test_tags_dims_plan_and_notes_round_trip():
+    plan = {"image": "floor/plan.png", "points": [[100, 400], [500, 400]], "meters": 2.0, "at": [0.5, 1.0]}
+    doc = arrangement(
+        notes="hung from the truss",
+        plan=plan,
+        controllers=[{"id": "a", "profile": S3, "host": "pewpew-1.local"}],
+        fixtures=[{**strip("s", pixels=12), "tags": ["left", "low"]}],
+    )
+    arr = load_arrangement(doc)
+    dumped = arr.model_dump(mode="json")
+    assert dumped["notes"] == "hung from the truss" and dumped["plan"] == plan
+    assert dumped["fixtures"][0]["tags"] == ["left", "low"] and dumped["fixtures"][0]["dims"] == {"pixels": 12.0}
+    assert load_arrangement(json.dumps(dumped)) == arr
+    assert arr.plan is not None and arr.plan.meters_per_pixel == pytest.approx(2.0 / 400)
+
+
+@pytest.mark.parametrize(
+    ("plan", "message"),
+    [
+        ({"image": "plan.svg", "points": [[0, 0], [1, 0]], "meters": 1}, "'image' must be a"),
+        ({"image": "p.png"}, "'points'"),
+    ],
+)
+def test_a_bad_plan_is_refused_with_the_room_maps_messages(plan, message):
+    with pytest.raises(RigError) as exc:
+        load_arrangement(arrangement(plan=plan))
+    assert [i.code for i in exc.value.issues] == ["bad_plan"] and message in exc.value.issues[0].message
+
+
+def test_to_json_carries_controllers_scale_shift_plan_and_variants():
+    plan = {"image": "plan.png", "points": [[0, 0], [100, 0]], "meters": 2.0, "at": [0.0, 0.0]}
+    doc = arrangement(
+        plan=plan,
+        controllers=[{"id": "a", "profile": S3, "host": "10.0.0.11"}, {"id": "b", "profile": S3}],
+        fixtures=[
+            strip("s", pixels=4, length=2.0),
+            {**strip("t", pixels=4, length=2.0), "pose": {"position_m": [0, 1, 0]}},
+        ],
+        wiring={"chains": [{"id": "A", "controller": "a", "output": "rmt0", "fixtures": ["s", "t"]}]},
+    )
+    rig = compiled(doc)
+    out = json.loads(json.dumps(rig.to_json()))
+    assert out["controllers"] == [
+        {"id": "a", "profile": S3, "host": "10.0.0.11", "port": 4048},
+        {"id": "b", "profile": S3, "host": None, "port": None},
+    ]
+    assert out["plan"] == plan
+    assert out["variants"] == [{"id": rig.fixtures[0].type_id, "type": "strip", "dims": out["variants"][0]["dims"]}]
+    # mapping = plan-frame meters * scale + shift, the frame the plan is in.
+    plan_m = rig.positions_m @ MVR_C.T
+    np.testing.assert_allclose(plan_m * out["scale"] + np.array(out["shift"]), rig.mapping, atol=1e-6)
+    assert out["scale"] == pytest.approx(1 / 2.5)  # both strips run up y: centres from -0.75 to 1.75 m

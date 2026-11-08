@@ -46,18 +46,7 @@ axis with no extent (z in a flat room) is 0, as in `line` and `grid`.
 `RoomMap.span` records what each axis spans.
 
 Floor plan. An optional `plan` puts an image under the preview, calibrated
-by two points a known distance apart (xLights' two-point ruler [S1279]):
-
-    "plan": {"image": "plan.png", "points": [[120, 840], [1720, 840]],
-             "meters": 8.0, "at": [0.0, 0.0]}
-
-`image` is a .png, .jpg, .jpeg, .webp or .gif file, relative to the room
-file. `points` are two image pixels (x right, y down, as image editors
-show them) `meters` apart; `at` is where the first point sits in the room,
-in meters (default [0, 0]). The image is not rotated: its x axis is the
-room's x and its y axis runs down the page. Calibration is checked here;
-whether the image exists is the preview's concern, so a missing image
-never stops the run.
+by two points a known distance apart (`pewpew.floorplan`).
 
 `label`, `notes` and each fixture's `tags` are the file's own: checked,
 then not compiled. Compiling is pure and deterministic. Every error names
@@ -80,27 +69,21 @@ from typing import Any
 
 import numpy as np
 
+from pewpew.floorplan import Plan, parse_plan
 from pewpew.jsonfile import ProblemsError, is_number, parse_json
 from pewpew.mapping import contain
-from pewpew.sinks.ddp import HOST_RULE, Board, board_host, parse_target
+from pewpew.sinks.ddp import HOST_RULE, Board, board_host, parse_target, shared_targets
 
-# WLED v16.0.1 `MAX_LEDS_PER_BUS` and `MAX_LEDS` (ESP32 and S3), from
-# wled00/const.h at the v16.0.1 pin [S1250].
-MAX_PER_OUTPUT = 2048
-MAX_PER_BOARD = 16384
+#: The firmware every room board runs. Its catalog entry holds the pixel caps
+#: per output and per board.
+ROOM_FIRMWARE = "wled-16.0.1"
 
 _TOP_KEYS = {"label", "notes", "boards", "fixtures", "plan"}
-_PLAN_KEYS = {"image", "points", "meters", "at"}
 _FIXTURE_KEYS = {
     "id", "pixels", "start", "end", "angle", "length", "pitch", "input",
     "board", "output", "chain", "tags", "instances", "step",
 }
 _EPS = 1e-9
-
-# The floor-plan image types the preview serves, by file suffix. SVG is left
-# out: opened as a page, it runs scripts on that origin.
-IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-               ".webp": "image/webp", ".gif": "image/gif"}
 
 
 class RoomError(ProblemsError):
@@ -121,28 +104,6 @@ class Fixture:
     end: tuple[float, float, float]  # meters
     pitch: float  # meters, centre to centre
     input: str  # "start" or "end"
-
-
-@dataclass(frozen=True)
-class Plan:
-    """A floor-plan image and its two-point calibration."""
-
-    image: str  # relative to the room file
-    points: tuple[tuple[float, float], tuple[float, float]]  # image pixels, y down
-    meters: float  # distance between the two points
-    at: tuple[float, float]  # room meters of the first point
-
-    @property
-    def meters_per_pixel(self) -> float:
-        (u1, v1), (u2, v2) = self.points
-        return self.meters / math.hypot(u2 - u1, v2 - v1)
-
-    @property
-    def corner(self) -> tuple[float, float]:
-        """Room meters of the image's top-left corner."""
-        (u1, v1), _ = self.points
-        m = self.meters_per_pixel
-        return (self.at[0] - u1 * m, self.at[1] + v1 * m)
 
 
 @dataclass(frozen=True)
@@ -388,44 +349,9 @@ def _fixture(item: Any, i: int, boards: dict, problems: list[str]) -> list[_Spec
 
 
 def _plan(raw: Any, problems: list[str]) -> Plan | None:
-    """`plan` -> a Plan. The messages never repeat the image name, which is a path."""
-    before = len(problems)
-
-    def bad(message: str) -> None:
-        problems.append(f"plan: {message}")
-
-    if not isinstance(raw, dict):
-        bad("must be an object with 'image', 'points' and 'meters'")
-        return None
-    for key in sorted(set(raw) - _PLAN_KEYS):
-        bad(f"unknown key {key!r}; expected {', '.join(sorted(_PLAN_KEYS))}")
-    image = raw.get("image")
-    if not isinstance(image, str) or not image.strip():
-        bad("needs an 'image' file name, relative to the room file")
-    elif Path(image).suffix.lower() not in IMAGE_TYPES:
-        bad(f"'image' must be a {', '.join(IMAGE_TYPES)} file")
-    points = raw.get("points")
-    pair: list[tuple[float, float]] = []
-    if (
-        not isinstance(points, list)
-        or len(points) != 2
-        or not all(isinstance(p, list) and len(p) == 2 and all(is_number(v) for v in p) for p in points)
-    ):
-        bad("'points' must be two image pixels, [[x, y], [x, y]]")
-    else:
-        pair = [(float(p[0]), float(p[1])) for p in points]
-        if math.hypot(pair[1][0] - pair[0][0], pair[1][1] - pair[0][1]) <= _EPS:
-            bad("the two 'points' are the same pixel; pick two points a known distance apart")
-    meters = raw.get("meters")
-    if not is_number(meters) or meters <= 0:
-        bad("'meters' must be the positive distance between the two points")
-    at = raw.get("at", [0.0, 0.0])
-    if not isinstance(at, list) or len(at) != 2 or not all(is_number(v) for v in at):
-        bad("'at' must be [x, y], the room meters of the first point")
-    if len(problems) > before:
-        return None
-    assert isinstance(image, str) and is_number(meters)  # refused above otherwise
-    return Plan(image, (pair[0], pair[1]), float(meters), (float(at[0]), float(at[1])))
+    plan, found = parse_plan(raw)
+    problems.extend(f"plan: {p}" for p in found)
+    return plan
 
 
 def _count(item: dict, key: str, bad, default: int | None = None) -> int | None:
@@ -452,6 +378,7 @@ def _point(item: dict, key: str, bad) -> np.ndarray | None:
 
 
 def _check_wiring(specs: list[_Spec], boards: dict, problems: list[str]) -> None:
+    per_output, per_board = room_caps()
     seen: dict[str, int] = {}
     for spec in specs:
         seen[spec.id] = seen.get(spec.id, 0) + 1
@@ -479,9 +406,9 @@ def _check_wiring(specs: list[_Spec], boards: dict, problems: list[str]) -> None
                 f"so fixture {positions[first_after][0]!r} at {first_after} has a gap before it"
             )
         total = sum(spec.pixels for spec in chain)
-        if total > MAX_PER_OUTPUT:
+        if total > per_output:
             problems.append(
-                f"{where}: {total} px is over WLED's {MAX_PER_OUTPUT} per output "
+                f"{where}: {total} px is over WLED's {per_output} per output "
                 f"(fixtures {_names([s.id for s in sorted(chain, key=lambda s: s.chain)])})"
             )
 
@@ -489,20 +416,23 @@ def _check_wiring(specs: list[_Spec], boards: dict, problems: list[str]) -> None
         total = sum(spec.pixels for spec in specs if spec.board == name)
         if total == 0:
             problems.append(f"board {name!r} has no fixtures")
-        elif total > MAX_PER_BOARD:
-            problems.append(f"board {name!r}: {total} px is over WLED's {MAX_PER_BOARD} per board")
+        elif total > per_board:
+            problems.append(f"board {name!r}: {total} px is over WLED's {per_board} per board")
 
-    # Two names for one device would send it two pixel ranges that both start
-    # at its pixel 0: overlapping ranges on the wire.
-    owner: dict[tuple[str, int], str] = {}
-    for name, target in boards.items():
-        if target in owner:
-            problems.append(
-                f"boards {owner[target]!r} and {name!r} both address {target[0]}:{target[1]}, "
-                "so their pixel ranges overlap on one device"
-            )
-        else:
-            owner[target] = name
+    for first, name, (host, port) in shared_targets(boards.items()):
+        problems.append(
+            f"boards {first!r} and {name!r} both address {host}:{port}, so their pixel ranges overlap on one device"
+        )
+
+
+def room_caps() -> tuple[int, int]:
+    """The pixels per output and per board that `ROOM_FIRMWARE` drives, from the catalog."""
+    # Imported here: a run on any other map never loads the rig stack.
+    from pewpew.rig.catalog import load_catalog
+    from pewpew.rig.models import value
+
+    fw = load_catalog().get(ROOM_FIRMWARE, "firmware")
+    return int(value(fw.max_px_per_output)), int(value(fw.max_px_total))
 
 
 def _names(ids: list[str]) -> str:

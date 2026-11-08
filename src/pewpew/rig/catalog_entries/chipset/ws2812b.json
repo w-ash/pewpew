@@ -1,0 +1,9 @@
+{
+  "kind": "chipset",
+  "id": "ws2812b",
+  "name": "WS2812B",
+  "notes": "The generic 800 kbps RGB pixel of most 5 V strips. Older WS2812B datasheets give a reset above 50 µs; the Mar-2017 one gives above 300 µs, and the longer figure is kept.",
+  "bit_s": {"v": 1.25e-6, "status": "stated", "src": "DS-WS2812B p. 4, TH+TL = 1.25 µs ± 600 ns, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"},
+  "bits_per_channel": {"v": 8, "status": "stated", "src": "DS-WS2812B p. 5, 24 bits per pixel in G, R, B order, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"},
+  "reset_s": {"v": 3e-4, "status": "stated", "src": "DS-WS2812B p. 4, RES low time above 300 µs, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"}
+}

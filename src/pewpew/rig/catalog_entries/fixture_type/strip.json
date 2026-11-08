@@ -1,0 +1,41 @@
+{
+  "kind": "fixture_type",
+  "id": "strip",
+  "rev": 1,
+  "name": "Straight LED strip",
+  "notes": "A parametric straight strip of WS2812B pixels. A placement sets its dims: pixels, length and pitch in meters. The pitch defaults to length / pixels, so the pixels sit centred on the strip with the end pixels half a pitch in from each end. Pixel 0 is at end_a; aim the strip from its data input toward its far end.",
+  "dims": {
+    "pixels": 60,
+    "length": 1.0,
+    "pitch": "length / pixels",
+    "tape_w": {"v": 0.01, "status": "assumed", "src": "a common 10 mm tape; modeling placeholder, not measured"},
+    "tape_t": {"v": 0.002, "status": "assumed", "src": "modeling placeholder, not measured"},
+    "led_w": {"v": 0.005, "status": "stated", "src": "DS-WS2812B p. 2, a 5.0 x 5.4 x 1.57 mm package, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"},
+    "led_h": {"v": 0.00157, "status": "stated", "src": "DS-WS2812B p. 2, a 5.0 x 5.4 x 1.57 mm package, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"},
+    "w_per_px": {"v": 0.24, "status": "assumed", "src": "three LEDs at 16 mA each (DS-WS2812B p. 4, LED characteristics) at 5 V; the strip's own losses are not counted, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"}
+  },
+  "parts": [
+    {"id": "tape", "box": ["tape_w", "length", "tape_t"], "at": [0, 0, "-tape_t/2"], "glow": "none"},
+    {"id": "leds", "box": ["led_w", "led_w", "led_h"], "at": [0, 0, "led_h/2"], "at_pixels": true, "glow": "pixel_nearest"}
+  ],
+  "anchors": {
+    "end_a": {"at": [0, "-length/2", 0], "dir": [0, -1, 0]},
+    "end_b": {"at": [0, "length/2", 0], "dir": [0, 1, 0]}
+  },
+  "pixels": {
+    "count": {"v": "pixels", "status": "derived"},
+    "span_m": {"v": "pixels * pitch", "status": "derived"},
+    "z_m": 0,
+    "leds_per_pixel": 1,
+    "facing": null,
+    "chipset": "ws2812b",
+    "channels": {"v": "RGB", "status": "stated", "src": "DS-WS2812B p. 2, an RGB chip in a 5050 package, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"},
+    "color_order": {"v": "GRB", "status": "stated", "src": "DS-WS2812B p. 5, data in G, R, B order, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"}
+  },
+  "power": {
+    "v_nominal": {"v": 5, "status": "stated", "src": "DS-WS2812B p. 5, the +5V typical application circuit, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf"},
+    "max_w": {"v": "pixels * w_per_px", "status": "derived"},
+    "measured_w": null,
+    "passthrough_ohm": null
+  }
+}

@@ -129,6 +129,10 @@ arrangement format below; the importers listed above are unchanged.
   `arange(N)`, so it follows data order with no change to the ADR-005
   contract. Raw `positions_m` stay available for scale-aware effects, as
   the original decision requires.
+  *(Since 2026-11-07: the rig uses the room map's Contain,
+  `pewpew.mapping.contain`, over the positions turned into the plan frame,
+  `positions_m @ C^T`; a flat axis and a single point map to 0, not 0.5.
+  See the amendment "One rig description".)*
 - **Versioning.** Files carry `format` and an integer `version`; pure
   `vN -> vN+1` functions migrate on load and a file newer than the code is
   refused. Compile output carries a `catalog_digest` so a stored arrangement
@@ -311,3 +315,125 @@ final only once the bars are up. Code: `src/pewpew/room.py`; example
 - **A run option only, or a class attribute only**: a class attribute
   alone needs a subclass to run a gallery pattern per bar; an option alone
   leaves a per-bar canopy-set pattern's intent outside its file.
+
+## Amendment (2026-11-07) — One rig description
+
+The room map (amendment 2026-10-30) and the arrangement (amendment
+2026-10-22) described the same rig twice, with two compilers, two Contain
+rules and two copies of the WLED caps. The arrangement becomes the one rig
+format. It takes over what only the room map had, and the room map is
+retired through a migration. Code: `src/pewpew/rig/`, `src/pewpew/mapping.py`,
+`src/pewpew/floorplan.py`.
+
+### Decision
+
+- **D1 Render frame.** Arrangement files stay y-up (amendment 2026-10-22).
+  Looks see the plan frame of the room map, `line` and `grid`: x right, y up
+  the plan, z height. The compiled mapping is `contain(positions_m @ C^T)`,
+  with C the MVR conversion above. `positions_m` and the matrices stay y-up
+  for 3D.
+- **D2 Contain rule.** One `contain` for every map, the room map's: one scale
+  for every axis, shorter axes centred, and a flat axis or a single point at
+  0 [S202]. Room mappings stay bit-identical.
+- **D3 Parametric strip.** A catalog fixture type `strip` with dims
+  `pixels`, `length` and `pitch`, where the pixel span is `pixels * pitch`
+  and `pitch` defaults to `length / pixels`. This is the room map's pitch
+  rule [S761][S762], and the parameters of Chromatik's Strip (Points,
+  Spacing) [S317][S309] and xLights' Single Line (nodes per string)
+  [S318]. A fixture or a group may give `dims` overrides. Compile turns each
+  distinct set into a variant type `<type>.<sha8>`, the first 8 hex digits
+  of the SHA-256 of the canonical JSON of the overrides, in a catalog
+  overlay that the catalog checks as it checks a loaded entity. The
+  catalog digest stays the loaded catalog's. A pixel count may be an
+  expression; it must give a whole number from 1 to 4,096
+  (`MAX_FIXTURE_PIXELS`, so a dims override cannot make the compiler
+  allocate without limit). The pixels must fit between the `end_a` and
+  `end_b` anchors. The strip uses a new generic `ws2812b` chipset; its
+  power is marked assumed.
+- **D4 Controller address.** `controllers[].host` is `HOST[:PORT]`, checked
+  as the room map checks a board. The address sits beside the device's
+  placement in the scene, as MVR keeps a fixture's network address with it
+  [S319][S316]. Two controllers on one host:port is the compile error
+  `address_used_twice`: their ranges would overlap on one device. xLights
+  allows two outputs on one IP but calls it "highly not recommended"
+  [S164]; the room map already refused it. Room map and arrangement call
+  one check (`pewpew.sinks.ddp.shared_targets`).
+- **D5 Input end.** No new field. A fixture's pixel 0 is at local −y, so the
+  room map's `input` end becomes the direction of `aim.axis`, from the
+  input end to the far end. xLights sets a line's direction by the end its
+  wiring starts from [S318]. Rings keep `data_in`.
+- **D6 Caps.** The catalog's firmware entry is the one source of the pixels
+  per output and per controller [S1250]. The room map reads the same
+  figures from it. As in xLights, the caps live in the controller
+  definition, not in code [S1279]. A run will refuse to stream over a cap
+  once the runtime reads arrangements.
+- **D7 Room map deprecation.** For one release, `--room` is an alias of
+  `--map`, and a room file is migrated in memory with a warning that names
+  `pewpew rig migrate-room`. The release after that refuses it. Rebinding is
+  refused on a legacy room file. This follows PEP 387's order (warn, wait,
+  then remove, naming the release) [S783] with a shorter wait.
+- **D8 Version.** The arrangement stays at format v1. Its new fields are
+  optional and additive: `notes`, `plan`, `controllers[].host`, and `tags`
+  and `dims` on fixtures and groups. A file without them reads as before.
+  A reader older than a field refuses it as unknown, the precedent of the
+  `power` block. `plan` is the room map's two-point calibration
+  (`pewpew.floorplan`, one checker for both formats), in plan-frame meters.
+  The compiled rig also carries `controllers` (id, profile, host, port),
+  `scale`, `shift` (mapping = plan meters × scale + shift), `plan` and
+  `variants`.
+
+### Consequences
+
+- The runtime, the preview and the studio can work from one compiled rig.
+  The room compiler is deleted once the runtime reads arrangements and
+  `rig migrate-room` proves the migrated mapping, ids, ranges and DDP
+  targets equal the room's.
+- A strip variant is a fixture type with no file of its own. Anything keyed
+  by type id, such as a prebuilt 3D assembly, has to build or fall back for
+  `<type>.<sha8>` ids (inference).
+- Room map files keep compiling unchanged through the deprecation window,
+  and their WLED caps now follow the catalog.
+
+### Evidence
+
+- [S317][S309] Chromatik's Strip is set by Points and Spacing — a strip
+  given by count and pitch.
+- [S318] xLights' Single Line is set by nodes per string, with its direction
+  from the end its wiring starts at — the parametric strip and D5.
+- [S761][S762] Pitch is length / count, with LEDs inside pitch-long
+  segments — the default pitch.
+- [S319][S316] MVR keeps a fixture's network address (IPv4 or hostname) with
+  the fixture in the scene — `controllers[].host`.
+- [S164] xLights treats two outputs on one IP as an unmanaged, not
+  recommended setup — the precedent for checking it, here made an error.
+- [S1250][S1279] WLED's caps in `wled00/const.h`, and xLights' per-controller
+  caps in its controller definition files — one data source for caps.
+- [S783] PEP 387: warn, wait, then remove — the deprecation window.
+- [S202] Contain keeps one scale for every axis — D2.
+
+### Rejected alternatives
+
+- **Keep both formats.** Two compilers, two Contain rules and two copies of
+  the caps had already drifted apart: the rig's Contain put a flat axis at
+  0.5, the room's at 0 (inference).
+- **The rig's Contain rule (a flat axis at 0.5).** It would change every
+  room mapping and break the migration's equality proof (inference); D2 is
+  the room's rule [S202].
+- **A line fixture outside the catalog** (the room map's `start`/`end`
+  strip in the arrangement). It would bypass the chipset, power and 3D
+  parts that every catalog type has. Chromatik and xLights both make a
+  strip one fixture kind among others [S317][S318].
+- **An `input` field on fixtures.** It would be a second way to set the
+  direction that `aim` already sets (inference).
+- **Board hosts only on the command line.** The room map already kept them
+  in the file, and MVR keeps addresses in the scene [S319].
+- **Caps as constants in code.** That was the second copy this amendment
+  removes; the WLED caps change with the firmware version [S1250], and
+  xLights keeps them in data [S1279].
+- **An arrangement v2 with a migration step.** Every new field is optional,
+  so v1 readers lose nothing they could read, and a v2 would make every v1
+  file go through a migration for no change in meaning (inference).
+- **Removing `--room` at once, or PEP 387's two-release wait.** Removing it
+  at once breaks a working setup without warning [S783]. A two-release wait
+  keeps two compilers alive for longer than a 0.0.x project needs
+  (inference).

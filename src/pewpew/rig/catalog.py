@@ -26,6 +26,7 @@ from pewpew.rig import expr
 from pewpew.rig.models import (
     CATALOG_ENTITY,
     KINDS,
+    MAX_FIXTURE_PIXELS,
     AttachmentType,
     Cable,
     Chipset,
@@ -48,6 +49,8 @@ CATALOG_ENTRIES_DIR = Path(__file__).with_name("catalog_entries")
 HOST_PREFIX = "host:"
 
 _KIND_ORDER = {kind: i for i, kind in enumerate(KINDS)}
+#: How far a pixel span may pass its end anchors, for rounding.
+_SPAN_EPS_M = 1e-9
 
 
 @dataclass(frozen=True)
@@ -92,19 +95,42 @@ class Catalog:
 
     def __init__(self, entities: Iterable[Any]) -> None:
         ordered = sorted(entities, key=lambda e: (_KIND_ORDER[e.kind], e.id))
+        self._entities: Mapping[str, Any] = MappingProxyType({})
+        self._dims: dict[str, Mapping[str, float]] = {}
+        self._specs: dict[str, FixtureSpec] = {}
+        self._add(ordered)
+        self._base = tuple(self._entities.values())
+
+    def _add(self, entities: Iterable[Any]) -> None:
+        """Add `entities` and check each one; raises RigError on any issue."""
         issues: list[Issue] = []
-        by_id: dict[str, Any] = {}
-        for entity in ordered:
+        by_id = dict(self._entities)
+        new = []
+        for entity in entities:
             if entity.id in by_id:
                 issues.append(Issue.error("duplicate_id", f"id {entity.id!r} is used twice", entity.id))
             by_id[entity.id] = entity
+            new.append(entity)
         self._entities = MappingProxyType(by_id)
-        self._dims: dict[str, Mapping[str, float]] = {}
-        for entity in by_id.values():
+        for entity in new:
             issues.extend(self._check(entity))
         if issues:
             raise RigError(issues)
-        self._specs: dict[str, FixtureSpec] = {}
+
+    def with_variants(self, variants: Iterable[FixtureType]) -> Catalog:
+        """This catalog with `variants` added, each one checked as a loaded entity is.
+
+        Only the new entities are checked. `digest` stays this catalog's, so a
+        compiled rig names the catalog its file was written against. Raises
+        RigError on any issue.
+        """
+        out = object.__new__(Catalog)
+        out._entities = self._entities
+        out._dims = dict(self._dims)
+        out._specs = dict(self._specs)
+        out._base = self._base
+        out._add(variants)
+        return out
 
     # ---- lookup -------------------------------------------------------------
 
@@ -182,7 +208,7 @@ class Catalog:
             facing = value(px.facing)
             self._specs[type_id] = FixtureSpec(
                 type_id=type_id,
-                count=int(value(px.count)),
+                count=self.count(type_id),
                 span_m=self.need(type_id, px.span_m),
                 z_m=self.need(type_id, px.z_m),
                 facing=None if facing is None else (float(facing[0]), float(facing[1]), float(facing[2])),
@@ -197,6 +223,10 @@ class Catalog:
             )
         return self._specs[type_id]
 
+    def count(self, type_id: str) -> int:
+        """The pixel count of a fixture type, its expression evaluated."""
+        return int(self.need(type_id, self.get(type_id, "fixture_type").pixels.count))
+
     def led_type(self, firmware_id: str, chipset: str, channels: str) -> LedType | None:
         """The firmware's LED type for a pixel format, or None if it has none."""
         for led in self.get(firmware_id, "firmware").led_types:
@@ -208,8 +238,9 @@ class Catalog:
 
     @cached_property
     def digest(self) -> str:
-        """SHA-256 over the canonical JSON of every entity, in kind then id order."""
-        return _sha256([e.model_dump(mode="json") for e in self._entities.values()])
+        """SHA-256 over the canonical JSON of every loaded entity, in kind then id
+        order. Variants are left out."""
+        return _sha256([e.model_dump(mode="json") for e in self._base])
 
     # ---- the catalog as the studio shows it ---------------------------------
 
@@ -268,6 +299,12 @@ class Catalog:
     def _text(self, fact: Any) -> dict[str, Any]:
         return {"v": value(fact), "status": status(fact), "src": fact.src if isinstance(fact, Sourced) else None}
 
+    def _count_json(self, fact: Any, count: int) -> dict[str, Any]:
+        out = {**self._text(fact), "v": count}
+        if isinstance(value(fact), str):
+            out["expr"] = value(fact)
+        return out
+
     def _fixture_json(self, ft: FixtureType) -> dict[str, Any]:
         spec = self.spec(ft.id)
         px = ft.pixels
@@ -280,7 +317,7 @@ class Catalog:
             "dims": {name: self._fact(ft.id, d) for name, d in ft.dims.items()},
             "anchors": {name: {"accepts": a.accepts, "connector": a.connector} for name, a in ft.anchors.items()},
             "pixels": {
-                "count": self._text(px.count),
+                "count": self._count_json(px.count, spec.count),
                 "span_m": self._fact(ft.id, px.span_m),
                 "leds_per_pixel": self._text(px.leds_per_pixel),
                 "facing": self._text(px.facing),
@@ -396,14 +433,34 @@ class Catalog:
             chipset = value(entity.pixels.chipset)
             if not self.has(chipset, "chipset"):
                 issues.append(Issue.error("unresolved_ref", f"no chipset {chipset!r}", f"{ref}.pixels"))
-            if int(value(entity.pixels.count)) < 1:
-                issues.append(Issue.error("bad_value", "pixels.count must be at least 1", f"{ref}.pixels"))
+            issues.extend(self._check_pixels(entity, ref))
             facing = value(entity.pixels.facing)
             if facing is not None and not any(facing):
                 issues.append(Issue.error("bad_value", "pixels.facing must not be zero", f"{ref}.pixels"))
             issues.extend(self._check_signs(entity, ref, _positive_numbers(entity)))
         issues.extend(self._check_numbers(entity, ref, _assembly_numbers(entity)))
         return issues
+
+    def _check_pixels(self, ft: FixtureType, ref: str) -> list[Issue]:
+        """The pixel count is a whole number from 1 to MAX_FIXTURE_PIXELS, and
+        the pixels fit between the `end_a` and `end_b` anchors."""
+        where = f"{ref}.pixels"
+        try:
+            count = self.need(ft.id, ft.pixels.count)
+            span = self.need(ft.id, ft.pixels.span_m)
+            ends = [ft.anchors.get(n) for n in ("end_a", "end_b")]
+            length = None
+            if ends[0] is not None and ends[1] is not None:
+                length = float(np.linalg.norm(self.vec(ft.id, ends[1].at) - self.vec(ft.id, ends[0].at)))
+        except expr.ExprError:
+            return []  # _check_numbers reports it
+        if count != int(count) or not 1 <= count <= MAX_FIXTURE_PIXELS:
+            rule = f"pixels.count must be a whole number from 1 to {MAX_FIXTURE_PIXELS}, got {count:g}"
+            return [Issue.error("bad_value", rule, where)]
+        if length is not None and span > length + _SPAN_EPS_M:
+            past = f"the pixels span {span:g} m; end_a to end_b is {length:g} m"
+            return [Issue.error("pixels_past_ends", past, where)]
+        return []
 
     def _check_signs(self, entity: Any, ref: str, numbers: Iterable[tuple[str, Any, bool]]) -> list[Issue]:
         """`bad_value` for each given number that is not above 0, or with `zero_ok` below 0."""
@@ -506,6 +563,7 @@ def _assembly_numbers(entity: FixtureType | AttachmentType) -> Iterator[tuple[st
             yield f"anchors.{name}.pigtail_m", anchor.pigtail_m
     if isinstance(entity, FixtureType):
         px, power = entity.pixels, entity.power
+        yield "pixels.count", px.count
         yield "pixels.span_m", px.span_m
         yield "pixels.z_m", px.z_m
         yield "pixels.beam_deg", px.beam_deg

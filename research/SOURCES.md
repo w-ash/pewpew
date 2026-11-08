@@ -888,7 +888,8 @@ is removed.
 - url: https://manual.xlights.org/xlights/chapters/chapter-four-set-up/lighting-networks
 - author: xLights contributors
 - accessed: 2026-07-03
-- relevance: lists DDP support across FPP/Kulp, HinksPix, Falcon v3/v4/v5, WLED, Genius, Minleon; calls DDP more efficient than Art-Net/E1.31
+- archive: https://web.archive.org/web/20260611013232/https://manual.xlights.org/xlights/chapters/chapter-four-set-up/lighting-networks  # snapshot 2026-06-11 (snapshot predates accessed date; refresh next verification pass)
+- relevance: lists DDP support across FPP/Kulp, HinksPix, Falcon v3/v4/v5, WLED, Genius, Minleon; calls DDP more efficient than Art-Net/E1.31. Re-read 2026-11-07: two controller outputs with the same IP put xLights in "Unmanaged" mode, "valid" but "highly not recommended"
 
 ### [S165] WLED knowledge base — FAQ (LED count, WiFi limits, DDP and Ethernet recommendations)
 - type: docs
@@ -1351,6 +1352,30 @@ is removed.
 - accessed: 2026-10-22
 - archive: https://web.archive.org/web/2026/https://github.com/mvrdevelopment/spec (not yet captured; spec text is pinned by commit above)
 - relevance: GDTF is the catalog half (fixture type, geometry, WiringObject with power source, consumer and fuse, but no cable length or gauge, `gdtf-spec.md` L1612-L1646) and MVR the scene half (fixture instance with a right-handed Z-up millimetre `Matrix` and `Addresses`, `mvr-spec.md` L1005-L1007). The model for the arrangement/catalog split in the ADR-007 amendment and the fixed Z-up mm conversion on MVR import and export.
+
+### [S317] Chromatik guide — Model Definition
+- type: docs
+- url: https://chromatik.co/guide/model-definition/
+- author: Mark Slee / Heron Arts
+- accessed: 2026-11-07
+- archive: https://web.archive.org/web/20260704010506/https://chromatik.co/guide/model-definition/  # snapshot 2026-07-04 (snapshot predates accessed date; refresh next verification pass)
+- relevance: the built-in Strip fixture is "a linear strip of points" set by two parameters, Points and Spacing; +Y up, units the author's choice — the precedent for the parametric `strip` type with `pixels` and `pitch`
+
+### [S318] xLights manual — Single Line Model
+- type: docs
+- url: https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/single-line-model
+- author: xLights contributors
+- accessed: 2026-11-07
+- archive: https://web.archive.org/web/20260517144641/https://manual.xlights.org/xlights/chapters/chapter-four-tabs/models/single-line-model  # snapshot 2026-05-17 (snapshot predates accessed date; refresh next verification pass)
+- relevance: a straight line set by # Strings and Nodes/String, with Starting Location naming "which end the wiring starts from" — a parametric strip whose data-in end sets its direction
+
+### [S319] MVR specification — File Format Definition (GDTF Hub)
+- type: spec
+- url: https://gdtf.eu/mvr/mvr-spec/file-format-definition/
+- author: MVR-group (GDTF / MVR working group, DIN SPEC 15801)
+- accessed: 2026-11-07
+- archive: https://web.archive.org/web/20260514193442/https://www.gdtf.eu/mvr/mvr-spec/file-format-definition/  # snapshot 2026-05-14 (snapshot predates accessed date; refresh next verification pass)
+- relevance: the rendered MVR spec: a fixture's `Addresses` hold DMX addresses and a `Network` node with an IPv4 address or hostname; the Matrix is right-handed, Z-up, 1 unit = 1 mm. The scene file carries each device's network address, as the arrangement's `controllers[].host` does. S316 pins the same spec's source.
 
 ## Block S350–S399 — RA-08 Hardware: host-driven tier
 
@@ -2757,6 +2782,14 @@ is removed.
 - accessed: 2026-10-22
 - archive: https://web.archive.org/web/20261023033554/https://docs.fly.io/reference/fly-proxy-autostop-autostart
 - relevance: a Machine alone in its region stops only when it has "no traffic (a load of 0)". How an open websocket counts toward load is not documented (not found), so the studio adds its own idle-session timeout.
+
+### [S783] PEP 387 — Backwards Compatibility Policy
+- type: spec
+- url: https://peps.python.org/pep-0387/
+- author: Benjamin Peterson
+- accessed: 2026-11-07
+- archive: https://web.archive.org/web/20261024201249/https://peps.python.org/pep-0387/  # snapshot 2026-10-24 (snapshot predates accessed date; refresh next verification pass)
+- relevance: incompatible changes go through a warning first ("Add a warning to the current main branch", naming the release the change becomes default), a wait of at least two minor versions, then removal — the shape of the `--room` deprecation window, shortened to one release
 
 ## Block S800–S849 — RA-13 ESP-NOW & fleet scaling
 

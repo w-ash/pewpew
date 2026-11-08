@@ -3,6 +3,9 @@
 Pure: no I/O, no clock, no RNG (docs/studio/domain-model.md:206-215). The
 steps are:
 
+0. Make a variant fixture type for each distinct `dims` a placement or a
+   group gives, `<type>.<sha8 of the dims>`, in a catalog overlay
+   (`Catalog.with_variants`).
 1. Expand groups and free fixtures into instances with world matrices.
 2. Wire them, from the explicit chains or `wiring.auto`.
 3. Index pixels in data order: controllers in file order, then outputs in
@@ -19,7 +22,10 @@ Errors raise `RigError`; violations and warnings come back on `rig.issues`.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -34,6 +40,7 @@ from pewpew.rig.models import (
     CompiledRig,
     ControllerPlacement,
     ControllerSlice,
+    ControllerTarget,
     FixtureInstance,
     FixtureType,
     Instance,
@@ -42,17 +49,20 @@ from pewpew.rig.models import (
     PsuPlacement,
     RigError,
     RingGroup,
+    Variant,
     WiringPlan,
     capped,
     value,
 )
 from pewpew.rig.pose import MVR_C, anchor_frame, pose_matrix, to_three
 from pewpew.rig.wiring import auto_wire
+from pewpew.sinks.ddp import shared_targets
 
 
 def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
     """Compile `arrangement` against `catalog`. Raises RigError on any error."""
     issues: list[Issue] = []
+    catalog, variants = with_variants(arrangement, catalog, issues)
     instances = expand(arrangement, catalog, issues)
     plan = (
         auto_wire(instances, arrangement, catalog)
@@ -90,7 +100,8 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
         start += count
 
     with np.errstate(over="ignore", invalid="ignore"):
-        mapping = contain(positions @ MVR_C.T).mapping
+        contained = contain(positions @ MVR_C.T)
+    mapping = contained.mapping
     if not np.isfinite(mapping).all():
         raise RigError([*issues, Issue.error("not_finite", "the pixel positions are too far apart to normalize")])
     report, electrical_issues = build_report(plan, arrangement, instances, slices, catalog)
@@ -114,7 +125,84 @@ def compile_rig(arrangement: Arrangement, catalog: Catalog) -> CompiledRig:
             fixtures, controllers, catalog, supplies_of(plan), boards_w(psus, controllers, catalog)
         ),
         power_cap=arrangement.power.cap,
+        controllers=tuple(_target(c) for c in controllers),
+        scale=contained.scale,
+        shift=contained.shift,
+        plan=arrangement.plan,
+        variants=tuple(Variant(id=v.id, type=base, dims=dict(catalog.dims(v.id))) for base, v in variants),
     )
+
+
+def _target(ctrl: ControllerPlacement) -> ControllerTarget:
+    host, port = ctrl.target or (None, None)
+    return ControllerTarget(id=ctrl.id, profile=ctrl.profile, host=host, port=port)
+
+
+# ---- variants ------------------------------------------------------------------
+
+
+def variant_id(type_id: str, dims: Mapping[str, float]) -> str:
+    """The id of the variant of `type_id` with `dims` replaced: `<type_id>.<sha8>`.
+
+    The hash is over the canonical JSON of `dims`, so the same dims give the
+    same id in every compile.
+    """
+    text = json.dumps(dict(dims), sort_keys=True, separators=(",", ":"))
+    return f"{type_id}.{hashlib.sha256(text.encode('utf-8')).hexdigest()[:8]}"
+
+
+def with_variants(
+    arrangement: Arrangement, catalog: Catalog, issues: list[Issue]
+) -> tuple[Catalog, list[tuple[str, FixtureType]]]:
+    """`catalog` with one variant per distinct (type, dims) of the arrangement,
+    and the (base type id, variant) pairs in authoring order.
+
+    A dims name the type does not have is an `unknown_dim` error. A variant
+    the catalog checks refuse raises RigError, its issues naming the placement.
+    """
+    made: dict[str, tuple[str, FixtureType]] = {}
+    refs: dict[str, str] = {}
+    placed = [(f"groups[{i}]", g) for i, g in enumerate(arrangement.groups)]
+    placed += [(f"fixtures[{i}]", f) for i, f in enumerate(arrangement.fixtures)]
+    for ref, p in placed:
+        if not p.dims or not catalog.has(p.type, "fixture_type"):
+            continue  # expand reports a missing type
+        ft: FixtureType = catalog.get(p.type)
+        unknown = sorted(set(p.dims) - set(ft.dims))
+        if unknown:
+            issues.append(Issue.error("unknown_dim", f"{ft.id} has no dims {', '.join(unknown)}", f"{ref}.dims"))
+            continue
+        vid = variant_id(ft.id, p.dims)
+        refs.setdefault(vid, f"{ref}.dims")
+        if vid not in made:
+            text = ", ".join(f"{k} {v:g}" for k, v in sorted(p.dims.items()))
+            update = {"id": vid, "name": f"{ft.name} ({text})", "dims": {**ft.dims, **p.dims}}
+            made[vid] = (ft.id, ft.model_copy(update=update))
+    if not made:
+        return catalog, []
+    try:
+        overlay = catalog.with_variants(v for _, v in made.values())
+    except RigError as exc:
+        found = [Issue.error(i.code, i.message, _placement_ref(i.ref, refs)) for i in exc.issues]
+        raise RigError([*issues, *found]) from None
+    return overlay, list(made.values())
+
+
+def _placement_ref(ref: str | None, refs: Mapping[str, str]) -> str | None:
+    """The placement ref for a catalog issue about a variant, `fixture_type/<id>[.<field>]`."""
+    for vid, where in refs.items():
+        if ref is not None and (ref == f"fixture_type/{vid}" or ref.startswith(f"fixture_type/{vid}.")):
+            return where
+    return ref
+
+
+def _type_of(placement: Any, catalog: Catalog) -> str:
+    """The fixture type a placement or group compiles to: its variant with `dims`."""
+    if placement.dims:
+        vid = variant_id(placement.type, placement.dims)
+        if catalog.has(vid, "fixture_type"):
+            return vid
+    return placement.type
 
 
 # ---- expansion -----------------------------------------------------------------
@@ -128,7 +216,7 @@ def expand(arrangement: Arrangement, catalog: Catalog, issues: list[Issue]) -> l
     out: list[Instance] = []
     for gi, group in enumerate(arrangement.groups):
         ref = f"groups[{gi}]"
-        ft = _fixture_type(group.type, catalog, issues, ref)
+        ft = _fixture_type(_type_of(group, catalog), catalog, issues, ref)
         if ft is None:
             continue
         if isinstance(group, RingGroup):
@@ -142,18 +230,24 @@ def expand(arrangement: Arrangement, catalog: Catalog, issues: list[Issue]) -> l
             members = presets.array(group)
         to_world = pose_matrix(group.pose)
         for member in members:
-            out.append(
-                _instance(member.id, ft, group.id, to_world @ member.matrix, member.attach, catalog, issues, ref)
-            )
+            inst = _instance(member.id, ft, group.id, to_world @ member.matrix, member.attach, catalog, issues, ref)
+            out.append(_labelled(inst, group))
     for fi, placement in enumerate(arrangement.fixtures):
         ref = f"fixtures[{fi}]"
-        ft = _fixture_type(placement.type, catalog, issues, ref)
+        ft = _fixture_type(_type_of(placement, catalog), catalog, issues, ref)
         if ft is not None:
-            out.append(
-                _instance(placement.id, ft, None, pose_matrix(placement.pose), placement.attach, catalog, issues, ref)
+            inst = _instance(
+                placement.id, ft, None, pose_matrix(placement.pose), placement.attach, catalog, issues, ref
             )
+            out.append(_labelled(inst, placement))
     _duplicates((i.id for i in out), "fixture", issues)
     return out
+
+
+def _labelled(inst: Instance, placement: Any) -> Instance:
+    if not placement.tags and not placement.dims:
+        return inst
+    return replace(inst, tags=tuple(placement.tags), dims=dict(placement.dims))
 
 
 def _fixture_type(type_id: str, catalog: Catalog, issues: list[Issue], ref: str) -> FixtureType | None:
@@ -262,6 +356,15 @@ def _check_plan(
                 Issue.error("unresolved_ref", f"no controller profile {ctrl.profile!r}", f"controllers[{ci}]")
             )
     _duplicates((c.id for c in placements), "controller", issues)
+    for first, name, (host, port) in shared_targets((c.id, c.target) for c in placements if c.target is not None):
+        issues.append(
+            Issue.error(
+                "address_used_twice",
+                f"controllers {first!r} and {name!r} both address {host}:{port}, "
+                "so their pixel ranges overlap on one device",
+                name,
+            )
+        )
     controller_ids = {c.id for c in placements}
     powered: dict[str, str] = {}
     for pi, psu in enumerate(psu_placements):
@@ -499,4 +602,6 @@ def _fixture_instance(inst: Instance, chain: Chain | None, start: int, count: in
         controller=None if chain is None else chain.controller,
         output=None if chain is None else chain.output,
         chain=None if chain is None else chain.id,
+        tags=list(inst.tags),
+        dims=dict(inst.dims),
     )

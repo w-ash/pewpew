@@ -9,6 +9,7 @@
   "ingest": {"protocol": "ddp", "udp_port": 4048, "send": "RGB", "auto_white": "accurate", "src": "RES-028, the maintainer's private notes; https://kno.wled.ge/interfaces/ddp/; docs/studio/domain-model.md:214"},
   "led_types": [
     {"chipset": "sk6812", "channels": "RGBW", "type": 30, "label": "SK6812/WS2814 RGBW", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L332"},
-    {"chipset": "ucs1903n", "channels": "RGB", "type": 22, "label": "WS281x RGB", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L324"}
+    {"chipset": "ucs1903n", "channels": "RGB", "type": 22, "label": "WS281x RGB", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L324"},
+    {"chipset": "ws2812b", "channels": "RGB", "type": 22, "label": "WS281x RGB", "src": "https://github.com/wled/WLED/blob/v16.0.1/wled00/const.h#L324"}
   ]
 }

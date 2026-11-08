@@ -1303,7 +1303,7 @@
     },
     "Pixels": {
       "additionalProperties": false,
-      "description": "The emitters along the fixture's +y axis, in data order.\n\nPixel j sits at local (0, -span/2 + (j+0.5)*span/count, z_m). A null\n`facing` marks an omnidirectional fixture.",
+      "description": "The emitters along the fixture's +y axis, in data order.\n\nPixel j sits at local (0, -span/2 + (j+0.5)*span/count, z_m). A null\n`facing` marks an omnidirectional fixture. `count` may be an expression\nover dims; it must give a whole number.",
       "properties": {
         "count": {
           "anyOf": [
@@ -1311,7 +1311,11 @@
               "type": "integer"
             },
             {
-              "$ref": "#/$defs/SourcedInt"
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SourcedCount"
             }
           ],
           "title": "Count"
@@ -1827,6 +1831,52 @@
         "v"
       ],
       "title": "SourcedChannels",
+      "type": "object"
+    },
+    "SourcedCount": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured",
+            "stated",
+            "inferred",
+            "derived",
+            "assumed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "v": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "description": "an expression over the entity's dims: + - * / ( )",
+              "type": "string"
+            }
+          ],
+          "title": "V"
+        }
+      },
+      "required": [
+        "status",
+        "v"
+      ],
+      "title": "SourcedCount",
       "type": "object"
     },
     "SourcedGender": {

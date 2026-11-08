@@ -63,7 +63,7 @@ import re
 import socket
 import struct
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -172,6 +172,24 @@ def parse_target(target: str) -> tuple[str, int]:
     if not 0 < number < 65536:
         raise ValueError(f"port {port!r} is not 1-65535")
     return host, number
+
+
+def shared_targets(
+    named: Iterable[tuple[str, tuple[str, int]]],
+) -> list[tuple[str, str, tuple[str, int]]]:
+    """(first name, later name, target) for each later name of a (host, port) already named.
+
+    Two names for one device send it two pixel ranges that both start at its
+    pixel 0: the ranges overlap on the wire.
+    """
+    owner: dict[tuple[str, int], str] = {}
+    found = []
+    for name, target in named:
+        if target in owner:
+            found.append((owner[target], name, target))
+        else:
+            owner[target] = name
+    return found
 
 
 def parse_board(spec: str) -> Board:
