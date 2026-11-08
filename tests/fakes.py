@@ -18,7 +18,7 @@ import threading
 import time
 import warnings
 from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -27,6 +27,7 @@ from typing import Any, Self, TypeVar
 
 import numpy as np
 from websockets.sync.client import connect
+from websockets.sync.server import serve
 
 from params_zoo import define_zoo
 from pewpew import audit, watchdog
@@ -254,6 +255,16 @@ def peers(sink: PreviewSink) -> set:
     return out
 
 
+@contextlib.contextmanager
+def fake_engine(handler: Callable[[Any], Any]) -> Iterator[str]:
+    """A websocket server on a free port whose connections `handler`
+    serves. Yields its address. However the body ends, the server's exit
+    shuts it down before the pool's exit waits for `serve_forever`."""
+    with ThreadPoolExecutor(1) as pool, serve(handler, "127.0.0.1", 0) as server:
+        pool.submit(server.serve_forever)
+        yield f"ws://127.0.0.1:{server.socket.getsockname()[1]}/"
+
+
 def bar(fid: str = "bar", **kw) -> dict:
     """One room fixture: a 1 m, 64 px bar along x on board A output 1. A
     key given as None is left out."""
@@ -470,16 +481,23 @@ def stack(*layers: Layer, mapping=None, seed: int = 0, **kw) -> Compositor:
     return Compositor(layers, line(8) if mapping is None else mapping, seed=seed, **kw)
 
 
+# The longest a job of the suite's process pool, or a process a test starts,
+# may take: far past what one takes on a loaded machine, so a job that hangs
+# fails its test instead of the whole run.
+JOB_S = 120.0
+
+
 class Pooled(Mapping[Hashable, Any]):
     """A module's `JOBS` results by key, from the suite's process pool
-    (conftest.py). Reading one waits for its job and raises what the job
-    raised."""
+    (conftest.py). Reading one waits up to `JOB_S` seconds for its job and
+    raises what the job raised: TimeoutError for a job that never ends,
+    BrokenProcessPool for a worker that died."""
 
     def __init__(self, futures: Mapping[Hashable, Future[Any]]) -> None:
         self._futures = futures
 
     def __getitem__(self, key: Hashable) -> Any:
-        return self._futures[key].result()
+        return self._futures[key].result(timeout=JOB_S)
 
     def __iter__(self) -> Iterator[Hashable]:
         return iter(self._futures)
@@ -516,9 +534,9 @@ def strict_worker(state: Path) -> None:
 def run_python(code: str, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
     """`code` run by a new Python process with `args`, and `env` over this
     process's environment: its output, as text. Raises CalledProcessError
-    when it exits non-zero."""
+    when it exits non-zero, and TimeoutExpired when it runs past `JOB_S`."""
     return subprocess.run([sys.executable, "-c", code, *args], capture_output=True, text=True, check=True,
-                          env={**os.environ, **env})
+                          timeout=JOB_S, env={**os.environ, **env})
 
 
 # The new process of `in_new_process`: it runs the job pickled in its

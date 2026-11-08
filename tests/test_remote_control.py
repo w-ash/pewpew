@@ -9,16 +9,15 @@ from __future__ import annotations
 import contextlib
 import json
 import socket
-from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from websockets.sync.client import connect
-from websockets.sync.server import serve
 
 import pewpew.remote.control as remote_control
 from fakes import (
     LoopThread,
     aura_rig,
+    fake_engine,
     filed,
     layered,
     next_text,
@@ -82,18 +81,6 @@ def answer(url: str, message: dict) -> dict:
     with connect(url) as ws:
         ws.send(json.dumps(message))
         return next_answer(ws)
-
-
-@contextlib.contextmanager
-def fake_engine(handler):
-    """A websocket server on a free port whose connections `handler`
-    serves. Yields its address."""
-    with serve(handler, "127.0.0.1", 0) as server, ThreadPoolExecutor(1) as pool:
-        pool.submit(server.serve_forever)
-        try:
-            yield f"ws://127.0.0.1:{server.socket.getsockname()[1]}/"
-        finally:
-            server.shutdown()  # else the pool waits for `serve_forever` without end
 
 
 def resolving(monkeypatch, host: str, *addresses: str) -> None:

@@ -15,16 +15,16 @@ import os
 import socket
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields
+from pathlib import Path
 
 import numpy as np
 import pytest
 from websockets.datastructures import Headers
 from websockets.exceptions import InvalidStatus
 from websockets.http11 import Response
-from websockets.sync.server import serve
 
 import pewpew.remote.observe as remote_observe
-from fakes import aura_rig, peers, preview_sink, solid, wait_until
+from fakes import aura_rig, fake_engine, peers, preview_sink, run_python, solid, wait_until
 from pewpew.__main__ import main
 from pewpew.mapping import grid, line
 from pewpew.metrics import measure
@@ -54,6 +54,15 @@ def push(sink, t: float, frame: np.ndarray) -> None:
         clients = list(sink._clients.values())
     for client in clients:
         assert client.driver.drain()
+
+
+@pytest.fixture
+def patient_open(monkeypatch):
+    """The client's own bound on the websocket handshake, whatever
+    `timeout` the test gives `observe`: its short timeout is for the hello
+    and the frames, and a loaded machine can take longer than that to
+    connect."""
+    monkeypatch.setattr(remote_observe, "Client", lambda url, open_timeout, **kw: Client(url, **kw))
 
 
 @contextlib.contextmanager
@@ -173,6 +182,7 @@ def test_max_frames_bounds_a_long_window():
                              "0.75 s of frames: flash safety needs a window of 1 s or more")
 
 
+@pytest.mark.usefixtures("patient_open")
 def test_an_engine_that_sends_no_frames_gives_state_and_no_metrics():
     with engine(line(4)) as (sink, _):
         seen = observe(f"ws://127.0.0.1:{sink.port}/", 0.05, timeout=0.1)
@@ -233,6 +243,7 @@ def test_a_sheet_that_cannot_be_written_is_a_warning_and_exit_1(tmp_path, monkey
     assert err == f"observe: {doc['warnings'][0]}\n"
 
 
+@pytest.mark.usefixtures("patient_open")
 def test_no_frames_exits_1_with_the_reason_on_stderr(monkeypatch, capsys):
     monkeypatch.setattr(remote_observe, "observe", functools.partial(remote_observe.observe, timeout=0.1))
     with engine(line(4)) as (sink, _):
@@ -264,17 +275,34 @@ def test_an_https_address_is_told_the_preview_speaks_plain_websocket():
     assert str(exc.value).endswith(f"a preview port speaks plain websocket, so give ws://127.0.0.1:{port}/")
 
 
+# A test that fails inside `fake_engine`, in a new process on the suite's
+# process pool (conftest.py): a server left running keeps that process from
+# exiting, and `run_python` bounds the wait.
+_FAILS_INSIDE = (
+    "import fakes\n"
+    "try:\n"
+    "    with fakes.fake_engine(lambda conn: None):\n"
+    "        raise LookupError\n"
+    "except LookupError:\n"
+    "    print('stopped')\n"
+)
+JOBS = {"fails inside a fake engine": functools.partial(
+    run_python, _FAILS_INSIDE, PYTHONPATH=str(Path(__file__).parent))}
+
+
+@pytest.mark.usefixtures("patient_open")
 def test_a_server_that_sends_no_hello_is_not_an_engine():
     def silent(conn) -> None:
         conn.recv()
 
-    with serve(silent, "127.0.0.1", 0) as server:
-        port = server.socket.getsockname()[1]
-        with ThreadPoolExecutor(1) as pool:
-            pool.submit(server.serve_forever)
-            with pytest.raises(Unreachable, match=r"sent nothing for 0\.1 s before its hello: is it a pewpew"):
-                observe(f"ws://127.0.0.1:{port}/", timeout=0.1)
-            server.shutdown()
+    with fake_engine(silent) as url, pytest.raises(Unreachable, match=r"sent nothing for 0\.1 s before its hello"):
+        observe(url, timeout=0.1)
+
+
+def test_a_fake_engine_stops_when_the_test_in_it_fails(pooled):
+    """A failure inside `fake_engine` still stops its server, so the
+    process that ran it exits instead of waiting for `serve_forever`."""
+    assert pooled["fails inside a fake engine"].stdout == "stopped\n"
 
 
 @pytest.mark.parametrize(("exc", "says"), [
