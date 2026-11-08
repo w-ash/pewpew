@@ -9,6 +9,14 @@ series (batch mode).
 
 ### Added
 
+- Migrate a room map to an arrangement: `python -m pewpew rig migrate-room ROOM.json
+  -o OUT.json [--controller PROFILE] [--type FIXTURE_TYPE]`. Each board becomes a
+  controller with its host, each output a chain, and each fixture, `instances`
+  copies included, a free `strip` that keeps its id, tags and pitch; the input end
+  is in the strip's `aim`. The result maps, orders and addresses pixels as the room
+  did. The verb writes only `-o`, refuses to replace a file, and exits 1 without
+  writing when the result has an error or a cap violation.
+  `examples/canopy-60-bars.arrangement.json` is `examples/room-60-bars.json` migrated.
 - The arrangement holds what only the room map held: a controller's network
   address (`controllers[].host`), a floor plan, notes and tags, and a parametric
   `strip` fixture type sized by `dims` (each size compiles to its own variant

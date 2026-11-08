@@ -1,4 +1,4 @@
-"""The command line: `python -m pewpew run|studio|wifi|boards|observe|push|fx|verify|audio|mcp`.
+"""The command line: `python -m pewpew run|studio|wifi|boards|observe|push|fx|verify|audio|mcp|rig`.
 
 `run` plays a looks file live to one or more sinks (`pewpew.run`), `studio`
 serves the 3D studio (`pewpew.studio`, the `studio` extra), `wifi` sets up
@@ -11,7 +11,8 @@ sends a look to an engine on this machine (tier 1, `pewpew.remote.control`),
 the other `fx` verbs and `verify looks` check, render and gate looks
 offline (`pewpew.lab.cli`), `audio analyse` reports the tempo, beats and
 levels of a WAV file (`pewpew.audio.cli`), and `mcp` serves these tools to
-an AI agent (`pewpew.mcp_cli`).
+an AI agent (`pewpew.mcp_cli`). `rig migrate-room` writes the
+arrangement a room map describes (`pewpew.rig_cli`).
 Each module adds its own subcommand (`add_parser`) and its handler
 (`set_defaults(cli=...)`); `run` alone is served here. `run --help` lists
 the options, and docs/authoring.md and docs/unattended-checklist.md show their
@@ -31,7 +32,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
-from pewpew import boards, mcp_cli, provision, studio
+from pewpew import boards, mcp_cli, provision, rig_cli, studio
 from pewpew.audio import cli as audio_cli
 from pewpew.audio.inputs import NET, REPLAY
 from pewpew.cli_args import add_allow_host, number, parsed_by, port, positive, whole
@@ -234,6 +235,7 @@ def _parser() -> argparse.ArgumentParser:
     lab_cli.add_parser(sub, fx_cli.add_parser(sub))
     audio_cli.add_parser(sub)
     mcp_cli.add_parser(sub)
+    rig_cli.add_parser(sub)
     return parser
 
 

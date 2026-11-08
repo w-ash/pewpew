@@ -1,0 +1,509 @@
+{
+  "format": "pewpew.arrangement",
+  "version": 1,
+  "name": "Example room: 60-bar ceiling canopy",
+  "notes": "An 8 x 6 m room, plan view, meters. 12 rows of 5 bars (1 m, 64 px), one row per output; boards A and C feed rows from the west end, board B from the east end. Example layout, not a confirmed install.",
+  "controllers": [
+    {"id": "A", "profile": "esp32s3-devkitc1-ahct125", "host": "10.0.0.11"},
+    {"id": "B", "profile": "esp32s3-devkitc1-ahct125", "host": "10.0.0.12"},
+    {"id": "C", "profile": "esp32s3-devkitc1-ahct125", "host": "10.0.0.13"}
+  ],
+  "fixtures": [
+    {
+      "id": "row01.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -0.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row01.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -0.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row01.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -0.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row01.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -0.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row01.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -0.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row02.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -1.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row02.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -1.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row02.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -1.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row02.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -1.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row02.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -1.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row03.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -1.6], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row03.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -1.6], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row03.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -1.6], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row03.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -1.6], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row03.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -1.6], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row04.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -2.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row04.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -2.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row04.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -2.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row04.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -2.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row04.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -2.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row05.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -2.4], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row05.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -2.4], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row05.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -2.4], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row05.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -2.4], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row05.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -2.4], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row06.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -2.8], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row06.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -2.8], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row06.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -2.8], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row06.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -2.8], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row06.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -2.8], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row07.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -3.2], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row07.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -3.2], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row07.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -3.2], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row07.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -3.2], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row07.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -3.2], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row08.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -3.6], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row08.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -3.6], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row08.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -3.6], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row08.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -3.6], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row08.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -3.6], "aim": {"axis": [-1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row09.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -4.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row09.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -4.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row09.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -4.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row09.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -4.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row09.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -4.0], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row10.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -4.4], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row10.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -4.4], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row10.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -4.4], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row10.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -4.4], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row10.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -4.4], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row11.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -4.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row11.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -4.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row11.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -4.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row11.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -4.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row11.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -4.8], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row12.1",
+      "type": "strip",
+      "pose": {"position_m": [1.6, 0.0, -5.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row12.2",
+      "type": "strip",
+      "pose": {"position_m": [2.8, 0.0, -5.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row12.3",
+      "type": "strip",
+      "pose": {"position_m": [4.0, 0.0, -5.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row12.4",
+      "type": "strip",
+      "pose": {"position_m": [5.2, 0.0, -5.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    },
+    {
+      "id": "row12.5",
+      "type": "strip",
+      "pose": {"position_m": [6.4, 0.0, -5.2], "aim": {"axis": [1.0, 0.0, 0.0]}},
+      "dims": {"pixels": 64, "length": 1.0, "pitch": 0.015625},
+      "tags": ["canopy"]
+    }
+  ],
+  "wiring": {
+    "chains": [
+      {
+        "id": "A-1",
+        "controller": "A",
+        "output": "rmt0",
+        "fixtures": ["row01.1", "row01.2", "row01.3", "row01.4", "row01.5"]
+      },
+      {
+        "id": "A-2",
+        "controller": "A",
+        "output": "rmt1",
+        "fixtures": ["row02.1", "row02.2", "row02.3", "row02.4", "row02.5"]
+      },
+      {
+        "id": "A-3",
+        "controller": "A",
+        "output": "rmt2",
+        "fixtures": ["row03.1", "row03.2", "row03.3", "row03.4", "row03.5"]
+      },
+      {
+        "id": "A-4",
+        "controller": "A",
+        "output": "rmt3",
+        "fixtures": ["row04.1", "row04.2", "row04.3", "row04.4", "row04.5"]
+      },
+      {
+        "id": "B-1",
+        "controller": "B",
+        "output": "rmt0",
+        "fixtures": ["row05.1", "row05.2", "row05.3", "row05.4", "row05.5"]
+      },
+      {
+        "id": "B-2",
+        "controller": "B",
+        "output": "rmt1",
+        "fixtures": ["row06.1", "row06.2", "row06.3", "row06.4", "row06.5"]
+      },
+      {
+        "id": "B-3",
+        "controller": "B",
+        "output": "rmt2",
+        "fixtures": ["row07.1", "row07.2", "row07.3", "row07.4", "row07.5"]
+      },
+      {
+        "id": "B-4",
+        "controller": "B",
+        "output": "rmt3",
+        "fixtures": ["row08.1", "row08.2", "row08.3", "row08.4", "row08.5"]
+      },
+      {
+        "id": "C-1",
+        "controller": "C",
+        "output": "rmt0",
+        "fixtures": ["row09.1", "row09.2", "row09.3", "row09.4", "row09.5"]
+      },
+      {
+        "id": "C-2",
+        "controller": "C",
+        "output": "rmt1",
+        "fixtures": ["row10.1", "row10.2", "row10.3", "row10.4", "row10.5"]
+      },
+      {
+        "id": "C-3",
+        "controller": "C",
+        "output": "rmt2",
+        "fixtures": ["row11.1", "row11.2", "row11.3", "row11.4", "row11.5"]
+      },
+      {
+        "id": "C-4",
+        "controller": "C",
+        "output": "rmt3",
+        "fixtures": ["row12.1", "row12.2", "row12.3", "row12.4", "row12.5"]
+      }
+    ]
+  }
+}
