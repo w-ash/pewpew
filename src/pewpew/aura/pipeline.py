@@ -10,8 +10,8 @@ and `AuraPipeline.loop` puts it under a `PacedLoop`: the triggers, then
 the looks, before each frame renders; the blink, the master, then the
 caller's stages (a power limit) after it. What a run adds around it (DDP,
 a rig and its reload, the health monitor, the watchdog, the sinks) stays with the
-caller, which passes the blink, the boards and the health snapshot that
-the control offers.
+caller, which passes the blink, the boards, the health snapshot and the
+rig file's layout that the control offers.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from typing import TextIO
 import numpy as np
 
 from pewpew.aura.book import LookBook
-from pewpew.aura.control import AuraControl, Boards
+from pewpew.aura.control import AuraControl, Boards, Layout
 from pewpew.aura.deck import Deck
 from pewpew.aura.looks import Looks
 from pewpew.aura.master import Master
@@ -95,6 +95,7 @@ def build_aura_pipeline(
     blink: Blink | None = None,
     boards: Boards | None = None,
     health: Callable[[], dict] | None = None,
+    layout: Layout | None = None,
     accept_looks: bool = False,
     max_making: int | None = None,
     timeout: float = ASK_TIMEOUT_S,
@@ -108,7 +109,8 @@ def build_aura_pipeline(
     fake). `bypass` and `now` are as for `Compositor`. `book`, with
     its file at `looks_path`, gives the saved looks and the triggers;
     without it there are no looks and no triggers. `blink`, `boards`, `health`,
-    `accept_looks`, `max_making` and `timeout` are as for `AuraControl`.
+    `layout`, `accept_looks`, `max_making` and `timeout` are as for
+    `AuraControl`.
     `make_variety(deck)` makes the made looks' `Variety` (default: one
     seeded from `seed`), and `submit` is how the looks make a fresh slot's
     look (`Looks`). Raises as `Compositor` does."""
@@ -136,6 +138,6 @@ def build_aura_pipeline(
     )
     control = AuraControl(
         calls, deck, master, triggers, looks=looks, blink=blink, boards=boards, health=health,
-        accept_looks=accept_looks, variety=variety, timeout=timeout, max_making=max_making,
+        layout=layout, accept_looks=accept_looks, variety=variety, timeout=timeout, max_making=max_making,
     )
     return AuraPipeline(calls, features, fader, deck, master, variety, looks, triggers, blink, control)

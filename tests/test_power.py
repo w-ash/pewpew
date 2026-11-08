@@ -10,7 +10,7 @@ import pytest
 
 from fakes import FLOW, hosted
 from fakes import frames as render_frames
-from pewpew.power import EffectPower, PowerCap, PowerLimiter, clean, power_stage
+from pewpew.power import POWER_HZ, EffectPower, PowerCap, PowerLimiter, PowerMeter, clean
 from pewpew.rig import EXAMPLES, compile_rig, load_arrangement, load_catalog
 from pewpew.sinks.sink import to_display_u8
 
@@ -196,15 +196,35 @@ def test_an_uncapped_limiter_changes_no_displayed_byte():
         assert to_display_u8(limited).tobytes() == to_display_u8(sequence).tobytes()
 
 
-def test_power_stage_blacks_out_a_frame_the_limiter_refuses():
-    def refuse(frame):
-        raise ValueError("frame shape")
+def test_the_meter_blacks_out_a_frame_the_limiter_refuses():
+    class Refusing(PowerLimiter):
+        def __call__(self, frame):
+            raise ValueError("frame shape")
 
-    out = power_stage(refuse)(0.0, np.ones((2, 3), np.float32))
+    out = PowerMeter(60.0, Refusing(PowerCap(max_brightness=0.5)))(0.0, np.ones((2, 3), np.float32))
     assert out.shape == (2, 3) and not out.any()
 
 
-def test_power_stage_returns_the_limited_frame_and_leaves_its_input_alone():
+def test_the_meter_returns_the_limited_frame_and_leaves_its_input_alone():
     frame = np.ones((2, 3), np.float32)
-    out = power_stage(PowerLimiter(PowerCap(max_brightness=0.5)))(1.5, frame)
+    out = PowerMeter(60.0, PowerLimiter(PowerCap(max_brightness=0.5)))(1.5, frame)
     assert (out == 0.5).all() and (frame == 1.0).all()
+
+
+def test_the_meter_reads_an_uncapped_rig_only_when_a_reading_is_due():
+    rig = golden()
+    limiter = rig.limiter(PowerCap())
+    calls = []
+
+    class Counting(PowerLimiter):
+        def __call__(self, frame):
+            calls.append(frame)
+            return limiter(frame)
+
+    meter = PowerMeter(4 * POWER_HZ, Counting(PowerCap(), limiter.model))
+    frame = np.full((rig.n, 3), 0.5, np.float32)
+    outs = [meter(i / 8, frame) for i in range(8)]
+    assert len(calls) == 2 and all(out is frame for out in outs)
+    assert meter.reading is not None and meter.reading["watts"] == pytest.approx(rig.estimate_effect_power(frame))
+    meter.limiter = None
+    assert meter.reading is None and meter(1.0, frame) is frame

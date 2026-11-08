@@ -1,10 +1,10 @@
 """A compiled rig as a run uses it: load, check, address and describe.
 
-`load_rig` and `parse_rig` read an arrangement file. A room map file (the
-older format, `pewpew.rig.room_import`) is migrated in memory for one more
-release, with a deprecation notice that names `python -m pewpew rig
-migrate-room`: appended to the caller's `notices` list, or without one a
-`RoomFormatWarning`. Every load goes through `compile_doc`, the one checked
+`load_rig` and `parse_rig` read an arrangement file, and `rig_of` its
+parsed JSON. A room map file (the older format, `pewpew.rig.room_import`)
+is migrated in memory for one more release, with a deprecation notice that
+names `python -m pewpew rig migrate-room`: appended to the caller's
+`notices` list, or without one a `RoomFormatWarning`. Every load goes through `compile_doc`, the one checked
 compile that the run, the live reload and the studio share.
 
 What a run does with the rig:
@@ -62,6 +62,10 @@ ROOM_DEPRECATED = (
     "this is a room map, which pewpew reads for one more release; convert it with "
     "`python -m pewpew rig migrate-room ROOM.json -o ROOM.arrangement.json` and run that file"
 )
+#: Why a room map file is not rewritten in place: by a rebind or a layout edit.
+ROOM_REWRITE = (
+    "the map is a room map file; migrate it first with `python -m pewpew rig migrate-room`, then run the arrangement"
+)
 
 
 class RoomFormatWarning(FutureWarning):
@@ -98,6 +102,11 @@ def parse_rig(data: bytes | str, catalog: Catalog | None = None, *, notices: lis
     deprecation notice goes on `notices`, or without it is a
     `RoomFormatWarning`. Raises RigError."""
     return compile_doc(_arrangement(read_doc(data), notices), catalog or load_catalog())
+
+
+def rig_of(doc: Any, catalog: Catalog | None = None, *, notices: list[str] | None = None) -> CompiledRig:
+    """Compile the parsed rig file `doc` as `parse_rig` compiles its text. Raises RigError."""
+    return compile_doc(_arrangement(doc, notices), catalog or load_catalog())
 
 
 def read_doc(data: bytes | str) -> Any:
@@ -189,8 +198,7 @@ def rebind_host(data: bytes, controller: str, host: str, catalog: Catalog | None
     catalog = catalog or load_catalog()
     doc = read_doc(data)
     if is_room(doc):
-        raise RigError([Issue.error("room_format", "the map is a room map file; migrate it first with "
-                                    "`python -m pewpew rig migrate-room`, then run the arrangement")])
+        raise RigError([Issue.error("room_format", ROOM_REWRITE)])
     compile_doc(doc, catalog)
     entries = doc.get("controllers") or []
     entry = next((c for c in entries if isinstance(c, dict) and c.get("id") == controller), None)

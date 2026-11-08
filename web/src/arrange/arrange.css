@@ -1,0 +1,99 @@
+/* The layout editor and the power, wiring and controller report (src/arrange), in the Console and the
+   studio. */
+
+:where(.arrange-panel) :where(ul, ol, dl, dd) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.arrange-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* The list of fixtures and groups: rows of a list, a name and what it is. */
+.arrange-entities > li > .tile {
+  width: 100%;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.arrange-entities > li > .tile > .t-caption {
+  font-weight: var(--fw-regular);
+}
+
+/* ---- the report ----------------------------------------------------------------------------- */
+
+.arrange-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm) var(--space-md);
+}
+/* A figure breaks only between its quantities. */
+.arrange-stats dd {
+  white-space: normal;
+}
+.arrange-stats dd > span {
+  white-space: nowrap;
+}
+.arrange-stats dd > .arrange-stat-note {
+  display: block;
+  white-space: normal;
+}
+.arrange-folds {
+  display: flex;
+  flex-direction: column;
+}
+.arrange-folds > .details[open] {
+  padding-bottom: var(--space-xs);
+}
+.arrange-rows > li {
+  padding: var(--space-xs) 0;
+  border-top: 1px solid var(--border-subtle);
+  overflow-wrap: anywhere;
+}
+.arrange-rows > li:first-child {
+  border-top: none;
+}
+.arrange-row-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-sm);
+}
+
+/* An issue: a sign and its words. Errors are filled red; violations ruled red; warnings ruled dashed. */
+.arrange-issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.arrange-issues > li {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-inset);
+  overflow-wrap: anywhere;
+}
+.arrange-issues > li[data-level="error"] {
+  border-color: var(--danger-fill);
+  background: var(--danger-fill);
+  color: var(--on-danger);
+}
+.arrange-issues > li[data-level="error"] .t-caption {
+  color: inherit;
+}
+.arrange-issues > li[data-level="violation"] {
+  border-color: var(--danger-fg);
+  background: var(--surface-raised);
+}
+.arrange-issues > li[data-level="warning"] {
+  border-style: dashed;
+}
+.arrange-issue-code {
+  display: block;
+  font-family: var(--font-code);
+  overflow-wrap: anywhere;
+}
+

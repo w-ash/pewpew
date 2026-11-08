@@ -2,11 +2,15 @@
 sends, captured from a `PreviewSink` over an `AuraControl` on fakes, in a
 run that takes looks. The run starts in a look with two signals, routes
 into a param and a color's part, and front knobs, so the greeting carries
-them (`aura.stack`, the signals' knobs, and the `mod` readout). It holds a
-new client's greeting, its `catalog` cut to two cards (`CARDS`), then one
-example of each message whose fields the greeting leaves empty (a held
-trigger, a refusal, a look and a layer refused with their ids, an ack, a
-render error, a scan, the layout of a rig with a floor plan), and the controls a client may send.
+them (`aura.stack`, the signals' knobs, and the `mod` readout). Its rig
+file is an arrangement the page may edit, so the greeting carries the
+`arrangement` and the rig's `report`, and a fixed `power` reading. It
+holds a new client's greeting, its `catalog` cut to two cards (`CARDS`)
+and its report's `basis` to one fact,
+then one example of each message whose fields the greeting leaves empty
+(a held trigger, a refusal, a look and a layer refused with their ids, an
+arrangement refused with its issues, an ack, a render error, a scan, the
+layout of a rig with a floor plan), and the controls a client may send.
 The page builds its test messages from it and checks every key against
 its types (web/test/wire/wire.test.ts), so a renamed key fails both
 suites.
@@ -32,6 +36,7 @@ from fakes import (
     layered,
     look,
     next_text,
+    no_watch,
     preview_sink,
     restore,
     wait_until,
@@ -47,6 +52,7 @@ from pewpew.pace import PaceStats
 from pewpew.rig import load_catalog
 from pewpew.rig.models import RigView
 from pewpew.rig.runtime import compile_doc, plan_view, rig_view
+from pewpew.room.live import RigLive
 from pewpew.run import status_line
 from pewpew.sinks.ddp import Board
 
@@ -63,6 +69,8 @@ REFUSED = layered("osc", {"freq": 99.0})
 # The catalog cards the golden keeps: a source's and a coord op's, so an op
 # added to the catalog does not change it.
 CARDS = ("osc", "kaleid")
+# The power reading the golden holds: the run's own follows the frame.
+POWER = {"watts": 12.5, "uncapped_watts": 25.0}
 REPLY = {
     "mac": "aabbccddeeff", "ver": "16.0.1", "live": True, "lip": US, "uptime": 3700, "freeheap": 120000,
     "leds": {"count": 320, "fps": 40}, "wifi": {"rssi": -55, "channel": 6},
@@ -95,7 +103,14 @@ def capture(folder: Path) -> dict:
     rig.master.set(0.8)
     rig.frame(rig.clock.advance())
     status = status_line(("render", rig.fader), ("looks", rig.looks))
-    with preview_sink(line(2), control=rig.control, status=status) as sink:
+    lit = arrangement(bar("a", pixels=2), boards={"A": HOST})
+    data = (json.dumps(lit, indent=2) + "\n").encode()
+    (folder / "rig.arrangement.json").write_bytes(data)
+    rig.control.layout = RigLive(
+        folder / "rig.arrangement.json", compile_doc(lit, load_catalog()), data, rig.fader, rig.calls.call_soon,
+        ddp=None, argv=["run"], watch=no_watch, edits=True,
+    )
+    with preview_sink(line(2), control=rig.control, status=status, power=lambda: POWER) as sink:
         ws, by_type = greet(sink)
         greeting = list(by_type.values())
         with ws:
@@ -116,6 +131,10 @@ def capture(folder: Path) -> dict:
                 ws.send(json.dumps({"type": "add_layer", "id": 8, "layer": {"nodes": REFUSED["layers"][0]["nodes"]},
                                     "below": None}))
                 layer = next_text(ws)
+            broken = arrangement(bar("a", pixels=2), boards={"A": HOST})
+            broken["wiring"]["chains"][0]["fixtures"].append("ghost")
+            ws.send(json.dumps({"type": "arrange", "id": 9, "arrangement": broken}))
+            arranged = next_text(ws)
             ws.send(json.dumps({"type": "blackout", "id": "b1", "on": False}))
             ack = next_text(ws)
             rig.renderer().bound.render = lambda: (_ for _ in ()).throw(RuntimeError("boom"))
@@ -138,9 +157,11 @@ def capture(folder: Path) -> dict:
     layout["rig"]["catalog_digest"] = DIGEST
     catalog = by_type["catalog"]
     catalog["cards"] = [card for card in catalog["cards"] if card["name"] in CARDS]
+    report = by_type["report"]["report"]
+    report["basis"] = report["basis"][:1]  # its sources' wording follows the catalog
     return {
         "greeting": greeting,
-        "later": [held, refused, refused_look, layer, ack, error, scan, layout],
+        "later": [held, refused, refused_look, layer, arranged, ack, error, scan, layout],
         "controls": {name: [field for field, _ in fields] for name, fields in REQUESTS.items()},
     }
 
@@ -155,11 +176,14 @@ def test_the_golden_is_the_live_wire(tmp_path: Path, regen_goldens: bool) -> Non
 def test_the_golden_holds_every_server_message_and_the_greeting_in_order() -> None:
     golden = json.loads(GOLDEN.read_text())
     assert [m["type"] for m in golden["greeting"]] == [
-        "hello", "status", "declare", "params", "mod", "aura", "health", "catalog",
+        "hello", "status", "declare", "params", "mod", "aura", "health", "catalog", "power", "arrangement",
+        "report",
     ]
     assert [m["type"] for m in golden["later"]] == [
-        "aura", "refused", "refused", "refused", "ack", "status", "health", "layout",
+        "aura", "refused", "refused", "refused", "refused", "ack", "status", "health", "layout",
     ]
+    assert golden["later"][4]["control"] == "arrange" and golden["later"][4]["issues"]
+    assert "arrange" in golden["greeting"][0]["capabilities"]
 
 
 def test_the_golden_rig_is_a_rig_view():
@@ -169,13 +193,14 @@ def test_the_golden_rig_is_a_rig_view():
     assert RigView.model_validate(rig).model_dump(mode="json") == rig
 
 
-def test_the_page_never_reads_the_capabilities():
-    """`hello.capabilities` is for clients outside the package: the page
-    ships with its engine and never branches on it (ADR-020 amendment
-    "capabilities"). Only the protocol's description names it."""
+def test_the_page_reads_the_capabilities_only_in_the_wire():
+    """`hello.capabilities` is for clients outside the package, and for the
+    page only `arrange`: the store keeps them from the hello and answers
+    whether this run lets the page edit the layout, so no other module
+    reads them (ADR-020 amendment "capabilities")."""
     studio = PAGE_SOURCE / "studio"  # the hosted studio's source, beside the page's
     sources = PAGE_SOURCE.rglob("*.ts*")
     files = sorted(f for f in sources if f.suffix in {".ts", ".tsx"} and not f.is_relative_to(studio))
     assert len(files) > 10
     readers = [f.relative_to(PAGE_SOURCE).as_posix() for f in files if "capabilities" in f.read_text()]
-    assert readers == ["wire/protocol.ts"]
+    assert readers == ["wire/protocol.ts", "wire/store.ts"]

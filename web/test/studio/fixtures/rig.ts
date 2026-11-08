@@ -1,6 +1,5 @@
-import { Matrix4 } from "three";
+import { Matrix4, Quaternion, Vector3 } from "three";
 import type { Arrangement, CompiledFixture, CompiledRig, PartsCatalog, RigReport } from "../../../src/studio/api/types";
-import { poseMatrix } from "../../../src/rig3d/pose";
 
 /** A compiled fixture, each field a test leaves out at what a fixture with no group, wiring, tags or
  * dims compiles to. */
@@ -150,7 +149,7 @@ export function stubCompile(arrangement: Arrangement): CompiledRig {
     }
   }
   for (const f of arrangement.fixtures) {
-    add(f.id, f.type, null, poseMatrix({ position_m: f.pose?.position_m ?? [0, 0, 0], quat_xyzw: f.pose?.quat_xyzw ?? [0, 0, 0, 1] }));
+    add(f.id, f.type, null, new Matrix4().compose(new Vector3(...(f.pose?.position_m ?? [0, 0, 0])), new Quaternion(...(f.pose?.quat_xyzw ?? [0, 0, 0, 1])), new Vector3(1, 1, 1)));
   }
   return { ...threeBarRig, n: fixtures.length * 64, fixtures, issues: [] };
 }

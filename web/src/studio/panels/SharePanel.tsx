@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { ApiError } from "../api/fetch";
 import { saveArrangement } from "../api/endpoints";
 import type { Issue } from "../api/types";
-import { useDoc } from "../store/doc";
-import { IssueList } from "./ReportPanel";
+import { useDoc } from "../../arrange/doc";
+import { useShare } from "../store/share";
+import { IssueList } from "../../arrange/ReportPanel";
 
 /** Whether `text` reached the clipboard: the API is missing outside a secure context and can be denied. */
 async function writeClipboard(text: string): Promise<boolean> {
@@ -24,8 +25,8 @@ function shareUrl(id: string, origin = window.location.origin) {
 
 export function SharePanel() {
   const arrangement = useDoc((s) => s.history.present);
-  const share = useDoc((s) => s.share);
-  const markSaved = useDoc((s) => s.markSaved);
+  const share = useShare((s) => s.share);
+  const markSaved = useShare((s) => s.markSaved);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<{
     message: string;
@@ -40,7 +41,7 @@ export function SharePanel() {
     try {
       const { id } = await saveArrangement(arrangement);
       markSaved(arrangement, id);
-      if (useDoc.getState().share.mode === "shared")
+      if (useShare.getState().share.mode === "shared")
         window.history.replaceState(null, "", `/a/${id}`);
     } catch (e) {
       if (e instanceof ApiError) {
@@ -72,7 +73,7 @@ export function SharePanel() {
   };
 
   return (
-    <div className="studio-panel">
+    <div className="arrange-panel">
       <Block className="fields" title="Share link">
         {share.mode === "shared" && (
           <p className="t-label">

@@ -146,99 +146,9 @@
 
 /* ---- panels --------------------------------------------------------------------------------- */
 
-.studio-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
 /* The blocks of a tab sit on the side card's inset, which is the page's slot inset. */
 .studio-tabpanel .block {
   padding-inline: 0;
-}
-
-/* The list of fixtures and groups: rows of a list, a name and what it is. */
-.studio-entities > li > .tile {
-  width: 100%;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-.studio-entities > li > .tile > .t-caption {
-  font-weight: var(--fw-regular);
-}
-
-/* ---- the report ----------------------------------------------------------------------------- */
-
-.studio-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-sm) var(--space-md);
-}
-/* A figure breaks only between its quantities. */
-.studio-stats dd {
-  white-space: normal;
-}
-.studio-stats dd > span {
-  white-space: nowrap;
-}
-.studio-stats dd > .studio-stat-note {
-  display: block;
-  white-space: normal;
-}
-.studio-folds {
-  display: flex;
-  flex-direction: column;
-}
-.studio-folds > .details[open] {
-  padding-bottom: var(--space-xs);
-}
-.studio-rows > li {
-  padding: var(--space-xs) 0;
-  border-top: 1px solid var(--border-subtle);
-  overflow-wrap: anywhere;
-}
-.studio-rows > li:first-child {
-  border-top: none;
-}
-.studio-row-line {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0 var(--space-sm);
-}
-
-/* An issue: a sign and its words. Errors are filled red; violations ruled red; warnings ruled dashed. */
-.studio-issues {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-.studio-issues > li {
-  display: flex;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-inset);
-  overflow-wrap: anywhere;
-}
-.studio-issues > li[data-level="error"] {
-  border-color: var(--danger-fill);
-  background: var(--danger-fill);
-  color: var(--on-danger);
-}
-.studio-issues > li[data-level="error"] .t-caption {
-  color: inherit;
-}
-.studio-issues > li[data-level="violation"] {
-  border-color: var(--danger-fg);
-  background: var(--surface-raised);
-}
-.studio-issues > li[data-level="warning"] {
-  border-style: dashed;
-}
-.studio-issue-code {
-  display: block;
-  font-family: var(--font-code);
-  overflow-wrap: anywhere;
 }
 
 /* A render error, in place of the page. */

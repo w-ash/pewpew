@@ -1,8 +1,9 @@
 """The preview page in src/pewpew/sinks/web/ is the build of its source in
 web/ (`just web` rebuilds it): index.html and its own files, which the engine
-serves from `files.json`. What the page always loads and what its 3D view
-loads on demand each stay within a size budget, the page fetches only its
-own files, and its stylesheet names only tokens it defines."""
+serves from `files.json`. What the page always loads, what its 3D view loads
+on demand and what its layout editor loads on demand each stay within a size
+budget, the page fetches only its own files, and its stylesheet names only
+tokens it defines."""
 
 from __future__ import annotations
 
@@ -20,15 +21,24 @@ SRC = WEB / "src"
 
 # What the page always loads (index.html and the files it imports statically),
 # gzipped file by file: 228,647 bytes as built on 2026-11-08, when the page
-# was first split from its 3D view. The one-file page as built on 2026-11-06
+# was first split from its 3D view; 230,142 once the layout editor moved in
+# (its own file on demand; the page keeps its wire, its layout panel and the
+# editor's styles). The one-file page as built on 2026-11-06
 # with the Martian fonts, their notice and the icon set was 224,888 bytes; the
 # budget is that plus about 2.5%. The page before the fonts was 199,921 bytes against a
 # budget of 217,855 (189,439 + 15%).
 GZIP_BUDGET = 230_500
-# What the 3D view loads on demand (three.js, @react-three, web/src/rig3d),
-# gzipped file by file: THREE_D_MEASURED bytes as built on 2026-11-08, plus 3%.
-THREE_D_MEASURED = 271_584
+# What the 3D view loads on demand beyond the layout editor's files (three.js,
+# @react-three, web/src/rig3d), gzipped file by file: THREE_D_MEASURED bytes as
+# built on 2026-11-08 with the gizmo that edits a pose (drei's TransformControls),
+# plus 3%. Without the gizmo it was 271,584.
+THREE_D_MEASURED = 280_196
 THREE_D_BUDGET = round(THREE_D_MEASURED * 1.03)
+# What the layout editor and the report load on demand (web/src/arrange and
+# zustand), gzipped file by file: RIG_MEASURED bytes as built on 2026-11-08,
+# plus 3%. The 3D view loads them too: it edits through the editor's store.
+RIG_MEASURED = 16_436
+RIG_BUDGET = round(RIG_MEASURED * 1.03)
 
 # The token names RA-27c §3.8 retired, and the classes RA-27b §6.1 did: a
 # var() of a name nothing defines fails silently.
@@ -94,11 +104,24 @@ def entry_files() -> list[str]:
     return ["index.html", *static_closure(named)]
 
 
-def three_d_files() -> list[str]:
-    """What the page's dynamic imports add to what it always loads: the 3D view's files."""
+def on_demand(group: str) -> list[str]:
+    """What the page's dynamic import of the build's `group` file (a `codeSplitting` group in
+    web/vite.config.ts) adds to what it always loads."""
     entry = entry_files()
     dynamic = [file for name in entry for file in imported(name, "dynamicImports")]
-    return [name for name in static_closure(dynamic) if name not in entry]
+    found = [file for file in dynamic if file.startswith(f"assets/{group}-")]
+    assert len(found) == 1, f"the page loads no one {group} file on demand: {dynamic}"
+    return [name for name in static_closure(found) if name not in entry]
+
+
+def rig_files() -> list[str]:
+    """The layout editor's and the report's files."""
+    return on_demand("console-rig")
+
+
+def three_d_files() -> list[str]:
+    """The 3D view's own files: what it loads beyond the layout editor's."""
+    return [name for name in on_demand("console-3d") if name not in rig_files()]
 
 
 def gzipped(files: list[str]) -> int:
@@ -117,10 +140,17 @@ def test_the_3d_view_is_within_its_budget():
     assert size <= THREE_D_BUDGET, f"the 3D view loads {size} gzipped bytes, over its {THREE_D_BUDGET}-byte budget"
 
 
+def test_the_layout_editor_is_within_its_budget():
+    files = rig_files()
+    size = gzipped(files)
+    assert size <= RIG_BUDGET, f"the layout editor loads {size} gzipped bytes, over its {RIG_BUDGET}-byte budget"
+
+
 def test_three_js_loads_only_with_the_3d_view():
-    """three.js's renderer is in the 3D view's files, and in none the page always loads: a run without a
-    rig, or a page that never shows 3D, fetches none of it."""
-    assert not [name for name in entry_files() if b"WebGLRenderer" in (BUILT / name).read_bytes()]
+    """three.js's renderer is in the 3D view's files, and in none the page always loads or the layout
+    editor loads: a run without a rig, a page that never shows 3D, and the layout editor in 2D fetch none
+    of it."""
+    assert not [name for name in [*entry_files(), *rig_files()] if b"WebGLRenderer" in (BUILT / name).read_bytes()]
     assert any(b"WebGLRenderer" in (BUILT / name).read_bytes() for name in three_d_files())
 
 

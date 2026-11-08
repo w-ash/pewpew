@@ -11,6 +11,7 @@ import shutil
 import socket
 import subprocess
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -21,6 +22,8 @@ from fakes import (
     EXAMPLE_RIG,
     LEGACY_ROOM,
     FakeTime,
+    arrangement,
+    bar,
     build,
     filed,
     frames,
@@ -35,6 +38,7 @@ from fakes import EXAMPLES as EXAMPLE_LOOKS
 from pewpew.__main__ import main
 from pewpew.aura.master import Master
 from pewpew.compose import layer_seed
+from pewpew.errors import Refusal
 from pewpew.fx import expr
 from pewpew.fx.bound_program import BoundProgram
 from pewpew.mapping import line
@@ -376,6 +380,39 @@ def test_use_for_a_works_in_an_unattended_run(tmp_path, audit_log):
     run = build(["run", looks_file(), "--map", str(rig_file), "--unattended", "--armed"])
     assert run.rig is not None and run.rig.rebind("A", "192.0.2.20") is None
     assert json.loads(rig_file.read_text())["controllers"][0]["host"] == "192.0.2.20"
+
+
+def two_bar_rig(folder) -> str:
+    """An arrangement file of two 64-pixel bars in `folder`; returns its path."""
+    path = folder / "bars.arrangement.json"
+    path.write_text(json.dumps(arrangement(bar("a"), bar("b", chain=2, start=[0.0, 1.0], end=[1.0, 1.0]))))
+    return str(path)
+
+
+def test_a_layout_edit_is_offered_in_an_attended_rig_run_only(tmp_path, audit_log):
+    argv = ["run", looks_file(), "--map", two_bar_rig(tmp_path), "--no-ddp", "--preview", "--port", "0"]
+    attended = build(argv)
+    assert attended.aura.control.capabilities == ("arrange",)
+    assert json.loads(attended.preview._view.hello)["capabilities"] == ["ack", "arrange"]  # type: ignore[union-attr]
+    unattended = build([*argv, "--unattended", "--armed"])
+    assert unattended.aura.control.capabilities == ()
+    refused = unattended.aura.control.arrange({})
+    assert refused == Refusal("layout edits are off in an unattended run")
+    synthetic = build(["run", looks_file(), "--map", "line:8", "--preview", "--port", "0"])
+    assert synthetic.aura.control.capabilities == () and synthetic.power is None  # nothing caps, nothing to read
+
+
+def test_the_power_limit_follows_a_reload_that_changes_the_pixel_count(tmp_path, audit_log):
+    rig_file = two_bar_rig(tmp_path)
+    run = build(["run", looks_file(), "--map", rig_file, "--no-ddp", "--max-brightness", "0.5"])
+    assert run.power is not None and run.power in run.loop._after
+    three = arrangement(bar("a"), bar("b", chain=2, start=[0.0, 1.0], end=[1.0, 1.0]),
+                        bar("c", chain=3, start=[0.0, 2.0], end=[1.0, 2.0]))
+    Path(rig_file).write_text(json.dumps(three))
+    assert run.rig is not None and run.rig.reloader.reload() is True
+    frames_ = [run.power(i / 60, np.ones((192, 3), np.float32)) for i in range(run.power.every)]
+    assert all((frame == 0.5).all() for frame in frames_)  # capped, never black
+    assert run.power.reading is not None and run.power.reading["watts"] > 0
 
 
 def test_a_dry_run_of_an_arrangement_without_hosts_is_refused_with_one_line(audit_log):

@@ -202,16 +202,19 @@ def wait_until(cond, timeout: float = 5.0) -> None:
 
 def greet(sink: PreviewSink):
     """Connect to `sink` and read what it sends a new client: the hello,
-    the status, and with a control wired its declare, params, mod, aura,
-    health and catalog. Returns the socket and those messages by type, in the
-    order sent, once the sink also sends to this client: it greets a client
-    before it registers one, and a frame sent between the two misses it."""
+    the status, the power reading when it has one, and with a control
+    wired its declare, params, mod, aura, health, catalog, arrangement and
+    report, each when it has one. Returns the socket and those messages by
+    type, in the order sent, once the sink also sends to this client: it
+    greets a client before it registers one, and a frame sent between the
+    two misses it."""
     control = sink._control
     kinds = {"hello", "status"}
+    if sink._power is not None and sink._power() is not None:
+        kinds.add("power")
     if control is not None:
         kinds |= {"declare", "params", "mod", "aura", "catalog"}
-        if control.health() is not None:
-            kinds.add("health")
+        kinds |= {kind for kind in ("health", "arrangement", "report") if getattr(control, kind)() is not None}
     ws = connect(f"ws://127.0.0.1:{sink.port}/", legacy=True)
     greeting: dict[str, dict] = {}
     while set(greeting) != kinds:
@@ -603,7 +606,7 @@ def layer_renderer(aura, lid: str = "base") -> Renderer:
 def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
              looks: Mapping[str, Look] | None = None, current: str | None = None, cycle=None,
              triggers: Mapping | None = None, favorites=None, path=None, timeout: float = 5.0,
-             log=None, blink=None, boards=None, health=None, accept_looks: bool = False,
+             log=None, blink=None, boards=None, health=None, layout=None, accept_looks: bool = False,
              max_making: int | None = None, variety=None, submit=None) -> SimpleNamespace:
     """An aura without a loop or sinks: a stack running `start` (default a
     red `solid`, which needs `fake_ops`), crossfader, deck, master, looks (when `looks` is given),
@@ -622,7 +625,8 @@ def aura_rig(start: Look | None = None, *, mapping=None, cap: float = 1.0,
         r.book = LookBook(looks, current, cycle or CycleConfig(), triggers=triggers or {}, favorites=favorites)
     aura = build_aura_pipeline(
         start or solid(1.0), line(4) if mapping is None else mapping, master_cap=cap, looks_path=path, book=r.book,
-        trigger_log=log, blink=blink, boards=boards, health=health, accept_looks=accept_looks, timeout=timeout,
+        trigger_log=log, blink=blink, boards=boards, health=health, layout=layout, accept_looks=accept_looks,
+        timeout=timeout,
         max_making=max_making, make_variety=variety, submit=submit or at_once,
     )
     r.calls, r.features, r.fader, r.deck, r.master = aura.calls, aura.features, aura.fader, aura.deck, aura.master

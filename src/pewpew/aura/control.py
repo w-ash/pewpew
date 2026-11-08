@@ -5,8 +5,8 @@ today, an MCP server next. Each request is a control name and its fields
 (`REQUESTS`), as `request(message)` takes it, or a method of the same name.
 It runs on the caller's thread and returns why it was refused, or None:
 `request` a `Refusal`, a method its reason, or a `Refusal` that names the
-part of a look it refused; a `surprise` or a `vary` returns a future of
-its answer instead. A param is set by its address
+part of a look it refused or carries an arrangement's issues; a
+`surprise` or a `vary` returns a future of its answer instead. A param is set by its address
 (pewpew.compose.controls), such as `layers.base.waves.freq`,
 `layers.base.opacity` or a signal's `signals.breath.rate`. A `look`
 request runs a whole look sent by a client outside the package, only in a
@@ -30,9 +30,15 @@ request sent after it is not held up. A request that changes what runs
 (a layer edit, a recall, a look, a made look) does not run once
 one asked for after it has run (`OVERTAKEN`): a look made while the
 operator recalled another never replaces it. Every request but `arm`,
-`fire`, `scan`, `rebind` and `blink` is operator input: on the loop thread
-it first touches the looks, so the idle cycle stops. A cue fired from the
-page stands in for a room event and leaves the idle cycle alone.
+`fire`, `scan`, `rebind`, `blink` and `arrange` is operator input: on the
+loop thread it first touches the looks, so the idle cycle stops. A cue
+fired from the page stands in for a room event and leaves the idle cycle
+alone.
+
+An `arrange` writes a whole new arrangement to the run's rig file and
+makes it live (`Layout`, pewpew.room.live.RigLive): only in a run on an
+arrangement map that allows edits, which an unattended run does not. A
+refused one carries the compile's `issues`.
 """
 
 from __future__ import annotations
@@ -98,6 +104,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "scan": (),
     "rebind": (("board", None), ("address", None)),
     "blink": (("fixture", None),),
+    "arrange": (("arrangement", None),),
 }
 
 NO_LOOKS = "this engine takes no looks: start it with `python -m pewpew run ... --preview --accept-looks`"
@@ -106,6 +113,7 @@ BUSY = "the engine is busy, so the look did not start; send it again"
 BUSY_LAYER = "the engine is busy, so the layer was not added; send it again"
 OVERTAKEN = "a request sent after this one changed what runs first, so this one did not run"
 MAKING = "a look is still being made; send this again once it has started"
+NO_LAYOUT = "layout edits need an arrangement map (run --map RIG.arrangement.json)"
 # What an added layer's id is made from when it has no node to make one from.
 LAYER = "layer"
 
@@ -119,10 +127,33 @@ class Boards(Protocol):
     def rebind(self, board: object, address: object) -> str | None: ...
 
 
+class Layout(Protocol):
+    """The run's rig file as the page edits it.
+    `pewpew.room.live.RigLive` implements it."""
+
+    @property
+    def editable(self) -> bool:
+        """Whether `arrange` may write the file."""
+        ...
+
+    def arrange(self, doc: object) -> Refusal | None:
+        """Write the arrangement `doc` and make it live; why not, or None."""
+        ...
+
+    def arrangement(self) -> Any:
+        """The file's arrangement while `editable`, else None; the same object until it changes."""
+        ...
+
+    def report(self) -> dict | None:
+        """The running rig's issues and electrical report; the same object until it changes."""
+        ...
+
+
 class AuraControl:
     """The aura's controls over one run: the deck, the master, the looks
-    and triggers, and, when the run has them, the blink, the boards and the
-    health snapshot. `accept_looks` lets a client send a whole look.
+    and triggers, and, when the run has them, the blink, the boards, the
+    health snapshot and the rig file's `layout`. `accept_looks` lets a
+    client send a whole look.
     `max_making` bounds how many looks a `surprise` or `vary` makes at
     once; one asked for past it is refused at once (`MAKING`)."""
 
@@ -138,6 +169,7 @@ class AuraControl:
         blink: Blink | None = None,
         boards: Boards | None = None,
         health: Callable[[], dict] | None = None,
+        layout: Layout | None = None,
         accept_looks: bool = False,
         timeout: float = ASK_TIMEOUT_S,
         max_making: int | None = None,
@@ -150,6 +182,9 @@ class AuraControl:
         self._blink = blink
         self._boards = boards
         self._health = health
+        # Public: a run whose rig file is watched after the aura is built
+        # sets it then, before any surface reads `capabilities`.
+        self.layout = layout
         self._accept_looks = accept_looks
         self._variety = variety
         self._timeout = timeout
@@ -167,9 +202,12 @@ class AuraControl:
     @property
     def capabilities(self) -> tuple[str, ...]:
         """The requests this run takes beyond the page's own: `look` when it
-        takes looks. For clients outside the package; the page never reads
-        it (ADR-020 amendment "capabilities")."""
-        return ("look",) if self._accept_looks else ()
+        takes looks, for clients outside the package (ADR-020 amendment
+        "capabilities"), and `arrange` when its layout is editable, which
+        the page reads to show its layout editor."""
+        layout = self.layout
+        return (*(("look",) if self._accept_looks else ()),
+                *(("arrange",) if layout is not None and layout.editable else ()))
 
     def describe(self) -> list[dict]:
         """Every knob of the running stack, by address, in display order."""
@@ -205,6 +243,16 @@ class AuraControl:
     def health(self) -> dict | None:
         """The latest health snapshot, or None when the run has no monitor."""
         return self._health() if self._health is not None else None
+
+    def arrangement(self) -> Any:
+        """The rig file's arrangement while it is editable, else None."""
+        layout = self.layout
+        return layout.arrangement() if layout is not None else None
+
+    def report(self) -> dict | None:
+        """The running rig's issues and electrical report, or None without a rig file."""
+        layout = self.layout
+        return layout.report() if layout is not None else None
 
     def catalog(self) -> dict:
         """What a layer can run, for a page's "add layer" cards, and what
@@ -445,6 +493,13 @@ class AuraControl:
             self._calls.call_soon(lambda: blink.start(fixture))  # type: ignore[arg-type]
         return reason
 
+    def arrange(self, arrangement: object) -> Refusal | str | None:
+        """Write `arrangement` to the run's rig file and make it live (`Layout.arrange`)."""
+        layout = self.layout
+        if layout is None:
+            return NO_LAYOUT
+        return layout.arrange(arrangement)
+
     # ---- the loop thread -------------------------------------------------------
 
     def _ask(self, fn: Callable[[], T | None], late: str, *, definite: bool = False) -> T | str | None:
@@ -623,12 +678,14 @@ class AuraControl:
 
 def wire_states(control: Control, mod: dict) -> dict[str, Any]:
     """The states a page draws each frame, by message type: `declare`,
-    `params`, `mod`, `aura`, `health` (None without a monitor) and
-    `catalog`. `mod` is the driven knobs' live values (`AuraControl.mod`),
-    which the caller reads at its own rate. The preview and the studio both
-    send these (`pewpew.sinks.preview.StateTexts`)."""
+    `params`, `mod`, `aura`, `health` (None without a monitor), `catalog`,
+    and `arrangement` and `report` (None without a rig file). `mod` is the
+    driven knobs' live values (`AuraControl.mod`), which the caller reads at
+    its own rate. The preview and the studio both send these
+    (`pewpew.sinks.preview.StateTexts`)."""
     return {"declare": control.describe(), "params": control.values(), "mod": mod, "aura": control.state(),
-            "health": control.health(), "catalog": control.catalog()}
+            "health": control.health(), "catalog": control.catalog(), "arrangement": control.arrangement(),
+            "report": control.report()}
 
 
 def _id_base(doc: dict) -> str:

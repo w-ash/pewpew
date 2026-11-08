@@ -1,22 +1,48 @@
 {
-  "_console-3d-C-ukCBsq.js": {
-    "file": "assets/console-3d-C-ukCBsq.js",
+  "_console-3d-C0avCjhf.js": {
+    "file": "assets/console-3d-C0avCjhf.js",
     "name": "console-3d",
     "imports": [
-      "index.html"
+      "_rolldown-runtime-XKyaHtl9.js",
+      "_page-f1N3tcS2.js",
+      "_console-rig-D4e6mf5c.js"
     ]
   },
+  "_console-rig-D4e6mf5c.js": {
+    "file": "assets/console-rig-D4e6mf5c.js",
+    "name": "console-rig",
+    "imports": [
+      "_rolldown-runtime-XKyaHtl9.js",
+      "_page-f1N3tcS2.js"
+    ]
+  },
+  "_page-f1N3tcS2.js": {
+    "file": "assets/page-f1N3tcS2.js",
+    "name": "page",
+    "imports": [
+      "_rolldown-runtime-XKyaHtl9.js",
+      "index.html"
+    ],
+    "dynamicImports": [
+      "_console-3d-C0avCjhf.js",
+      "_console-rig-D4e6mf5c.js"
+    ]
+  },
+  "_rolldown-runtime-XKyaHtl9.js": {
+    "file": "assets/rolldown-runtime-XKyaHtl9.js",
+    "name": "rolldown-runtime"
+  },
   "index.html": {
-    "file": "assets/index-B8mTaTiV.js",
+    "file": "assets/index-BWf8pkli.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
-    "dynamicImports": [
-      "_console-3d-C-ukCBsq.js"
+    "imports": [
+      "_page-f1N3tcS2.js"
     ]
   },
   "style.css": {
-    "file": "assets/style-Bu0uwvLj.css",
+    "file": "assets/style-BCsk2kv_.css",
     "src": "style.css"
   }
 }

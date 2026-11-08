@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { frameGap, STALE_MS } from "../../../src/health/health";
-import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
+import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/share";
 import { BIND_DEBOUNCE_MS, SessionClient } from "../../../src/studio/session/client";
 import { encodeFrame } from "../../../src/wire/protocol";
 import { FakeWebSocket } from "../../fixtures/fakeWebSocket";

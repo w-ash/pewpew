@@ -25,13 +25,27 @@ import pytest
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
-from fakes import FakeTime, arrangement, bar, client_for, greet, next_of, next_text, peers, preview_sink, wait_until
+from fakes import (
+    FakeTime,
+    arrangement,
+    aura_rig,
+    bar,
+    client_for,
+    greet,
+    next_of,
+    next_text,
+    no_watch,
+    peers,
+    preview_sink,
+    wait_until,
+)
 from pewpew.aura.master import Master
 from pewpew.errors import Refusal
 from pewpew.mapping import grid, line
 from pewpew.params import HSV, Bool, Color, Float, Int, ParamSet
 from pewpew.rig import load_catalog
 from pewpew.rig.runtime import compile_doc, plan_view, rig_view
+from pewpew.room.live import RigLive
 from pewpew.sinks import preview
 from pewpew.sinks.preview import PreviewSink
 from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
@@ -92,6 +106,12 @@ class FakeControl:
 
     def catalog(self) -> dict:
         return self.catalog_
+
+    def arrangement(self) -> dict | None:
+        return None
+
+    def report(self) -> dict | None:
+        return None
 
     def request(self, message: dict) -> Refusal | None:
         self.calls.append(dict(message))
@@ -961,3 +981,65 @@ def test_the_catalog_comes_in_the_greeting_and_again_only_when_it_changes(monkey
             controls.catalog_ = {"cards": [{"name": "plasma"}, {"name": "glow"}], "blends": []}
             sink.send(0.0, frame)
             assert next_of(ws, "catalog")["cards"] == [{"name": "plasma"}, {"name": "glow"}]
+
+
+# ---- the rig file's states and the power reading ------------------------------------
+
+
+def editable_rig(folder: Path, *, edits: bool = True):
+    """An aura on a 2-pixel line whose control's layout is a `RigLive` over
+    an arrangement file of one 2-pixel bar in `folder`."""
+    doc = arrangement(bar("a", pixels=2))
+    path = folder / "rig.arrangement.json"
+    data = json.dumps(doc).encode()
+    path.write_bytes(data)
+    rig = aura_rig(mapping=line(2))
+    rig.layout = RigLive(path, compile_doc(doc, load_catalog()), data, rig.fader, rig.calls.call_soon, ddp=None,
+                         argv=["run"], watch=no_watch, edits=edits)
+    rig.control.layout = rig.layout
+    return rig, doc
+
+
+@pytest.mark.usefixtures("fake_ops")
+def test_the_rig_files_states_and_the_power_reading_reach_a_client_as_they_change(tmp_path):
+    rig, doc = editable_rig(tmp_path)
+    reading: list[dict | None] = [None]
+    with preview_sink(line(2), control=rig.control, power=lambda: reading[0]) as sink:
+        ws, greeting = greet(sink)
+        with ws:
+            assert "arrange" in greeting["hello"]["capabilities"] and "power" not in greeting
+            assert greeting["arrangement"]["arrangement"] == doc
+            assert greeting["report"] == {"type": "report", **rig.layout.rig.findings()}
+            reading[0] = {"watts": 1.0, "uncapped_watts": 2.0}
+            two = arrangement(bar("a", pixels=2), bar("b", pixels=2, chain=2, start=[0.0, 1.0], end=[1.0, 1.0]))
+            ws.send(json.dumps({"type": "arrange", "id": "e1", "arrangement": two}))
+            assert next_of(ws, "ack") == {"type": "ack", "id": "e1", "control": "arrange"}
+            rig.calls.drain()  # the commit, on the loop thread
+            sink.send(0.0, np.zeros((2, 3), np.float32))
+            seen = {kind: next_of(ws, kind) for kind in ("power", "arrangement", "report")}
+            assert seen["power"] == {"type": "power", "watts": 1.0, "uncapped_watts": 2.0}
+            assert seen["arrangement"]["arrangement"] == two and rig.layout.rig.n == 4
+            assert seen["report"]["report"]["totals"]["pixels"] == 4
+            ws.send(json.dumps({"type": "arrange", "id": "e2", "arrangement": {"format": "pewpew.arrangement"}}))
+            refused = next_of(ws, "refused")
+            assert (refused["control"], refused["id"]) == ("arrange", "e2") and refused["issues"]
+            assert refused["reason"].startswith("the arrangement does not compile")
+            ws.send(json.dumps({"type": "blackout", "id": "b", "on": "x"}))
+            assert "issues" not in next_of(ws, "refused")  # only a refusal with issues carries them
+
+
+@pytest.mark.usefixtures("fake_ops")
+def test_an_unattended_rig_offers_no_layout_edit(tmp_path):
+    rig, _doc = editable_rig(tmp_path, edits=False)
+    sink = preview_sink(line(2), control=rig.control)
+    assert json.loads(sink._view.hello)["capabilities"] == ["ack"]
+    texts = dict(zip(preview._MESSAGES, sink._texts(None)))
+    assert texts["arrangement"] is None and texts["report"] is not None
+
+
+def test_a_refusal_carries_its_issues_only_when_it_has_some():
+    issue = {"level": "error", "code": "bad", "message": "bad", "ref": None}
+    assert preview.answer("arrange", 1, Refusal("bad", issues=(issue,))) == {
+        "type": "refused", "control": "arrange", "name": None, "id": 1, "reason": "bad", "issues": [issue]}
+    assert preview.answer("arrange", 1, Refusal("bad")) == {
+        "type": "refused", "control": "arrange", "name": None, "id": 1, "reason": "bad"}

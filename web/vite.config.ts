@@ -78,9 +78,25 @@ function servedFiles(): Plugin {
  * @react-three's own dependencies, which would otherwise make a second 3D
  * file that imports the first and is imported by it. */
 const CONSOLE_3D = new RegExp(
-  String.raw`[\/]node_modules[\/](three|three-stdlib|@react-three[\/][^\/]+|its-fine|suspend-react|react-use-measure|zustand|use-sync-external-store|@babel[\/]runtime)[\/]` +
+  String.raw`[\/]node_modules[\/](three|three-stdlib|@react-three[\/][^\/]+|its-fine|suspend-react|react-use-measure|@babel[\/]runtime)[\/]` +
     String.raw`|[\/]src[\/]rig3d[\/]`,
 );
+
+/** The Console's layout editor and report (src/arrange), the page's modules only they use (design/Field,
+ * params/NumberField), and their store's package, zustand (which @react-three uses too), in one file
+ * loaded when the layout panel, the report or the 3D view first opens: the 3D view edits through the
+ * same store. A module named here that the page comes to use loads with the page, over its budget
+ * (tests/test_page_build.py). */
+const CONSOLE_RIG = new RegExp(
+  String.raw`[\/]node_modules[\/](zustand|use-sync-external-store)[\/]` +
+    String.raw`|[\/]src[\/](arrange[\/]|design[\/]Field\.tsx|params[\/]NumberField\.tsx)`,
+);
+
+/** Every other module the page imports, in one file the page loads at once. Two files loaded on demand
+ * that import the same modules of the page would otherwise get those modules split into a file of their
+ * own, which costs the page about 4 kB gzipped in the names the two files trade (Rolldown 1.2). The
+ * page's entry is then only its `main.tsx`. */
+const PAGE = /[\\/](src|node_modules)[\\/]/;
 
 /** The studio's page: served for `/` and a share link `/a/<id>` in dev, and
  * built as index.html, the name the studio server serves (studio/app.py). */
@@ -173,7 +189,11 @@ export default defineConfig(({ command, mode }) => {
       rolldownOptions: {
         output: {
           codeSplitting: {
-            groups: [{ name: "console-3d", test: CONSOLE_3D, includeDependenciesRecursively: false }],
+            groups: [
+              { name: "console-3d", test: CONSOLE_3D, includeDependenciesRecursively: false, priority: 2 },
+              { name: "console-rig", test: CONSOLE_RIG, includeDependenciesRecursively: false, priority: 2 },
+              { name: "page", test: PAGE, includeDependenciesRecursively: false, priority: 0 },
+            ],
           },
         },
       },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Arrangement, CompiledFixture, RingGroup } from "../../../src/studio/api/types";
-import { compiledFixture, stubCompile, threeBarRig } from "../fixtures/rig";
-import { DEFAULT_ARRANGEMENT } from "../../../src/studio/store/doc";
+import type { Arrangement, CompiledFixture, RingGroup } from "../../src/studio/api/types";
+import { compiledFixture, stubCompile, threeBarRig } from "../studio/fixtures/rig";
+import { RINGS as DEFAULT_ARRANGEMENT } from "./fixtures";
 import {
   addFixture,
   asArrangement,
@@ -16,8 +16,8 @@ import {
   remove,
   setAttachment,
   setPower,
-} from "../../../src/studio/editor/arrangement";
-import { matrixPose } from "../../../src/rig3d/pose";
+} from "../../src/arrange/arrangement";
+import { matrixPose } from "../../src/arrange/pose";
 
 const withBar = (): Arrangement => ({
   ...DEFAULT_ARRANGEMENT,

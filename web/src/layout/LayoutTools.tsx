@@ -9,8 +9,9 @@ import { BLINK_MS, useLayoutMode } from "./LayoutMode";
 
 /** Markers at each fixture's input end, and blink a fixture: on the real
  * boards when DDP is on. A click on a fixture in the room blinks it, a tap
- * picks it and a second blinks it (Stage), as a line under the tools says. */
-export function LayoutTools() {
+ * picks it and a second blinks it (Stage), as a line under the tools says.
+ * With `onReport`, a button opens the rig's report. */
+export function LayoutTools({ onReport }: { onReport?: () => void }) {
   const mode = useLayoutMode();
   const fine = useMedia(FINE_POINTER);
   const room = roomOf(useWire((s) => s.map));
@@ -36,6 +37,11 @@ export function LayoutTools() {
       >
         blink
       </Button>
+      {onReport && (
+        <Button variant="tertiary" onPress={onReport} title="power, wiring and controllers of the running rig">
+          report
+        </Button>
+      )}
       <span className="note" role="status">
         {mode.blinking && `blinking ${mode.blinking} · ${BLINK_MS / 1000} s`}
       </span>

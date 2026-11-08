@@ -1,14 +1,18 @@
-import { Euler, MathUtils, type Matrix4, Quaternion, Vector3 } from "three";
+import { Euler, MathUtils, Matrix4, Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import type { QuatXYZW } from "../../src/studio/api/types";
+import type { QuatXYZW } from "../../src/arrange/types";
 import {
   canonicalQuat,
   flipPose,
   matrixPose,
-  poseMatrix,
+  type PoseQ,
   quatToYpr,
   yprToQuat,
-} from "../../src/rig3d/pose";
+} from "../../src/arrange/pose";
+
+/** `T(p)·R(q)` as three.js composes it. */
+const poseMatrix = (pose: PoseQ) =>
+  new Matrix4().compose(new Vector3(...pose.position_m), new Quaternion(...pose.quat_xyzw), new Vector3(1, 1, 1));
 
 const close = (a: readonly number[], b: readonly number[], eps = 1e-9) =>
   a.every((v, i) => Math.abs(v - b[i]!) < eps);
@@ -120,5 +124,40 @@ describe("poses and matrices", () => {
     ).toBe(true);
     expect(close(axis(m1, 2), axis(m0, 2))).toBe(true);
     expect(close(flipPose(flipped).quat_xyzw, pose.quat_xyzw)).toBe(true);
+  });
+});
+
+describe("the math is three.js's", () => {
+  // Deterministic sample rotations: a seeded LCG over each axis.
+  let seed = 7;
+  const next = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
+  const quats = Array.from({ length: 200 }, () => canonicalQuat([next(), next(), next(), next()]));
+
+  it("reads yaw, pitch and roll as Euler YXZ does", () => {
+    for (const q of [...quats, [0, Math.SQRT1_2, 0, Math.SQRT1_2] as QuatXYZW, [Math.SQRT1_2, 0, 0, Math.SQRT1_2] as QuatXYZW]) {
+      const e = new Euler().setFromQuaternion(new Quaternion(...q), "YXZ");
+      const ypr = quatToYpr(q);
+      expect(close([ypr.yaw, ypr.pitch, ypr.roll], [e.y, e.x, e.z].map(MathUtils.radToDeg), 1e-9)).toBe(true);
+    }
+  });
+
+  it("makes a quaternion as setFromEuler does", () => {
+    for (const q of quats) {
+      const ypr = quatToYpr(q);
+      const e = new Euler(MathUtils.degToRad(ypr.pitch), MathUtils.degToRad(ypr.yaw), MathUtils.degToRad(ypr.roll), "YXZ");
+      const ref = new Quaternion().setFromEuler(e);
+      expect(close(yprToQuat(ypr), canonicalQuat([ref.x, ref.y, ref.z, ref.w]), 1e-12)).toBe(true);
+    }
+  });
+
+  it("decomposes a matrix as Matrix4.decompose does", () => {
+    for (const q of quats) {
+      const m = poseMatrix({ position_m: [next(), next(), next()], quat_xyzw: q });
+      const p = new Vector3(), r = new Quaternion();
+      m.decompose(p, r, new Vector3());
+      const pose = matrixPose(m.elements);
+      expect(pose.position_m).toEqual(p.toArray());
+      expect(close(pose.quat_xyzw, canonicalQuat([r.x, r.y, r.z, r.w]), 1e-12)).toBe(true);
+    }
   });
 });

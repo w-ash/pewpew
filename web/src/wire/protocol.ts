@@ -8,16 +8,19 @@
 // Any client may give a request an `id`, which its answer, an `ack` or a
 // `refused`, carries back. This page gives one only to a request it shows
 // as busy until the engine answers (`Sender.ask`: a look the engine makes,
-// or a keep). A client outside the package (`python -m pewpew push`, an
-// agent) also reads the hello's `capabilities` (ADR-020 amendment
-// "capabilities"). This page ships with its engine: it never reads them.
+// a keep, or a layout edit). A client outside the package (`python -m pewpew
+// push`, an agent) also reads the hello's `capabilities` (ADR-020 amendment
+// "capabilities"). This page ships with its engine: of them it reads only
+// `arrange`, whether this run takes layout edits (wire/store.ts `canArrange`).
 import type { HealthState } from "../health/health";
 import { isRecord, type Param, type ValueOf } from "../params/schema";
 import type { MapShape } from "../room/layout";
 import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
+import type { Arrangement } from "../arrange/types";
 import type {
-  ControllerSlice, ControllerTarget, Issue, OutputSlice, PlanMissing, RigView, RigViewFixture, RigViewPlan, RigViewType,
+  ControllerSlice, ControllerTarget, Issue, OutputSlice, PlanMissing, RigReport, RigView, RigViewFixture, RigViewPlan,
+  RigViewType,
 } from "../rig/types.gen";
 
 /** `T` with every field, array and record in it read-only: the page never changes a message. */
@@ -62,9 +65,9 @@ export interface HelloMessage extends MapShape {
   readonly display_gamma: number;
   /** The build stamp of the page the engine serves; a tab built otherwise reloads. Null without one. */
   readonly build: string | null;
-  /** For clients outside the package only; this page never reads it. What such a client may rely on:
-   * "ack" (a request with an `id` is answered), and "look" (the run takes `look`, `run --accept-looks`).
-   * Empty when no control is wired. */
+  /** What a client may rely on: "ack" (a request with an `id` is answered), "look" (the run takes `look`,
+   * `run --accept-looks`) and "arrange" (the run takes `arrange`: an arrangement map, not unattended).
+   * This page reads only "arrange". Empty when no control is wired. */
   readonly capabilities: readonly string[];
 }
 
@@ -131,11 +134,27 @@ interface CatalogMessage extends Catalog {
   readonly type: "catalog";
 }
 
-/** The estimated draw of the frame last streamed, under the power cap and without it. Sent only by the studio. */
+/** The estimated draw of the frame last streamed, under the power cap and without it, at most twice a
+ * second. Sent only on a rig (the engine's arrangement run, or the studio's bound rig). */
 interface PowerMessage {
   readonly type: "power";
   readonly watts: number;
   readonly uncapped_watts: number;
+}
+
+/** The arrangement file as the engine last loaded or wrote it, which the layout editor edits. Sent only
+ * when the run takes `arrange`. */
+interface ArrangementMessage {
+  readonly type: "arrangement";
+  readonly arrangement: Arrangement;
+}
+
+/** The running rig's issues and its power, wiring and controller report (null when it has none). Sent on
+ * an arrangement run. */
+interface ReportMessage {
+  readonly type: "report";
+  readonly issues: readonly RigIssue[];
+  readonly report: RigReport | null;
 }
 
 /** A request's `id`, as a client outside the package sent it; it comes back as sent. */
@@ -158,6 +177,8 @@ interface RefusedMessage {
   /** The request's `id`; null without one. */
   readonly id: RequestId | null;
   readonly reason: string;
+  /** Every problem of an arrangement the engine did not compile (an `arrange`, the studio's `bind`). */
+  readonly issues?: readonly RigIssue[];
 }
 
 /** An accepted request that carried an `id`, to the client that sent it. */
@@ -169,7 +190,8 @@ interface AckMessage {
 
 export type ServerMessage =
   | HelloMessage | LayoutMessage | StatusMessage | ParamsMessage | ModMessage | DeclareMessage
-  | AuraMessage | HealthMessage | CatalogMessage | PowerMessage | RefusedMessage | AckMessage;
+  | AuraMessage | HealthMessage | CatalogMessage | PowerMessage | ArrangementMessage | ReportMessage | RefusedMessage
+  | AckMessage;
 
 /** What a client may send. The engine checks every field and refuses a bad one with its
  * reason. Without an `id`, only a message that is not an object, has no known `type`, or is
@@ -236,7 +258,12 @@ export type ClientMessage =
   | { readonly type: "rebind"; readonly board: string; readonly address: string }
   /** Flash a rig fixture white and off for a few seconds (needs an arrangement map). With DDP on,
    * this drives the real boards. */
-  | { readonly type: "blink"; readonly fixture: string };
+  | { readonly type: "blink"; readonly fixture: string }
+  /** Replace the arrangement file with `arrangement` and run it: the engine compiles it once, refuses it
+   * with its `issues` when it does not compile or its boards cannot take it, else writes the file whole
+   * (atomically, audit-logged when DDP is on) and applies it as a save of the file reloads. Needs the
+   * "arrange" capability: refused in an unattended run, on a room map file and on any other map. */
+  | { readonly type: "arrange"; readonly arrangement: Arrangement };
 
 /** The inbound type a refusal names. */
 export type Control = ClientMessage["type"];
@@ -287,7 +314,7 @@ export function encodeFrame(t: number, seq: number, rgb: Uint8Array): ArrayBuffe
 // Every server message type: a new member of ServerMessage fails to compile until it is listed.
 const TYPES: Readonly<Record<ServerMessage["type"], true>> = {
   hello: true, layout: true, status: true, params: true, mod: true, declare: true, aura: true, health: true,
-  catalog: true, power: true, refused: true, ack: true,
+  catalog: true, power: true, arrangement: true, report: true, refused: true, ack: true,
 };
 
 /** A JSON object with a text `type`: any message, before it is known to be the wire's. */

@@ -1,10 +1,8 @@
-import type { ReactNode } from "react";
-import { act } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { WireContext, WireStore } from "../../../src/wire/store";
-import { DEFAULT_ARRANGEMENT, useDoc } from "../../../src/studio/store/doc";
+import { useDoc } from "../../src/arrange/doc";
+import { RINGS as DEFAULT_ARRANGEMENT } from "./fixtures";
 import {
   formatA,
   formatPct,
@@ -13,8 +11,8 @@ import {
   IssueList,
   PowerCapEditor,
   ReportPanel,
-} from "../../../src/studio/panels/ReportPanel";
-import type { RigReport } from "../../../src/studio/api/types";
+} from "../../src/arrange/ReportPanel";
+import type { Arrangement, RigReport } from "../../src/arrange/types";
 
 describe("number formatting", () => {
   it("shows watts and amps with one decimal and a thousands separator", () => {
@@ -87,14 +85,12 @@ const report = {
   ],
 } as unknown as RigReport;
 
-const wire = { store: new WireStore(), sender: { send() {}, sendLatest() {}, ask: () => Promise.resolve(true) } };
-
-/** The panel on a wire that has sent no power reading. */
-const wired = (ui: ReactNode) => render(<WireContext.Provider value={wire}>{ui}</WireContext.Provider>);
+/** The panel before a power reading. */
+const wired = render;
 
 describe("ReportPanel", () => {
   it("leads with the summary, unrounded", async () => {
-    const screen = await wired(<ReportPanel stale={false} issues={[]} report={report} />);
+    const screen = await wired(<ReportPanel power={null} stale={false} issues={[]} report={report} />);
     const summary = screen.getByRole("region", { name: "Summary" });
     await expect.element(summary.getByText("1,228.8 W")).toBeInTheDocument();
     await expect.element(summary.getByText("51.2 A")).toBeInTheDocument();
@@ -105,24 +101,30 @@ describe("ReportPanel", () => {
     await expect.element(summary.getByText("2 · 80.0% (240.0 W)")).toBeInTheDocument();
   });
 
-  it("shows the live watts from the wire's power reading", async () => {
-    const live = new WireStore();
-    live.receive({ type: "power", watts: 42.5, uncapped_watts: 60 });
+  it("shows the live watts of the power reading it is given", async () => {
     const screen = await render(
-      <WireContext.Provider value={{ ...wire, store: live }}>
-        <ReportPanel stale={false} issues={[]} report={report} />
-      </WireContext.Provider>,
+      <ReportPanel stale={false} issues={[]} report={report} power={{ watts: 42.5, uncapped_watts: 60 }} />,
     );
     const stat = screen.getByTestId("report-watts");
     await expect.poll(() => stat.element().textContent).toContain("42.5 W");
     await expect.poll(() => stat.element().textContent).toContain("60.0 W uncapped");
-    act(() => live.receive({ type: "power", watts: 10, uncapped_watts: 10 }));
+    await screen.rerender(<ReportPanel stale={false} issues={[]} report={report} power={{ watts: 10, uncapped_watts: 10 }} />);
     await expect.poll(() => stat.element().textContent).toBe("10.0 W");
+  });
+
+  it("edits the power cap only when it is given the arrangement", async () => {
+    const screen = await render(<ReportPanel power={null} stale={false} issues={[]} report={report} />);
+    await expect.element(screen.getByRole("switch", { name: "Cap the watts" })).not.toBeInTheDocument();
+    await screen.rerender(
+      <ReportPanel power={null} stale={false} issues={[]} report={report} arrangement={DEFAULT_ARRANGEMENT} onCommit={() => {}} />,
+    );
+    await expect.element(screen.getByRole("switch", { name: "Cap the watts" })).toBeInTheDocument();
   });
 
   it("collapses every section and the warnings by default", async () => {
     await wired(
       <ReportPanel
+        power={null}
         stale={false}
         issues={[
           { level: "error", code: "e", message: "broken", ref: null },
@@ -154,8 +156,8 @@ describe("ReportPanel", () => {
   });
 
   it("says when there is no report", async () => {
-    const screen = await wired(<ReportPanel stale={false} issues={[]} report={null} />);
-    await expect.element(screen.getByText("The server sent no report for this rig.")).toBeInTheDocument();
+    const screen = await wired(<ReportPanel power={null} stale={false} issues={[]} report={null} />);
+    await expect.element(screen.getByText("The engine sent no report for this rig.")).toBeInTheDocument();
   });
 });
 
@@ -166,9 +168,16 @@ describe("IssueList", () => {
   });
 });
 
+/** The cap editor on the doc store. */
+function DocCap() {
+  const arrangement: Arrangement = useDoc((s) => s.history.present);
+  const commit = useDoc((s) => s.commit);
+  return <PowerCapEditor arrangement={arrangement} onCommit={commit} />;
+}
+
 describe("PowerCapEditor", () => {
   beforeEach(() =>
-    useDoc.getState().load(DEFAULT_ARRANGEMENT, { mode: "draft" }),
+    useDoc.getState().load(DEFAULT_ARRANGEMENT),
   );
   const present = () => useDoc.getState().history.present;
 
@@ -183,7 +192,7 @@ describe("PowerCapEditor", () => {
   };
 
   it("writes the cap into the arrangement and drops it when it caps nothing", async () => {
-    const screen = await render(<PowerCapEditor />);
+    const screen = await render(<DocCap />);
     const cap = screen.getByRole("switch", { name: "Cap the watts" });
     await expect.element(cap).not.toBeChecked();
     await expect.element(entry("Max watts")).not.toBeInTheDocument();
@@ -204,14 +213,11 @@ describe("PowerCapEditor", () => {
   });
 
   it("shows the cap of the arrangement it opens", async () => {
-    useDoc.getState().load(
-      {
-        ...DEFAULT_ARRANGEMENT,
-        power: { max_watts: 750, max_brightness: 0.5 },
-      },
-      { mode: "shared", id: "x" },
-    );
-    const screen = await render(<PowerCapEditor />);
+    useDoc.getState().load({
+      ...DEFAULT_ARRANGEMENT,
+      power: { max_watts: 750, max_brightness: 0.5 },
+    });
+    const screen = await render(<DocCap />);
     await expect.element(screen.getByRole("switch", { name: "Cap the watts" })).toBeChecked();
     await expect.element(entry("Max watts")).toHaveValue("750.0");
     await expect.element(entry("Max brightness")).toHaveValue("50");

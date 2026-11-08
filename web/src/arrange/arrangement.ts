@@ -2,24 +2,38 @@
  * Edits to an arrangement. Each returns a new arrangement and leaves the
  * input untouched.
  *
- * None of these expand presets or place pixels: the server does that on
- * compile. `explodeGroup` reads the member matrices the server returned.
+ * None of these expand presets or place pixels: the engine does that on
+ * compile. `explodeGroup` reads the member matrices the engine compiled.
  */
 import type {
   Arrangement,
   AttachmentRef,
-  CompiledFixture,
   FixtureEntry,
   Group,
   PowerLimit,
-} from "../api/types";
+} from "./types";
 import {
   flipPose,
   IDENTITY_POSE,
   matrixPose,
   type PoseQ,
   resolvePose,
-} from "../../rig3d/pose";
+} from "./pose";
+
+/** A fixture as the engine compiled it: the studio's compile body's, or the `rig` of the Console's
+ * `hello` and `layout`. */
+export interface Placed {
+  readonly id: string;
+  readonly type_id: string;
+  readonly base_type_id: string;
+  /** Absent in a compile from before the field: the group is then the `group/k` the id names. */
+  readonly group?: string | null;
+  /** The world matrix, 16 numbers column-major. */
+  readonly matrix: readonly number[];
+  readonly tags: readonly string[];
+  readonly dims: Readonly<Record<string, number>>;
+  readonly attachments: Readonly<Record<string, string | null>>;
+}
 
 export type Selection =
   | { kind: "fixture"; id: string }
@@ -31,7 +45,7 @@ export type RingEnd = "inner" | "outer";
 export { IDENTITY_POSE };
 
 /** The group a compiled fixture came from: its `group`, else the `group/k` its id names. */
-function groupOf(f: CompiledFixture): string | null {
+function groupOf(f: Placed): string | null {
   if (f.group !== undefined) return f.group;
   const slash = f.id.lastIndexOf("/");
   return slash > 0 ? f.id.slice(0, slash) : null;
@@ -40,7 +54,7 @@ function groupOf(f: CompiledFixture): string | null {
 /** The arrangement entity a compiled fixture came from. */
 export function entityOf(
   arrangement: Arrangement,
-  fixture: CompiledFixture,
+  fixture: Placed,
 ): Selection | null {
   const group = groupOf(fixture);
   if (group && arrangement.groups.some((g) => g.id === group)) {
@@ -54,7 +68,7 @@ export function entityOf(
 
 /** Compiled fixture indices that belong to a selection. */
 export function fixturesOf(
-  fixtures: readonly CompiledFixture[],
+  fixtures: readonly Placed[],
   selection: Selection | null,
 ): number[] {
   if (!selection) return [];
@@ -91,13 +105,13 @@ export function freshId(arrangement: Arrangement, base: string): string {
 
 /**
  * The selection's pose with defaults filled in. A free fixture placed by
- * `aim` reads its rotation from the server's matrix; a group placed by
+ * `aim` reads its rotation from the engine's matrix; a group placed by
  * `aim` has no editable pose, so this returns null.
  */
 export function poseOf(
   arrangement: Arrangement,
   selection: Selection,
-  compiled: readonly CompiledFixture[] = [],
+  compiled: readonly Placed[] = [],
 ): PoseQ | null {
   if (selection.kind === "group") {
     const g = arrangement.groups.find((e) => e.id === selection.id);
@@ -222,7 +236,7 @@ function swapEnds(attach: FixtureEntry["attach"]): FixtureEntry["attach"] {
 export function flip(
   arrangement: Arrangement,
   selection: Selection,
-  compiled: readonly CompiledFixture[] = [],
+  compiled: readonly Placed[] = [],
 ): Arrangement | null {
   if (selection.kind === "fixture") {
     const pose = poseOf(arrangement, selection, compiled);
@@ -296,13 +310,13 @@ export function updateGroup(
 }
 
 /**
- * Replace a group with free fixtures at the poses the server compiled for
+ * Replace a group with free fixtures at the poses the engine compiled for
  * its members. Returns null when `compiled` holds no members of the group.
  */
 export function explodeGroup(
   arrangement: Arrangement,
   groupId: string,
-  compiled: readonly CompiledFixture[],
+  compiled: readonly Placed[],
 ): Arrangement | null {
   const group = arrangement.groups.find((g) => g.id === groupId);
   if (!group) return null;
@@ -335,7 +349,7 @@ const isObjectList = (v: unknown) =>
 
 /**
  * A light check that parsed JSON is an arrangement file: its format, and
- * fixtures and groups as lists of objects. The server validates the rest.
+ * fixtures and groups as lists of objects. The engine validates the rest.
  */
 export function asArrangement(value: unknown): Arrangement | null {
   if (!value || typeof value !== "object") return null;

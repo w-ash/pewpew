@@ -13,12 +13,16 @@ Wire protocol. web/src/wire/protocol.ts types every message and says
 what its fields mean. Each message has one source here: `hello` and
 `layout` are `View.of` (on a rig, `room` is `pewpew.rig.runtime.plan_view`
 and `rig` is `rig_view`, both null on any other map), `status` is the
-`status` supplier, and `declare`, `params`, `mod`, `aura`, `health` and
-`catalog` are the control's states (`pewpew.aura.control.wire_states`),
-made text by `StateTexts`, which the studio uses too; `power`, the
-estimated draw of the streamed frame, is given to it by the studio only. A state that is the
-same object as the last one read keeps its text, so the large `catalog`
-is serialized once, and again only when it changes (an op file loads).
+`status` supplier, `power`, the estimated draw of the streamed frame, is
+the `power` supplier (the run's power limit on a rig, or the studio's),
+and `declare`, `params`, `mod`, `aura`, `health`, `catalog`,
+`arrangement` and `report` are the control's states
+(`pewpew.aura.control.wire_states`), made text by `StateTexts`, which the
+studio uses too. `arrangement` is the rig file's arrangement while the
+page may edit it, and `report` the running rig's issues and electrical
+report. A state that is the same object as the last one read keeps its
+text, so the large `catalog` is serialized once, and again only when it
+changes (an op file loads).
 `mod`, the live values of the knobs a route drives, changes every frame,
 so it is read at most `MOD_HZ` times a second on the injected clock, and
 sent no more often (ADR-006 amendment "layered paths"). The hello
@@ -29,7 +33,8 @@ binary frame is a `<fI` header (engine `t`, sequence number) and `n*3`
 display-ready RGB: gamma and quantization happen here, once (Q-1). Every
 text message is absolute state, so the last write wins on every tab.
 `refused` goes only to the client that asked; its reason names a param,
-layer, look, fixture or cap, never a path. Each inbound message goes
+layer, look, fixture or cap, never a path, and for an `arrange` that does
+not compile, its `issues` list every finding. Each inbound message goes
 whole to `Control.request`, in the order it came; a request that answers
 later (a look to make) is answered when its future is done, and the
 messages after it are read meanwhile (`answer_request`, which the studio
@@ -39,10 +44,11 @@ Any client may give a message an `id`; the engine then answers it,
 accepted or not: `ack` with the `id` and the control, or `refused` with
 them, the control null when the `type` is not text (ADR-020 amendment
 "capabilities"). The bundled page gives one only to the requests it
-shows busy until they are answered: `surprise`, `vary` and `keep`. The
-hello's `capabilities` names what a client outside the package (`push`,
-an agent) may rely on: `ack`, and the control's own (`look`). The page
-never reads `capabilities`: it ships with its engine.
+shows busy until they are answered: `surprise`, `vary`, `keep` and
+`arrange`. The hello's `capabilities` names what a client outside the
+package (`push`, an agent) may rely on: `ack`, and the control's own
+(`look`, `arrange`). The page ships with its engine and reads only
+`arrange`, which says whether this run lets it edit the layout.
 
 Security. The port has no login (architecture §5, ADR-006's trust model
 amendment): bind `host` to the private router. Every request gets 403
@@ -101,7 +107,7 @@ logger = logging.getLogger(__name__)
 # and is never sent.
 _MESSAGES = {
     "status": None, "declare": "params", "params": "values", "mod": "values", "aura": None, "health": None,
-    "catalog": None, "power": None,
+    "catalog": None, "power": None, "arrangement": "arrangement", "report": None,
 }
 # How often the `mod` message's values are read, at most, a second.
 MOD_HZ = 10.0
@@ -138,8 +144,8 @@ def pack_frame(t: float, seq: int, frame: np.ndarray) -> bytes:
 def message(kind: str, state: Any) -> str:
     """The wire text of the `kind` message of `_MESSAGES` for `state`: the
     status, the declarations, the values, the live values, the `aura`
-    state, the health, the catalog or the power reading. The studio sends
-    the same text (pewpew.studio.session)."""
+    state, the health, the catalog, the power reading, the arrangement or
+    the rig's report. The studio sends the same text (pewpew.studio.session)."""
     key = _MESSAGES[kind]
     return json.dumps({"type": kind, **(state if key is None else {key: state})})
 
@@ -339,12 +345,14 @@ def _zipped_response(
 
 
 def answer(control: str | None, rid: object, refused: Refusal | None) -> dict[str, Any] | None:
-    """The answer to a request: `refused` with that refusal's reason, else
-    `ack` when it carries an `id`, `rid`, else None. An accepted request
-    without an id needs no reply: the next frame carries the whole state,
-    and every tab converges on what won."""
+    """The answer to a request: `refused` with that refusal's reason, and
+    its `issues` when it has any, else `ack` when it carries an `id`,
+    `rid`, else None. An accepted request without an id needs no reply:
+    the next frame carries the whole state, and every tab converges on what
+    won."""
     if refused is not None:
-        return refusal(control, refused.reason, name=refused.name, id=rid)
+        extra = {"issues": list(refused.issues)} if refused.issues else {}
+        return refusal(control, refused.reason, name=refused.name, id=rid, **extra)
     return None if rid is None else {"type": "ack", "id": rid, "control": control}
 
 
@@ -486,7 +494,11 @@ class _Client:
 
 
 class PreviewSink:
-    """Serve `http://host:port/` and stream frames to every open tab."""
+    """Serve `http://host:port/` and stream frames to every open tab.
+
+    `power` gives the latest power reading `{"watts", "uncapped_watts"}`,
+    replaced whole by each new one, or None before the first.
+    """
 
     def __init__(
         self,
@@ -501,10 +513,12 @@ class PreviewSink:
         room: dict | None = None,
         plan_image: Path | None = None,
         rig: dict | None = None,
+        power: Callable[[], dict[str, float] | None] | None = None,
         now: Callable[[], float] = time.perf_counter,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._max_pixels = max_pixels
+        self._power = power
         # A client's `id` is answered only when there is a control to ask.
         self._capabilities = ("ack", *control.capabilities) if control is not None else ()
         self._view = View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities, page_build(), rig)
@@ -610,9 +624,13 @@ class PreviewSink:
             return
         self._seq = (self._seq + 1) & 0xFFFFFFFF
         data = pack_frame(t, self._seq, frame if view.idx is None else frame[view.idx])
-        messages = self._states(status)
+        messages = self._texts(status)
         for client in clients:
             client.driver.submit(t, (data, view, messages))
+
+    def _texts(self, status: tuple[str, str, str | None] | None) -> tuple[str | None, ...]:
+        """The current text of each message, for `status` and the latest power reading."""
+        return self._states(status, self._power() if self._power is not None else None)
 
     # -- server side (per-connection threads) ---------------------------------
 
@@ -663,7 +681,7 @@ class PreviewSink:
 
     def _handler(self, conn: ServerConnection) -> None:
         view = self._view
-        messages = self._states(self._current_status)
+        messages = self._texts(self._current_status)
         conn.send(view.hello)
         for message in messages:
             if message is not None:

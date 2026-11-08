@@ -9,12 +9,16 @@ import { offSaved } from "../aura/looks";
 import type { AuraState } from "../aura/aura";
 import type { Catalog } from "../stack/catalog";
 import type { LayerItem } from "../stack/stack";
-import type { ErrorSource, Frame, RefusedControl, RigShape, Sender, ServerMessage } from "./protocol";
+import type { Arrangement } from "../arrange/types";
+import type { ErrorSource, Frame, RefusedControl, RigIssue, RigShape, Sender, ServerMessage } from "./protocol";
+import type { RigReport } from "../rig/types.gen";
 
 export interface Refusal {
   readonly control: RefusedControl;
   readonly name: string | null;
   readonly reason: string;
+  /** Every problem of an arrangement the engine did not compile; empty for any other refusal. */
+  readonly issues: readonly RigIssue[];
   /** Counts refusals, so the same reason twice is still news. */
   readonly seq: number;
 }
@@ -31,8 +35,16 @@ export interface PowerState {
   readonly uncapped_watts: number;
 }
 
+/** The running rig's issues and its report (`report`). */
+export interface ReportState {
+  readonly issues: readonly RigIssue[];
+  readonly report: RigReport | null;
+}
+
 export interface WireState {
   readonly connected: boolean;
+  /** What the engine's hello says it takes beyond the page's own requests; the page reads only "arrange". */
+  readonly capabilities: readonly string[];
   /** The engine's display gamma, from the hello; null before one. */
   readonly gamma: number | null;
   /** The positions and, on an arrangement, the rig a 3D view draws; replaced whole by a hello or a
@@ -43,8 +55,12 @@ export interface WireState {
   readonly health: HealthState | null;
   /** What a layer can run; null before the engine sends it. */
   readonly catalog: Catalog | null;
-  /** The streamed frame's estimated draw (the studio's); null before a reading. */
+  /** The streamed frame's estimated draw; null before a reading. */
   readonly power: PowerState | null;
+  /** The arrangement file the engine runs, for the layout editor; null unless the run takes `arrange`. */
+  readonly arrangement: Arrangement | null;
+  /** The running rig's issues and report; null before the engine sends them. */
+  readonly report: ReportState | null;
   /** The engine's error, which outlives a refusal. */
   readonly error: EngineError | null;
   /** The latest refusal per control, and per param for a refused `set`. */
@@ -59,9 +75,12 @@ export interface WireState {
 type Listener = () => void;
 
 const INITIAL: WireState = {
-  connected: false, gamma: null, map: null, params: [], aura: null, health: null, catalog: null,
-  power: null, error: null, refusals: {}, paramRefusals: {}, session: 0, bound: false,
+  connected: false, capabilities: [], gamma: null, map: null, params: [], aura: null, health: null, catalog: null,
+  power: null, arrangement: null, report: null, error: null, refusals: {}, paramRefusals: {}, session: 0, bound: false,
 };
+
+/** Whether the run takes layout edits: a rig, and the hello's "arrange" capability. */
+export const canArrange = (s: WireState): boolean => !!s.map?.rig && s.capabilities.includes("arrange");
 
 /** `next`, reusing every part of `prev` that is equal to it, so a message
  * that changes one field leaves the identity of the others alone. */
@@ -185,7 +204,7 @@ export class WireStore {
   /** A new connection, on positions `map` with frames in `gamma`: what the last one said is dropped, and
    * the rest follows. The engine's hello opens one; a page whose server sends no hello calls it as its socket
    * opens. */
-  opened({ gamma, map }: Pick<WireState, "gamma" | "map">): void {
+  opened({ gamma, map, capabilities = [] }: Pick<WireState, "gamma" | "map"> & { capabilities?: readonly string[] }): void {
     const keep = (r: Refusal) => this.early.has(r.seq);
     const refusals = Object.fromEntries(Object.entries(this.state.refusals).filter(([, r]) => r && keep(r)));
     const paramRefusals = Object.fromEntries(Object.entries(this.state.paramRefusals).filter(([, r]) => keep(r)));
@@ -195,16 +214,17 @@ export class WireStore {
     this.setMods({});
     this.clearFrame();
     this.update({
-      connected: true, gamma, map, params: this.declare([]), aura: null, catalog: null,
-      power: null, error: null, refusals, paramRefusals, session: this.state.session + 1, bound: false,
+      connected: true, capabilities, gamma, map, params: this.declare([]), aura: null, catalog: null,
+      power: null, arrangement: null, report: null, error: null, refusals, paramRefusals,
+      session: this.state.session + 1, bound: false,
     });
   }
 
   receive(msg: ServerMessage): void {
     switch (msg.type) {
       case "hello": {
-        const { type: _, display_gamma, ...map } = msg;
-        this.opened({ gamma: display_gamma, map });
+        const { type: _, display_gamma, capabilities, ...map } = msg;
+        this.opened({ gamma: display_gamma, map, capabilities });
         break;
       }
       case "layout": {
@@ -246,9 +266,19 @@ export class WireStore {
         this.update({ power });
         break;
       }
+      case "arrangement":
+        this.update({ arrangement: msg.arrangement });
+        break;
+      case "report": {
+        const { type: _, ...report } = msg;
+        this.update({ report });
+        break;
+      }
       case "refused": {
         if (msg.control === null) break; // a request whose `type` is not text, which this page never sends
-        const refusal: Refusal = { control: msg.control, name: msg.name ?? null, reason: msg.reason, seq: ++this.seq };
+        const refusal: Refusal = {
+          control: msg.control, name: msg.name ?? null, reason: msg.reason, issues: msg.issues ?? [], seq: ++this.seq,
+        };
         if (!this.state.connected) this.early.add(refusal.seq);
         const { paramRefusals } = this.state;
         this.update({

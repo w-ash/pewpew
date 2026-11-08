@@ -30,14 +30,14 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from fakes import FakeTime
-from pewpew.power import Limited, PowerCap, PowerLimiter
+from pewpew.power import POWER_HZ, Limited, PowerCap, PowerLimiter
 from pewpew.rig import EXAMPLES, load_arrangement, load_catalog
 from pewpew.rig import models as rig_models
-from pewpew.sinks.preview import message, status_state
+from pewpew.sinks.preview import _MESSAGES, message, status_state
 from pewpew.sinks.sink import DISPLAY_GAMMA, to_display_u8
 from pewpew.studio.app import create_app
 from pewpew.studio.limits import MAX_FIXTURES, Limits, RateLimiter, address_key, client_ip
-from pewpew.studio.session import POWER_HZ, START, FramePayload, Session, example_looks, start_looks
+from pewpew.studio.session import START, FramePayload, Session, example_looks, start_looks
 from pewpew.studio.store import SqliteStore, arrangement_id, canonical_json
 from pewpew.studio.transport import Outbox
 
@@ -46,6 +46,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LOOKS = example_looks(ROOT / "examples")
 STARTS = start_looks(LOOKS)  # as the app gives them: the start look first
 START_LOOK = STARTS[START]
+POWER = list(_MESSAGES).index("power")  # where a frame's texts hold the power reading
 STRIP = np.column_stack([np.linspace(0, 1, 8), np.zeros(8), np.zeros(8)]).astype(np.float32)
 
 
@@ -635,9 +636,9 @@ def test_the_cap_runs_after_the_master_and_streams_both_power_readings():
     session = stepped(sink, fps=POWER_HZ)  # a power reading every frame
     session.bind(plane(8), limiter=cast(PowerLimiter, halve))
     session._loop.run(frames=2)
-    assert session._loop._after == (session._aura.master.apply, session._limit)
+    assert session._loop._after == (session._aura.master.apply, session._meter)
     assert sink.frames[-1].data[8:] == to_display_u8(halve.seen[-1] * np.float32(0.5)).tobytes()
-    assert json.loads(sink.frames[-1].texts[-1]) == {"type": "power", "watts": 1.0, "uncapped_watts": 2.0}
+    assert json.loads(sink.frames[-1].texts[POWER]) == {"type": "power", "watts": 1.0, "uncapped_watts": 2.0}
     assert session.control.master(0.0) is None
     session._loop.run(frames=1)
     assert not halve.seen[-1].any()  # the limiter gets the frame at the master's level
@@ -675,7 +676,7 @@ def test_an_uncapped_limiter_runs_only_when_a_reading_is_due():
     counting = Counting()
     session = stepped(RecordingSink())
     session.bind(plane(8), limiter=cast(PowerLimiter, counting))
-    session._loop.run(frames=3 * session._power_every)
+    session._loop.run(frames=3 * session._meter.every)
     assert counting.calls == 3
 
 
@@ -690,10 +691,10 @@ def test_a_bind_to_a_rig_without_a_limiter_clears_the_power_reading():
     session = stepped(sink, fps=POWER_HZ)
     session.bind(plane(8), limiter=cast(PowerLimiter, Fixed()))
     session._loop.run(frames=2)
-    assert json.loads(sink.frames[-1].texts[-1])["watts"] == 1.0
+    assert json.loads(sink.frames[-1].texts[POWER])["watts"] == 1.0
     session.bind(plane(8), limiter=None)
     session._loop.run(frames=2)
-    assert sink.frames[-1].texts[-1] is None
+    assert sink.frames[-1].texts[POWER] is None
 
 
 def test_frames_carry_the_previews_states_in_its_wire_text():
@@ -701,7 +702,8 @@ def test_frames_carry_the_previews_states_in_its_wire_text():
     session = stepped(sink, seed=3)
     session._loop.run(frames=2)
     control = session.control
-    kinds = ["status", "declare", "params", "mod", "aura", "health", "catalog", "power"]
+    kinds = ["status", "declare", "params", "mod", "aura", "health", "catalog", "power", "arrangement", "report"]
+    assert list(_MESSAGES) == kinds
     texts = dict(zip(kinds, sink.frames[-1].texts))
     assert texts["status"] == message("status", status_state(None))
     assert texts["declare"] == message("declare", control.describe())
@@ -710,6 +712,7 @@ def test_frames_carry_the_previews_states_in_its_wire_text():
     assert texts["catalog"] == message("catalog", control.catalog())
     assert texts["health"] is None  # a session has no health monitor
     assert texts["power"] is None  # nor a power reading before a rig with a limiter is bound
+    assert texts["arrangement"] is None and texts["report"] is None  # nor a rig file
     assert json.loads(texts["aura"])["master"] == START_LOOK.master  # the start look's master
 
 

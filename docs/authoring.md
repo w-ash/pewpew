@@ -116,6 +116,26 @@ A's `host` in the arrangement file, also in an `--unattended` run, and the
 new board set is audit-logged before any frame goes to it; it is refused on a
 room file (migrate it first).
 
+### Layout editing in the Console
+
+On an arrangement run, `layout` in the Console's top bar (or `L`) opens the
+layout panel in the side slot: the build-day tools (input-end markers,
+blink), then the arrangement editor (name, undo and redo, export and import,
+add a bar, ring or array, and the selected fixture's or group's pose, ends
+and preset). `report` opens the power, wiring and controller report, with
+the live draw and the power cap. With the panel open, the 3D view picks a
+fixture or group on a press and moves or turns it with a gizmo.
+
+Each edit runs live. Once edits settle (0.4 s), the page sends the whole
+arrangement in one `arrange` request: the engine compiles it once, refuses
+it with every issue when it does not compile or its boards cannot take it
+(nothing is written), else writes the file whole and atomically and applies
+it as a save of the file does, audit-logged when DDP is on. The engine
+rewrites the file as indented JSON, so a hand-kept layout of the file is
+lost on the first edit. Undo and redo are the page's own; an arrangement
+that comes from elsewhere (a save by hand, another tab) replaces the page's
+history. Edits are off in an `--unattended` run, and on a room map file.
+
 Coordinates are Contain-normalized: the rig's long axis spans 0–1 and the
 short axis is centred inside it, so (0.5, 0.5) is the middle of the rig but
 `y` may run only from, say, 0.12 to 0.88. Don't assume both axes reach 0 and 1.

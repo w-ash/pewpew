@@ -193,10 +193,47 @@ def test_a_control_the_run_does_not_have_says_so_and_one_it_does_not_know_is_ign
                             ({"type": "rebind", "board": "A", "address": "1.2.3.4"}, "this run streams to no boards"),
                             ({"type": "blink", "fixture": "a"},
                               "blink needs an arrangement map (run --map RIG.arrangement.json)"),
+                            ({"type": "arrange", "arrangement": {}},
+                              "layout edits need an arrangement map (run --map RIG.arrangement.json)"),
                             ({"type": "look", "look": {}}, NO_LOOKS)):
         assert rig.control.request(message) == Refusal(reason)
     for message in ({"type": "launch"}, {"type": 7}, {}):
         assert rig.control.request(message) is None
+
+
+class FakeLayout:
+    """A rig file the page edits: it records each arrangement sent, and
+    refuses an empty one with an issue."""
+
+    def __init__(self, editable: bool) -> None:
+        self.editable = editable
+        self.sent: list[object] = []
+        self.doc = {"format": "pewpew.arrangement"}
+        self.findings = {"issues": [], "report": None}
+
+    def arrange(self, doc: object) -> Refusal | None:
+        self.sent.append(doc)
+        return None if doc else Refusal("empty", issues=({"code": "empty"},))
+
+    def arrangement(self) -> object:
+        return self.doc if self.editable else None
+
+    def report(self) -> dict:
+        return self.findings
+
+
+def test_arrange_goes_to_the_layout_and_leaves_the_looks_alone():
+    layout = FakeLayout(editable=True)
+    rig = osc_rig(layout=layout)
+    assert rig.control.capabilities == ("arrange",)
+    assert rig.control.request({"type": "arrange", "arrangement": {"a": 1}}) is None and layout.sent == [{"a": 1}]
+    assert rig.control.request({"type": "arrange", "arrangement": {}}) == Refusal("empty", issues=({"code": "empty"},))
+    assert not rig.calls._queue  # not operator input: nothing reaches the loop thread
+    states = control.wire_states(rig.control, {})
+    assert states["arrangement"] is layout.doc and states["report"] is layout.findings
+    assert osc_rig(layout=FakeLayout(editable=False), accept_looks=True).control.capabilities == ("look",)
+    bare = control.wire_states(osc_rig().control, {})
+    assert bare["arrangement"] is None and bare["report"] is None
 
 
 def test_a_control_it_does_not_know_is_refused_when_its_sender_waits_for_an_answer():

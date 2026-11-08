@@ -694,7 +694,7 @@ test("a render error says what the room shows and what to do; the others show as
 
 test("the bar's lines: a refusal first, then the error, then the plan note", () => {
   const render = { text: "layers.base.zoo.render raised", source: "render", path: "layers.base.zoo" } as const;
-  const refusal = { control: "recall", name: null, reason: "no look named x", seq: 1 } as const;
+  const refusal = { control: "recall", name: null, reason: "no look named x", issues: [], seq: 1 } as const;
   const lone = AURA.stack.layers;
   expect(barLines(refusal, render, lone, true, "plan")).toEqual(["no look named x"]);
   expect(barLines(null, render, lone, false, null)).toEqual([

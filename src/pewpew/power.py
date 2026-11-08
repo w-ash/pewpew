@@ -9,7 +9,8 @@ before any sink quantizes. Everything here is pure: no clock, no RNG.
 - `EffectPower` is the current model of a compiled rig, in rig pixel order.
   `pewpew.rig.electrical.effect_power_model` builds it from the catalog.
 - `PowerLimiter` applies a cap to each frame.
-- `power_stage` runs a limiter as a `PacedLoop` `after` stage.
+- `PowerMeter` runs a limiter as a `PacedLoop` `after` stage and keeps its
+  power reading for a page, at most `POWER_HZ` times a second.
 
 The ADR is research/synthesis/decisions/ADR-001-internal-color-pipeline.md
 (amendment 2026-10-23).
@@ -19,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import math
-from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
 
@@ -28,6 +28,8 @@ import numpy as np
 #: The largest watt cap. It keeps the cap finite, and it is far over the
 #: full-white draw of any rig the studio compiles.
 MAX_CAP_W = 1e6
+#: How often a power reading is taken, at most, a second of frames.
+POWER_HZ = 2.0
 
 logger = logging.getLogger(__name__)
 
@@ -206,24 +208,56 @@ class PowerLimiter:
         return Limited(v * np.float32(s), s, self._flat_w + s * variable, uncapped)
 
 
-def power_stage(limiter: Callable[[np.ndarray], Limited]) -> Callable[[float, np.ndarray], np.ndarray]:
-    """A `PacedLoop` `after` stage: each frame under `limiter`'s cap.
+class PowerMeter:
+    """A `PacedLoop` `after` stage: each frame under `limiter`'s cap, and
+    the estimated draw kept at most `hz` times a second of frames at `fps`.
 
     It goes after the master (`pewpew.aura.master.Master.apply`), as
     architecture §2 stage 3 orders them, so the cap holds whatever the
-    master is set to. It never raises, as `PacedLoop` requires, and never
-    writes into the frame: a frame the limiter refuses goes out black,
-    never uncapped.
-    """
-    logged: set[type] = set()
+    master is set to. A limiter that caps nothing runs only when a reading
+    is due, and leaves the frame as it is. `reading` is the last
+    `{"watts", "uncapped_watts"}`, replaced whole by each new one, so a
+    sink keeps its text until it changes; None before the first, or with
+    no limiter. `limiter` may be set on the loop thread between frames;
+    None passes each frame unchanged and drops the reading.
 
-    def stage(t: float, frame: np.ndarray) -> np.ndarray:
+    It never raises, as `PacedLoop` requires, and never writes into the
+    frame: a frame the limiter refuses goes out black, never uncapped.
+    """
+
+    def __init__(
+        self, fps: float, limiter: PowerLimiter | None = None, *, hz: float = POWER_HZ,
+    ) -> None:
+        self.every = max(1, round(fps / hz))  # frames from one reading to the next
+        self._limiter = limiter
+        self.reading: dict[str, float] | None = None
+        self._frames = 0
+        self._logged: set[type] = set()
+
+    @property
+    def limiter(self) -> PowerLimiter | None:
+        return self._limiter
+
+    @limiter.setter
+    def limiter(self, limiter: PowerLimiter | None) -> None:
+        self._limiter = limiter
+        if limiter is None:
+            self.reading = None  # no new readings: drop the old one
+
+    def __call__(self, t: float, frame: np.ndarray) -> np.ndarray:
+        self._frames += 1
+        due = self._frames % self.every == 0
+        limiter = self._limiter
+        if limiter is None or not (due or limiter.cap.caps):
+            return frame
         try:
-            return limiter(frame).frame
+            limited = limiter(frame)
         except Exception as exc:
-            if type(exc) not in logged:
-                logged.add(type(exc))
+            if type(exc) not in self._logged:
+                self._logged.add(type(exc))
                 logger.exception("the power limit refused a frame; it goes out black")
             return np.zeros(frame.shape, dtype=np.float32)
+        if due and limited.watts is not None and limited.uncapped_watts is not None:
+            self.reading = {"watts": limited.watts, "uncapped_watts": limited.uncapped_watts}
+        return limited.frame
 
-    return stage

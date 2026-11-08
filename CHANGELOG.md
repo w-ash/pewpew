@@ -9,6 +9,17 @@ series (batch mode).
 
 ### Added
 
+- Layout editing in the Console: on an arrangement run, `layout` opens the
+  arrangement editor beside the build-day tools, and `report` the power, wiring
+  and controller report with the live draw and the power cap, both loaded on
+  demand. With the panel open, the 3D view moves or turns the selected fixture
+  with a gizmo. Each edit runs live once edits settle: the engine compiles the
+  arrangement once, refuses it with its issues or writes the file atomically,
+  audit-logged when DDP is on, and applies it as a save does. Undo is the page's.
+  Edits are off in an `--unattended` run and on a room map file. The engine
+  sends the file's arrangement, the rig's issues and report, and on a rig the
+  estimated draw at most twice a second (`arrangement`, `report`, `power`), and
+  takes `arrange`; its hello offers `arrange` when edits are on.
 - The Console's 3D view: on an arrangement run, a 2D/3D switch on the stage draws
   the rig in 3D, each fixture from its type's model, lit by the live frames (a
   decimated map is colored from the nearest pixel sent). Each lit LED glows with at
@@ -785,6 +796,12 @@ series (batch mode).
 
 ### Changed
 
+- The studio's arrangement editor, report and undo history moved to `web/src/arrange`,
+  shared with the Console; the editor's pose math no longer loads three.js. A run on
+  an arrangement always estimates its draw (a limit that caps nothing runs only when
+  a reading is due), and the power limit follows each reload of the map, so a reload
+  that changes the pixel count keeps the cap. The page's modules load as one file
+  beside a small entry.
 - The page the engine serves is `index.html` and its own hashed files (listed in
   `files.json` beside it), not one inlined file. The engine serves each listed file
   with its type, gzipped when the browser allows, and cached as immutable; any other

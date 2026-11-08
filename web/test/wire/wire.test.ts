@@ -11,6 +11,7 @@ import { chip, healthRows, scanNote } from "../../src/health/health";
 import { decodeParam, readValue } from "../../src/params/kinds";
 import { makeLayout, planUrl, roomOf, type RoomFixture, type RoomPlan, type RoomShape } from "../../src/room/layout";
 import type { Held, LastEvent, TriggersState } from "../../src/aura/triggers";
+import type { RigReport, Totals } from "../../src/rig/types.gen";
 import { cueText, lastText } from "../../src/aura/triggers";
 import type { LookItem, LooksState } from "../../src/aura/looks";
 import { lookStatus } from "../../src/aura/looks";
@@ -22,7 +23,7 @@ import {
   asServerMessage, encodeFrame, parseFrame, parseTyped, type ClientMessage, type Control, type RigController, type RigControllerSlice,
   type RigFixture, type RigIssue, type RigPlan, type RigShape, type RigSlice, type ServerMessage,
 } from "../../src/wire/protocol";
-import { WireStore } from "../../src/wire/store";
+import { canArrange, WireStore } from "../../src/wire/store";
 import {
   first, GREETING, LATER, SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, SESSION_REFUSED,
 } from "../fixtures/messages";
@@ -34,6 +35,8 @@ const keys = <T>(r: Readonly<Record<keyof T, true>>): string[] => Object.keys(r)
 
 interface Shape {
   readonly keys: string[];
+  /** Keys of `keys` a message may leave out. */
+  readonly optional?: readonly string[];
   /** The shapes of fields that hold objects, or arrays of them. */
   readonly fields?: Readonly<Record<string, Shape>>;
 }
@@ -151,7 +154,33 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
     },
   },
   power: { keys: keys<Message<"power">>({ type: true, watts: true, uncapped_watts: true }) },
-  refused: { keys: keys<Message<"refused">>({ type: true, control: true, name: true, id: true, reason: true }) },
+  // The arrangement is the file's own JSON, which the engine checks (rig/models.py).
+  arrangement: { keys: keys<Message<"arrangement">>({ type: true, arrangement: true }) },
+  report: {
+    keys: keys<Message<"report">>({ type: true, issues: true, report: true }),
+    fields: {
+      issues: RIG.fields!.issues!,
+      report: {
+        keys: keys<RigReport>({
+          target_fps: true, limits: true, totals: true, controllers: true, outputs: true, hops: true, feeds: true,
+          psus: true, bom: true, basis: true, notes: true,
+        }),
+        fields: {
+          totals: {
+            keys: keys<Totals>({
+              fixtures: true, pixels: true, worst_w: true, worst_a: true, rgb_worst_w: true, rgb_worst_a: true,
+              capped_w: true, capped_a: true, controllers: true, psus: true, feeds: true,
+            }),
+          },
+        },
+      },
+    },
+  },
+  refused: {
+    keys: keys<Required<Message<"refused">>>({ type: true, control: true, name: true, id: true, reason: true, issues: true }),
+    optional: ["issues"],
+    fields: { issues: RIG.fields!.issues! },
+  },
   ack: { keys: keys<Message<"ack">>({ type: true, id: true, control: true }) },
 };
 
@@ -181,16 +210,18 @@ const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   scan: {},
   rebind: { board: true, address: true },
   blink: { fixture: true },
+  arrange: { arrangement: true },
 };
 
 /** Where `value` has other keys than `shape`, recording each shape a value reached in `seen`. */
 function mismatches(where: string, value: unknown, shape: Shape, seen: Set<Shape>): string[] {
-  if (value === null) return [];
+  if (value === null || value === undefined) return [];
   if (Array.isArray(value)) return value.flatMap((v, i) => mismatches(`${where}[${i}]`, v, shape, seen));
   seen.add(shape);
   const record = value as Record<string, unknown>;
   const found = Object.keys(record).sort();
-  const out = found.join() === shape.keys.join() ? [] : [`${where} has ${found.join(", ")}; the page reads ${shape.keys.join(", ")}`];
+  const expected = shape.keys.filter((k) => Object.hasOwn(record, k) || !shape.optional?.includes(k));
+  const out = found.join() === expected.join() ? [] : [`${where} has ${found.join(", ")}; the page reads ${shape.keys.join(", ")}`];
   for (const [key, sub] of Object.entries(shape.fields ?? {})) out.push(...mismatches(`${where}.${key}`, record[key], sub, seen));
   return out;
 }
@@ -209,11 +240,9 @@ test("every message in wire.json and the session's power has the keys the page's
   expect(Object.values(SHAPES).flatMap(allShapes).filter((s) => !seen.has(s))).toEqual([]);
 });
 
-test("every message of a studio session has the keys the page's types give, a refused bind with its issues besides", () => {
-  const { bind, ...others } = SESSION_REFUSED;
-  const { issues, ...plain } = bind as typeof bind & { issues: unknown };
-  expect(Array.isArray(issues)).toBe(true);
-  const found = [...SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, plain, ...Object.values(others)].flatMap((msg, i) =>
+test("every message of a studio session has the keys the page's types give", () => {
+  expect(Array.isArray(SESSION_REFUSED.bind.issues)).toBe(true);
+  const found = [...SESSION_GREETING, SESSION_LAYOUT, SESSION_POWER, ...Object.values(SESSION_REFUSED)].flatMap((msg, i) =>
     mismatches(`${msg.type}#${i}`, msg, SHAPES[msg.type], new Set()),
   );
   expect(found).toEqual([]);
@@ -270,6 +299,11 @@ test("every message decodes through the wire and the store, and reads through th
   expect(store.getState().power).toEqual({ watts: SESSION_POWER.watts, uncapped_watts: SESSION_POWER.uncapped_watts });
   expect(store.getState().refusals.look).toMatchObject({ name: "layers.base.osc.freq" });
   expect(store.getState().refusals.add_layer).toMatchObject({ name: "layers.osc.osc.freq" });
+  expect(store.getState().refusals.arrange?.issues.map((i) => i.code)).toEqual(["unresolved_ref"]);
+  expect(store.getState().capabilities).toContain("arrange");
+  expect(store.getState().arrangement).toEqual(first("arrangement").arrangement);
+  expect(store.getState().report?.report?.totals.pixels).toBe(2);
+  expect(canArrange(store.getState())).toBe(true); // the later layout is a rig
 
   const catalog = store.getState().catalog!;
   const shelfOf = (c: Card): Shelf | undefined => [...shelve(catalog.cards)].find(([, held]) => held.some((h) => h.card === c))?.[0];

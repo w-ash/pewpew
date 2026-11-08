@@ -4,7 +4,7 @@ import { expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import { createQueryClient, useCompiled } from "../../src/studio/api/queries";
 import type { Arrangement } from "../../src/studio/api/types";
-import { DEFAULT_ARRANGEMENT } from "../../src/studio/store/doc";
+import { DEFAULT_ARRANGEMENT } from "../../src/studio/store/share";
 import { dragPreview, useSettledPreview } from "../../src/rig3d/dragPreview";
 import { stubApi } from "../studio/fixtures/api";
 

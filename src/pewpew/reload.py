@@ -17,6 +17,11 @@ A failed reload keeps the last good version running with a visible error:
 status line, cleared on the next reload that succeeds. A save that leaves
 the bytes unchanged is skipped by digest, so a watcher that fires twice
 for one write costs nothing.
+
+The file's owner can write it too (the page's layout edit): it gives the
+digest of what it writes to `adopt` before the write, so the watcher's
+event for that write is skipped, and applies its own step through `run`,
+which reports as a reload does.
 """
 
 from __future__ import annotations
@@ -142,6 +147,27 @@ class FileReloader:
                 "the file watcher died; hot reload is off for the rest of this run"
             )
 
+    def adopt(self, digest: str) -> None:
+        """Take `digest` as the version now current, so a reload of a file
+        with those bytes is skipped. Any thread: one attribute store."""
+        self._digest = digest
+
+    def run(self, step: Callable[[], str]) -> bool:
+        """Run the apply step `step` as `reload` runs its own: on success
+        clear `error` and log the line `step` returns; on an exception keep
+        the last good version and set `error`. Loop thread only.
+
+        Never raises. Returns True when `step` succeeded.
+        """
+        try:
+            summary = step()
+        except Exception as exc:  # noqa: BLE001  RoomError, a raising setup, ...
+            self._fail(describe_exception(exc), exc)
+            return False
+        self.error = None
+        logger.info("%s", summary)
+        return True
+
     def reload(self) -> bool:
         """Read the file and apply it if its bytes changed. Loop thread only.
 
@@ -162,14 +188,7 @@ class FileReloader:
         # Recorded before the attempt, so a second event for the same broken
         # bytes is a no-op rather than a second traceback.
         self._digest = digest
-        try:
-            summary = self._apply(data)
-        except Exception as exc:  # noqa: BLE001  RoomError, a raising setup, ...
-            self._fail(describe_exception(exc), exc)
-            return False
-        self.error = None
-        logger.info("%s", summary)
-        return True
+        return self.run(lambda: self._apply(data))
 
     def _fail(self, message: str, exc: BaseException | None = None) -> None:
         self.error = f"reload failed, last-good {self._noun} still running: {message}"

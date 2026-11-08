@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Button } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
-import { useDoc } from "./store/doc";
+import { useDoc } from "../arrange/doc";
 
 /**
  * Shows a render error instead of a blank page. The draft and its undo

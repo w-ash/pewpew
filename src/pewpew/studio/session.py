@@ -18,8 +18,8 @@ to the first of its looks that can, and the `status` message says so
 until another look runs; when none can, the bind is refused and the old
 mapping stays.
 
-Each frame passes the master, then the bound rig's `PowerLimiter`, an
-`after` stage, before it is quantized, so the stream carries the capped
+Each frame passes the master, then the bound rig's `PowerLimiter` (a
+`pewpew.power.PowerMeter`, an `after` stage), before it is quantized, so the stream carries the capped
 light (architecture §2 stage 3). Beside each frame go the current text of
 every per-frame message the preview sends (`pewpew.sinks.preview.StateTexts`):
 the status, the knobs, their values, the driven knobs' live values, the
@@ -51,14 +51,13 @@ from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.compose import Look
 from pewpew.lab.check import ready
 from pewpew.mapping import grid
-from pewpew.power import PowerLimiter
+from pewpew.power import PowerLimiter, PowerMeter
 from pewpew.sinks.preview import StateTexts, View, pack_frame, refusal
 from pewpew.studio.limits import MAX_PIXELS
 
 logger = logging.getLogger(__name__)
 
 FPS = 30.0
-POWER_HZ = 2.0
 START = "tide"  # the example look every session starts in
 
 
@@ -139,13 +138,11 @@ class Session:
         self._max_pixels = max_pixels
         self._capabilities = ("ack", *self._aura.control.capabilities)
         self._view = View.of(self._aura.fader.current.mapping, max_pixels, 0, capabilities=self._capabilities)
-        self._loop = self._aura.loop(fps, after=[self._limit], on_frame=[self._on_frame])
+        # The bound rig's cap and its power reading: the `power` state.
+        self._meter = PowerMeter(fps)
+        self._loop = self._aura.loop(fps, after=[self._meter], on_frame=[self._on_frame])
         self._seq = 0
-        self._limiter: PowerLimiter | None = None
-        # The last power reading `_limit` took, replaced whole by each new one: the `power` state.
-        self._power: dict[str, float] | None = None
         self._logged: set[type] = set()
-        self._power_every = max(1, round(fps / POWER_HZ))
         self._lock = threading.Lock()
         self._next_bind: _Bind | None = None
         self._paused_since: float | None = None
@@ -229,25 +226,6 @@ class Session:
             return "bind", fallback[1], None
         return None
 
-    def _limit(self, t: float, frame: np.ndarray) -> np.ndarray:
-        """The `after` stage behind the master: the frame under the bound
-        rig's cap, keeping the power reading when one is due. An uncapped
-        limiter runs only then. Never raises: a frame the limiter refuses
-        goes out black, never uncapped."""
-        limiter = self._limiter
-        due = (self._seq + 1) % self._power_every == 0
-        if limiter is None or not (limiter.cap.caps or due):
-            return frame
-        try:
-            limited = limiter(frame)
-        except Exception as exc:
-            if self._first(exc):
-                logger.exception("the power limit refused a frame; it goes out black")
-            return np.zeros(frame.shape, dtype=np.float32)
-        if due and limited.watts is not None and limited.uncapped_watts is not None:
-            self._power = {"watts": limited.watts, "uncapped_watts": limited.uncapped_watts}
-        return limited.frame
-
     def _on_frame(self, t: float, frame: np.ndarray) -> None:
         """Loop thread. Must not raise or block: a frame that fails is
         dropped."""
@@ -255,7 +233,7 @@ class Session:
         try:
             view = self._view
             data = pack_frame(t, self._seq, frame if view.idx is None else frame[view.idx])
-            self._sink.frame(FramePayload(data, self._texts(self._status(), self._power)))
+            self._sink.frame(FramePayload(data, self._texts(self._status(), self._meter.reading)))
         except Exception as exc:
             if self._first(exc):
                 logger.exception("dropped a frame")
@@ -314,9 +292,7 @@ class Session:
                 self._sink.control(refusal("bind", "no look could start on this arrangement"))
                 return
             self._fallback = (fader.current, f"the look could not run on this arrangement ({exc}), so {name} runs")
-        self._limiter = bind.limiter
-        if bind.limiter is None:
-            self._power = None  # no new readings: drop the old rig's
+        self._meter.limiter = bind.limiter  # None drops the old rig's reading
         self._view = View.of(
             fader.current.mapping, self._max_pixels, self._view.generation + 1, capabilities=self._capabilities,
         )

@@ -1060,11 +1060,16 @@ class CompiledRig:
         """A `PowerLimiter` for this rig under `cap`, or under `power_cap`."""
         return PowerLimiter(self.power_cap if cap is None else cap, self.power)
 
-    def to_json(self) -> dict[str, Any]:
-        """The compiled rig as plain JSON types: the body of `POST /api/compile`."""
+    def findings(self) -> dict[str, Any]:
+        """The `issues` and the electrical `report` as plain JSON types, as `to_json` gives them."""
         report = self.report
         if report is not None and hasattr(report, "model_dump"):
             report = report.model_dump(mode="json")
+        return {"issues": [i.model_dump(mode="json") for i in self.issues], "report": report}
+
+    def to_json(self) -> dict[str, Any]:
+        """The compiled rig as plain JSON types: the body of `POST /api/compile`."""
+        findings = self.findings()
         return {
             "n": self.n,
             "catalog_digest": self.catalog_digest,
@@ -1072,8 +1077,8 @@ class CompiledRig:
             "slices": [s.model_dump(mode="json") for s in self.slices],
             "controller_slices": [s.model_dump(mode="json") for s in self.controller_slices],
             "feeds": [f.model_dump(mode="json") for f in self.feeds],
-            "issues": [i.model_dump(mode="json") for i in self.issues],
-            "report": report,
+            "issues": findings["issues"],
+            "report": findings["report"],
             "positions_m": self.positions_m.tolist(),
             "normals": self.normals.tolist(),
             "controllers": [c.model_dump(mode="json") for c in self.controllers],

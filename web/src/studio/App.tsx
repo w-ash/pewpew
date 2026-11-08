@@ -2,21 +2,22 @@ import { ArmStatus } from "../design/press";
 import { Badge } from "../design/Badge";
 import { Banner } from "../design/Banner";
 import { StepStatus } from "../design/StepStatus";
-import { useShortcuts } from "../design/shortcuts";
 import { useMedia, WIDE } from "../design/useMedia";
-import { WireContext } from "../wire/store";
+import { useWire, WireContext } from "../wire/store";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api/fetch";
-import { getArrangement } from "./api/endpoints";
+import { compileArrangement, getArrangement } from "./api/endpoints";
 import { useCatalog, useCompiled } from "./api/queries";
-import type { Issue } from "./api/types";
-import { asArrangement, remove } from "./editor/arrangement";
-import { ArrangementPanel } from "./panels/ArrangementPanel";
+import type { Arrangement, Issue } from "./api/types";
+import { asArrangement } from "../arrange/arrangement";
+import { useEditorKeys } from "../arrange/keys";
+import { ArrangementPanel } from "../arrange/ArrangementPanel";
+import { useDocEditor } from "../arrange/doc";
+import { ReportPanel } from "../arrange/ReportPanel";
 import { EffectPanel } from "./panels/EffectPanel";
-import { ReportPanel } from "./panels/ReportPanel";
 import { SharePanel } from "./panels/SharePanel";
 import { SessionClient } from "./session/client";
-import { useDoc } from "./store/doc";
+import { useShare } from "./store/share";
 import { useSettledPreview } from "../rig3d/dragPreview";
 import { Stage } from "../rig3d/Stage";
 
@@ -39,7 +40,7 @@ function useSharedLink(setNotice: (notice: string | null) => void) {
   useEffect(() => {
     const id = shareIdFromPath(window.location.pathname);
     if (!id) return;
-    const { load, setShare } = useDoc.getState();
+    const { load, setShare } = useShare.getState();
     setShare({ mode: "loading", id });
     getArrangement(id)
       .then((body) => {
@@ -59,7 +60,7 @@ function useSharedLink(setNotice: (notice: string | null) => void) {
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- runs once, for the URL the page opened on
   }, []);
 
-  const share = useDoc((s) => s.share);
+  const share = useShare((s) => s.share);
   useEffect(() => {
     if (share.mode === "fork" && window.location.pathname.startsWith("/a/")) {
       window.history.replaceState(null, "", "/");
@@ -67,26 +68,16 @@ function useSharedLink(setNotice: (notice: string | null) => void) {
   }, [share]);
 }
 
-/** The editor's keys, on the page's shortcuts (design/shortcuts.ts): undo and redo, delete what is selected,
- * Esc to select nothing. */
-function useEditorKeys() {
-  const undo = () => useDoc.getState().undo();
-  const redo = () => useDoc.getState().redo();
-  const removeSelected = () => {
-    const doc = useDoc.getState();
-    if (!doc.selection) return;
-    doc.commit(remove(doc.history.present, doc.selection));
-    doc.select(null);
-  };
-  const hasSelection = () => useDoc.getState().selection !== null;
-  useShortcuts([
-    { hotkey: "mod+z", label: "undo", action: undo },
-    { hotkey: "mod+shift+z", label: "redo", action: redo },
-    { hotkey: "mod+y", label: "", action: redo },
-    { hotkey: "Delete", label: "delete what is selected", action: removeSelected, enabled: hasSelection },
-    { hotkey: "Backspace", label: "", action: removeSelected, enabled: hasSelection },
-    { hotkey: "Escape", label: "select nothing", keys: "Esc", action: () => useDoc.getState().select(null) },
-  ]);
+/** The server checks every field the editors read, so only a file it compiles reaches the document. */
+async function checkImport(next: Arrangement): Promise<string | null> {
+  try {
+    await compileArrangement(next);
+    return null;
+  } catch (e) {
+    return e instanceof ApiError && e.status === 422
+      ? e.issues.map((i) => i.message).join("; ") || e.message
+      : "the server could not check it";
+  }
 }
 
 export function App({ client }: { client?: SessionClient }) {
@@ -104,10 +95,12 @@ export function App({ client }: { client?: SessionClient }) {
 
 function Studio({ session }: { session: SessionClient }) {
   const wide = useMedia(WIDE);
+  const power = useWire((s) => s.power);
   const [tab, setTab] = useState<Tab>("arrange");
   const [notice, setNotice] = useState<string | null>(null);
-  const arrangement = useDoc((s) => s.history.present);
-  const share = useDoc((s) => s.share);
+  const editor = useDocEditor();
+  const { arrangement } = editor;
+  const share = useShare((s) => s.share);
   const catalog = useCatalog();
   const {
     query: compiled,
@@ -118,7 +111,7 @@ function Studio({ session }: { session: SessionClient }) {
 
   useSettledPreview(answered);
   useSharedLink(setNotice);
-  useEditorKeys();
+  useEditorKeys(true);
 
   useEffect(() => {
     session.start();
@@ -227,9 +220,11 @@ function Studio({ session }: { session: SessionClient }) {
           {tab === "arrange" && (
             <fieldset disabled={share.mode === "loading"}>
               <ArrangementPanel
+                {...editor}
                 catalog={catalog.data ?? null}
                 rig={rig}
                 rigIsCurrent={current}
+                checkImport={checkImport}
               />
             </fieldset>
           )}
@@ -239,6 +234,10 @@ function Studio({ session }: { session: SessionClient }) {
               report={rig?.report ?? null}
               issues={issues}
               stale={!current}
+              power={power}
+              arrangement={arrangement}
+              onCommit={editor.onCommit}
+              capDisabled={share.mode === "loading"}
             />
           )}
           {tab === "share" && <SharePanel />}

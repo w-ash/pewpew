@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Arrangement } from "../../../src/studio/api/types";
-import { DEFAULT_ARRANGEMENT, useDoc } from "../../../src/studio/store/doc";
-import { addFixture } from "../../../src/studio/editor/arrangement";
+import { useDoc } from "../../src/arrange/doc";
+import { RINGS as DEFAULT_ARRANGEMENT } from "./fixtures";
+import { addFixture } from "../../src/arrange/arrangement";
 import {
   COALESCE_MS,
   commit,
@@ -9,7 +9,7 @@ import {
   HISTORY_LIMIT,
   redo,
   undo,
-} from "../../../src/studio/editor/history";
+} from "../../src/arrange/history";
 
 describe("history", () => {
   it("undoes and redoes in order", () => {
@@ -69,7 +69,7 @@ describe("history", () => {
 
 describe("the document store", () => {
   beforeEach(() =>
-    useDoc.getState().load(DEFAULT_ARRANGEMENT, { mode: "draft" }),
+    useDoc.getState().load(DEFAULT_ARRANGEMENT),
   );
 
   it("starts on the golden rings", () => {
@@ -88,25 +88,9 @@ describe("the document store", () => {
     expect(useDoc.getState().history.present).toBe(arrangement);
   });
 
-  it("forks a shared arrangement on the first edit, and only then", () => {
-    const shared: Arrangement = { ...DEFAULT_ARRANGEMENT, name: "shared" };
-    useDoc
-      .getState()
-      .load(shared, { mode: "shared", id: "AAAAAAAAAAAAAAAAAAAAAA" });
-    useDoc.getState().select({ kind: "group", id: "inner" });
-    expect(useDoc.getState().share.mode).toBe("shared");
-    useDoc.getState().commit(shared);
-    expect(useDoc.getState().share.mode).toBe("shared");
-    useDoc.getState().commit({ ...shared, name: "mine" });
-    expect(useDoc.getState().share).toEqual({
-      mode: "fork",
-      from: "AAAAAAAAAAAAAAAAAAAAAA",
-    });
-  });
-
   it("clears undo when a new document loads", () => {
     useDoc.getState().commit({ ...DEFAULT_ARRANGEMENT, name: "edited" });
-    useDoc.getState().load(DEFAULT_ARRANGEMENT, { mode: "draft" });
+    useDoc.getState().load(DEFAULT_ARRANGEMENT);
     expect(useDoc.getState().history.past).toEqual([]);
   });
 });

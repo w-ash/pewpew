@@ -23,7 +23,8 @@
       "build": "0123456789abcdef",
       "capabilities": [
         "ack",
-        "look"
+        "look",
+        "arrange"
       ]
     },
     {
@@ -1233,6 +1234,194 @@
           "black": true
         }
       ]
+    },
+    {
+      "type": "power",
+      "watts": 12.5,
+      "uncapped_watts": 25.0
+    },
+    {
+      "type": "arrangement",
+      "arrangement": {
+        "format": "pewpew.arrangement",
+        "version": 1,
+        "controllers": [
+          {
+            "id": "A",
+            "profile": "esp32s3-devkitc1-ahct125",
+            "host": "192.168.1.50"
+          }
+        ],
+        "fixtures": [
+          {
+            "id": "a",
+            "type": "strip",
+            "pose": {
+              "position_m": [
+                0.5,
+                0.0,
+                0.0
+              ],
+              "aim": {
+                "axis": [
+                  1.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "dims": {
+              "pixels": 2,
+              "length": 1.0,
+              "pitch": 0.5
+            }
+          }
+        ],
+        "wiring": {
+          "chains": [
+            {
+              "id": "A-1",
+              "controller": "A",
+              "output": "rmt0",
+              "fixtures": [
+                "a"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "report",
+      "issues": [
+        {
+          "level": "warning",
+          "code": "unfed",
+          "message": "1 chained fixtures are on no feed, so their power is not checked; add feeds to check them",
+          "ref": null
+        },
+        {
+          "level": "warning",
+          "code": "rests_on_assumed",
+          "message": "controller A.position_m = [0.0, 0.0, 0.0] is assumed, and these results rest on it: leads",
+          "ref": "controller A.position_m"
+        },
+        {
+          "level": "warning",
+          "code": "rests_on_assumed",
+          "message": "fixture_type/strip.df063945.dims.w_per_px = 0.24 is assumed, and these results rest on it: effect power, totals",
+          "ref": "fixture_type/strip.df063945.dims.w_per_px"
+        },
+        {
+          "level": "warning",
+          "code": "rests_on_assumed",
+          "message": "fixture_type/strip.df063945.power.model = 'linear' is assumed, and these results rest on it: PSU sizing, effect power",
+          "ref": "fixture_type/strip.df063945.power.model"
+        }
+      ],
+      "report": {
+        "target_fps": null,
+        "limits": {
+          "target_fps": 40.0,
+          "fixtures_per_output": null,
+          "max_hop_m": 3.0,
+          "hop_slack": 1.2,
+          "connector_load_fraction": 0.75,
+          "max_drop_fraction": 0.1,
+          "psu_load_fraction": 0.8,
+          "feed_cable": null
+        },
+        "totals": {
+          "fixtures": 1,
+          "pixels": 2,
+          "worst_w": 0.48,
+          "worst_a": 0.096,
+          "rgb_worst_w": 0.48,
+          "rgb_worst_a": 0.096,
+          "capped_w": 0.48,
+          "capped_a": 0.096,
+          "controllers": 1,
+          "psus": 0,
+          "feeds": 0
+        },
+        "controllers": [
+          {
+            "id": "A",
+            "profile": "esp32s3-devkitc1-ahct125",
+            "derived": false,
+            "outputs": 4,
+            "outputs_used": 1,
+            "pixels": 2
+          }
+        ],
+        "outputs": [
+          {
+            "controller": "A",
+            "output": "rmt0",
+            "chain": "A-1",
+            "pixels": 2,
+            "led_type": 22,
+            "led_label": "WS281x RGB",
+            "frame_s": 0.00035999999999999997,
+            "wire_fps": 2777.777777777778,
+            "fps": 66.66666666666667
+          }
+        ],
+        "hops": [
+          {
+            "chain": "A-1",
+            "kind": "lead",
+            "source": "A",
+            "target": "a",
+            "run_m": 0.0,
+            "path_m": 0.0
+          }
+        ],
+        "feeds": [],
+        "psus": [],
+        "bom": [
+          {
+            "kind": "fixture",
+            "item": "strip.df063945",
+            "name": "Straight LED strip (length 1, pitch 0.5, pixels 2)",
+            "count": 1,
+            "length_m": null
+          },
+          {
+            "kind": "controller",
+            "item": "esp32s3-devkitc1-ahct125",
+            "name": "ESP32-S3 DevKitC-1 + 74AHCT125",
+            "count": 1,
+            "length_m": null
+          },
+          {
+            "kind": "component",
+            "item": "74AHCT125 quad level shifter",
+            "name": "74AHCT125 quad level shifter",
+            "count": 1,
+            "length_m": null
+          },
+          {
+            "kind": "cable",
+            "item": "lead",
+            "name": "data lead, controller to chain",
+            "count": 1,
+            "length_m": 0.0
+          }
+        ],
+        "basis": [
+          {
+            "fact": "chipset/ws2812b.bit_s",
+            "v": 1.25e-06,
+            "status": "stated",
+            "src": "DS-WS2812B p. 4, TH+TL = 1.25 µs ± 600 ns, Worldsemi WS2812B Specifications, Mar-2017, https://www.triopak.fi/files/product/Worldsemi/WS2812B.pdf",
+            "used_for": [
+              "timing"
+            ]
+          }
+        ],
+        "notes": []
+      }
     }
   ],
   "later": [
@@ -1343,6 +1532,21 @@
       "name": "layers.osc.osc.freq",
       "id": 8,
       "reason": "layers.osc.osc.freq must be within 0.5..32.0, got 99.0"
+    },
+    {
+      "type": "refused",
+      "control": "arrange",
+      "name": null,
+      "id": 9,
+      "reason": "the arrangement does not compile: chain A-1: no fixture 'ghost'",
+      "issues": [
+        {
+          "level": "error",
+          "code": "unresolved_ref",
+          "message": "no fixture 'ghost'",
+          "ref": "chain A-1"
+        }
+      ]
     },
     {
       "type": "ack",
@@ -1750,6 +1954,9 @@
     ],
     "blink": [
       "fixture"
+    ],
+    "arrange": [
+      "arrangement"
     ]
   }
 }

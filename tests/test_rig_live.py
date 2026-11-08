@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import threading
 import warnings
 from pathlib import Path
 
@@ -25,9 +26,12 @@ from fakes import (
     room,
     run_main,
     source_op,
+    wait_until,
 )
 from pewpew.__main__ import main
 from pewpew.crossfade import Crossfader
+from pewpew.errors import Refusal
+from pewpew.mapping import line
 from pewpew.pace import Calls
 from pewpew.rig import RigError, load_catalog
 from pewpew.rig.models import MAX_FIXTURES
@@ -593,3 +597,130 @@ def test_rig_names_label_only_the_boards_the_sink_has(tmp_path):
     assert rig_live.board_names() == ("A",)
     sink.commit(sink.prepare([Board("10.0.0.99", 0, 128)], 128))  # the reload's commit, before `rig` is set
     assert rig_live.board_names() == ()
+
+
+# ---- the page's layout edit ----------------------------------------------------------
+
+
+def three_bars_on_two_boards():
+    return arrangement(
+        bar("a"), bar("b", chain=2, start=[0.0, 1.0], end=[1.0, 1.0]),
+        bar("c", board="B", start=[2.0, 0.0], end=[2.0, 1.0]),
+        boards={"A": "10.0.0.11", "B": "10.0.0.12"},
+    )
+
+
+def test_arrange_compiles_once_audits_writes_atomically_then_commits_on_the_loop(tmp_path, audit_log, monkeypatch):
+    from pewpew.rig import runtime
+    from pewpew.room import live as live_module
+
+    path, _doc, renderer, sink, rig_live = live(tmp_path, edits=True)
+    compiles = []
+    compile_doc_ = runtime.compile_doc
+    monkeypatch.setattr(runtime, "compile_doc", lambda *a, **kw: compiles.append(1) or compile_doc_(*a, **kw))
+    at_write, at_commit = [], []
+    write_atomic = live_module.write_atomic
+    monkeypatch.setattr(live_module, "write_atomic",
+                        lambda *a, **kw: at_write.append(audit_log.read_text()) or write_atomic(*a, **kw))
+    commit = sink.commit
+    monkeypatch.setattr(sink, "commit", lambda layout: at_commit.append(audit_log.read_text()) or commit(layout))
+    new = three_bars_on_two_boards()
+    assert rig_live.editable and rig_live.arrange(new) is None
+    assert json.loads(path.read_text()) == new and path.read_text().endswith("}\n")
+    assert [p.name for p in tmp_path.iterdir() if p.name != path.name] == []  # no temp file left
+    assert rig_live.arrangement() is new and renderer.n == 128  # applied on the loop thread only
+    [arranged] = [json.loads(line) for line in at_write[0].splitlines()]  # audited before the write
+    assert arranged["action"] == "arrange" and arranged["pixels"] == 192 and arranged["fixtures"] == 3
+    rig_live.calls.drain()
+    assert compiles == [1] and rig_live.error is None
+    assert renderer.n == 192 and [b.spec for b in sink.boards] == ["10.0.0.11:4048=0+128", "10.0.0.12:4048=128+64"]
+    [shown] = rig_live.shown
+    assert rig_live.rig is shown and rig_live.report() == shown.findings()
+    actions = [json.loads(line)["action"] for line in at_commit[0].splitlines()]
+    assert actions == ["arrange", "ddp-relayout"]  # the relayout is audited before the sink takes it
+
+
+def test_arrange_is_skipped_by_the_watcher_that_sees_its_write(tmp_path, audit_log):
+    fired = threading.Event()
+
+    def watch(source, stop):
+        while not stop.is_set():
+            if fired.wait(0.01):
+                fired.clear()
+                yield "changed"
+
+    _path, _doc, renderer, _sink, rig_live = live(tmp_path, edits=True, watch=watch)
+    rig_live.start()
+    try:
+        assert rig_live.arrange(three_bars_on_two_boards()) is None
+        fired.set()  # the event for our own write
+        wait_until(lambda: len(rig_live.calls._queue) == 2)
+        rig_live.calls.drain()
+    finally:
+        rig_live.stop()
+    assert len(rig_live.shown) == 1 and renderer.n == 192 and rig_live.error is None
+
+
+@pytest.mark.parametrize("edits, doc, reason", [
+    (False, TWO_BARS, "layout edits are off in an unattended run"),
+    (True, "rig.arrangement.json", "an arrangement is a JSON object"),
+    (True, [TWO_BARS], "an arrangement is a JSON object"),
+])
+def test_arrange_refuses_what_it_must_not_write_and_writes_nothing(tmp_path, audit_log, edits, doc, reason):
+    path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=edits)
+    data = path.read_bytes()
+    assert rig_live.arrange(doc) == Refusal(reason)
+    assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
+    assert rig_live.arrangement() is (None if not edits else rig_live.doc)
+
+
+def test_arrange_refuses_an_arrangement_that_does_not_compile_with_every_issue(tmp_path, audit_log):
+    path, doc, _renderer, _sink, rig_live = live(tmp_path, edits=True)
+    data = path.read_bytes()
+    broken = copy.deepcopy(doc)
+    broken["wiring"]["chains"][0]["fixtures"] += ["ghost", "phantom"]
+    refused = rig_live.arrange(broken)
+    assert refused is not None and refused.reason == "the arrangement does not compile: chain A-1: no fixture 'ghost'"
+    assert [i["message"] for i in refused.issues] == ["no fixture 'ghost'", "no fixture 'phantom'"]
+    assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
+    assert rig_live.arrangement() is rig_live.doc and rig_live.doc == doc
+
+
+def test_arrange_refuses_a_rig_the_boards_cannot_take(tmp_path, audit_log):
+    path, _doc, _renderer, _sink, rig_live = live(tmp_path, edits=True)
+    data = path.read_bytes()
+    refused = rig_live.arrange(over_cap_doc())
+    assert refused is not None and refused.reason.startswith("the boards cannot take this map: ")
+    assert "output_over_cap" in {i["code"] for i in refused.issues}
+    assert path.read_bytes() == data and not rig_live.calls._queue and not audit_log.exists()
+
+
+def test_arrange_is_refused_on_a_legacy_room_file(tmp_path):
+    path, data, *_, _ = legacy_live(tmp_path)
+    rig_live = RigLive(path, parse_rig(data, notices=[]), data, hosted(FLOW, line(4)), Calls().call_soon, ddp=None,
+                       argv=["run"], edits=True)
+    assert not rig_live.editable and rig_live.arrangement() is None
+    refused = rig_live.arrange(TWO_BARS)
+    assert refused is not None and "migrate" in refused.reason and str(tmp_path) not in refused.reason
+    assert path.read_bytes() == data
+
+
+def test_arrange_without_a_ddp_sink_writes_no_audit_record(tmp_path, audit_log):
+    path = tmp_path / "rig.arrangement.json"
+    write(path, TWO_BARS)
+    r, data = load_rig(path)
+    calls = Calls()
+    rig_live = RigLive(path, r, data, hosted(FLOW, r.mapping), calls.call_soon, ddp=None, argv=["run"], edits=True)
+    assert rig_live.arrange(three_bars_on_two_boards()) is None
+    calls.drain()
+    assert rig_live.rig.n == 192 and not audit_log.exists()
+
+
+def test_the_report_is_one_object_per_rig(tmp_path):
+    path, doc, _renderer, _sink, rig_live = live(tmp_path, edits=True)
+    report = rig_live.report()
+    assert report == rig_live.rig.findings() and rig_live.report() is report
+    assert rig_live.arrangement() is rig_live.doc and rig_live.doc == doc
+    write(path, three_bars_on_two_boards())
+    assert rig_live.reloader.reload() is True
+    assert rig_live.report() is not report and rig_live.arrangement() == three_bars_on_two_boards()

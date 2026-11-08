@@ -1,23 +1,20 @@
-import { Block } from "../../design/Block";
-import { Button } from "../../design/Button";
-import { Field, SelectField } from "../../design/Field";
-import { Segments } from "../../design/Segments";
-import { Tile } from "../../design/Tile";
-import { NumberField, type NumberRange } from "../../params/NumberField";
+import { Block } from "../design/Block";
+import { Button } from "../design/Button";
+import { Field, SelectField } from "../design/Field";
+import { Segments } from "../design/Segments";
+import { Tile } from "../design/Tile";
+import { NumberField, type NumberRange } from "../params/NumberField";
 import { useRef } from "react";
-import { ApiError } from "../api/fetch";
-import { compileArrangement } from "../api/endpoints";
 import type {
   Arrangement,
   ArrayGroup,
   AttachmentRef,
   PartsCatalog,
-  CompiledRig,
   DataIn,
   Group,
   RingGroup,
   Vec3,
-} from "../api/types";
+} from "./types";
 import {
   addFixture,
   asArrangement,
@@ -27,6 +24,7 @@ import {
   flip,
   freshId,
   IDENTITY_POSE,
+  type Placed,
   poseOf,
   type RingEnd,
   remove,
@@ -34,7 +32,7 @@ import {
   setAttachment,
   setPose,
   updateGroup,
-} from "../editor/arrangement";
+} from "./arrangement";
 import {
   type PoseQ,
   quatToYpr,
@@ -42,8 +40,7 @@ import {
   roundVec,
   type YawPitchRoll,
   yprToQuat,
-} from "../../rig3d/pose";
-import { useDoc } from "../store/doc";
+} from "./pose";
 
 const DEFAULT_TYPE = "clen-rgbw-bar-1m";
 
@@ -80,23 +77,44 @@ function fixtureTypes(catalog: PartsCatalog | null) {
   return list.length ? list : [{ id: DEFAULT_TYPE, name: "1M LED Pixel Bar" }];
 }
 
+/** What the arrangement panel edits and how. */
+export interface ArrangementPanelProps {
+  readonly arrangement: Arrangement;
+  /** Take `next` as the arrangement; edits that share `key` within a moment are one undo step. */
+  onCommit(next: Arrangement, key?: string): void;
+  readonly selection: Selection | null;
+  onSelect(selection: Selection | null): void;
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+  onUndo(): void;
+  onRedo(): void;
+  readonly catalog: PartsCatalog | null;
+  /** The fixtures the engine compiled, or null before it has. */
+  readonly rig: { readonly fixtures: readonly Placed[] } | null;
+  /** Whether `rig` is the compile of `arrangement` itself: an older one may have resolved another aim,
+   * or other members, and what is written from it would not match the document. */
+  readonly rigIsCurrent: boolean;
+  /** Checks an imported file before it replaces the arrangement: resolves to why it was not taken, or
+   * null. Without it, an import is an edit like any other, which the engine checks. */
+  checkImport?(next: Arrangement): Promise<string | null>;
+}
+
+/** The arrangement's name, undo and redo, export and import, the fixtures and groups, and the selected
+ * one's editor. Controlled: it holds no document of its own. */
 export function ArrangementPanel({
+  arrangement,
+  onCommit: commit,
+  selection,
+  onSelect: select,
+  canUndo,
+  canRedo,
+  onUndo: undo,
+  onRedo: redo,
   catalog,
   rig,
   rigIsCurrent,
-}: {
-  catalog: PartsCatalog | null;
-  rig: CompiledRig | null;
-  rigIsCurrent: boolean;
-}) {
-  const arrangement = useDoc((s) => s.history.present);
-  const canUndo = useDoc((s) => s.history.past.length > 0);
-  const canRedo = useDoc((s) => s.history.future.length > 0);
-  const selection = useDoc((s) => s.selection);
-  const commit = useDoc((s) => s.commit);
-  const undo = useDoc((s) => s.undo);
-  const redo = useDoc((s) => s.redo);
-  const select = useDoc((s) => s.select);
+  checkImport,
+}: ArrangementPanelProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const types = fixtureTypes(catalog);
 
@@ -127,15 +145,8 @@ export function ArrangementPanel({
       );
       return;
     }
-    // The server checks every field the editors read, so only a file it
-    // compiles reaches the document.
-    try {
-      await compileArrangement(next);
-    } catch (e) {
-      const why =
-        e instanceof ApiError && e.status === 422
-          ? e.issues.map((i) => i.message).join("; ") || e.message
-          : "the server could not check it";
+    const why = checkImport ? await checkImport(next) : null;
+    if (why !== null) {
       alert(`${file.name} was not imported: ${why}.`);
       return;
     }
@@ -177,7 +188,7 @@ export function ArrangementPanel({
   };
 
   return (
-    <div className="studio-panel">
+    <div className="arrange-panel">
       <div className="block fields">
         <Field label="Name">
           <input
@@ -241,7 +252,7 @@ export function ArrangementPanel({
       </Block>
 
       <Block className="fields" title="Fixtures">
-        <ul className="studio-entities" data-testid="entity-list">
+        <ul className="arrange-entities" data-testid="entity-list">
           {arrangement.groups.map((g) => (
             <EntityRow
               key={`g:${g.id}`}
@@ -278,9 +289,9 @@ export function ArrangementPanel({
           arrangement={arrangement}
           selection={selection}
           catalog={catalog}
-          rig={rig}
-          rigIsCurrent={rigIsCurrent}
+          compiled={rigIsCurrent ? rig?.fixtures : undefined}
           edit={commit}
+          select={select}
         />
       )}
     </div>
@@ -317,21 +328,18 @@ function SelectionEditor({
   arrangement,
   selection,
   catalog,
-  rig,
-  rigIsCurrent,
+  compiled,
   edit,
+  select,
 }: {
   arrangement: Arrangement;
   selection: Selection;
   catalog: PartsCatalog | null;
-  rig: CompiledRig | null;
-  rigIsCurrent: boolean;
+  /** The compiled fixtures of this arrangement itself, else undefined. */
+  compiled: readonly Placed[] | undefined;
   edit: (next: Arrangement, key?: string) => void;
+  select: (selection: Selection | null) => void;
 }) {
-  const select = useDoc((s) => s.select);
-  // Compiled poses are read from the compile of this arrangement only: an older one may have resolved
-  // another aim, or other members, and what is written from it would not match the document.
-  const compiled = rigIsCurrent ? rig?.fixtures : undefined;
   const pose = poseOf(arrangement, selection, compiled);
   const group =
     selection.kind === "group"
@@ -407,10 +415,10 @@ function SelectionEditor({
       ) : (
         <p className="t-label">
           {group ? "This group's" : "This fixture's"} rotation is an{" "}
-          <span className="t-code">aim</span>, which only the server resolves.{" "}
+          <span className="t-code">aim</span>, which only the engine resolves.{" "}
           {group
             ? "Explode it to edit its fixtures."
-            : "Its pose shows once the server has compiled this arrangement."}
+            : "Its pose shows once the engine has compiled this arrangement."}
         </p>
       )}
 

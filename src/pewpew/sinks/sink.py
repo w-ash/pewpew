@@ -22,7 +22,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future
-from typing import Generic, Protocol, Self, TypeVar
+from typing import Any, Generic, Protocol, Self, TypeVar
 
 import numpy as np
 
@@ -97,10 +97,20 @@ class Control(Protocol):
         "add layer" cards; the same object until it changes."""
         ...
 
+    def arrangement(self) -> Any:
+        """The run's arrangement as the page edits it, or None when it
+        cannot be edited; the same object until it changes."""
+        ...
+
+    def report(self) -> dict | None:
+        """The running rig's `issues` and electrical `report`, or None
+        without a rig file; the same object until it changes."""
+        ...
+
     @property
     def capabilities(self) -> tuple[str, ...]:
-        """The requests this control takes beyond the page's own, such as
-        `look`, for clients outside the package."""
+        """The requests this control takes beyond the page's own: `look`,
+        for clients outside the package, and `arrange`, which the page reads."""
         ...
 
     def request(self, message: Mapping[str, object]) -> Refusal | Future[Refusal | None] | None:

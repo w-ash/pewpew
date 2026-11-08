@@ -21,11 +21,16 @@ starts in the next look the stall marker does not name instead (`after_stall`). 
 the DDP boards (each controller with a host, unless `--no-ddp`), the
 blink's fixtures and the preview's drawing, and reloads on save. Its
 `power` block, with `--max-watts` and `--max-brightness` replacing its
-values, is the power limit: the loop's last `after` stage, behind the
-master, so every sink gets the capped frame. The one exception is the
-preview's view of the rig: the rig reload pushes a new map to the
-preview, and the preview reads the reload's status, so the preview
-subscribes to the reload after both exist (`RigLive.listeners`).
+values, is the power limit (`pewpew.power.PowerMeter`): the loop's last
+`after` stage, behind the master, so every sink gets the capped frame.
+On a rig it is always there, so the preview gets the `power` reading; a
+limit that caps nothing runs only when a reading is due. The limit
+follows each reload, rebuilt from the new rig with the same options. The
+one exception is the preview's view of the rig: the rig reload pushes a
+new map to the preview, and the preview reads the reload's status, so the
+preview subscribes to the reload after both exist (`RigLive.listeners`).
+The rig reload is also the aura control's `layout`: the page's layout
+edit writes the rig file through it, in an attended run only.
 
 The features are the seeded stand-in, or with `--audio` the analysis of
 one of this computer's inputs, a capture node or a WAV file
@@ -88,7 +93,7 @@ from pewpew.lab.check import dims_reasons
 from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.mapping import DEFAULT_MAP, dimensions
 from pewpew.pace import PaceStats
-from pewpew.power import PowerCap, PowerLimiter, power_stage
+from pewpew.power import PowerCap, PowerLimiter, PowerMeter
 from pewpew.reload import Watch
 from pewpew.render import RenderFailure
 from pewpew.room.blink import Blink
@@ -280,10 +285,18 @@ class Run:
             self.looks.error = stalled
         if args.armed:
             self.aura.triggers.arm(True, "launch")  # applied and logged at the first tick
+        # The plan's rule is "refused unattended unless --accept-looks", and the
+        # command line refuses --accept-looks with --unattended.
         self.rig = None if rig is None else RigLive(
             Path(args.map), rig, launch.geometry.data, self.aura.fader, self.aura.calls.call_soon,
             ddp=self.ddp, argv=launch.argv, blink=self.blink, watch=watch, follow=launch.follow,
+            edits=not args.unattended,
         )
+        # The power limit, and on a rig its reading for the preview.
+        self.power = PowerMeter(args.fps, launch.limiter) if launch.limiter is not None else None
+        if self.rig is not None:
+            self.aura.control.layout = self.rig  # before any sink reads the capabilities
+            self.rig.listeners.append(self._relimit)
         sources: list[tuple[Source, Any]] = [
             ("reload", self.rig), ("render", self.aura.fader), ("looks", self.looks),
         ]
@@ -307,7 +320,7 @@ class Run:
         if args.preview:
             self.preview = PreviewSink(
                 launch.mapping, host=args.host or "127.0.0.1", port=args.port, status=status,
-                control=self.aura.control, now=now, sleep=sleep, **self._drawing(rig),
+                control=self.aura.control, power=self._power_reading, now=now, sleep=sleep, **self._drawing(rig),
             )
             self.outputs.append((self.preview, self._start_preview))
             if self.rig is not None:
@@ -320,7 +333,7 @@ class Run:
         self.loop = self.aura.loop(
             args.fps, stats=self.stats,
             before=[self.audio.before_frame] if self.audio is not None else [],
-            after=[power_stage(launch.limiter)] if launch.limiter is not None else [],
+            after=[self.power] if self.power is not None else [],
             on_frame=[*self.drivers, *([self.watchdog.beat] if self.watchdog is not None else [])],
         )
 
@@ -486,6 +499,20 @@ class Run:
         image = None if rig.plan is None else Path(self.args.map).parent / rig.plan.image  # beside the rig file
         return {"room": plan_view(rig), "rig": rig_view(rig), "plan_image": image}
 
+    def _power_reading(self) -> dict[str, float] | None:
+        """The latest power reading, for the preview. Any thread."""
+        return self.power.reading if self.power is not None else None
+
+    def _relimit(self, rig: CompiledRig) -> None:
+        """Cap a reloaded rig as the run caps its launch rig. Loop thread.
+        A cap that cannot be made keeps the old limit, whose frames of
+        another size go out black (`PowerMeter`), never uncapped."""
+        assert self.power is not None
+        try:
+            self.power.limiter = rig.limiter(power_cap(self.args.max_watts, self.args.max_brightness, rig))
+        except ValueError:
+            logger.exception("the reloaded map's power cap cannot be made; the old one holds")
+
     def _show_rig(self, rig: CompiledRig) -> None:
         """Draw a reloaded rig on the preview. Loop thread."""
         assert self.preview is not None
@@ -534,21 +561,27 @@ def rig_boards(spec: str, rig: CompiledRig, ddp: list[str]) -> tuple[Board, ...]
 def power_limiter(
     max_watts: float | None, max_brightness: float | None, rig: CompiledRig | None
 ) -> PowerLimiter | None:
-    """The run's power limit, or None when it caps nothing: the cap of the
-    arrangement `rig`, if any, with each value given replacing its own.
-    A watt cap needs `rig`, whose fixtures give the power model; the
-    command line refuses one without it (`python -m pewpew`)."""
-    base = PowerCap() if rig is None else rig.power_cap
+    """The run's power limit (`power_cap`): on the arrangement `rig` always,
+    for its power reading, else None when it caps nothing. A watt cap needs
+    `rig`, whose fixtures give the power model; the command line refuses
+    one without it (`python -m pewpew`)."""
     try:
-        cap = PowerCap(
-            base.max_watts if max_watts is None else max_watts,
-            base.max_brightness if max_brightness is None else max_brightness,
-        )
+        cap = power_cap(max_watts, max_brightness, rig)
     except ValueError as exc:
         raise SystemExit(f"bad power cap: {exc}") from None
-    if not cap.caps:
-        return None
-    return PowerLimiter(cap) if rig is None else rig.limiter(cap)
+    if rig is not None:
+        return rig.limiter(cap)
+    return PowerLimiter(cap) if cap.caps else None
+
+
+def power_cap(max_watts: float | None, max_brightness: float | None, rig: CompiledRig | None) -> PowerCap:
+    """The cap of the arrangement `rig`, if any, with each value given
+    replacing its own. Raises ValueError."""
+    base = PowerCap() if rig is None else rig.power_cap
+    return PowerCap(
+        base.max_watts if max_watts is None else max_watts,
+        base.max_brightness if max_brightness is None else max_brightness,
+    )
 
 
 def looks_book(path: Path, cap: float) -> LookBook:

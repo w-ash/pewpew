@@ -12,7 +12,7 @@ import { useStandingAura, useWire, WireContext } from "../../wire/store";
 import { useOnChange } from "../../design/useOnChange";
 import { useContext, useState } from "react";
 import { useLooks } from "../api/queries";
-import { formatW } from "./ReportPanel";
+import { formatW } from "../../arrange/ReportPanel";
 
 /** The look each session starts in (docs/studio/contracts.md, "WebSocket"). */
 const FIRST = "tide";
@@ -94,7 +94,7 @@ export function EffectPanel() {
   ) : null;
 
   return (
-    <div className="studio-panel">
+    <div className="arrange-panel">
       <div className="fields">
         {examples.data ? (
           <LooksGroup

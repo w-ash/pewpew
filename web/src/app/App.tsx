@@ -1,6 +1,6 @@
 import { Splitter } from "@ark-ui/react/splitter";
-import { lazy, Suspense, useEffect, useId, useState } from "react";
-import { useStandingAura, useWire } from "../wire/store";
+import { lazy, Suspense, useEffect, useId, useState, type ReactNode } from "react";
+import { canArrange, useStandingAura, useWire } from "../wire/store";
 import { Banner } from "../design/Banner";
 import { Button } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
@@ -33,6 +33,9 @@ import { Slot } from "./Slot";
 
 // three.js and the 3D view load only when the stage first shows 3D.
 const Stage3D = lazy(() => import("../rig3d/Stage3D"));
+// The layout editor and the report load only when one first opens.
+const ArrangeSlot = lazy(() => import("../arrange/console").then((m) => ({ default: m.ArrangeSlot })));
+const ReportSlot = lazy(() => import("../arrange/console").then((m) => ({ default: m.ReportSlot })));
 
 export function App() {
   return (
@@ -56,15 +59,27 @@ const FALLBACKS = [".held-note", ".slot :is(h2, h3)[tabindex]"];
 /** How long the connection is lost before the laptop's banner says what to do. */
 const LOST_HINT_MS = 5000;
 
-/** The panel a top-bar or deck button opens in the slot, in place of the editor; null for none. */
-type SlotPanel = "health" | "looks" | null;
+/** The panel in the slot, in place of the editor; null for none. A top-bar or deck button opens one;
+ * "arrange" shows while layout mode is on, on a run that takes layout edits. */
+type SlotPanel = "health" | "looks" | "report" | "arrange" | null;
+
+/** A panel loaded on demand, with a note while it loads and one if it does not. */
+function Loaded({ children }: { children: ReactNode }) {
+  return (
+    <ErrorBoundary fallback={<p className="note" role="alert">this panel did not load; reload the page</p>}>
+      <Suspense fallback={<p className="note">loading…</p>}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
 
 /** Phone: the canvas on top, a scrolling slot, the deck pinned at the bottom.
  * Wide: the canvas beside a side panel, the deck at the top of it over the
  * slot. The slot shows the editor (the look and its main knobs, the layers,
  * each open with its own knobs, the modulators), or in its place the health
- * panel, the list of every look, on a phone the layout tools, or the catalog
- * a layer is added from: no panel covers the deck. While the connection is lost every control is inert and dimmed, so
+ * panel, the list of every look, the layout panel (the layout tools and, on a
+ * run that takes layout edits, the arrangement editor; else on a phone the
+ * layout tools alone), the rig's report, or the catalog a layer is added
+ * from: no panel covers the deck. While the connection is lost every control is inert and dimmed, so
  * no tap is dropped silently, and a banner over the stage says so; the room
  * is fitted under it, as under the status bar. Focus that an aura message or a lost connection takes away comes back
  * (`useFocusKeeper`): to the same control once it is back, else to the look. */
@@ -79,13 +94,17 @@ function Shell() {
   const lost = link === "lost";
   // Only an arrangement run has a rig to draw in 3D; any other map draws flat.
   const hasRig = useWire((s) => !!s.map?.rig);
+  const arranges = useWire(canArrange);
   const [stageView, setStageView] = useState<StageView>("2d");
   const in3d = hasRig && stageView === "3d";
   // A new value tries the 3D view again after it failed to load.
   const [tries3d, setTries3d] = useState(0);
-  // The health panel and the list of every look take the slot in turn: opening one closes the other.
-  const [slotPanel, setSlotPanel] = useState<SlotPanel>(null);
-  const toggle = (which: Exclude<SlotPanel, null>) => () => setSlotPanel(slotPanel === which ? null : which);
+  // The health panel, the list of every look and the report take the slot in turn: opening one closes the
+  // others. Closed, the slot shows the layout panel while layout mode is on.
+  const [opened, setSlotPanel] = useState<Exclude<SlotPanel, "arrange">>(null);
+  const toggle = (which: "health" | "looks") => () => setSlotPanel(opened === which ? null : which);
+  const slotPanel: SlotPanel = opened ?? (mode.on && arranges ? "arrange" : null);
+  const openReport = hasRig ? () => setSlotPanel("report") : undefined;
   const [helpOpen, setHelpOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [lostLong, setLostLong] = useState(false);
@@ -128,7 +147,7 @@ function Shell() {
             }
           >
             <Suspense fallback={<p className="stage-note">loading the 3D view…</p>}>
-              <Stage3D />
+              <Stage3D editing={slotPanel === "arrange"} />
             </Suspense>
           </ErrorBoundary>
         ) : (
@@ -154,9 +173,17 @@ function Shell() {
     <HealthPanel onClose={() => setSlotPanel(null)} />
   ) : slotPanel === "looks" ? (
     <BookLooks onClose={() => setSlotPanel(null)} />
+  ) : slotPanel === "report" ? (
+    <Loaded>
+      <ReportSlot onClose={() => setSlotPanel(null)} />
+    </Loaded>
+  ) : slotPanel === "arrange" ? (
+    <Loaded>
+      <ArrangeSlot onClose={() => mode.setOn(false)} onReport={() => setSlotPanel("report")} />
+    </Loaded>
   ) : mode.on && !wide ? (
     <Panel title="layout" onClose={() => mode.setOn(false)}>
-      <LayoutTools />
+      <LayoutTools onReport={openReport} />
     </Panel>
   ) : adding ? (
     <AddLayerPanel
@@ -203,9 +230,9 @@ function Shell() {
         >
           <Splitter.Panel id="stage" className="stage-panel">
             {stage}
-            {mode.on && (
+            {mode.on && !arranges && (
               <div inert={lost}>
-                <LayoutTools />
+                <LayoutTools onReport={openReport} />
               </div>
             )}
           </Splitter.Panel>

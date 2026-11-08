@@ -36,10 +36,13 @@ class Refusal:
     """Why a request was refused, and the address of what it refused: a
     knob (`layers.base.waves.freq`), or a part of a look sent whole
     (`layers.base.waves.op`, `master`); None when no one part is to
-    blame. Both cross the preview socket, so neither names a path."""
+    blame. `issues` are the findings of an arrangement that does not
+    compile, each as JSON (`pewpew.rig.models.Issue`). All cross the
+    preview socket, so none names a path."""
 
     reason: str
     name: str | None = None
+    issues: tuple[Mapping[str, object], ...] = ()
 
 
 class Worded(ValueError):

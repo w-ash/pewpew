@@ -1,13 +1,12 @@
-import { Block } from "../../design/Block";
-import { Details } from "../../design/Details";
-import { Switch } from "../../design/Switch";
-import { LOCALE } from "../../params/format";
-import { NumberField } from "../../params/NumberField";
+import { Block } from "../design/Block";
+import { Details } from "../design/Details";
+import { Switch } from "../design/Switch";
+import { LOCALE } from "../params/format";
+import { NumberField } from "../params/NumberField";
 import type { ReactNode } from "react";
-import type { Issue, IssueLevel, RigReport } from "../api/types";
-import { powerOf, setPower } from "../editor/arrangement";
-import { useDoc } from "../store/doc";
-import { useWire } from "../../wire/store";
+import type { Arrangement, Issue, IssueLevel, RigReport } from "./types";
+import type { PowerState } from "../wire/store";
+import { powerOf, setPower } from "./arrangement";
 
 const fixed = (digits: number) =>
   new Intl.NumberFormat(LOCALE, {
@@ -51,7 +50,7 @@ function IssueItems({
 }) {
   const style = LEVELS[level];
   return (
-    <ul className="studio-issues">
+    <ul className="arrange-issues">
       {issues.map((issue, k) => (
         <li
           // The index is the key: issues have no id.
@@ -61,7 +60,7 @@ function IssueItems({
           <span aria-hidden>{style.mark}</span>
           <span>
             {issue.message}
-            <span className="t-caption studio-issue-code">
+            <span className="t-caption arrange-issue-code">
               {issue.code}
               {issue.ref ? ` · ${issue.ref}` : ""}
             </span>
@@ -201,7 +200,7 @@ function Row({
 }) {
   return (
     <li>
-      <div className="studio-row-line">
+      <div className="arrange-row-line">
         <span>{name}</span>
         <span className="t-value">{figures}</span>
       </div>
@@ -226,9 +225,9 @@ function Sections({ report }: { report: RigReport }) {
   const basis = rows<BasisRow>(report.basis);
   const notes = rows<string>(report.notes);
   return (
-    <div className="studio-folds">
+    <div className="arrange-folds">
       <Details summary={`Outputs (${outputs.length})`}>
-        <ul className="studio-rows">
+        <ul className="arrange-rows">
           {outputs.map((o) => (
             <Row
               key={`${o.controller}.${o.output}`}
@@ -240,7 +239,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Details>
       <Details summary={`Feeds (${feeds.length})`}>
-        <ul className="studio-rows">
+        <ul className="arrange-rows">
           {feeds.map((f) => (
             <Row
               key={f.id}
@@ -252,7 +251,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Details>
       <Details summary={`PSUs (${psus.length})`}>
-        <ul className="studio-rows">
+        <ul className="arrange-rows">
           {psus.map((p) => (
             <Row
               key={p.id}
@@ -264,7 +263,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Details>
       <Details summary={`Hops (${hops.length})`}>
-        <ul className="studio-rows">
+        <ul className="arrange-rows">
           {hops.map((h) => (
             <Row
               key={`${h.kind}:${h.source}>${h.target}`}
@@ -275,7 +274,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Details>
       <Details summary={`Bill of materials (${bom.length})`}>
-        <ul className="studio-rows">
+        <ul className="arrange-rows">
           {bom.map((b) => (
             <Row
               key={`${b.kind}:${b.item}`}
@@ -291,7 +290,7 @@ function Sections({ report }: { report: RigReport }) {
         </ul>
       </Details>
       <Details summary={`Assumed values and sources (${basis.length})`}>
-        <ul className="studio-rows">
+        <ul className="arrange-rows">
           {basis.map((b) => (
             <Row
               key={b.fact}
@@ -304,7 +303,7 @@ function Sections({ report }: { report: RigReport }) {
       </Details>
       {notes.length > 0 && (
         <Details summary={`Notes (${notes.length})`}>
-          <ul className="studio-rows">
+          <ul className="arrange-rows">
             {notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -319,19 +318,24 @@ function Sections({ report }: { report: RigReport }) {
 const DEFAULT_MAX_WATTS = 500;
 
 /**
- * The arrangement's power cap. Each edit commits to the document, so the
- * next compile sizes the report for it and a share link keeps it.
+ * The arrangement's power cap. Each edit commits to the arrangement, so the
+ * next compile sizes the report for it.
  */
-export function PowerCapEditor() {
-  const arrangement = useDoc((s) => s.history.present);
-  const commit = useDoc((s) => s.commit);
-  const loading = useDoc((s) => s.share.mode === "loading");
+export function PowerCapEditor({
+  arrangement,
+  onCommit: commit,
+  disabled,
+}: {
+  arrangement: Arrangement;
+  onCommit(next: Arrangement, key?: string): void;
+  disabled?: boolean;
+}) {
   const cap = powerOf(arrangement);
   const write = (next: Partial<typeof cap>) =>
     commit(setPower(arrangement, { ...cap, ...next }), "power");
   return (
     <Block className="fields" title="Power cap">
-      <fieldset disabled={loading} className="fields">
+      <fieldset disabled={disabled} className="fields">
         <Switch
           checked={cap.max_watts !== null}
           onChange={(on) => write({ max_watts: on ? DEFAULT_MAX_WATTS : null })}
@@ -377,17 +381,24 @@ export function PowerCapEditor() {
   );
 }
 
-export function ReportPanel({
-  report,
-  issues,
-  stale,
-}: {
-  report: RigReport | null;
-  issues: readonly Issue[];
-  stale: boolean;
-}) {
-  const watts = useWire((s) => s.power?.watts ?? null);
-  const uncapped = useWire((s) => s.power?.uncapped_watts ?? null);
+/** What the report shows, and the power cap it edits when it is given the arrangement. */
+export interface ReportPanelProps {
+  readonly report: RigReport | null;
+  readonly issues: readonly Issue[];
+  /** Whether `report` is from an older compile than the arrangement's own. */
+  readonly stale: boolean;
+  /** The engine's latest reading; null before one. */
+  readonly power: PowerState | null;
+  /** The arrangement whose power cap the panel edits, with `onCommit`; without them the cap is not shown. */
+  readonly arrangement?: Arrangement;
+  onCommit?(next: Arrangement, key?: string): void;
+  readonly capDisabled?: boolean;
+}
+
+/** The report's summary, the power cap, the issues and the report's sections. Controlled. */
+export function ReportPanel({ report, issues, stale, power, arrangement, onCommit, capDisabled }: ReportPanelProps) {
+  const watts = power?.watts ?? null;
+  const uncapped = power?.uncapped_watts ?? null;
   const totals = (report?.totals ?? {}) as Totals;
   const psus = rows<PsuRow>(report?.psus);
   const outputs = rows<OutputRow>(report?.outputs);
@@ -400,12 +411,12 @@ export function ReportPanel({
   const n = (v: number | undefined, f: (x: number) => string) =>
     v === undefined ? "—" : f(v);
   return (
-    <div className="studio-panel">
+    <div className="arrange-panel">
       <Block
         className="fields"
         title={`Summary${stale ? " (from the last good compile)" : ""}`}
       >
-        <dl className="studio-stats">
+        <dl className="arrange-stats">
           <Stat label="Pixels">{n(totals.pixels, formatInt)}</Stat>
           <Stat label="Every channel full">
             <span>{n(totals.worst_w, formatW)}</span>{" "}
@@ -415,7 +426,7 @@ export function ReportPanel({
             <span>{n(totals.capped_w, formatW)}</span>{" "}
             <span>{n(totals.capped_a, formatA)}</span>
             {totals.rgb_worst_w !== undefined && (
-              <span className="note studio-stat-note">
+              <span className="note arrange-stat-note">
                 RGB draws at most {formatW(totals.rgb_worst_w)}
               </span>
             )}
@@ -423,7 +434,7 @@ export function ReportPanel({
           <Stat label="Effect, live" testId="report-watts">
             {watts === null ? "—" : formatW(watts)}
             {watts !== null && uncapped !== null && uncapped > watts && (
-              <span className="note studio-stat-note">
+              <span className="note arrange-stat-note">
                 {formatW(uncapped)} uncapped
               </span>
             )}
@@ -443,7 +454,9 @@ export function ReportPanel({
           </Stat>
         </dl>
       </Block>
-      <PowerCapEditor />
+      {arrangement && onCommit && (
+        <PowerCapEditor arrangement={arrangement} onCommit={onCommit} disabled={capDisabled} />
+      )}
       <Block className="fields" title="Issues">
         <IssueList issues={issues} />
       </Block>
@@ -451,7 +464,7 @@ export function ReportPanel({
         {report ? (
           <Sections report={report} />
         ) : (
-          <p className="t-label">The server sent no report for this rig.</p>
+          <p className="t-label">The engine sent no report for this rig.</p>
         )}
       </Block>
     </div>
