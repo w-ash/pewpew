@@ -32,6 +32,7 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import islice
+from typing import NamedTuple
 
 from pewpew.aura.book import MAX_LOOKS, CycleConfig
 from pewpew.fx.surprise import Draw
@@ -44,6 +45,17 @@ class Slot:
 
     name: str | None
     seed: int = 0
+
+
+class Timing(NamedTuple):
+    """The director's state as another thread reads it, replaced whole on
+    every change: whether a run plays, whether it has ended, when the slot
+    playing ends, and the engine time of the last input."""
+
+    running: bool = False
+    done: bool = False
+    slot_end: float = 0.0
+    last_input: float = 0.0
 
 
 class Director:
@@ -63,21 +75,43 @@ class Director:
         self._fresh: tuple[int, str] | None = None
         # The seed of a fresh look a slot played `instead`, which the next fresh slot plays.
         self._owed: int | None = None
+        self._timing = Timing(last_input=self._last_input)
 
     @property
     def running(self) -> bool:
         return self._running
+
+    @property
+    def timing(self) -> Timing:
+        """The state another thread reads (`next_at`), one value, replaced
+        whole once a step has changed it."""
+        return self._timing
+
+    def _publish(self) -> None:
+        self._timing = Timing(self._running, self._done, self._since + self._dwell, self._last_input)
 
     def touch(self, t: float) -> None:
         """Operator input at engine time `t`: stop, and restart the idle wait."""
         self._last_input = float(t)
         self._running = False
         self._done = False
+        self._publish()
 
     def due(self, t: float, config: CycleConfig) -> bool:
         """Whether the idle wait is over at engine time `t`: a `tick` then
         begins the cycle, given looks to play."""
         return config.idle is not None and not self._running and not self._done and t - self._last_input >= config.idle
+
+    @staticmethod
+    def next_at(timing: Timing, names: Sequence[str], config: CycleConfig) -> float | None:
+        """The engine time from which a `tick` with these `names` and
+        `config` plays the next slot, by `timing` (`Director.timing`): the
+        end of the slot playing, or of the idle wait. None while the cycle
+        is off, has no looks, or has ended. At the end of the last round,
+        that slot is the `end` look, or none. Any thread."""
+        if config.idle is None or not names or timing.done:
+            return None
+        return timing.slot_end if timing.running else timing.last_input + config.idle
 
     def coming(self, names: Sequence[str], config: CycleConfig) -> int | None:
         """The seed of the next slot when it is a fresh look, else None: the
@@ -94,6 +128,12 @@ class Director:
         """What to play at engine time `t`, or None: a slot of one of
         `names`, the looks the cycle plays, a fresh look, or the config's
         `end` once its rounds are done."""
+        slot = self._step(t, names, config)
+        if self._timing[:3] != (self._running, self._done, self._since + self._dwell):
+            self._publish()
+        return slot
+
+    def _step(self, t: float, names: Sequence[str], config: CycleConfig) -> Slot | None:
         if config.idle is None or not names:
             self._running = False
             return None

@@ -104,7 +104,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
       looks: {
         keys: keys<LooksState>({
           items: true, favorites: true, current: true, changed: true, fading: true, progress: true, pending: true, cycling: true, idle: true, dwell: true,
-          made: true, offered: true, saved: true,
+          idle_off: true, next: true, made: true, offered: true, saved: true,
         }),
         fields: { items: { keys: keys<LookItem>({ name: true, cycle: true, fade: true }) } },
       },
@@ -208,6 +208,7 @@ const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   cycle: { name: true, on: true },
   favorite: { name: true, on: true },
   fade: { name: true, fade: true },
+  idle_cycle: { idle: true, each: true },
   arm: { on: true },
   fire: { name: true, value: true },
   scan: {},

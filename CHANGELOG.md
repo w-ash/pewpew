@@ -9,6 +9,13 @@ series (batch mode).
 
 ### Added
 
+- Shuffle on the Console: a row under the make actions whose switch turns it on or
+  off, off reading "stays on this look". While on, the row counts down to the next
+  look (or says why it waits) and opens how long each look plays and whether it
+  starts right away or after a while untouched. The new `idle_cycle` request sets the idle
+  cycle's `idle` (null for off) and `each`, writes them to the looks file at once,
+  and refuses values outside 1 s to 24 h; a field left out keeps the file's. The
+  looks state adds `next`, the engine time of the next look, and `idle_off`.
 - The example look `sway` (panel): rainbow bars sway back and forth on a slow `lfo`
   routed to the oscillator's `sync` while `rotate` spins their direction. Its palette
   starts and ends on red, so the saw wraps with no seam to step from light to light as

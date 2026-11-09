@@ -63,9 +63,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from pewpew import share as shares
-from pewpew.aura.book import check_name
+from pewpew.aura.book import KEEP, Keep, check_cycle_time, check_name
 from pewpew.aura.deck import Deck
-from pewpew.aura.looks import Looks
+from pewpew.aura.looks import IDLE_OFF, Looks
 from pewpew.aura.master import Master
 from pewpew.aura.triggers import Triggers
 from pewpew.aura.variety import Made, Variety, fade_to, in_background
@@ -112,6 +112,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "cycle": (("name", None), ("on", None)),
     "favorite": (("name", None), ("on", None)),
     "fade": (("name", None), ("fade", None)),
+    "idle_cycle": (("idle", KEEP), ("each", KEEP)),
     "arm": (("on", None),),
     "fire": (("name", None), ("value", None)),
     "scan": (),
@@ -501,6 +502,25 @@ class AuraControl:
             lambda looks: looks.set_fade(name, fade),  # type: ignore[arg-type]
             None if fade is not None else "a look's fade needs a number of seconds",
         )
+
+    def idle_cycle(self, idle: object = KEEP, each: object = KEEP) -> str | None:
+        """Set the idle cycle's times: `idle`, the seconds without input
+        before it starts (None: off), and `each`, the seconds each look
+        plays; a field left out keeps the book's. Written to the looks file
+        at once (`Looks.set_cycle_times`). Operator input, so the idle wait
+        counts from it."""
+        looks = self._looks
+        if looks is None:
+            return NO_LOOKS_FILE
+        if looks.idle_off:  # refused before the loop, so it touches nothing
+            return IDLE_OFF
+        if isinstance(idle, Keep) and isinstance(each, Keep):
+            return "idle_cycle sets 'idle', 'each' or both"
+        for key, value in (("idle", idle), ("each", each)):
+            if not isinstance(value, Keep) and (reason := check_cycle_time(key, value)) is not None:
+                return reason
+        times = cast("tuple[float | None | Keep, float | Keep]", (idle, each))
+        return self._ask(lambda: looks.set_cycle_times(*times), "shuffle is still changing")
 
     def arm(self, on: object) -> str | None:
         """Arm (True) or disarm (False) the room-event triggers."""

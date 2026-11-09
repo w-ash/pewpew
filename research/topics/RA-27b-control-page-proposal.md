@@ -423,7 +423,7 @@ Where the draft's shared foundations differed from RA-27c §3, RA-27c wins (was
    - **· changed:** Changed since saved; save updates it.
    - **✦ draft:** Not saved yet; save keeps it.
    - **↺ back to saved** (its label): Puts this knob back to its saved value.
-   - **↻ in shuffle:** Plays at random when nobody touches anything.
+   - **↻ in shuffle:** Takes turns at random while shuffle is on (RA-27 §13).
    - **±, +, −** in `modulated by ‘name’ ±depth`: How far a modulator moves
      this knob; saving keeps your setting. **→** in a modulator row: what it
      moves.

@@ -556,7 +556,7 @@ test("the shuffle switch has a ? that says what shuffle is", async () => {
   const { screen } = await renderWired(<Editor />);
   await screen.getByRole("button", { name: "look settings" }).click();
   await screen.getByRole("button", { name: "about shuffle" }).click();
-  await expect.element(screen.getByText(/^shuffle: .*touch any control to take over$/)).toBeVisible();
+  await expect.element(screen.getByText("while shuffle is on, the looks in it take turns at random")).toBeVisible();
 });
 
 test("shuffle's note shuts with the look settings: it keeps no Esc, and it does not come back unasked", async () => {
@@ -564,7 +564,7 @@ test("shuffle's note shuts with the look settings: it keeps no Esc, and it does 
   const dots = screen.getByRole("button", { name: "look settings" });
   await dots.click();
   await screen.getByRole("button", { name: "about shuffle" }).click();
-  const note = screen.getByText(/^shuffle: /);
+  const note = screen.getByText(/^while shuffle is on/);
   await expect.element(note).toBeVisible();
   let heard = 0;
   const hear = (e: KeyboardEvent) => {
@@ -1071,4 +1071,60 @@ test("the all-looks list scrolls to the highlight when it moves, not on unrelate
     Element.prototype.scrollIntoView = real;
     await page.viewport(414, 896);
   }
+});
+
+test("shuffle is a switch, its row says what it is doing at a glance, its settings act at once, and on it starts as it last did", async () => {
+  const { screen, sent, receive, store } = await renderWired(<Played />);
+  const looks = AURA.looks!;
+  const toggle = screen.getByRole("switch", { name: "shuffle" });
+  // The file waits 5 min untouched, then plays each look 1 min.
+  await expect.element(toggle).toBeChecked();
+  act(() => store.receiveFrame({ t: 60, seq: 1, rgb: new Uint8Array(6) }, 0));
+  const open = screen.getByRole("button", { name: "shuffle settings: every 1 min" });
+  await expect.element(open).toHaveTextContent("1 min ·starts in4:00");
+  await expect.element(open).toHaveAccessibleDescription(/^1 min ·\s*starts in\s*4:00$/);
+  await open.click();
+  await expect.element(open).toHaveAttribute("aria-expanded", "true");
+  await expect.element(screen.getByText("after a touch, shuffle waits 5 min")).toBeVisible();
+  await screen.getByRole("combobox", { name: "how long each look plays" }).selectOptions("120");
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", each: 120 });
+  await userEvent.keyboard("{Escape}");
+  await expect.element(open).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", idle: null });
+  // Off, the row says the lights stay; on again, it waits as it did.
+  receive(aura({ looks: { ...looks, idle: null, next: null } }));
+  await expect.element(toggle).not.toBeChecked();
+  await expect.element(screen.getByText("stays on this look")).toBeVisible();
+  expect(document.querySelector(".shuffle-open")).toBeNull();
+  await toggle.click();
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", idle: 300 });
+  // Right away, a look's turn counts down.
+  receive(aura({ looks: { ...looks, idle: 60, next: 90, cycling: true } }));
+  await expect.element(screen.getByRole("button", { name: "shuffle settings: every 1 min" })).toHaveTextContent("1 min ·next in0:30");
+  await screen.getByRole("button", { name: "shuffle settings: every 1 min" }).click();
+  await screen.getByRole("combobox", { name: "when shuffle starts" }).selectOptions("600");
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", idle: 600 });
+  // A run that keeps shuffle off (a Gallery visit) offers none.
+  receive(aura({ looks: { ...looks, idle: null, next: null, idle_off: true } }));
+  await expect.element(toggle).not.toBeInTheDocument();
+});
+
+test("on a phone down to 360 px shuffle's row is one line that keeps the turn and the countdown", async () => {
+  for (const width of [390, 360]) {
+    await page.viewport(width, 844);
+    const { screen, store, receive } = await renderWired(<Played />);
+    receive(aura({ looks: { ...AURA.looks!, idle: 1800, dwell: [600, 600], next: 1860 } }));
+    act(() => store.receiveFrame({ t: 60, seq: 1, rgb: new Uint8Array(6) }, 0));
+    const row = document.querySelector(".shuffle-group > .bool-control")!.getBoundingClientRect();
+    expect(row.height).toBeLessThanOrEqual(24);
+    const each = document.querySelector(".shuffle-each")!;
+    expect(each.scrollWidth).toBeLessThanOrEqual(each.clientWidth + 1); // "10 min ·" whole
+    const parts = [screen.getByText("shuffle", { exact: true }), screen.getByRole("button", { name: /^shuffle settings/ }), screen.getByRole("switch", { name: "shuffle" })].map((l) => l.element().getBoundingClientRect());
+    expect(parts[0]!.right).toBeLessThan(parts[1]!.left);
+    expect(parts[1]!.right).toBeLessThanOrEqual(parts[2]!.left);
+    expect(parts[2]!.right).toBeLessThanOrEqual(row.right + 1);
+    await screen.unmount();
+  }
+  await page.viewport(414, 896);
 });

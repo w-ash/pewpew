@@ -1294,7 +1294,10 @@ change in `web/src`.
 | master | master | ~ | brightness | Whole-room brightness, on top of every layer | page |
 | cap | cap 80% | ✗ | max 80% | Highest brightness allowed in this run, set at launch | page |
 | fade | fade: saved / cut | ~ | fade: as saved / instant / 2 s | How long switching looks takes | page |
-| idle cycle | IDLE CYCLE, ↻ in idle cycle | ~ | shuffle, SHUFFLE, ↻ | When nobody touches anything, ↻ looks play in turn | page, authoring.md |
+| idle cycle | IDLE CYCLE, ↻ in idle cycle | ~ | shuffle, SHUFFLE, ↻ | While shuffle is on, ↻ looks take turns at random | page, authoring.md |
+| idle cycle off (`idle` null) | — | ✓ | stays on this look | Shuffle is off: the lights stay on the look | page |
+| idle cycle `idle` | (shown as text only) | ✓ | starts: right away / after 5 min untouched | When shuffle starts, and how long a touch pauses it | page |
+| idle cycle `each` (dwell) | (shown as text only) | ✓ | each look: 2 min; `every 2 min` | How long each look plays before the next | page |
 | trigger, cue, arm | triggers: ARMED, cues (arm first) | ✗ | cues on / off; cues | Plays a look for a few seconds, then comes back | page; engine refusals |
 | front | (no word) | ~ | main knobs (no visible heading) | The few knobs this look is meant to be played with | page |
 | signal | motion · hue | ~ | modulator, under the heading modulators | A modulator keeps a knob moving: a wave, the beat, the music | page |
@@ -2165,6 +2168,41 @@ Page:
   (`features.py`, the `beat_phase` field). So "the music", in the ? note and
   the audio follower's line, describes intended behaviour. The maintainer should confirm
   it before the copy promises sound.
+
+### 13. Shuffle control (2026-11-08)
+
+Two independent UI review rounds, from the code and WebKit screenshots at
+390×844 and 1440×900, shaped the row. Round 1 moved the toggle off the end
+of the make row, where a bare ↻ read as "try again" on a phone, to a row of
+its own with its word, and made "holding" visible. Round 2 found a tertiary
+toggle read as a label: the row's control is now a Switch, as RA-27b §6.1
+lists for on/off settings, which also fits a line-tall row.
+
+The maintainer asked on 2026-11-08 for control over whether the lights stay
+on one look or rotate, and how long each look plays; the build brief stated
+the ask, and the maintainer's own words were not kept. Before it, the page
+showed the idle cycle's timings as text only (`cycleText`, `web/src/aura/looks.ts`
+at 15ade80).
+
+- **Decision.** A shuffle row under the make actions, a line tall with its
+  switch hanging (RA-27c §3.2): one choice, on or off, as Spotify's shuffle is
+  one control by the play controls [S1556]. Between its word and the switch
+  it says what shuffle is doing: "stays on this look" when off; when on, the
+  turn and when the next look comes (`1 min · next in 0:59`). That opens two
+  inline lists, each look and starts, as Figma moved blend mode into an inline
+  dropdown [S1573]. Each choice writes the looks file at once, as a look's fade
+  and shuffle flag do: the one-press save keeps a look, and these are not part
+  of one (RA-27b, Decisions item 2). The glossary note now reads "at random",
+  as the director plays (`pewpew.aura.director`), where it read "in turn".
+- **Right away** is a wait no longer than a turn: after a touch the look plays
+  one turn and shuffle goes on, through the engine's existing idle wait, so no
+  second mechanism (`pewpew.aura.book`). Rounds, end, weights, window and fresh
+  stay in the file: an operator choosing hold or rotate does not need them
+  (inference).
+- **New words.** "untouched" names the idle wait in one word, from the page's
+  earlier "with nobody touching anything"; "idle" stays a code word, as
+  "shuffle" replaced "idle cycle" on the page (§8). "right away" and "each
+  look" are plain English. Both rows are in the glossary.
 
 ## Verdicts
 

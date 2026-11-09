@@ -8,6 +8,7 @@ the next fresh slot."""
 
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 from collections import Counter
@@ -19,12 +20,16 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fakes import Painter, aura_rig, layered, restore, rgb, solid
+from fakes import LoopThread, Painter, aura_rig, layered, restore, rgb, solid
 from pewpew.aura.book import CycleConfig, LookBook, LookError, load_looks, parse_looks
+from pewpew.aura.control import NO_LOOKS_FILE, Exported
 from pewpew.aura.director import Director, Slot
+from pewpew.aura.looks import IDLE_OFF
 from pewpew.aura.variety import at_once
 from pewpew.compose import Look
+from pewpew.errors import Refusal
 from pewpew.jsonfile import write_atomic
+from pewpew.testing.clock import FakeClock
 
 pytestmark = pytest.mark.usefixtures("fake_ops")
 
@@ -297,3 +302,166 @@ def test_a_fresh_slot_played_instead_owes_its_seed_to_the_next_fresh_slot():
     assert dropped.name in NAMES
     director.tick(5.0, NAMES, config)
     assert director.coming(NAMES, config) not in (None, fresh.seed)
+
+
+# ---- the operator's times (`idle_cycle`) ------------------------------------------------
+
+
+THREE = {
+    "red": solid(1.0, fade=0.0, cycle=True), "green": solid(0.0, 1.0, 0.0, fade=0.0, cycle=True),
+    "blue": solid(0.0, 0.0, 1.0, fade=0.0, cycle=True),
+}
+
+
+def ask(rig, **times: Any) -> Refusal | Exported | Future | None:
+    """Send an `idle_cycle` request with `times`, answered by a loop thread
+    between two frames, as a page's request is."""
+    with LoopThread(rig.calls):
+        return rig.control.request({"type": "idle_cycle", **times})
+
+
+HOLDING = CycleConfig(idle=None, each=60.0, seed=5)
+
+
+def times_rig(folder: Path, cycle: CycleConfig = HOLDING, **kw):
+    """An aura on looks `THREE` in red, as saved, its idle cycle `cycle`."""
+    rig = aura_rig(looks=THREE, current="red", path=folder / "looks.json", cycle=cycle, **kw)
+    assert restore(rig) is None
+    return rig
+
+
+def test_an_operator_sets_the_times_which_the_file_keeps_at_once_and_a_field_left_out_keeps_its_own(
+    tmp_path: Path,
+):
+    rig = times_rig(tmp_path, CycleConfig(idle=300.0, each=(40.0, 90.0), seed=5, window=1))
+    solid_knobs(rig).set("green", 0.5)  # an unsaved edit, which stays unsaved
+    assert ask(rig, idle=None) is None
+    assert load_looks(rig.path).cycle == CycleConfig(idle=None, each=(40.0, 90.0), seed=5, window=1)
+    assert ask(rig, each=120) is None
+    assert load_looks(rig.path).cycle == CycleConfig(idle=None, each=120.0, seed=5, window=1)
+    assert ask(rig, idle=30, each=45.5) is None
+    assert rig.looks.book.cycle == load_looks(rig.path).cycle == CycleConfig(idle=30.0, each=45.5, seed=5, window=1)
+    state = rig.looks.state()
+    assert (state["idle"], state["dwell"], state["idle_off"]) == (30.0, [45.5, 45.5], False)
+    assert rig.looks.changed() and load_looks(rig.path).looks["red"] == THREE["red"]
+
+
+@pytest.mark.parametrize(("times", "reason"), [
+    ({}, "idle_cycle sets 'idle', 'each' or both"),
+    ({"idle": 0}, "'idle' is seconds from 1 to 86400, or null for off; got 0"),
+    ({"idle": -5}, "'idle' is seconds from 1 to 86400, or null for off; got -5"),
+    ({"idle": "300"}, "'idle' is seconds from 1 to 86400, or null for off; got '300'"),
+    ({"idle": True}, "'idle' is seconds from 1 to 86400, or null for off; got True"),
+    ({"each": None}, "'each' is seconds from 1 to 86400; got None"),
+    ({"each": 0.5}, "'each' is seconds from 1 to 86400; got 0.5"),
+    ({"idle": 60, "each": 1e9}, "'each' is seconds from 1 to 86400; got 1000000000.0"),
+    ({"each": [40, 90]}, "'each' is seconds from 1 to 86400; got [40, 90]"),
+    ({"each": False}, "'each' is seconds from 1 to 86400; got False"),
+    ({"each": float("nan")}, "'each' is seconds from 1 to 86400; got nan"),
+    ({"idle": float("inf")}, "'idle' is seconds from 1 to 86400, or null for off; got inf"),
+    ({"idle": 10**400}, f"'idle' is seconds from 1 to 86400, or null for off; got {10**400!r}"),
+])
+def test_bad_times_are_refused_with_the_reason_and_the_file_is_untouched(tmp_path: Path, times, reason):
+    rig = times_rig(tmp_path)
+    before = rig.path.read_bytes() if rig.path.exists() else None
+    assert ask(rig, **times) == Refusal(reason)
+    assert (rig.path.read_bytes() if rig.path.exists() else None) == before
+
+
+def test_no_looks_file_and_a_run_that_keeps_the_idle_cycle_off_refuse_the_times(tmp_path: Path):
+    assert aura_rig().control.request({"type": "idle_cycle", "idle": 60}) == Refusal(NO_LOOKS_FILE)
+    rig = times_rig(tmp_path, CycleConfig(idle=300.0), idle_off=True)
+    assert rig.looks.state()["idle_off"] and rig.looks.state()["idle"] is None
+    # Refused on the caller's thread: no loop runs here to answer it.
+    assert rig.control.request({"type": "idle_cycle", "idle": 60}) == Refusal(IDLE_OFF)
+    assert load_looks(rig.path).cycle.idle == 300.0 if rig.path.exists() else True
+
+
+def test_next_says_when_the_next_look_comes_and_is_null_while_nothing_will_come(tmp_path: Path):
+    """Waiting, `next` is the end of the idle wait from the request, which
+    is input; running, the end of the slot playing; null while holding,
+    while unsaved edits hold the wait, and while a trigger holds a look."""
+    rig = times_rig(tmp_path)
+    rig.frame(1.0)
+    assert rig.looks.state()["next"] is None  # holding: idle is null
+    assert ask(rig, idle=5, each=2) is None
+    assert rig.looks.state()["next"] == 6.0  # the wait counts from the request at 1 s
+    rig.frame(6.0)
+    state = rig.looks.state()
+    assert state["cycling"] and state["next"] == 8.0
+    solid_knobs(rig).set("green", 0.5)
+    rig.looks.touch()  # the edit, as operator input
+    assert rig.looks.state()["next"] is None and not rig.looks.state()["cycling"]
+    assert restore(rig) is None and rig.looks.state()["next"] == 11.0
+    assert rig.looks.hold("cue", "blue", 3.0, 1, 6.0) is None
+    assert rig.looks.state()["next"] is None
+
+
+def test_a_wait_as_long_as_a_turn_keeps_shuffle_going_and_the_same_inputs_give_the_same_frames(tmp_path: Path):
+    """With `idle` equal to `each`, a touch holds the look for one turn and
+    the cycle goes on; holding (`idle` null) stops it. Every step is on
+    engine time from a FakeClock, so two runs give byte-identical frames."""
+
+    def run(folder: Path) -> tuple[list[bytes], list[str | None], list[float | None]]:
+        folder.mkdir()
+        rig = times_rig(folder)
+        frames, currents, nexts = [], [], []
+        for k, t in enumerate(FakeClock().frames(400, fps=10.0)):
+            if k == 20:  # at 2 s: shuffle, a look every 3 s
+                assert ask(rig, idle=3, each=3) is None
+            if k == 150:  # at 15 s: a touch, as a brightness change is
+                assert rig.control.master(0.5) is None
+                rig.calls.drain()
+            if k == 300:  # at 30 s: hold
+                assert ask(rig, idle=None) is None
+            frames.append(rig.frame(t).tobytes())
+            currents.append(rig.looks.book.current)
+            nexts.append(rig.looks.state()["next"])
+        return frames, currents, nexts
+
+    frames, currents, nexts = run(tmp_path / "a")
+    assert (frames, currents, nexts) == run(tmp_path / "b")
+    changes = [k for k in range(1, len(currents)) if currents[k] != currents[k - 1]]
+    assert set(currents[:50]) == {"red"}  # the first turn: 3 s from the request at 2 s
+    assert nexts[20] == pytest.approx(5.0) and nexts[150] == pytest.approx(18.0)
+    assert changes[0] == 50 and all(k < 300 for k in changes)  # the first frame from 5 s, at 5.1 s
+    assert all(b - a >= 30 for a, b in itertools.pairwise(changes))  # a turn is 3 s, at 10 frames a second
+    assert not any(c in range(150, 179) for c in changes)  # the touch at 15 s gives the look a whole turn
+    assert set(nexts[301:]) == {None} and len(set(currents[300:])) == 1
+
+
+def test_a_write_that_fails_refuses_the_times_and_changes_nothing(tmp_path: Path, monkeypatch):
+    rig = times_rig(tmp_path, CycleConfig(idle=300.0, each=60.0))
+    def fail(*_: Any) -> None:
+        raise OSError(28, "No space left on device", str(tmp_path))
+    monkeypatch.setattr("pewpew.aura.looks.write_atomic", fail)
+    assert ask(rig, idle=None) == Refusal("cannot write the looks file; nothing was saved")
+    assert rig.looks.book.cycle == CycleConfig(idle=300.0, each=60.0) and rig.looks.state()["idle"] == 300.0
+
+
+def test_next_moves_with_a_change_mid_run_and_a_request_restarts_a_cycle_whose_rounds_ended(tmp_path: Path):
+    rig = times_rig(tmp_path, CycleConfig(idle=1.0, each=2.0, rounds=1, end="red", seed=5))
+    rig.frame(1.0)
+    assert rig.looks.state()["cycling"] and rig.looks.state()["next"] == 3.0
+    rig.frame(2.0)
+    assert ask(rig, each=4) is None  # input at 2 s: the run stops; the next look after the 1 s wait
+    assert not rig.looks.state()["cycling"] and rig.looks.state()["next"] == 3.0
+    for t in (3.0, 7.0, 11.0):  # three slots, a round of the three looks, from 3 s
+        rig.frame(t)
+    assert rig.looks.state()["next"] == 15.0
+    rig.frame(15.0)
+    assert rig.looks.book.current == "red" and rig.looks.state()["next"] is None  # ended in `end`
+    assert ask(rig, idle=2) is None
+    assert rig.looks.state()["next"] == 17.0  # the request is input: the wait counts again
+
+
+def test_the_director_s_timing_is_one_value_another_thread_reads_whole():
+    director, config = Director(start=1.0), CycleConfig(idle=2.0, each=5.0)
+    assert Director.next_at(director.timing, NAMES, config) == 3.0
+    before = director.timing
+    director.tick(3.0, NAMES, config)
+    assert director.timing is not before and director.timing.running and director.timing.slot_end == 8.0
+    steady = director.timing
+    director.tick(4.0, NAMES, config)
+    assert director.timing is steady  # nothing changed, nothing replaced
+    assert Director.next_at(Director().timing, [], config) is None

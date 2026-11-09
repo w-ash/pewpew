@@ -370,6 +370,7 @@ def test_no_refusal_over_the_socket_names_a_path(served_from_a_private_folder, m
         {"type": "set", "name": "nosuch", "value": 1},
         {"type": "rename", "name": "blue", "to": "red"}, {"type": "rename", "name": "blue", "to": "../looks.json"},
         {"type": "rename", "name": "nosuch", "to": "red"}, {"type": "rename", "name": "blue", "to": 7},
+        {"type": "idle_cycle", "idle": "../looks.json"}, {"type": "idle_cycle", "each": -1},
     ]
     replies = refusals(ws, messages)
     monkeypatch.setattr(os, "replace", lambda src, dst: (_ for _ in ()).throw(OSError(28, "No space", str(private))))

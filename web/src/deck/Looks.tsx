@@ -1,5 +1,5 @@
 import { useId, useRef, type CSSProperties, type ReactNode, type Ref } from "react";
-import { edited, fadeSeconds, favoriteLooks, liveLook, lookStatus, unsaved, type LookItem, type LooksState } from "../aura/looks";
+import { edited, fadeSeconds, favoriteLooks, liveLook, lookStatus, shuffleOn, unsaved, type LookItem, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useSender } from "../wire/store";
 import { Button } from "../design/Button";
@@ -11,9 +11,10 @@ import { useInView } from "../design/useInView";
 import { pressable, useShortcuts } from "../design/shortcuts";
 import { useFade } from "./fade";
 
-/** Which looks a ↻ marks, when some are left out of shuffle: the fewer, those in it ("in") or those left
- * out ("out", the ↻ slashed); null when every look is in it, or none. */
+/** Which looks a ↻ marks while shuffle is on and some are left out of it: the fewer, those in it ("in") or
+ * those left out ("out", the ↻ slashed); null when every look is in it, or none, and while shuffle is off. */
 export function cycleMarks(looks: LooksState): "in" | "out" | null {
+  if (!shuffleOn(looks)) return null;
   const out = looks.items.filter((item) => !item.cycle).length;
   const n = looks.items.length;
   return out === 0 || out === n ? null : out < n - out ? "out" : "in";

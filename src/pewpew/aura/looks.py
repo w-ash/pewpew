@@ -41,7 +41,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from pewpew.aura.book import MAX_FAVORITES, MAX_LOOKS, MAX_NAME, CycleConfig, LookBook, check_name
+from pewpew.aura.book import KEEP, MAX_FAVORITES, MAX_LOOKS, MAX_NAME, CycleConfig, Keep, LookBook, check_name
 from pewpew.aura.deck import Deck
 from pewpew.aura.director import Director, Slot
 from pewpew.aura.master import Master
@@ -59,6 +59,7 @@ logger = logging.getLogger(__name__)
 Edited = tuple[tuple[Layer, ...], Graph | None, tuple[str, ...]]
 
 KEPT = "kept"  # what a save with no name names a look that was not made for the aura
+IDLE_OFF = "this run keeps shuffle off"
 
 
 def _edited(look: Look) -> Edited:
@@ -200,6 +201,11 @@ class Looks:
         return made.label if made is not None else self._book.current
 
     @property
+    def idle_off(self) -> bool:
+        """Whether this run keeps the idle cycle off whatever the book says. Any thread."""
+        return self._idle_off
+
+    @property
     def held(self) -> Hold | None:
         """The trigger override holding, or None. Replaced whole; any thread."""
         return self._hold
@@ -209,26 +215,35 @@ class Looks:
     def state(self) -> dict:
         """The page's view of the looks; JSON-ready, names only."""
         book = self._book
-        cycle = self._cycle()
+        cycle = self._cycle(book)
         fading = self._fading if self._fader.fading else None
         progress = self._fader.progress
         pending = self._pending
         recalled = self._recalled
+        changed = self.changed()
+        timing = self._director.timing
         return {
             "items": [{"name": name, "cycle": look.cycle, "fade": look.fade} for name, look in book.looks.items()],
             "favorites": book.favorite_names,
             "current": book.current,
-            "changed": self.changed(),
+            "changed": changed,
             "fading": fading,
             # Coarse, so the state message changes a few times per fade
             # rather than on every frame.
             "progress": None if fading is None or progress is None else round(progress * 20) / 20,
             "pending": None if pending is None else pending[0],
-            "cycling": self._director.running,
+            "cycling": timing.running,
             # When the idle cycle starts (seconds without input; None: never)
             # and how long each look plays, shortest and longest.
             "idle": cycle.idle,
             "dwell": list(cycle.dwell),
+            # Whether this run keeps the idle cycle off whatever is set (a Gallery visit).
+            "idle_off": self._idle_off,
+            # The engine time from which the idle cycle plays its next look (`Director.next_at`), or
+            # None while it cannot: off, no look in it, ended, a trigger holds a look, or unsaved edits
+            # hold its wait. Constant between steps, so the message does not change every frame.
+            "next": None if self._hold is not None or (changed and not timing.running)
+            else Director.next_at(timing, book.in_cycle, cycle),
             # The made look that plays unsaved, by the name it offers.
             "made": None if self._made is None else self._made.label,
             # The name a save with none gives the live state now (`offered`),
@@ -428,6 +443,22 @@ class Looks:
             return reason
         return self._commit(self._book.with_look(name, replace(look, fade=seconds)))
 
+    def set_cycle_times(self, idle: float | None | Keep = KEEP, each: float | Keep = KEEP) -> str | None:
+        """Store the idle cycle's `idle` (seconds without input before it
+        starts; None: off) and `each` (seconds each look plays), checked by
+        the caller (`check_cycle_time`); `KEEP` keeps the book's. Written to
+        the file at once, as a look's fade is: unsaved edits stay unsaved.
+        Refused when the run keeps the idle cycle off. The idle wait counts
+        from the caller's `touch`. Returns why not, or None."""
+        if self._idle_off:
+            return IDLE_OFF
+        cycle = self._book.cycle
+        if not isinstance(idle, Keep):
+            cycle = replace(cycle, idle=None if idle is None else float(idle))
+        if not isinstance(each, Keep):
+            cycle = replace(cycle, each=float(each))
+        return self._commit(replace(self._book, cycle=cycle))
+
     def touch(self) -> None:
         """Operator input arrived: stop the idle cycle and restart its wait."""
         self._director.touch(self._fader.t)
@@ -571,9 +602,10 @@ class Looks:
         except Exception as exc:  # noqa: BLE001  the aura must not end over a look
             self._fail(f"look recall failed: {describe_exception(exc)}")
 
-    def _cycle(self) -> CycleConfig:
-        """The book's cycle settings as they run: with the idle cycle off when `idle_off`."""
-        cycle = self._book.cycle
+    def _cycle(self, book: LookBook | None = None) -> CycleConfig:
+        """The cycle settings of `book` (default the live one) as they run:
+        with the idle cycle off when `idle_off`."""
+        cycle = (book or self._book).cycle
         return replace(cycle, idle=None) if self._idle_off else cycle
 
     def _make(self, seed: int) -> Future[Made]:

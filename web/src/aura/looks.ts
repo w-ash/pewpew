@@ -1,6 +1,7 @@
 // Saved looks (pewpew.aura.looks), as the aura state carries them.
 import { equalValue, readValue } from "../params/kinds";
 import type { Param, ValueOf } from "../params/schema";
+import type { ClientMessage } from "../wire/protocol";
 import type { TriggersState } from "./triggers";
 
 export interface LookItem {
@@ -32,6 +33,12 @@ export interface LooksState {
   readonly idle: number | null;
   /** How long the idle cycle plays each look, in seconds: the shortest and the longest. */
   readonly dwell: readonly [number, number];
+  /** The run keeps the idle cycle off whatever is set (a Gallery visit): `idle` is null and the page offers no
+   * shuffle. */
+  readonly idle_off: boolean;
+  /** The engine time from which shuffle plays its next look, comparable with a frame's `t`; null while it will
+   * not: off, no look in shuffle, ended, a cue holds a look, or unsaved edits hold its wait. */
+  readonly next: number | null;
   /** The label of the look the engine made that plays unsaved ("surprise 7"). */
   readonly made: string | null;
   /** The name a save with none gives what plays (`saveOf`): a made look's label, a copy's name of the current
@@ -181,21 +188,109 @@ export function offSaved(ps: readonly Param[], value: <P extends Param>(p: P) =>
   return Object.keys(saved).some((name) => name.startsWith(prefix) && !names.has(name));
 }
 
-/** `seconds` in words: `40 s`, `5 min`. */
-function span(seconds: number): string {
-  return seconds >= 120 && seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`;
+/** `seconds` in words: `40 s`, `1 min`, `90 s`, `1 h`. */
+export function span(seconds: number): string {
+  if (seconds >= 3600 && seconds % 3600 === 0) return `${seconds / 3600} h`;
+  return seconds >= 60 && seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`;
 }
 
-/** What shuffle (the idle cycle) is, in a line, for the deck's "⋯"; the look's "⋯" has its timings (`cycleText`). */
-export const shuffleLine = "shuffle: when nobody touches anything, the looks in shuffle play at random";
-
-/** What shuffle (the idle cycle) does, by the book's settings: when it starts (never over unsaved edits),
- * how long each look plays, and how to take over. */
-export function cycleText(looks: LooksState): string {
+/** How long shuffle plays each look, in words: `2 min`, or a file's range `40–90 s`. */
+export function eachText(looks: LooksState): string {
   const [lo, hi] = looks.dwell;
-  const each = lo === hi ? span(lo) : hi >= 120 ? `${span(lo)}–${span(hi)}` : `${lo}–${hi} s`;
-  const after = looks.idle === null ? "" : `after ${span(looks.idle)} with nobody touching anything, `;
-  return `shuffle: ${after}the looks in shuffle play at random, ${each} each; touch any control to take over`;
+  if (lo === hi) return span(lo);
+  const [a, b] = [span(lo), span(hi)];
+  const unit = (text: string) => text.slice(text.indexOf(" "));
+  return unit(a) === unit(b) ? `${a.slice(0, a.indexOf(" "))}–${b}` : `${a}–${b}`;
+}
+
+/** Shuffle is on: the looks in it change by themselves, one each turn (the idle cycle's `idle` is set). Off,
+ * the lights stay on the look. */
+export function shuffleOn(looks: LooksState): boolean {
+  return looks.idle !== null;
+}
+
+/** Shuffle starts right away: it waits no longer than a turn, so after a touch the look plays at most one
+ * turn and shuffle goes on (pewpew.aura.book). Else it waits `idle` seconds untouched. */
+export function rightAway(looks: LooksState): boolean {
+  return looks.idle !== null && looks.idle <= looks.dwell[0];
+}
+
+/** How long each look plays that the page offers, in seconds. */
+export const EACH_SECONDS: readonly number[] = [30, 60, 120, 300, 600, 1800];
+
+/** How long shuffle waits untouched before it starts that the page offers, in seconds, past right away. */
+export const WAIT_SECONDS: readonly number[] = [60, 120, 300, 600, 1800];
+
+/** The shortest time the engine takes for either (pewpew.aura.book MIN_CYCLE_TIME). */
+const MIN_TIME = 1;
+
+/** The value of "right away" among the starts. */
+export const RIGHT_AWAY = "now";
+
+/** The request that makes each look play `seconds`; right away stays right away, its wait one turn. */
+export function eachRequest(looks: LooksState, seconds: number): ClientMessage {
+  return rightAway(looks) ? { type: "idle_cycle", idle: seconds, each: seconds } : { type: "idle_cycle", each: seconds };
+}
+
+/** The request for the start `value` (`startItems`): right away, or seconds untouched. */
+export function startRequest(looks: LooksState, value: string): ClientMessage {
+  return { type: "idle_cycle", idle: value === RIGHT_AWAY ? Math.max(MIN_TIME, looks.dwell[0]) : Number(value) };
+}
+
+/** The turns the page offers, as a list names them (`each look: 2 min`), with the book's own when it is none
+ * of them (a range, or a time set in the file); the value of a range is "range". */
+export function eachItems(looks: LooksState): { items: { value: string; label: string }[]; value: string } {
+  const [lo, hi] = looks.dwell;
+  const value = lo === hi ? String(lo) : "range";
+  const own = lo === hi ? (EACH_SECONDS.includes(lo) ? [] : [lo]) : [];
+  const items = [...EACH_SECONDS, ...own].sort((a, b) => a - b).map((s) => ({ value: String(s), label: `each look: ${span(s)}` }));
+  if (lo !== hi) items.unshift({ value, label: `each look: ${eachText(looks)}` });
+  return { items, value };
+}
+
+/** The starts the page offers (`starts: right away`, `starts: after 5 min untouched`), with the book's own
+ * wait when it is none of them. */
+export function startItems(looks: LooksState): { items: { value: string; label: string }[]; value: string } {
+  const idle = looks.idle;
+  const value = idle === null || rightAway(looks) ? RIGHT_AWAY : String(idle);
+  const own = idle !== null && !rightAway(looks) && !WAIT_SECONDS.includes(idle) ? [idle] : [];
+  const waits = [...WAIT_SECONDS, ...own].sort((a, b) => a - b).map((s) => ({ value: String(s), label: `starts: after ${span(s)} untouched` }));
+  return { items: [{ value: RIGHT_AWAY, label: "starts: right away" }, ...waits], value };
+}
+
+/** `seconds` as a countdown, minutes and seconds: `1:24`, `0:05`; an hour or more `1:02:05`. */
+export function countdown(seconds: number): string {
+  const s = Math.max(0, Math.ceil(seconds));
+  const two = (n: number) => String(n).padStart(2, "0");
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? `${h}:${two(m)}:${two(s % 60)}` : `${m}:${two(s % 60)}`;
+}
+
+/** What shuffle is doing at engine time `t`: `words`, and `time` when they end in a countdown (`next in` 1:24,
+ * `starts in` 4:12 while it waits untouched); else why it waits, with the fix where there is one, or, off, that
+ * the lights stay. */
+export interface ShuffleStatus {
+  readonly words: string;
+  readonly time: string | null;
+}
+
+export function shuffleStatus(looks: LooksState, triggers: TriggersState | null, t: number): ShuffleStatus {
+  const say = (words: string): ShuffleStatus => ({ words, time: null });
+  if (!shuffleOn(looks)) return say("stays on this look");
+  if (!looks.items.some((item) => item.cycle)) return say("no looks in shuffle");
+  if (triggers?.held) return say(`waits for ${triggers.held.trigger}`);
+  if (looks.next === null) return say(unsaved(looks) ? "waits: save or revert" : "ended: a touch restarts it");
+  return { words: looks.cycling || rightAway(looks) ? "next in" : "starts in", time: countdown(looks.next - t) };
+}
+
+/** What being in shuffle means, and so what shuffle does, for the "?" notes. */
+export const SHUFFLE_ABOUT = "while shuffle is on, the looks in it take turns at random";
+
+/** The line under shuffle's settings: what a change does to it (it waits, or the look plays a whole turn), or
+ * while no look is in it, how to put one in. */
+export function shuffleNote(looks: LooksState): string {
+  if (!looks.items.some((item) => item.cycle)) return "a look's ⋯ puts it in shuffle";
+  return rightAway(looks) ? "after a touch, the look plays a full turn" : `after a touch, shuffle waits ${span(looks.idle!)}`;
 }
 
 /** The look whose edits `unsaved` counts: the current one, else the made one. */
