@@ -65,7 +65,7 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 from pewpew import share as shares
 from pewpew.aura.book import KEEP, Keep, check_cycle_time, check_name
 from pewpew.aura.deck import Deck
-from pewpew.aura.looks import Looks
+from pewpew.aura.looks import IDLE_OFF, Looks
 from pewpew.aura.master import Master
 from pewpew.aura.triggers import Triggers
 from pewpew.aura.variety import Made, Variety, fade_to, in_background
@@ -512,6 +512,8 @@ class AuraControl:
         looks = self._looks
         if looks is None:
             return NO_LOOKS_FILE
+        if looks.idle_off:  # refused before the loop, so it touches nothing
+            return IDLE_OFF
         if isinstance(idle, Keep) and isinstance(each, Keep):
             return "idle_cycle sets 'idle', 'each' or both"
         for key, value in (("idle", idle), ("each", each)):

@@ -201,6 +201,11 @@ class Looks:
         return made.label if made is not None else self._book.current
 
     @property
+    def idle_off(self) -> bool:
+        """Whether this run keeps the idle cycle off whatever the book says. Any thread."""
+        return self._idle_off
+
+    @property
     def held(self) -> Hold | None:
         """The trigger override holding, or None. Replaced whole; any thread."""
         return self._hold
@@ -210,13 +215,13 @@ class Looks:
     def state(self) -> dict:
         """The page's view of the looks; JSON-ready, names only."""
         book = self._book
-        cycle = self._cycle()
+        cycle = self._cycle(book)
         fading = self._fading if self._fader.fading else None
         progress = self._fader.progress
         pending = self._pending
         recalled = self._recalled
         changed = self.changed()
-        director = self._director
+        timing = self._director.timing
         return {
             "items": [{"name": name, "cycle": look.cycle, "fade": look.fade} for name, look in book.looks.items()],
             "favorites": book.favorite_names,
@@ -227,7 +232,7 @@ class Looks:
             # rather than on every frame.
             "progress": None if fading is None or progress is None else round(progress * 20) / 20,
             "pending": None if pending is None else pending[0],
-            "cycling": self._director.running,
+            "cycling": timing.running,
             # When the idle cycle starts (seconds without input; None: never)
             # and how long each look plays, shortest and longest.
             "idle": cycle.idle,
@@ -237,8 +242,8 @@ class Looks:
             # The engine time from which the idle cycle plays its next look (`Director.next_at`), or
             # None while it cannot: off, no look in it, ended, a trigger holds a look, or unsaved edits
             # hold its wait. Constant between steps, so the message does not change every frame.
-            "next": None if self._hold is not None or (changed and not director.running)
-            else director.next_at(book.in_cycle, cycle),
+            "next": None if self._hold is not None or (changed and not timing.running)
+            else Director.next_at(timing, book.in_cycle, cycle),
             # The made look that plays unsaved, by the name it offers.
             "made": None if self._made is None else self._made.label,
             # The name a save with none gives the live state now (`offered`),
@@ -597,9 +602,10 @@ class Looks:
         except Exception as exc:  # noqa: BLE001  the aura must not end over a look
             self._fail(f"look recall failed: {describe_exception(exc)}")
 
-    def _cycle(self) -> CycleConfig:
-        """The book's cycle settings as they run: with the idle cycle off when `idle_off`."""
-        cycle = self._book.cycle
+    def _cycle(self, book: LookBook | None = None) -> CycleConfig:
+        """The cycle settings of `book` (default the live one) as they run:
+        with the idle cycle off when `idle_off`."""
+        cycle = (book or self._book).cycle
         return replace(cycle, idle=None) if self._idle_off else cycle
 
     def _make(self, seed: int) -> Future[Made]:
