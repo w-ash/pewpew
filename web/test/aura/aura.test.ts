@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { percent } from "../../src/params/format";
 import {
-  countdown, cycleText, eachItems, eachRequest, eachText, FADES, fadeSeconds, RIGHT_AWAY, rightAway, shuffleOn, shuffleStatus, shuffleSwitch, span, startItems, startRequest, findLook, holdReason, liveLook, lookStatus, MAX_LOOKS, nameHint, offSaved, saveOf, unsaved, varyReason, type LooksState,
+  countdown, eachItems, eachRequest, eachText, FADES, fadeSeconds, RIGHT_AWAY, rightAway, SHUFFLE_ABOUT, shuffleNote, shuffleOn, shuffleStatus, span, startItems, startRequest, findLook, holdReason, liveLook, lookStatus, MAX_LOOKS, nameHint, offSaved, saveOf, unsaved, varyReason, type LooksState,
 } from "../../src/aura/looks";
 import { param } from "../fixtures/describe";
 import { capText, stepMaster } from "../../src/aura/master";
@@ -105,22 +105,24 @@ test("the one save: into the changed look, a draft kept under its name, or nothi
   expect(saveOf({ ...looks, changed: true, pending: "cool" }, null)).toEqual({ kind: "none", why: "cool next, when this fade ends" });
 });
 
-test("shuffle says how long each look plays and when it starts, or that the lights stay on the look", () => {
-  const looks = looksOf({ cycling: true, dwell: [40, 90] });
-  expect(cycleText(looks)).toBe("shuffle: the looks in shuffle play at random, 40–90 s each; starts after 5 min untouched");
-  expect(cycleText({ ...looks, idle: 120, dwell: [120, 120] })).toBe("shuffle: the looks in shuffle play at random, 2 min each; after a touch, the look plays its whole turn");
-  expect(cycleText({ ...looks, idle: null })).toBe("shuffle is off: the lights stay on the look");
+test("shuffle's words: the turn, a range, and one short line on what ↻ means", () => {
   expect([30, 60, 90, 120, 3600].map(span)).toEqual(["30 s", "1 min", "90 s", "2 min", "1 h"]);
   expect(eachText(looksOf({ dwell: [20, 45] }))).toBe("20–45 s");
+  expect(eachText(looksOf({ dwell: [40, 90] }))).toBe("40–90 s");
+  expect(eachText(looksOf({ dwell: [60, 180] }))).toBe("1–3 min");
+  expect(SHUFFLE_ABOUT.split(" ").length).toBeLessThanOrEqual(12);
+  const items = [{ name: "warm", cycle: true, fade: 2 }];
+  expect(shuffleNote(looksOf({ items, idle: 60 }))).toBe("after a touch, the look plays a full turn");
+  expect(shuffleNote(looksOf({ items }))).toBe("after a touch, shuffle waits 5 min");
+  expect(shuffleNote(looksOf({}))).toBe("a look's ⋯ puts it in shuffle");
 });
 
-test("shuffle is one switch: on, right away at the turn the file has; off, the lights stay", () => {
+test("shuffle starts right away at the turn the file has, or after a wait; a change of turn keeps right away", () => {
   const looks = looksOf({ idle: null, dwell: [120, 120] });
   expect(shuffleOn(looks)).toBe(false);
-  expect(shuffleSwitch(looks, true)).toEqual({ type: "idle_cycle", idle: 120 });
-  expect(shuffleSwitch(looksOf({}), false)).toEqual({ type: "idle_cycle", idle: null });
+  expect(startRequest(looks, RIGHT_AWAY)).toEqual({ type: "idle_cycle", idle: 120 });
   // A turn shorter than the engine takes for a wait asks for the shortest wait.
-  expect(shuffleSwitch(looksOf({ dwell: [0.5, 0.5] }), true)).toEqual({ type: "idle_cycle", idle: 1 });
+  expect(startRequest(looksOf({ dwell: [0.5, 0.5] }), RIGHT_AWAY)).toEqual({ type: "idle_cycle", idle: 1 });
   const now = looksOf({ idle: 60, dwell: [60, 60] });
   expect(rightAway(now) && !rightAway(looksOf({}))).toBe(true);
   // Right away stays right away when the turn changes; a wait stays as it is.
@@ -146,14 +148,15 @@ test("the turns and starts offered hold the file's own when it is none of them",
 test("shuffle's line counts down to the next look, or says why it waits", () => {
   const items = [{ name: "warm", cycle: true, fade: 2 }];
   const waiting = looksOf({ items, current: "warm", next: 300 });
-  expect(shuffleStatus(waiting, null, 36)).toBe("starts in 4:24");
-  expect(shuffleStatus({ ...waiting, cycling: true, next: 400 }, null, 399.2)).toBe("next in 0:01");
-  expect(shuffleStatus({ ...waiting, idle: 60, next: 90 }, null, 30)).toBe("next in 1:00");
-  expect(shuffleStatus({ ...waiting, next: null, changed: true }, null, 0)).toBe("waits: save or revert to go on");
-  expect(shuffleStatus({ ...waiting, next: null }, HELD, 0)).toBe("waits for door to end");
-  expect(shuffleStatus({ ...waiting, next: null }, null, 0)).toBe("ended");
-  expect(shuffleStatus({ ...waiting, items: [{ ...items[0]!, cycle: false }] }, null, 0)).toBe("no looks in shuffle: add one from its ⋯");
-  expect(shuffleStatus({ ...waiting, idle: null }, null, 0)).toBe("");
+  const says = (words: string, time: string | null = null) => ({ words, time });
+  expect(shuffleStatus(waiting, null, 36)).toEqual(says("starts in", "4:24"));
+  expect(shuffleStatus({ ...waiting, cycling: true, next: 400 }, null, 399.2)).toEqual(says("next in", "0:01"));
+  expect(shuffleStatus({ ...waiting, idle: 60, next: 90 }, null, 30)).toEqual(says("next in", "1:00"));
+  expect(shuffleStatus({ ...waiting, next: null, changed: true }, null, 0)).toEqual(says("waits: save or revert"));
+  expect(shuffleStatus({ ...waiting, next: null }, HELD, 0)).toEqual(says("waits for door"));
+  expect(shuffleStatus({ ...waiting, next: null }, null, 0)).toEqual(says("ended: a touch restarts it"));
+  expect(shuffleStatus({ ...waiting, items: [{ ...items[0]!, cycle: false }] }, null, 0)).toEqual(says("no looks in shuffle"));
+  expect(shuffleStatus({ ...waiting, idle: null }, null, 0)).toEqual(says("stays on this look"));
   expect([countdown(0), countdown(59.2), countdown(3725)]).toEqual(["0:00", "1:00", "1:02:05"]);
 });
 

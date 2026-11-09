@@ -261,11 +261,11 @@ test("with 64 looks saved, a draft's save is off, in text-disabled, and a press 
   await expect.element(why).not.toBeInTheDocument();
 });
 
-test("on a phone down to 360 px the two and shuffle share one line under the looks", async () => {
+test("on a phone down to 360 px the two share one line under the looks", async () => {
   for (const width of [390, 360]) {
     await page.viewport(width, 844);
     const { screen } = await renderWired(<Played />);
-    const tops = ["surprise me", "vary this", "shuffle"].map(
+    const tops = ["surprise me", "vary this"].map(
       (name) => screen.getByRole("button", { name }).element().getBoundingClientRect(),
     );
     expect(new Set(tops.map((r) => Math.round(r.top))).size).toBe(1);

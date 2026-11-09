@@ -227,11 +227,6 @@ const MIN_TIME = 1;
 /** The value of "right away" among the starts. */
 export const RIGHT_AWAY = "now";
 
-/** The request that turns shuffle on, right away at the turn it has, or off. */
-export function shuffleSwitch(looks: LooksState, on: boolean): ClientMessage {
-  return { type: "idle_cycle", idle: on ? Math.max(MIN_TIME, looks.dwell[0]) : null };
-}
-
 /** The request that makes each look play `seconds`; right away stays right away, its wait one turn. */
 export function eachRequest(looks: LooksState, seconds: number): ClientMessage {
   return rightAway(looks) ? { type: "idle_cycle", idle: seconds, each: seconds } : { type: "idle_cycle", each: seconds };
@@ -271,23 +266,31 @@ export function countdown(seconds: number): string {
   return h ? `${h}:${two(m)}:${two(s % 60)}` : `${m}:${two(s % 60)}`;
 }
 
-/** What shuffle is doing at engine time `t`, in a few words, while it is on: when the next look comes
- * (`next in 1:24`), or when it starts after its wait (`starts in 4:12`), or why it waits (unsaved edits, a cue)
- * and the fix; empty while it is off. */
-export function shuffleStatus(looks: LooksState, triggers: TriggersState | null, t: number): string {
-  if (!shuffleOn(looks)) return "";
-  if (!looks.items.some((item) => item.cycle)) return "no looks in shuffle: add one from its ⋯";
-  if (triggers?.held) return `waits for ${triggers.held.trigger} to end`;
-  if (looks.next === null) return unsaved(looks) ? "waits: save or revert to go on" : "ended";
-  return `${looks.cycling || rightAway(looks) ? "next in" : "starts in"} ${countdown(looks.next - t)}`;
+/** What shuffle is doing at engine time `t`: `words`, and `time` when they end in a countdown (`next in` 1:24,
+ * `starts in` 4:12 while it waits untouched); else why it waits, with the fix where there is one, or, off, that
+ * the lights stay. */
+export interface ShuffleStatus {
+  readonly words: string;
+  readonly time: string | null;
 }
 
-/** What shuffle does, by the book's settings, for the "?" notes: how long each look plays, when it starts,
- * and that a touch waits it again; or, off, that the lights stay on the look. */
-export function cycleText(looks: LooksState): string {
-  if (!shuffleOn(looks)) return "shuffle is off: the lights stay on the look";
-  const wait = rightAway(looks) ? "after a touch, the look plays its whole turn" : `starts after ${span(looks.idle!)} untouched`;
-  return `shuffle: the looks in shuffle play at random, ${eachText(looks)} each; ${wait}`;
+export function shuffleStatus(looks: LooksState, triggers: TriggersState | null, t: number): ShuffleStatus {
+  const say = (words: string): ShuffleStatus => ({ words, time: null });
+  if (!shuffleOn(looks)) return say("stays on this look");
+  if (!looks.items.some((item) => item.cycle)) return say("no looks in shuffle");
+  if (triggers?.held) return say(`waits for ${triggers.held.trigger}`);
+  if (looks.next === null) return say(unsaved(looks) ? "waits: save or revert" : "ended: a touch restarts it");
+  return { words: looks.cycling || rightAway(looks) ? "next in" : "starts in", time: countdown(looks.next - t) };
+}
+
+/** What being in shuffle means, and so what shuffle does, for the "?" notes. */
+export const SHUFFLE_ABOUT = "while shuffle is on, the looks in it take turns at random";
+
+/** The line under shuffle's settings: what a change does to it (it waits, or the look plays a whole turn), or
+ * while no look is in it, how to put one in. */
+export function shuffleNote(looks: LooksState): string {
+  if (!looks.items.some((item) => item.cycle)) return "a look's ⋯ puts it in shuffle";
+  return rightAway(looks) ? "after a touch, the look plays a full turn" : `after a touch, shuffle waits ${span(looks.idle!)}`;
 }
 
 /** The look whose edits `unsaved` counts: the current one, else the made one. */

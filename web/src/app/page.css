@@ -638,39 +638,45 @@
   [data-wide] .made-row > .variety {
     flex: 1 1 auto;
   }
-  /* With shuffle at its end, the row is the grid: the make actions take two of its columns, shuffle the next. */
-  [data-wide] .made-row:has(> .shuffle) {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+}
+/* Shuffle's row: a line tall, the switch hanging past it as a head's controls do, so it adds a line, not a
+   control, to the deck: its word on the text edge, the switch on the column's edge, and next to the switch what
+   shuffle is doing, the turn giving way first where the row is short. */
+.shuffle-group > .bool-control {
+  min-height: var(--lh-body);
+}
+.shuffle-group > .bool-control > .switch {
+  margin-left: 0;
+}
+/* Under a finger the switch (24) hangs 2 past the line, and the settings' opener is drawn 32 tall, still answering
+   --hit tall, so neither comes near the rows above and below. */
+@media (pointer: coarse) {
+  .shuffle-group > .bool-control {
+    --control-h: 32px;
   }
-  [data-wide] .made-row:has(> .shuffle) > .variety {
-    grid-column: span 2;
-    grid-template-columns: subgrid;
+  .shuffle-group > .bool-control > .switch {
+    margin-block: -2px;
   }
 }
-/* Shuffle's line under the make row while it is on: what it is doing, then at the column's edge the turn it gives
-   each look, whose word ends there as a block head's controls do, and which opens its settings under the line. */
-.shuffle-line {
-  justify-content: space-between;
+.shuffle-group > .bool-control > :is(.shuffle-open, .shuffle-status) {
+  margin-left: auto;
+  min-width: 0;
+}
+.shuffle-open {
+  gap: var(--space-2xs);
+  margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
 }
 .shuffle-status {
   display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
+  gap: 0.3em;
   min-width: 0;
+  white-space: nowrap;
 }
-.shuffle-status > .icon {
-  width: 12px;
-  height: 12px;
-}
-.shuffle-open {
-  flex: 0 0 auto;
-  gap: var(--space-2xs);
-  margin-right: calc(-1 * var(--space-xs));
+.shuffle-each {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .shuffle-open > .icon {
-  width: 12px;
-  height: 12px;
   color: var(--text-2);
   transition: transform 0.15s;
 }
@@ -679,6 +685,16 @@
 }
 .shuffle-settings > .row > select {
   min-width: 0;
+}
+/* Wide with a mouse, the two lists stand on the tiles' columns: each look one, the start the rest. */
+@media (pointer: fine) {
+  [data-wide] .shuffle-settings > .row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+  [data-wide] .shuffle-settings > .row > select:last-child {
+    grid-column: span 2;
+  }
 }
 /* A name longer than its tile is cut short: the look's header names it whole (.look-name-text). */
 .tile-name {

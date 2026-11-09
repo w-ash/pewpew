@@ -1,79 +1,96 @@
-import { eachItems, eachRequest, eachText, shuffleOn, shuffleStatus, shuffleSwitch, startItems, startRequest, type LooksState } from "../aura/looks";
+import { useId, useRef, useState } from "react";
+import { eachItems, eachRequest, eachText, RIGHT_AWAY, rightAway, shuffleNote, shuffleOn, shuffleStatus, startItems, startRequest, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useFrameValue, useSender } from "../wire/store";
-import { Button, ToggleButton } from "../design/Button";
-import { useDisclosure } from "../design/Disclosure";
+import { Button } from "../design/Button";
 import { Icon } from "../design/Icon";
 import { Select } from "../design/Select";
-import { FINE_POINTER, useMedia, WIDE } from "../design/useMedia";
+import { Switch } from "../design/Switch";
+import { useDismiss } from "../design/useDismiss";
+import { useOnChange } from "../design/useOnChange";
 
-/** "shuffle", the one choice between the lights staying on the look and the looks in shuffle taking turns: a
- * press turns it on, right away, each look at the turn the looks file has, and a press turns it off. On, the
- * selected fill. Its word shows wide with a mouse, where the row has a column for it; else ↻ alone, so the make
- * row keeps one line down to a 360 px phone. */
-export function ShuffleToggle({ looks }: { looks: LooksState }) {
+/** Shuffle's row in the deck, under the make actions, a line tall: the one choice between the lights staying on
+ * the look and the looks in shuffle taking turns, a switch at the column's edge, its word "shuffle" on the left.
+ * Between them, what shuffle is doing: off, "stays on this look"; on, the turn it gives each look and when the next
+ * comes (`1 min · next in 0:59`, `starts in 4:12` while it waits untouched), counted down on the frames' engine
+ * time, or why it waits. On, that opens shuffle's settings in a well under the row: how long each look plays, and
+ * whether it starts right away or after a while untouched; Esc or a press outside the row closes it. Each acts at
+ * once and is kept in the looks file; a refusal goes to the status bar. Turned on, shuffle starts as it last did in
+ * this page (right away, the first time). */
+export function ShuffleRow({ looks, triggers }: { looks: LooksState; triggers: TriggersState | null }) {
   const sender = useSender();
-  const fine = useMedia(FINE_POINTER);
-  const wide = useMedia(WIDE);
-  const worded = fine && wide;
-  return (
-    <ToggleButton
-      className="shuffle"
-      icon="cycle"
-      label="shuffle"
-      pressed={shuffleOn(looks)}
-      onPressedChange={(on) => sender.send(shuffleSwitch(looks, on))}
-    >
-      {worded ? "shuffle" : undefined}
-    </ToggleButton>
-  );
-}
-
-/** While shuffle is on, a line under the make row: what it is doing (`next in 1:24`, `starts in 4:12`, or why it
- * waits), counted down on the frames' engine time, then at the column's edge the turn it gives each look
- * (`every 2 min ⌄`), which opens its settings under the line: how long each look plays, and whether it starts
- * right away or after a while untouched. Each choice acts at once and is kept in the looks file; a refusal goes
- * to the status bar. Off, there is no line: the lights stay on the look. */
-export function ShuffleLine({ looks, triggers }: { looks: LooksState; triggers: TriggersState | null }) {
-  const sender = useSender();
-  const settings = useDisclosure();
-  const status = useFrameValue((f) => shuffleStatus(looks, triggers, f?.t ?? 0));
-  if (!shuffleOn(looks)) return null;
+  const group = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  const settingsId = useId();
+  const statusId = useId();
+  const [open, setOpen] = useState(false);
+  const on = shuffleOn(looks);
+  // How shuffle starts while on, kept while it is off, for the switch to turn it on with.
+  const startOf = (l: LooksState) => (l.idle === null || rightAway(l) ? RIGHT_AWAY : String(l.idle));
+  const [lastStart, setLastStart] = useState(() => startOf(looks));
+  useOnChange(looks.idle, () => {
+    if (looks.idle !== null) setLastStart(startOf(looks));
+  });
+  useOnChange(on, () => setOpen(false));
+  useDismiss(group, open, (esc) => {
+    if (esc && group.current?.contains(document.activeElement)) opener.current?.focus();
+    setOpen(false);
+  });
+  // The words do not follow the frames; the countdown, a string, re-renders the row once a second.
+  const time = useFrameValue((f) => shuffleStatus(looks, triggers, f?.t ?? 0).time);
+  const { words } = shuffleStatus(looks, triggers, 0);
   const each = eachItems(looks);
   const start = startItems(looks);
+  const status = (
+    <span id={statusId} className="shuffle-status">
+      {time && <span className="shuffle-each">{eachText(looks)} ·</span>}
+      <span className="t-label">{words}</span>
+      {time && <span className="t-value">{time}</span>}
+    </span>
+  );
   return (
-    <div className="deck-group shuffle-group">
-      <div className="row shuffle-line">
-        <span className="note shuffle-status">
-          <Icon name="cycle" />
-          <span className="t-value">{status}</span>
-        </span>
-        <Button
-          variant="tertiary"
-          className="shuffle-open"
-          aria-label={`shuffle settings: every ${eachText(looks)}`}
-          aria-expanded={settings.open}
-          aria-controls={settings.id}
-          onPress={() => settings.toggle()}
-        >
-          every {eachText(looks)}
-          <Icon name="chevron" />
-        </Button>
-      </div>
-      <div id={settings.id} className="deck-more shuffle-settings" role="group" aria-label="shuffle settings" hidden={!settings.open}>
-        <div className="row">
-          <Select
-            items={each.items}
-            value={each.value}
-            label="how long each look plays"
-            onChange={(v) => {
-              if (v !== "range") sender.send(eachRequest(looks, Number(v)));
-            }}
-          />
-          <Select items={start.items} value={start.value} label="when shuffle starts" onChange={(v) => sender.send(startRequest(looks, v))} />
+    <div ref={group} className="deck-group shuffle-group">
+      <Switch
+        checked={on}
+        onChange={(next) => sender.send(next ? startRequest(looks, lastStart) : { type: "idle_cycle", idle: null })}
+        after={
+          on ? (
+            <Button
+              ref={opener}
+              variant="tertiary"
+              className="shuffle-open"
+              aria-label={`shuffle settings: every ${eachText(looks)}`}
+              aria-describedby={statusId}
+              aria-expanded={open}
+              aria-controls={settingsId}
+              onPress={() => setOpen(!open)}
+            >
+              {status}
+              <Icon name="chevron" />
+            </Button>
+          ) : (
+            status
+          )
+        }
+      >
+        shuffle
+      </Switch>
+      {on && (
+        <div id={settingsId} className="deck-more shuffle-settings" role="group" aria-label="shuffle settings" hidden={!open}>
+          <div className="row">
+            <Select
+              items={each.items}
+              value={each.value}
+              label="how long each look plays"
+              onChange={(v) => {
+                if (v !== "range") sender.send(eachRequest(looks, Number(v)));
+              }}
+            />
+            <Select items={start.items} value={start.value} label="when shuffle starts" onChange={(v) => sender.send(startRequest(looks, v))} />
+          </div>
+          <p className="note">{shuffleNote(looks)}</p>
         </div>
-        <p className="note">any touch restarts the wait; a look's ⋯ puts it in shuffle</p>
-      </div>
+      )}
     </div>
   );
 }

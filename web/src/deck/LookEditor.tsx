@@ -1,6 +1,6 @@
 import { Field } from "@ark-ui/react/field";
 import { useRef, useState } from "react";
-import { cycleText, deleteReason, FADE_SECONDS, findLook, favoriteReason, freeName, holdReason, nameHint, ownFadeText, renameReason, type LooksState } from "../aura/looks";
+import { SHUFFLE_ABOUT, deleteReason, FADE_SECONDS, findLook, favoriteReason, freeName, holdReason, nameHint, ownFadeText, renameReason, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useRefusal, useSender, type Refusal } from "../wire/store";
 import { Button } from "../design/Button";
@@ -148,7 +148,7 @@ export function LookRename({ looks, onRename }: { looks: LooksState; onRename(do
 }
 
 /** The current look's settings, behind its "⋯": its own fade, which a press at "fade: as saved" and shuffle
- * take into it, whether shuffle plays it (the "?" after its words says what shuffle is and its timings), whether it is a
+ * take into it, whether shuffle plays it (the "?" after its words says what that means; the deck's shuffle row has its timings), whether it is a
  * favorite, one of the deck's row (off at the most, with the reason), then
  * its actions on one row:
  * "save as new…" (`onSaveAs`), "rename…" (`onRename`), and at the column's edge revert, the saved look again with no fade, while it
@@ -190,7 +190,7 @@ export function LookSettings({ looks, triggers, onSaveAs, onRename, onDone }: { 
       >
         <Icon name="cycle" /> {name} in shuffle
       </Switch>
-      <DisclosureNote disclosure={about}>{cycleText(looks)}</DisclosureNote>
+      <DisclosureNote disclosure={about}>{SHUFFLE_ABOUT}</DisclosureNote>
       <Switch checked={favorite} disabled={held !== null || full !== null} onChange={(on) => sender.send({ type: "favorite", name, on })}>
         <Icon name="star" /> {name} a favorite
       </Switch>

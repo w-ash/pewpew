@@ -43,9 +43,12 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-.button:hover,
-.tile:hover {
-  background-color: var(--state-hover);
+/* Hovered: only where a pointer hovers, so a fill does not stay on what a finger last tapped. */
+@media (hover: hover) {
+  .button:hover,
+  .tile:hover {
+    background-color: var(--state-hover);
+  }
 }
 /* Under a finger a control is drawn --control-h tall and answers --hit tall: its target reaches past its top
    and bottom edges, into the space every row keeps from the next. */
@@ -84,8 +87,10 @@
 .button[data-variant="secondary"] {
   border-color: var(--border-control);
 }
-.button[data-variant="secondary"]:hover {
-  border-color: var(--border-strong);
+@media (hover: hover) {
+  .button[data-variant="secondary"]:hover {
+    border-color: var(--border-strong);
+  }
 }
 /* Tertiary: a word or a sign in text-1, in a fixed slot. */
 .button[data-variant="tertiary"] {
@@ -176,8 +181,10 @@
   background-color: var(--surface-raised);
   border-color: var(--surface-raised);
 }
-.tile:hover {
-  background-image: linear-gradient(var(--state-hover), var(--state-hover));
+@media (hover: hover) {
+  .tile:hover {
+    background-image: linear-gradient(var(--state-hover), var(--state-hover));
+  }
 }
 .tile:active {
   background-image: linear-gradient(var(--state-press), var(--state-press));

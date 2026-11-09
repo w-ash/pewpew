@@ -8,7 +8,6 @@ import { DisclosureNote, useDisclosure, type Disclosure } from "../design/Disclo
 import type { IconName } from "../design/Icon";
 import { useOnChange } from "../design/useOnChange";
 import { dropLine } from "./Looks";
-import { ShuffleLine, ShuffleToggle } from "./Shuffle";
 
 /** One of the two buttons: its words and sign, its key and the key's line in the `?` list, what it sends,
  * why it cannot be pressed now, or null, and over unsaved edits what a first press shows and what its note
@@ -109,20 +108,15 @@ export function Variety({ aura, looks, note }: Props) {
   );
 }
 
-/** The make actions' row, with its note under it, as the deck shows it, and with a looks file that may shuffle,
- * shuffle at the row's end and its line under the row while on (`ShuffleToggle`, `ShuffleLine`): like the make
- * actions, it lets pewpew pick what plays. */
+/** The make actions' row, with its note under it, as the deck shows it. */
 export function MadeRow({ aura, looks }: { aura: AuraState; looks: LooksState | null }) {
   const note = useDisclosure();
-  const shuffles = !!looks && !looks.idle_off;
   return (
     <div className="deck-group">
       <div className="row made-row">
         <Variety aura={aura} looks={looks} note={note} />
-        {shuffles && <ShuffleToggle looks={looks} />}
       </div>
       <DisclosureNote disclosure={note} live />
-      {shuffles && <ShuffleLine looks={looks} triggers={aura.triggers} />}
     </div>
   );
 }

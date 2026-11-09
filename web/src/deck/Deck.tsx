@@ -12,6 +12,7 @@ import { looksAbout, LooksGroup, MarkSign, useRecall } from "./Looks";
 import { Master } from "./Master";
 import { CuesOn, cuesAbout, CuesRow } from "./Triggers";
 import { MadeRow } from "./Variety";
+import { ShuffleRow } from "./Shuffle";
 
 interface Props {
   /** Whether the list of every look is open, in the slot. */
@@ -121,6 +122,7 @@ export function Deck({ allOpen, onAll, exporter }: Props) {
     />
   );
   const made = looks && <MadeRow key="made" aura={aura} looks={looks} />;
+  const shuffle = looks && !looks.idle_off && <ShuffleRow key="shuffle" looks={looks} triggers={triggers} />;
   const cueRow = <CuesRow key="cues" triggers={triggers} />;
   const blackoutRow = (
     <div key="blackout" className="row blackout-row">
@@ -130,7 +132,7 @@ export function Deck({ allOpen, onAll, exporter }: Props) {
   return (
     <section ref={deck} className="deck" aria-label="frame">
       <div className="deck-rows">
-        {wide ? [master, !looks && moreWell, saved, made, cueRow] : [saved, made, cueRow, master, !looks && moreWell, blackoutRow]}
+        {wide ? [master, !looks && moreWell, saved, made, shuffle, cueRow] : [saved, made, shuffle, cueRow, master, !looks && moreWell, blackoutRow]}
       </div>
     </section>
   );
