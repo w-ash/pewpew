@@ -10,7 +10,9 @@ series (batch mode).
 ### Added
 
 - The example look `sway` (panel): rainbow bars sway back and forth on a slow `lfo`
-  routed to the oscillator's `sync` while `rotate` spins their direction. The MCP
+  routed to the oscillator's `sync` while `rotate` spins their direction. Its palette
+  starts and ends on red, so the saw wraps with no seam to step from light to light as
+  the sway turns. The MCP
   server serves it at `pewpew://looks/sway`, and the studio offers it with the other
   example looks.
 - Publish, from the Console to the Gallery: on an attended arrangement run
