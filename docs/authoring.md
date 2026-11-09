@@ -566,6 +566,20 @@ skips, are up to the wall clock:
           "seed": 0, "window": 2, "fresh": 5, "weights": {"dusk": 2}}
 ```
 
+Any operator input stops the cycle, and it starts again after `idle` more
+seconds untouched; an `idle` no longer than the shortest dwell keeps it
+going, since after a touch the look plays at most one turn. The Console's
+**shuffle** button, at the end of the make row, turns it on (right away:
+`idle` set to the turn) or off (`idle` null: the lights stay on the look).
+While it is on, a line under the row counts down to the next look (`next in
+1:24`, or `starts in 4:12` while it waits untouched) or says why it waits (a
+cue, unsaved edits), and its `every 1 min ⌄` opens how long each look plays
+and when it starts: right away, or after 1 to 30 minutes untouched. These
+send `idle_cycle` (`idle` and `each` in seconds, 1 to 86400; a field left out
+keeps the file's), which writes the file at once, as a look's fade does, and
+counts as input. A Gallery visit keeps the cycle off (`idle_off` in the
+looks state) and offers no shuffle.
+
 ## 7. Agents: the MCP server
 
 `python -m pewpew mcp` serves the same verbs to an AI agent over MCP, on

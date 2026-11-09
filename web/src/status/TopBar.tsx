@@ -1,4 +1,4 @@
-import { cycleText } from "../aura/looks";
+import { cycleText, shuffleOn } from "../aura/looks";
 import { useWire } from "../wire/store";
 import { Badge } from "../design/Badge";
 import { IconButton, ToggleButton } from "../design/Button";
@@ -33,7 +33,7 @@ function ModeBadge({ word, icon, tone, note }: { word: string; icon?: IconName; 
  * names what plays, and the deck holds the brightness. */
 export function TopBar({ healthOpen, onHealth, onHelp }: { healthOpen: boolean; onHealth(): void; onHelp(): void }) {
   const layout = useLayoutMode();
-  const cycle = useWire((s) => (s.aura?.looks?.cycling ? cycleText(s.aura.looks) : null));
+  const cycle = useWire((s) => (s.aura?.looks && shuffleOn(s.aura.looks) ? cycleText(s.aura.looks) : null));
   const armed = useWire((s) => !!s.aura?.triggers?.armed);
   const blackout = useWire((s) => s.aura?.blackout ?? null);
   const cycleNote = useDisclosure();

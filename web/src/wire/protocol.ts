@@ -266,6 +266,12 @@ export type ClientMessage =
   | { readonly type: "favorite"; readonly name: string; readonly on: boolean }
   /** The look's own fade, stored alone: unsaved edits stay unsaved. This and the six above need a looks file. */
   | { readonly type: "fade"; readonly name: string; readonly fade: number }
+  /** The idle cycle's times (the page's shuffle), stored in the looks file at once: `idle`, the seconds without
+   * input before it starts, from 1 to 86400, or null for off (the lights stay on the look); `each`, the seconds
+   * each look plays, from 1 to 86400. A field left out keeps the file's. An `idle` no longer than `each` keeps it
+   * going: after a touch the look plays one turn. Operator input, so the wait counts from it. Needs a looks
+   * file; refused in a run that keeps the idle cycle off (a Gallery visit, the looks' `idle_off`). */
+  | { readonly type: "idle_cycle"; readonly idle?: number | null; readonly each?: number }
   /** Triggers fire only while armed; the switch starts off unless the run has `--armed`. */
   | { readonly type: "arm"; readonly on: boolean }
   /** A room event from source "page"; null is an impulse. Refused only when malformed or the

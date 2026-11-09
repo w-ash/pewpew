@@ -638,6 +638,47 @@
   [data-wide] .made-row > .variety {
     flex: 1 1 auto;
   }
+  /* With shuffle at its end, the row is the grid: the make actions take two of its columns, shuffle the next. */
+  [data-wide] .made-row:has(> .shuffle) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+  [data-wide] .made-row:has(> .shuffle) > .variety {
+    grid-column: span 2;
+    grid-template-columns: subgrid;
+  }
+}
+/* Shuffle's line under the make row while it is on: what it is doing, then at the column's edge the turn it gives
+   each look, whose word ends there as a block head's controls do, and which opens its settings under the line. */
+.shuffle-line {
+  justify-content: space-between;
+}
+.shuffle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.shuffle-status > .icon {
+  width: 12px;
+  height: 12px;
+}
+.shuffle-open {
+  flex: 0 0 auto;
+  gap: var(--space-2xs);
+  margin-right: calc(-1 * var(--space-xs));
+}
+.shuffle-open > .icon {
+  width: 12px;
+  height: 12px;
+  color: var(--text-2);
+  transition: transform 0.15s;
+}
+.shuffle-open[aria-expanded="false"] > .icon {
+  transform: rotate(-90deg);
+}
+.shuffle-settings > .row > select {
+  min-width: 0;
 }
 /* A name longer than its tile is cut short: the look's header names it whole (.look-name-text). */
 .tile-name {

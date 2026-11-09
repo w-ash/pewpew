@@ -54,7 +54,11 @@ of `each` seconds (a number, or a range `[min, max]` it draws from); every
 (pewpew.fx.surprise) instead, unsaved. After `rounds` rounds of as many
 slots as there are looks (0 is forever) it recalls `end` (null stays on
 the last). `seed` seeds its draws, so the same file plays the same order.
-`idle` null turns it off. Any operator input stops it.
+`idle` null turns it off. Any operator input stops it, and it starts again
+after `idle` more seconds: an `idle` no longer than the shortest dwell
+keeps it going, since after a touch the look plays at most one turn. An
+operator sets `idle` and `each` while it runs (pewpew.aura.control
+`idle_cycle`, checked by `check_cycle_time`), which writes the file.
 
 `favorites` lists the looks the page's main row shows (at most
 `MAX_FAVORITES`); the engine keeps them in file order and the page sorts them.
@@ -91,6 +95,7 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -121,6 +126,9 @@ MAX_HOLD = 3600.0
 DEFAULT_DEBOUNCE = 0.05
 DEFAULT_COOLDOWN = 1.0
 MAX_GAP = 600.0  # the longest debounce or cooldown, in seconds
+# The idle cycle's `idle` and `each` an operator may set, in seconds; the file takes any above 0.
+MIN_CYCLE_TIME = 1.0
+MAX_CYCLE_TIME = 86400.0
 
 
 class LookError(ProblemsError):
@@ -136,6 +144,27 @@ def check_name(name: object, noun: str = "look") -> str | None:
             f"bad {noun} name {name!r}: 1 to {MAX_NAME} letters, digits, spaces, '_' or '-', "
             "starting with a letter or digit"
         )
+    return None
+
+
+class Keep(Enum):
+    """A field a request leaves out: the book's value stays."""
+
+    KEEP = "keep"
+
+
+KEEP = Keep.KEEP
+
+
+def check_cycle_time(key: str, value: object) -> str | None:
+    """Why `value` cannot be the idle cycle's `key` ("idle" or "each") as an
+    operator sets it, or None: seconds from `MIN_CYCLE_TIME` to
+    `MAX_CYCLE_TIME`, or for "idle" also None (off). Never raises."""
+    if key == "idle" and value is None:
+        return None
+    if not (is_number(value) and MIN_CYCLE_TIME <= value <= MAX_CYCLE_TIME):
+        off = ", or null for off" if key == "idle" else ""
+        return f"{key!r} is seconds from {MIN_CYCLE_TIME:g} to {MAX_CYCLE_TIME:g}{off}; got {value!r}"
     return None
 
 

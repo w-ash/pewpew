@@ -79,6 +79,16 @@ class Director:
         begins the cycle, given looks to play."""
         return config.idle is not None and not self._running and not self._done and t - self._last_input >= config.idle
 
+    def next_at(self, names: Sequence[str], config: CycleConfig) -> float | None:
+        """The engine time from which a `tick` with these `names` and
+        `config` plays the next slot: the end of the slot playing, or of
+        the idle wait. None while the cycle is off, has no looks, or has
+        ended. At the end of the last round, that slot is the `end` look,
+        or none."""
+        if config.idle is None or not names or self._done:
+            return None
+        return self._since + self._dwell if self._running else self._last_input + config.idle
+
     def coming(self, names: Sequence[str], config: CycleConfig) -> int | None:
         """The seed of the next slot when it is a fresh look, else None: the
         slot a `tick` with these `names` and `config` begins next, while

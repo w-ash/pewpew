@@ -808,6 +808,8 @@
           60.0,
           60.0
         ],
+        "idle_off": false,
+        "next": 300.0,
         "made": null,
         "offered": "warm 2",
         "saved": {
@@ -1482,6 +1484,8 @@
           60.0,
           60.0
         ],
+        "idle_off": false,
+        "next": null,
         "made": null,
         "offered": null,
         "saved": null
@@ -2092,6 +2096,10 @@
     "fade": [
       "name",
       "fade"
+    ],
+    "idle_cycle": [
+      "idle",
+      "each"
     ],
     "arm": [
       "on"

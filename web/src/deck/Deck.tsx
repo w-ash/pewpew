@@ -1,5 +1,4 @@
 import { useId, useRef, useState, type ReactNode } from "react";
-import { shuffleLine } from "../aura/looks";
 import { armable } from "../aura/triggers";
 import { useStandingAura } from "../wire/store";
 import { IconButton } from "../design/Button";
@@ -31,7 +30,7 @@ interface Props {
  * slider the whole width, and blackout under it on a row of its own, under the thumb; wide, the brightness
  * comes first, then the rows that wrap, so a new look moves neither. What is rarely needed waits behind
  * the "⋯": cues on or off, the fade a recall takes, the looks' export, what the signs shown now mean and
- * what shuffle does;
+ * what the cues do;
  * its name says which of these the run has, and a run with none of them has no "⋯". It opens in the deck,
  * in a well under the row of its "⋯", pushing what is under it down; Esc or a press outside the deck closes
  * it. A row's own note (why a button is off, what a second press does) opens under that row. */
@@ -56,7 +55,7 @@ export function Deck({ allOpen, onAll, exporter }: Props) {
   const cues = armable(triggers);
   const fades = !!looks?.items.length;
   const marks = looks ? looksAbout(looks, triggers) : [];
-  const about = [looks?.items.length && looks.idle !== null && shuffleLine, cues && cuesAbout(triggers)].filter((line): line is string => !!line);
+  const about = cues ? [cuesAbout(triggers)] : [];
   const holds = [cues && "cues", fades && "fade"].filter(Boolean).join(", ");
   // With nothing behind it, there is no "⋯".
   const hasMore = cues || fades || marks.length > 0 || about.length > 0;

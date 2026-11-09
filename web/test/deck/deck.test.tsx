@@ -556,7 +556,7 @@ test("the shuffle switch has a ? that says what shuffle is", async () => {
   const { screen } = await renderWired(<Editor />);
   await screen.getByRole("button", { name: "look settings" }).click();
   await screen.getByRole("button", { name: "about shuffle" }).click();
-  await expect.element(screen.getByText(/^shuffle: .*touch any control to take over$/)).toBeVisible();
+  await expect.element(screen.getByText(/^shuffle: .*starts after 5 min untouched$/)).toBeVisible();
 });
 
 test("shuffle's note shuts with the look settings: it keeps no Esc, and it does not come back unasked", async () => {
@@ -1071,4 +1071,34 @@ test("the all-looks list scrolls to the highlight when it moves, not on unrelate
     Element.prototype.scrollIntoView = real;
     await page.viewport(414, 896);
   }
+});
+
+test("shuffle is one press on and one off, its line counts down on engine time, and its settings act at once", async () => {
+  const { screen, sent, receive, store } = await renderWired(<Played />);
+  const looks = AURA.looks!;
+  const toggle = screen.getByRole("button", { name: "shuffle", exact: true });
+  // The file waits 5 min untouched, then plays each look 1 min.
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  act(() => store.receiveFrame({ t: 60, seq: 1, rgb: new Uint8Array(6) }, 0));
+  await expect.element(screen.getByText("starts in 4:00")).toBeVisible();
+  await toggle.click();
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", idle: null });
+  const open = screen.getByRole("button", { name: "shuffle settings: every 1 min" });
+  await open.click();
+  await expect.element(open).toHaveAttribute("aria-expanded", "true");
+  await screen.getByRole("combobox", { name: "how long each look plays" }).selectOptions("120");
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", each: 120 });
+  await screen.getByRole("combobox", { name: "when shuffle starts" }).selectOptions("now");
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", idle: 60 });
+  // Right away, a look's turn counts down; off, there is no line and the lights stay.
+  receive(aura({ looks: { ...looks, idle: 60, next: 90, cycling: true } }));
+  await expect.element(screen.getByText("next in 0:30")).toBeVisible();
+  receive(aura({ looks: { ...looks, idle: null, next: null } }));
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(document.querySelector(".shuffle-line")).toBeNull();
+  await toggle.click();
+  expect(sent.at(-1)).toEqual({ type: "idle_cycle", idle: 60 });
+  // A run that keeps shuffle off (a Gallery visit) offers none.
+  receive(aura({ looks: { ...looks, idle: null, next: null, idle_off: true } }));
+  await expect.element(toggle).not.toBeInTheDocument();
 });

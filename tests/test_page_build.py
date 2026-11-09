@@ -23,11 +23,12 @@ SRC = WEB / "src"
 # gzipped file by file: 228,647 bytes as built on 2026-11-08, when the page
 # was first split from its 3D view; 230,142 once the layout editor moved in
 # (its own file on demand; the page keeps its wire, its layout panel and the
-# editor's styles). The one-file page as built on 2026-11-06
+# editor's styles); 230,455 before and 232,041 after shuffle's control (2026-11-08), which
+# raised the budget by 2,000 bytes. The one-file page as built on 2026-11-06
 # with the Martian fonts, their notice and the icon set was 224,888 bytes; the
 # budget is that plus about 2.5%. The page before the fonts was 199,921 bytes against a
 # budget of 217,855 (189,439 + 15%).
-GZIP_BUDGET = 230_500
+GZIP_BUDGET = 232_500
 # What the 3D view loads on demand beyond the layout editor's files (three.js,
 # @react-three, web/src/rig3d), gzipped file by file: THREE_D_MEASURED bytes as
 # built on 2026-11-08 with the gizmo that edits a pose (drei's TransformControls),
