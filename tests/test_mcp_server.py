@@ -143,7 +143,7 @@ async def test_a_new_op_changes_no_tool(client: Client, monkeypatch: pytest.Monk
     before = wire((await client.list_tools()).tools)
 
     class Glow(fx_op.Op):
-        """A test op: it shimmers."""
+        """A test op: it glows and glimmers."""
 
         sig, out = Sig.SOURCE, Ty.SCALAR
 
@@ -151,7 +151,7 @@ async def test_a_new_op_changes_no_tool(client: Client, monkeypatch: pytest.Monk
     monkeypatch.setitem(fx_op.REGISTRY, "glow", Glow)
     async with Client(build(1, argv=ARGV)) as fresh:
         assert wire((await fresh.list_tools()).tools) == before
-        found = payload(await fresh.call_tool("catalog_search", {"query": "shimmers"}))
+        found = payload(await fresh.call_tool("catalog_search", {"query": "glimmers"}))
     assert [item["name"] for item in found["items"]] == ["glow"]
 
 
@@ -422,7 +422,7 @@ async def test_an_example_look_added_after_start_reads(tmp_path: Path, monkeypat
 @pytest.mark.parametrize(("uri", "says"), [
     ("pewpew://catalog/op/kaleidd", "did you mean 'kaleid'?"),
     ("pewpew://catalog/ops/kaleid", "did you mean 'op'?"),
-    ("pewpew://looks/mcp-tid", "did you mean 'mcp-tide'?"),
+    ("pewpew://looks/prizm", "did you mean 'prism'?"),
     ("pewpew://docs/autoring", "did you mean 'authoring'?"),
     ("pewpew://docs/authoring/99", "unknown section '99'; sections: 1, 2, 3"),
     ("pewpew://render/r1-00000000000000000000/sheet.png", "render again"),

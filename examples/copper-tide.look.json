@@ -10,10 +10,11 @@
             "fold": {"op": "mirror", "in": ["bars"], "args": {"axis": "u", "centre": 0.5}},
             "drift": {"op": "noise", "args": {"scale": 2.0, "speed": 0.07, "octaves": 2}},
             "warp": {"op": "modulate", "in": ["fold", "drift"], "args": {"amount": 0.12}},
-            "tint": {"op": "palette", "in": ["warp"], "args": {"palette": {"stops": [{"at": 0, "h": 18, "s": 0.95, "v": 0.02}, {"at": 0.45, "h": 24, "s": 0.9, "v": 0.4}, {"at": 0.7, "h": 40, "s": 0.45, "v": 0.95}, {"at": 1, "h": 18, "s": 0.95, "v": 0.02}]}, "shift": 0.0, "cycle": 0.031}}}},
-        {"id": "counter", "opacity": 0.55, "blend": "screen", "out": "tint", "nodes": {
-            "bars": {"op": "osc", "args": {"freq": 5.0, "sync": -0.093, "axis": "u"}},
-            "tint": {"op": "palette", "in": ["bars"], "args": {"palette": {"stops": [{"at": 0, "h": 210, "s": 0.9, "v": 0.02}, {"at": 0.5, "h": 185, "s": 0.8, "v": 0.45}, {"at": 0.75, "h": 165, "s": 0.35, "v": 0.85}, {"at": 1, "h": 210, "s": 0.9, "v": 0.02}]}, "cycle": -0.0502}}}}],
+            "depth": {"op": "contrast", "in": ["warp"], "args": {"amount": 1.4}},
+            "tint": {"op": "palette", "in": ["depth"], "args": {"palette": {"stops": [{"at": 0, "h": 14, "s": 1, "v": 0.02}, {"at": 0.45, "h": 20, "s": 1, "v": 0.4}, {"at": 0.7, "h": 34, "s": 1, "v": 0.95}, {"at": 0.84, "h": 24, "s": 1, "v": 0.3}, {"at": 1, "h": 14, "s": 1, "v": 0.02}]}, "shift": 0.0, "cycle": 0.031}}}},
+        {"id": "counter", "opacity": 0.7, "blend": "screen", "out": "tint", "nodes": {
+            "bars": {"op": "osc", "args": {"freq": 5.0, "sync": -0.14, "axis": "u"}},
+            "tint": {"op": "palette", "in": ["bars"], "args": {"palette": {"stops": [{"at": 0, "h": 355, "s": 1, "v": 0}, {"at": 0.5, "h": 2, "s": 1, "v": 0.3}, {"at": 0.74, "h": 12, "s": 1, "v": 0.9}, {"at": 0.86, "h": 4, "s": 1, "v": 0.15}, {"at": 1, "h": 355, "s": 1, "v": 0}]}, "cycle": -0.0502}}}}],
       "signals": {
           "drift": {"op": "walk", "args": {"rate": 0.04}}},
       "routes": [

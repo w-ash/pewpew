@@ -1,13 +1,21 @@
 {
   "version": 4,
-  "current": "tide",
+  "current": "eddy",
   "looks": {
-    "tide": {"fade": 3, "layers": [
+    "eddy": {"fade": 3, "layers": [
       {"id": "base", "out": "tint", "nodes": {
         "swell": {"op": "osc", "args": {"freq": 3.0, "sync": 0.15, "axis": "u"}},
         "chop": {"op": "noise", "args": {"scale": 2.0, "speed": 0.07}},
         "ripple": {"op": "modulate", "in": ["swell", "chop"], "args": {"amount": 0.12}},
-        "tint": {"op": "palette", "in": ["ripple"], "args": {"palette": "ocean"}}}}
-    ]}
+        "tint": {"op": "palette", "in": ["ripple"], "args": {"palette": {"stops": [
+          {"at": 0, "h": 250, "s": 1, "v": 0.03}, {"at": 0.4, "h": 245, "s": 1, "v": 0.25},
+          {"at": 0.7, "h": 234, "s": 1, "v": 0.62}, {"at": 1, "h": 222, "s": 1, "v": 1}]}}}}}
+    ],
+    "signals": {
+      "tide": {"op": "lfo", "args": {"rate": 0.05, "shape": "sine"}},
+      "drift": {"op": "walk", "args": {"rate": 0.04}}},
+    "routes": [
+      {"source": "tide", "path": "layers.base.swell.sync", "depth": 0.08},
+      {"source": "drift", "path": "layers.base.tint.shift", "depth": 15.0}]}
   }
 }

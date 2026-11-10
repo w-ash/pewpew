@@ -1,0 +1,19 @@
+{
+  "version": 4,
+  "current": "lava-lamp",
+  "looks": {
+    "lava-lamp": {
+      "seed": 11, "master": 0.8, "fade": 5.0, "cycle": true,
+      "layers": [
+        {"id": "wax", "out": "tint", "nodes": {
+            "blobs": {"op": "metaballs", "args": {"count": 5, "radius": 0.14, "smooth": 0.25, "speed": 0.025, "glow": 0.16}},
+            "tint": {"op": "palette", "in": ["blobs"], "args": {"palette": {"label": "real sunset", "stops": [
+                {"at": 0, "h": 285, "s": 1, "v": 0.03},
+                {"at": 0.35, "h": 300, "s": 1, "v": 0.3},
+                {"at": 0.65, "h": 352, "s": 1, "v": 0.62},
+                {"at": 1, "h": 24, "s": 1, "v": 1}]}}}}}],
+      "signals": {
+          "swell": {"op": "lfo", "args": {"rate": 0.03, "shape": "sine"}}},
+      "routes": [
+          {"source": "swell", "path": "layers.wax.blobs.radius", "depth": 0.04}],
+      "front": ["layers.wax.blobs.speed", "layers.wax.blobs.smooth", "layers.wax.blobs.radius"]}}}

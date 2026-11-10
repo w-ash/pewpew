@@ -1,0 +1,29 @@
+{
+  "version": 4,
+  "current": "orchid-twinkle",
+  "looks": {
+    "orchid-twinkle": {
+      "seed": 17, "master": 1.0, "fade": 5.0, "cycle": true,
+      "layers": [
+        {"id": "field", "out": "tint", "nodes": {
+            "glints": {"op": "noise", "args": {"scale": 18.0, "speed": 0.9, "octaves": 1, "kind": "value"}},
+            "jitter": {"op": "dither", "in": ["glints"], "args": {"amount": 0.6, "rate": 0.5}},
+            "fade": {"op": "trails", "in": ["jitter"], "args": {"tail": 0.9}},
+            "tint": {"op": "palette", "in": ["fade"], "args": {"palette": {"label": "orchid", "stops": [
+                {"at": 0, "h": 262, "s": 1, "v": 0.03},
+                {"at": 0.52, "h": 265, "s": 1, "v": 0.04},
+                {"at": 0.66, "h": 276, "s": 1, "v": 0.38},
+                {"at": 0.82, "h": 298, "s": 1, "v": 0.75},
+                {"at": 1, "h": 322, "s": 0.95, "v": 1}]}}}}},
+        {"id": "accent", "blend": "max", "out": "tint", "nodes": {
+            "rare": {"op": "noise", "args": {"scale": 16.0, "speed": 0.3, "octaves": 1, "kind": "value"}},
+            "tint": {"op": "palette", "in": ["rare"], "args": {"palette": {"label": "rose", "stops": [
+                {"at": 0, "h": 352, "s": 1, "v": 0},
+                {"at": 0.8, "h": 352, "s": 1, "v": 0},
+                {"at": 0.9, "h": 355, "s": 1, "v": 1},
+                {"at": 1, "h": 355, "s": 1, "v": 1}]}}}}}],
+      "signals": {
+          "hue": {"op": "walk", "args": {"rate": 0.03}}},
+      "routes": [
+          {"source": "hue", "path": "layers.field.tint.shift", "depth": 20.0}],
+      "front": ["layers.field.glints.speed", "layers.field.fade.tail", "layers.accent.opacity"]}}}

@@ -1,0 +1,33 @@
+{
+  "version": 4,
+  "current": "maelstrom",
+  "looks": {
+    "maelstrom": {
+      "seed": 9, "master": 1.0, "fade": 4.0, "cycle": true,
+      "layers": [
+        {"id": "well", "out": "tint", "nodes": {
+            "arms": {"op": "osc", "args": {"freq": 3.0, "sync": 0.0, "axis": "x"}},
+            "turn": {"op": "osc", "args": {"freq": 1.0, "sync": 0.0, "axis": "y", "shape": "saw"}},
+            "spiral": {"op": "modulate", "in": ["arms", "turn"], "args": {"amount": 1.0}},
+            "throat": {"op": "tunnel", "in": ["spiral"], "args": {"depth": 0.15, "speed": -0.1, "core": 0.15}},
+            "radius": {"op": "osc", "args": {"freq": 1.0, "sync": 0.0, "offset": 0.75, "axis": "x"}},
+            "rim": {"op": "polar", "in": ["radius"], "args": {}},
+            "hole": {"op": "mult", "in": ["throat", "rim"], "args": {}},
+            "tint": {"op": "palette", "in": ["hole"], "args": {"palette": {"label": "amethyst", "stops": [{"at": 0, "h": 250, "s": 1, "v": 0.02}, {"at": 0.35, "h": 256, "s": 1, "v": 0.3}, {"at": 0.7, "h": 264, "s": 1, "v": 0.7}, {"at": 1, "h": 270, "s": 1, "v": 0.8}]}}}}},
+        {"id": "orbit", "blend": "screen", "out": "tint", "nodes": {
+            "band": {"op": "osc", "args": {"freq": 2.0, "sync": 0.0, "offset": 0.45, "axis": "x"}},
+            "rings": {"op": "polar", "in": ["band"], "args": {}},
+            "spoke": {"op": "osc", "args": {"freq": 2.0, "sync": 0.17, "axis": "y"}},
+            "spokes": {"op": "polar", "in": ["spoke"], "args": {}},
+            "dots": {"op": "mult", "in": ["rings", "spokes"], "args": {}},
+            "spark": {"op": "contrast", "in": ["dots"], "args": {"amount": 3.0}},
+            "trail": {"op": "feedback", "in": ["spark"], "args": {"decay": 1.4, "zoom": 1.0, "swirl": 40.0}},
+            "radius": {"op": "osc", "args": {"freq": 1.0, "sync": 0.0, "offset": 0.75, "axis": "x"}},
+            "rim": {"op": "polar", "in": ["radius"], "args": {}},
+            "ring": {"op": "mult", "in": ["trail", "rim"], "args": {}},
+            "tint": {"op": "palette", "in": ["ring"], "args": {"palette": {"label": "orchid", "stops": [{"at": 0, "h": 262, "s": 1, "v": 0}, {"at": 0.45, "h": 266, "s": 1, "v": 0.05}, {"at": 0.75, "h": 274, "s": 1, "v": 0.55}, {"at": 1, "h": 282, "s": 0.9, "v": 1}]}}}}}],
+      "signals": {
+          "pull": {"op": "walk", "args": {"rate": 0.05}}},
+      "routes": [
+          {"source": "pull", "path": "layers.orbit.trail.swirl", "depth": 30.0}],
+      "front": ["layers.well.throat.speed", "layers.orbit.spoke.sync", "layers.orbit.trail.decay"]}}}
