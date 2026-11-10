@@ -33,7 +33,7 @@ so each board is pinned at 255 with "Force max brightness" (architecture
 §4b).
 
 Pacing: the render loop feeds the sink every k-th tick (`stride`), at most
-`max_fps` (default 40) frames a second; the sink never sleeps. WLED shows
+`max_fps` (default 60) frames a second; the sink never sleeps. WLED shows
 a pushed frame only when more than 15 ms have passed since it last showed
 one (`wled00/udp.cpp:477` in v16.0.1), and a frame that arrives before the
 waiting one is shown overwrites it. Evenly spaced frames at 60 fps (16.7
@@ -281,7 +281,7 @@ class DdpSink:
         boards: Sequence[Board],
         n_pixels: int,
         *,
-        max_fps: float = 40.0,
+        max_fps: float = 60.0,
         open_socket: Callable[[], DatagramSocket] | None = None,
     ) -> None:
         if max_fps <= 0.0:

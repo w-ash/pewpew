@@ -9,6 +9,12 @@ series (batch mode).
 
 ### Added
 
+- `run` warns when the LEDs will jerk though the preview is smooth: each board's
+  health row warns when its WLED target refresh rate (`hw.led.fps`, read once from
+  `/json/cfg`, again after a reboot) is below the DDP rate, and on macOS the run logs a
+  warning when AWDL (AirDrop, Handoff) is active on the Wi-Fi route to the boards,
+  and again whenever it comes back.
+
 - The `dither` coord op: each light reads its pattern a little off its own spot
   and jumps to a new spot `rate` times a second, on a clock of its own, so a hard
   edge sparkles between the colors on each side instead of stepping from light to
