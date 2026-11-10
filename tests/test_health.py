@@ -617,3 +617,80 @@ def test_scan_lines_reads_like_the_terminal_table():
         "192.0.2.20       pewpew-1          MAC 02:00:00:00:00:01  WLED 16.0.1  live DDP from 192.0.2.10",
         "192.0.2.21       ?                 MAC 01:23:45:67:89:ab  WLED 16.0.1  not live",
     ]
+
+
+# ---- the board's target refresh rate and the host's AWDL ---------------------------
+
+
+class Rated(Stream):
+    """A sink fed at `max_fps`, as the monitor reads its rate."""
+
+    def __init__(self, boards, max_fps: float) -> None:
+        super().__init__(boards)
+        self.max_fps = max_fps
+
+
+def cfg(fps: int) -> dict:
+    return {"hw": {"led": {"total": 1280, "fps": fps}}}
+
+
+def test_a_target_refresh_rate_below_the_sent_rate_warns_with_the_setting_to_change():
+    ft = FakeTime()
+    boards = boards3()[:1]
+    reads: list[str] = []
+
+    def fetch_cfg(host, timeout):
+        reads.append(host)
+        return cfg(42)
+
+    monitor = monitor_for(boards, CannedFetch({boards[0].host: info()}), ft, ddp=Rated(boards, 60.0),
+                          target=60.0, fetch_cfg=fetch_cfg)
+    monitor.step()
+    (row,) = monitor.state()["boards"]
+    assert row["level"] == "warn"
+    assert "WLED target refresh rate 42 fps, below the 60 sent" in row["reasons"]
+    assert "Target refresh rate to 60 or more" in row["fix"]
+    for _ in range(12):  # later polls do not read the settings again
+        ft.t += 1.0
+        monitor.step()
+    assert reads == [boards[0].host]
+
+
+@pytest.mark.parametrize("fps", [60, 120, 0])
+def test_a_target_refresh_rate_at_or_above_the_sent_rate_or_none_is_ok(fps):
+    ft = FakeTime()
+    boards = boards3()[:1]
+    monitor = monitor_for(boards, CannedFetch({boards[0].host: info()}), ft, ddp=Rated(boards, 60.0),
+                          target=60.0, fetch_cfg=lambda host, timeout: cfg(fps))
+    monitor.step()
+    assert monitor.state()["boards"][0]["level"] == "ok"
+
+
+def test_the_settings_are_read_again_after_a_reboot():
+    board = BoardHealth("10.0.0.11", 1280)
+    board.record(info(uptime=900), 0.0, US)
+    board.cfg_read, board.target_fps = True, 60
+    board.record(info(uptime=3), 6.0, US)
+    assert board.cfg_read is False
+
+
+def test_awdl_on_the_route_to_the_boards_is_logged_when_it_comes_and_goes(caplog):
+    ft = FakeTime()
+    boards = boards3()[:1]
+    verdicts = iter([True, True, False])
+    asked: list[str] = []
+
+    def stalls(address):
+        asked.append(address)
+        return next(verdicts)
+
+    monitor = monitor_for(boards, CannedFetch({boards[0].host: info()}), ft, period=6.0, stalls=stalls)
+    caplog.set_level("INFO", logger="pewpew.health")
+    for _ in range(13):
+        monitor.step()
+        ft.t += 1.0
+    assert asked == [boards[0].host] * 3  # once a period
+    messages = [r.getMessage() for r in caplog.records if "AWDL" in r.getMessage()]
+    assert len(messages) == 2
+    assert messages[0].startswith("AWDL is active") and "sudo ifconfig awdl0 down" in messages[0]
+    assert messages[1] == "AWDL is no longer active on the route to the boards"

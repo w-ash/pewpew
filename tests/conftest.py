@@ -16,7 +16,7 @@ from hypothesis import settings
 
 from fake_sounddevice import FakeSoundDevice, laptop
 from fakes import EXAMPLE_RIG, STATE_FILES, FakeProcess, Pooled, UdpRecorder, strict_worker, with_test_ops
-from pewpew import audit, awake, watchdog, wled
+from pewpew import audit, awake, awdl, watchdog, wled
 from pewpew.fx.bound_program import BoundProgram
 from pewpew.sinks import ddp
 
@@ -81,6 +81,8 @@ def no_real_side_effects(monkeypatch: pytest.MonkeyPatch, state_folders: Iterato
         raise AssertionError(f"the watchdog tried to exit with {code}")
 
     monkeypatch.setattr(wled, "fetch_info", no_fetch)
+    monkeypatch.setattr(wled, "fetch_cfg", no_fetch)
+    monkeypatch.setattr(awdl, "stalls", lambda address: None)
     monkeypatch.setattr(wled, "sender_address", lambda host, port=0: None)
     monkeypatch.setattr(wled, "resolve_name", lambda name: (_ for _ in ()).throw(OSError("no resolver in tests")))
     monkeypatch.setattr(awake, "_spawn", lambda args: FakeProcess(args))

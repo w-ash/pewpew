@@ -136,10 +136,13 @@ curl -s -X POST http://<ip>/json/state -H 'Content-Type: application/json' -d '{
 The keys: `type` 30 is SK6812/WS2814 RGBW, `order` 0 is GRB and 1 is RGB
 (`const.h:372`), and `rgbwm` is auto-white (0 None, 1 Brighter, 2 Accurate).
 `maxpwr` 0, both for the board and for the output, turns the brightness
-limiter off (`cfg.cpp:242`). In the web UI the same fields are under Config
+limiter off (`cfg.cpp:242`). Set the target refresh rate, `hw.led.fps`, to
+60 or more (`{"hw":{"led":{"fps":60}}}`): WLED's default of 42 is below
+pewpew's DDP rate, so the board holds or drops frames, and `run`'s health
+row warns about it. In the web UI the same fields are under Config
 → LED Preferences, with the labels "SK6812/WS2814 RGBW", "Length", "GPIO",
-"Color Order", "Enable automatic brightness limiter" and "Auto-calculate W
-channel from RGB".
+"Color Order", "Enable automatic brightness limiter", "Auto-calculate W
+channel from RGB" and "Target refresh rate".
 
 ## Troubleshooting
 

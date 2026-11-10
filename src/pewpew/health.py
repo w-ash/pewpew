@@ -16,7 +16,15 @@ Fields read from `/json/info` (WLED v16.0.1 `wled00/json.cpp`): `live` and
 `wifi.rssi` and `wifi.channel`, `uptime` (seconds since boot), `freeheap`,
 `ver`, and `resetReason0`, which stock builds leave out: WLED sends it only
 when built with `WLED_DEBUG` (`json.cpp:840-844`), so on a stock build a
-brownout shows only as an `uptime` drop.
+brownout shows only as an `uptime` drop. From `/json/cfg`, read once per
+board when it first answers and again after it reboots, only the target
+refresh rate (`hw.led.fps`): below the rate pewpew sends, WLED holds or
+drops frames, so the board warns.
+
+Host. On macOS the monitor also checks, every `period`, whether AWDL is
+active while this Mac reaches the boards over Wi-Fi (`pewpew.awdl`), and
+logs a warning when it becomes so: it makes the LEDs jerk about twice a
+second while the preview stays smooth.
 
 A board's level is the worst of its checks (`BoardHealth.assess`, against
 the thresholds below). The `live`, `lip` and fps checks judge only a reply
@@ -73,7 +81,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pewpew import audit, wled
+from pewpew import audit, awdl, wled
 from pewpew.audio.beat import DEGRADED_ABOVE
 from pewpew.audio.net import LOSS_S
 from pewpew.audio.wire import HOLD_S
@@ -81,6 +89,7 @@ from pewpew.errors import unknown
 from pewpew.jsonfile import is_number
 from pewpew.pace import PaceStats
 from pewpew.sinks.ddp import Board, DdpSink, is_ipv4
+from pewpew.sinks.sink import stride
 from pewpew.wled import PRIVACY, SCAN_TIMEOUT_S, TIMEOUT_S, failure, format_mac, no_route
 
 logger = logging.getLogger(__name__)
@@ -181,6 +190,8 @@ _FIX_NOT_LIVE = ("It shows its own look (WLED's default is orange): pewpew's pac
 _FIX_FPS = ("The board shows fewer frames than pewpew sends: check its Wi-Fi signal and channel, "
             "or lower --ddp-fps.")
 _FIX_RSSI = "Move the board or the router closer, or clear what stands between them."
+_FIX_TARGET_FPS = ("Set WLED's Config → LED Preferences → Target refresh rate to {rate:g} or more: below the "
+                   "rate pewpew sends, WLED holds some frames and drops others, and motion jerks.")
 _FIX_HEAP = "Turn off the WLED features pewpew does not use (the unattended checklist lists them)."
 _FIX_COUNT = ("Set the LED count in WLED's LED Preferences to {expected}, the pixels pewpew streams "
               "to this board.")
@@ -250,6 +261,8 @@ class BoardHealth:
     rebooted_at: float | None = None  # monitor time of the last one
     reboot_moved_count: bool = False  # a reboot changed `leds.count`, and no one has set it since
     last_reset_reason: Any = None
+    target_fps: int | None = None  # WLED's target refresh rate, from `/json/cfg`
+    cfg_read: bool = False  # `target_fps` is current: read since it last rebooted
     sender: str | None = None  # this laptop's address towards it
     level: str = "pending"
     reasons: list[str] = field(default_factory=list)
@@ -284,6 +297,7 @@ class BoardHealth:
         ):
             self.reboots += 1
             self.rebooted_at = now
+            self.cfg_read = False  # a reboot may have reset its settings
             self.reboot_moved_count |= sample["count"] != old["count"]
             self.last_reset_reason = sample["reset_reason"]
             reason = "" if sample["reset_reason"] is None else f", reset reason {sample['reset_reason']}"
@@ -302,10 +316,13 @@ class BoardHealth:
         self.error = error
         self.no_route = no_route
 
-    def assess(self, now: float, sent_fps: float | None, streaming_since: float | None) -> None:
+    def assess(
+        self, now: float, sent_fps: float | None, streaming_since: float | None, rate: float | None = None,
+    ) -> None:
         """Set `level`, `reasons` and `fix` from the thresholds above.
 
-        `streaming_since` is the monitor time of the first DDP frame sent,
+        `rate` is the rate pewpew sends at, which the board's target refresh
+        rate must reach. `streaming_since` is the monitor time of the first DDP frame sent,
         or None before one. The stream checks judge the sample only when its
         poll was sent `SETTLE_S` or more after that. `fix` comes from the
         worst check, and among those from the lowest rank, not from the
@@ -338,6 +355,9 @@ class BoardHealth:
                 found.append((3, "bad", f"live from {s['lip']}, not this laptop",
                               (f"Another program at {s['lip']} is streaming to this board. "
                                "Stop it, or the two streams fight.")))
+            if rate and self.target_fps and self.target_fps < rate - 0.5:
+                found.append((5, "warn", f"WLED target refresh rate {self.target_fps} fps, below the {rate:g} sent",
+                              _FIX_TARGET_FPS.format(rate=rate)))
             if streamed and s["live"] and sent_fps and s["fps"] is not None:
                 _band(found, 5, s["fps"] / sent_fps, FPS_WARN, FPS_BAD,
                       f"shows {s['fps']} of {sent_fps:.0f} fps", _FIX_FPS)
@@ -482,8 +502,9 @@ class HealthMonitor:
     go, which the monitor writes for a board named by mDNS (after the audit
     record `record` writes). `stats` is the loop's counters and `target` its
     rate.
-    `fetch`, `sender` and `resolve` default to `pewpew.wled`'s `fetch_info`,
-    `sender_address` and `resolve_name`, looked up at call time.
+    `fetch`, `fetch_cfg`, `sender` and `resolve` default to `pewpew.wled`'s
+    `fetch_info`, `fetch_cfg`, `sender_address` and `resolve_name`, and
+    `stalls` to `pewpew.awdl.stalls`, looked up at call time.
     `on_rebind(board, address)` writes a controller's new host to the
     arrangement file and returns a refusal or None; without it, `rebind` is
     refused.
@@ -503,6 +524,8 @@ class HealthMonitor:
         timeout: float = TIMEOUT_S,
         step: float = STEP_S,
         fetch: Callable[[str, float], dict] | None = None,
+        fetch_cfg: Callable[[str, float], dict] | None = None,
+        stalls: Callable[[str], bool | None] | None = None,
         sender: Callable[[str, int], str | None] | None = None,
         now: Callable[[], float] = time.monotonic,
         names: Callable[[], Sequence[str]] | None = None,
@@ -533,6 +556,10 @@ class HealthMonitor:
         self._timeout = timeout
         self._step = step
         self._fetch = fetch
+        self._fetch_cfg = fetch_cfg
+        self._stalls = stalls
+        self._awdl: bool | None = None  # the last AWDL verdict (`pewpew.awdl.stalls`)
+        self._next_host_check: float | None = None
         self._sender = sender
         self._now = now
         self._records: dict[str, BoardHealth] = {}
@@ -592,9 +619,11 @@ class HealthMonitor:
             gap = self._period / len(boards)
             self._next_poll = max((self._next_poll or now) + gap, now)
             self._poll(board)
+        self._check_host(now)
+        rate = self._send_rate()
         for record in self._records.values():
             before = record.level
-            record.assess(self._now(), self.sent_fps, self._streaming_since)
+            record.assess(self._now(), self.sent_fps, self._streaming_since, rate)
             _log_change(f"board {record.host}", before, record.level, record.reasons)
         if self._audio is not None:
             before = self._audio_health.level
@@ -649,6 +678,44 @@ class HealthMonitor:
             return
         sender = self._sender or wled.sender_address
         record.record(info, asked, sender(address, board.port))
+        if not record.cfg_read and record.foreign is None:
+            self._read_cfg(record, address)
+
+    def _read_cfg(self, record: BoardHealth, address: str) -> None:
+        """Read the board's target refresh rate; a failure tries again at its next poll."""
+        fetch = self._fetch_cfg or wled.fetch_cfg
+        try:
+            cfg = fetch(address, self._timeout)
+        except Exception:  # noqa: BLE001  the next poll tries again
+            return
+        if isinstance(cfg, dict):
+            record.target_fps = wled.target_fps(cfg)
+            record.cfg_read = True
+
+    def _send_rate(self) -> float | None:
+        """The rate the DDP sink gets frames at: the loop's, over its stride."""
+        max_fps = getattr(self._ddp, "max_fps", None)
+        if not self._target or not max_fps:
+            return None
+        return self._target / stride(self._target, max_fps)
+
+    def _check_host(self, now: float) -> None:
+        """Every `period`, whether AWDL stalls the route to the boards; log a change."""
+        if self._next_host_check is not None and now < self._next_host_check:
+            return
+        address = next((r.address for r in self._records.values() if r.address), None)
+        if address is None:
+            return
+        self._next_host_check = now + self._period
+        stalls = self._stalls or awdl.stalls
+        verdict = stalls(address)
+        if verdict is None or verdict == self._awdl:
+            return
+        if verdict:
+            logger.warning("AWDL is active on this Mac's Wi-Fi route to the boards. %s", awdl.FIX)
+        elif self._awdl:
+            logger.info("AWDL is no longer active on the route to the boards")
+        self._awdl = verdict
 
     def _ask(self, address: str) -> tuple[dict | None, BaseException | None]:
         """One board's `/json/info`, or the exception that stopped it."""

@@ -30,7 +30,7 @@ from pewpew.jsonfile import loads
 from pewpew.sinks.ddp import DDP_PORT
 
 TIMEOUT_S = 2.0  # per request
-MAX_INFO_BYTES = 64 * 1024  # a WLED /json/info reply is a few KB
+MAX_INFO_BYTES = 64 * 1024  # a WLED /json/info or /json/cfg reply is a few KB
 SCAN_TIMEOUT_S = 0.8
 SCAN_WORKERS = 32
 PRIVACY = "System Settings → Privacy & Security → Local Network"
@@ -41,13 +41,33 @@ def fetch_info(host: str, timeout: float = TIMEOUT_S) -> dict:
     """GET `http://host/json/info` and parse it. The whole request ends
     within about twice `timeout` and reads at most `MAX_INFO_BYTES`, so a
     device that answers slowly or without end cannot hold a scan worker."""
+    return _fetch_json(host, "/json/info", timeout)
+
+
+def fetch_cfg(host: str, timeout: float = TIMEOUT_S) -> dict:
+    """GET `http://host/json/cfg`, the board's saved settings, and parse it,
+    within the same limits as `fetch_info`. It is larger than
+    `/json/info`, so read it once per board, not on every poll."""
+    return _fetch_json(host, "/json/cfg", timeout)
+
+
+def target_fps(cfg: dict) -> int | None:
+    """The board's target refresh rate (`hw.led.fps`, LED Preferences), or
+    None when the settings leave it out."""
+    hw = cfg.get("hw")
+    led = hw.get("led") if isinstance(hw, dict) else None
+    fps = led.get("fps") if isinstance(led, dict) else None
+    return fps if isinstance(fps, int) and not isinstance(fps, bool) else None
+
+
+def _fetch_json(host: str, path: str, timeout: float) -> dict:
     deadline = time.monotonic() + 2 * timeout
-    with urllib.request.urlopen(f"http://{host}/json/info", timeout=timeout) as reply:
+    with urllib.request.urlopen(f"http://{host}{path}", timeout=timeout) as reply:
         body = bytearray()
         while chunk := reply.read1(16 * 1024):
             body += chunk
             if len(body) > MAX_INFO_BYTES:
-                raise ValueError("the reply is too large for /json/info")
+                raise ValueError(f"the reply is too large for {path}")
             if time.monotonic() > deadline:
                 raise TimeoutError("the reply took too long")
         return loads(body)

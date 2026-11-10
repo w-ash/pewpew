@@ -119,6 +119,11 @@ the admin panel does not show are in LuCI, under Advanced Settings
 - [ ] Realtime timeout: keep the default 2,500 ms. Not 65000, which holds the
       last frame and never falls back [S418]. (inference: it must be under the
       5 s Ethernet-pull check in §7.)
+- [ ] Target refresh rate (LED Preferences, `hw.led.fps`) at or above the
+      DDP rate, 60 by default. Below it WLED holds some frames and drops
+      others: at 42 a board showed about 53 of 60 frames a second, and at 60
+      it showed 57-60 (bench, 2026-11-09). The health row warns when it is
+      lower (`src/pewpew/health.py`).
 - [ ] Boot preset: a dim fallback look. The board shows it after the
       realtime timeout (backlog, WLED facts).
 - [ ] UDP sync off: it is on by default, port 21324 [S257], and a board-local
@@ -140,6 +145,14 @@ the admin panel does not show are in LuCI, under Advanced Settings
 - [ ] Automatic updates off. Background Security Improvements off: they
       install silently from macOS 26.1 [S1298].
 - [ ] A Do Not Disturb Focus on (backlog, Unattended checklist notes).
+- [ ] Ethernet to the router, or AWDL down. With AWDL (AirDrop, Handoff,
+      Universal Control) active, the Wi-Fi radio leaves the router's channel
+      at a steady rhythm: pings to a board spiked to 75 ms every 0.46 s, and
+      the LEDs jerked about twice a second while the preview stayed smooth
+      (bench, 2026-11-09). `sudo ifconfig awdl0 down` lasts until a restart;
+      AirDrop set to No One and Handoff off keep it quieter. The run logs a
+      warning when AWDL is active on the Wi-Fi route to the boards
+      (`src/pewpew/awdl.py`).
 - [ ] FileVault blocks automatic login [S1297], and a LaunchAgent runs only
       while its user is logged in (inference). After a power loss, someone
       logs in.
