@@ -6,9 +6,7 @@ import io
 from pathlib import Path
 
 import numpy as np
-import pytest
 
-from fakes import FakeTime
 from pewpew.mapping import grid, lattice, line
 from pewpew.sinks.ansi import AnsiLayout, AnsiSink
 
@@ -20,9 +18,8 @@ def solid(n: int, rgb: tuple[float, float, float]) -> np.ndarray:
 
 
 def make_sink(mapping, **kw) -> tuple[AnsiSink, io.StringIO]:
-    ft = FakeTime()
     stream = io.StringIO()
-    sink = AnsiSink(mapping, stream=stream, now=ft.now, sleep=ft.sleep, **kw)
+    sink = AnsiSink(mapping, stream=stream, **kw)
     return sink, stream
 
 
@@ -117,16 +114,6 @@ def test_status_line_renders_renderer_error_text():
     out = stream.getvalue()
     assert "\x1b[31mboom in render\x1b[0m" in out  # first line only, in red
     assert "trace line" not in out
-
-
-def test_send_paces_on_its_rate_gate():
-    ft = FakeTime()
-    stream = io.StringIO()
-    sink = AnsiSink(line(4), stream=stream, max_fps=30.0, now=ft.now, sleep=ft.sleep)
-    with sink:
-        for i in range(3):
-            sink.send(i / 30, solid(4, (0.0, 0.0, 0.0)))
-    assert ft.sleeps == pytest.approx([1 / 30.0] * 2)  # first frame free
 
 
 def test_status_line_fits_inside_the_height_budget():

@@ -221,3 +221,18 @@ def test_drain_times_out_on_a_wedged_worker():
     assert driver.drain(timeout=0.05) is False  # still sending: bounded, not hung
     wedged.set()
     assert driver.stop(timeout=5.0) is True
+
+
+def test_every_k_takes_the_first_submit_and_each_kth_after_it():
+    sent: list[float] = []
+    with SinkDriver(lambda t, frame: sent.append(t), every=3) as driver:
+        for k in range(10):
+            driver.submit(float(k), frame_of(0.0))
+            assert driver.drain()
+    assert sent == [0.0, 3.0, 6.0, 9.0]
+    assert driver.dropped == 0  # a tick left out is not a frame dropped
+
+
+def test_every_must_be_at_least_one():
+    with pytest.raises(ValueError, match="at least 1"):
+        SinkDriver(lambda t, frame: None, every=0)

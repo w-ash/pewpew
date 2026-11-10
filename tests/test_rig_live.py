@@ -293,7 +293,7 @@ def live(tmp_path, program=None, blink=None, calls=None, **kw):
     write(path, doc)
     r, data = load_rig(path)
     renderer = hosted(program or FLOW, r.mapping)
-    sink, rec, _ = ddp_sink(list(ddp_targets(r)), r.n)
+    sink, rec = ddp_sink(list(ddp_targets(r)), r.n)
     calls = Calls() if calls is None else calls
     rig_live = Harness(path, r, data, renderer, calls, ddp=sink, argv=["run"], blink=blink, **kw)
     rig_live.shown = []
@@ -468,7 +468,7 @@ def test_rig_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, caps
     assert run_main(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--dry-run"])[0] == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "dry run: nothing sent"
-    assert out[1] == "ddp 10.0.0.11:4048  pixels 0-1279 (1280)  3 packets/frame  154,800 B/s at 40 fps  board A"
+    assert out[1] == "ddp 10.0.0.11:4048  pixels 0-1279 (1280)  3 packets/frame  232,200 B/s at 60 fps  board A"
     assert out[2] == "  output 1  start 0  length 320  fixtures row01.1..row01.5 (5)"
     assert len(out) == 1 + 3 * 5
     assert recorder.sent == [] and not audit_log.exists()
@@ -531,7 +531,8 @@ def test_room_is_always_a_file_path(tmp_path, monkeypatch, audit_log, recorder, 
 
 
 def test_an_arrangement_renders_to_the_terminal(audit_log, recorder):
-    rc, out = run_main(["run", looks_file(), "--map", str(EXAMPLE_RIG), "--no-ddp", "--ansi", "--frames", "2"])
+    argv = ["run", looks_file(), "--map", str(EXAMPLE_RIG), "--no-ddp", "--ansi", "--frames", "2", "--fps", "30"]
+    rc, out = run_main(argv)
     assert rc == 0 and out.count("\n\n") == 2 and "\x1b[38;2;" in out
     assert recorder.sent == [] and not audit_log.exists()
 

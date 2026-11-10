@@ -44,22 +44,21 @@ def reference_times(frames: int, fps: float = 60.0) -> list[float]:
     return out
 
 
-def test_ticks_land_on_the_absolute_schedule():
+def test_frames_go_out_on_the_absolute_schedule_whatever_each_render_costs():
     ft = FakeTime()
-    starts: list[float] = []
-    cost = 0.004
+    sent: list[float] = []
     loop = make_loop(
         ft,
-        program=costed(ft, default=cost),
-        on_frame=[lambda t, frame: starts.append(ft.t)],
+        program=costed(ft, costs={1: 0.001, 2: 0.012, 3: 0.004, 5: 0.015}, default=0.002),
+        on_frame=[lambda t, frame: sent.append(ft.t)],
     )
     stats = loop.run(frames=10)
     assert stats == PaceStats(ticks=10, skips=0, missed_frames=0)
-    # Delivery happens right after render, so tick k started at starts[k]-cost.
+    # Frame k goes out at the end of its slot, (k + 1) periods in.
     acc = 0.0
-    for k, wall in enumerate(starts):
-        assert wall - cost == pytest.approx(acc, abs=1e-12), f"tick {k} off schedule"
+    for k, wall in enumerate(sent):
         acc += PERIOD
+        assert wall == pytest.approx(acc, abs=1e-12), f"frame {k} off schedule"
 
 
 def test_oversleep_is_absorbed_not_accumulated():

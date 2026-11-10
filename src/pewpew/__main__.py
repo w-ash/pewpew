@@ -55,18 +55,17 @@ def main(
     *,
     ansi_stream: TextIO | None = None,
     now: Callable[[], float] = time.perf_counter,
-    sleep: Callable[[float], None] = time.sleep,
     watch: Watch | None = None,
 ) -> int:
     args = parse(argv)
     record = sys.argv[1:] if argv is None else list(argv)  # what the audit log records
     if args.cmd != "run":
         return args.cli(args, record)  # each other command's own handler (`set_defaults(cli=...)`)
-    launch = Launch.read(args, record, now=now, sleep=sleep)
+    launch = Launch.read(args, record)
     if args.dry_run:
         print("dry run: nothing sent", *launch.plan(), sep="\n")
         return 0
-    return Run(launch, ansi_stream=ansi_stream, now=now, sleep=sleep, watch=watch).serve()
+    return Run(launch, ansi_stream=ansi_stream, now=now, watch=watch).serve()
 
 
 def parse(argv: list[str] | None = None) -> argparse.Namespace:
@@ -176,8 +175,9 @@ def _parser() -> argparse.ArgumentParser:
                      "repeat once per board; not with an arrangement whose controllers have hosts")
     out.add_argument("--no-ddp", action="store_true",
                      help="with an arrangement --map: simulate only, send nothing to the boards")
-    out.add_argument("--ddp-fps", type=positive("a rate in frames per second"), default=40.0, metavar="FPS",
-                     help="DDP output rate, at most --fps (default 40)")
+    out.add_argument("--ddp-fps", type=positive("a rate in frames per second"), default=60.0, metavar="FPS",
+                     help="the most DDP frames a second (default 60); the boards get every k-th loop "
+                          "frame, --fps / k, evenly spaced")
     out.add_argument("--dry-run", action="store_true", help="print the DDP plan and exit without sending")
     out.add_argument("--max-brightness", type=_fraction, default=None, metavar="B",
                      help="power limit: a ceiling on light output, 0 to 1, after the master "

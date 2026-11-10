@@ -451,7 +451,7 @@ def test_no_error_text_that_reaches_the_page_names_a_path(make, raising_ops, tmp
     texts.append(rig.triggers.state()["last"]["error"])
     rig.looks.before_frame(rig.clock.advance())
 
-    sink, _, _ = ddp_sink([Board("10.0.0.11", 0, 4)], 4)
+    sink, _ = ddp_sink([Board("10.0.0.11", 0, 4)], 4)
     monitor = HealthMonitor(sink, fetch=lambda host, timeout: (_ for _ in ()).throw(make()),
                             sender=lambda host, port: "10.0.0.2")
     monitor.step()

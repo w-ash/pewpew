@@ -153,3 +153,20 @@ records where each sits; the decision above is unchanged. Code:
   The bench keeps the spin pacer (`deadline_spin` in
   `bench/bench_pacing.py`) for a host that needs tighter cadence than the
   2026-07-27 verification above.
+
+## Amendment (2026-11-09) — sinks ride the loop's clock
+
+Supersedes "each sink paces itself" in the decision above. A sink no longer
+keeps a clock of its own: the paced loop hands each sink every k-th tick,
+k the least whole number with `--fps / k` at most the sink's `max_fps`, so a
+sink's rate divides the loop's and its frames land evenly spaced on the
+loop's absolute schedule. Two clocks at nearly the same rate beat, dropping
+or repeating a frame each beat. WLED shows a pushed frame only when more
+than 15 ms have passed since its last show [S001][NEEDS-VERIFICATION], so a
+60 fps stream (16.7 ms apart) clears it only when sends are evenly spaced.
+Newest-wins backpressure is unchanged. The cost is one frame more latency
+on every sink: the loop renders, sleeps to the end of its slot, then hands
+off. The DDP rate defaults to 60 fps. The DDP sink quantizes with ADR-002's
+temporal error diffusion. Code: `src/pewpew/pace.py` (`PacedLoop.run`),
+`src/pewpew/sinks/sink.py` (`stride`, `SinkDriver`, `Dither`), pinned by
+`tests/test_pace.py` and `tests/test_sink.py`.

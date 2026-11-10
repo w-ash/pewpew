@@ -102,7 +102,7 @@ from pewpew.room.live import RigLive
 from pewpew.sinks.ansi import AnsiSink
 from pewpew.sinks.ddp import Board, DdpSink, parse_board
 from pewpew.sinks.preview import PreviewSink
-from pewpew.sinks.sink import Sink, SinkDriver
+from pewpew.sinks.sink import Sink, SinkDriver, stride
 from pewpew.watchdog import TIMEOUT_S as WATCHDOG_S
 from pewpew.watchdog import Stall, Watchdog, marker_path, take_marker
 
@@ -144,10 +144,7 @@ class Launch:
         return self.geometry.rig
 
     @classmethod
-    def read(
-        cls, args: argparse.Namespace, argv: list[str], *,
-        now: Callable[[], float], sleep: Callable[[float], None],
-    ) -> Launch:
+    def read(cls, args: argparse.Namespace, argv: list[str]) -> Launch:
         book = looks_book(args.looks, args.master_cap)
         geometry = map_geometry(args.map)
         rig, mapping = geometry.rig, geometry.mapping
@@ -159,8 +156,9 @@ class Launch:
         if follow or args.ddp:
             try:
                 boards = boards if boards is not None else [parse_board(spec) for spec in args.ddp]
-                # The loop feeds the sink at most `--fps` frames a second.
-                ddp = DdpSink(boards, len(mapping), max_fps=min(args.fps, args.ddp_fps), now=now, sleep=sleep)
+                # The loop feeds the sink every k-th tick: `--fps / k`, at most `--ddp-fps`.
+                rate = args.fps / stride(args.fps, args.ddp_fps)
+                ddp = DdpSink(boards, len(mapping), max_fps=rate)
             except ValueError as exc:
                 raise SystemExit(str(exc)) from None
         elif args.dry_run and not (args.audio or "").startswith(NET):
@@ -207,7 +205,6 @@ class Run:
         *,
         ansi_stream: TextIO | None = None,
         now: Callable[[], float],
-        sleep: Callable[[float], None],
         watch: Watch | None = None,
     ) -> None:
         args = self.args = launch.args
@@ -313,7 +310,7 @@ class Run:
             size = shutil.get_terminal_size((80, 24)) if ansi_stream is None else os.terminal_size((80, 24))
             self.ansi = AnsiSink(
                 launch.mapping, stream=ansi_stream, status=status_text(status), max_width=size.columns,
-                max_height=size.lines, now=now, sleep=sleep,
+                max_height=size.lines,
             )
             self.outputs.append((self.ansi, self.ansi.start))
         self.preview = None
@@ -322,14 +319,17 @@ class Run:
         if args.preview:
             self.preview = PreviewSink(
                 launch.mapping, host=args.host or "127.0.0.1", port=args.port, status=status,
-                control=self.aura.control, power=self._power_reading, now=now, sleep=sleep, **self._drawing(rig),
+                control=self.aura.control, power=self._power_reading, now=now, **self._drawing(rig),
             )
             self.outputs.append((self.preview, self._start_preview))
             if self.rig is not None:
                 self.rig.listeners.append(self._show_rig)
         if self.ddp is not None:
             self.outputs.append((self.ddp, self._start_ddp))
-        self.drivers = [SinkDriver(sink.send, name=type(sink).__name__) for sink, _ in self.outputs]
+        self.drivers = [
+            SinkDriver(sink.send, name=type(sink).__name__, every=stride(args.fps, sink.max_fps))
+            for sink, _ in self.outputs
+        ]
         # Each frame: the audio, then the aura's own stages, before it renders;
         # after it, the aura's, then the power limit, behind the master.
         self.loop = self.aura.loop(

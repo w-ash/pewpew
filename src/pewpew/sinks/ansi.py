@@ -16,14 +16,13 @@ tests compare exact strings.
 from __future__ import annotations
 
 import sys
-import time
 from collections.abc import Callable
 from typing import Self, TextIO
 
 import numpy as np
 
 from pewpew.color import bins
-from pewpew.sinks.sink import RateGate, to_display_u8
+from pewpew.sinks.sink import to_display_u8
 
 _RESET = "\x1b[0m"
 
@@ -128,7 +127,7 @@ class AnsiLayout:
 class AnsiSink:
     """Terminal sink: an interactive TTY gets hide-cursor and cursor-up
     overwrite (no clear, no flicker); a pipe gets one plain block per frame.
-    `send` blocks on its `RateGate`, 30 fps by default."""
+    It takes at most `max_fps` frames a second, 30 by default."""
 
     def __init__(
         self,
@@ -140,8 +139,6 @@ class AnsiSink:
         status: Callable[[], str | None] | None = None,
         max_width: int = 80,
         max_height: int = 24,
-        now: Callable[[], float] = time.perf_counter,
-        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._stream = stream if stream is not None else sys.stdout
         # The status line costs a text row, so the grid gets one fewer or
@@ -151,7 +148,7 @@ class AnsiSink:
         rows = max(1, max_height - 1) if status is not None else max_height
         self.layout = AnsiLayout.from_mapping(mapping, max_width=max_width, max_height=rows)
         self._status_width = max_width  # terminal width, not grid width
-        self._gate = RateGate(max_fps, now=now, sleep=sleep)
+        self.max_fps = float(max_fps)
         self._interactive = interactive
         self._status = status
         self._active = False
@@ -191,7 +188,6 @@ class AnsiSink:
         self.stop()
 
     def send(self, t: float, frame: np.ndarray) -> None:
-        self._gate.wait()
         body = self.layout.render_frame(frame)
         text = self._status() if self._status is not None else None
         # Interactive mode keeps the (possibly empty) status line so the

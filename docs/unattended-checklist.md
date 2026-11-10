@@ -56,7 +56,7 @@ agents only read (CLAUDE.md T-7).
       upgrade that changes its arguments. Path placeholders must be
       absolute: launchd expands no `~` (`deploy/launchd/pewpew-aura.plist`).
       `__HOST__` is the laptop's reserved address on the private router (§2);
-      `__FPS__` is the DDP rate (§9), 40 by default until the test runs:
+      `__FPS__` is the DDP rate (§9), 60 by default until the test runs:
 
       Run it from the repo root:
 
@@ -66,7 +66,7 @@ agents only read (CLAUDE.md T-7).
       sed -e "s|__REPO__|$PWD|g" \
           -e "s|__MAP__|/path/to/rig.arrangement.json|g" -e "s|__LOOKS__|/path/to/looks.json|g" \
           -e "s|__HOST__|<the laptop's address on the private router>|g" \
-          -e "s|__LOGS__|$HOME/Library/Logs/pewpew|g" -e "s|__FPS__|40|g" \
+          -e "s|__LOGS__|$HOME/Library/Logs/pewpew|g" -e "s|__FPS__|60|g" \
           deploy/launchd/pewpew-aura.plist > ~/Library/LaunchAgents/local.pewpew.aura.plist
       plutil -lint ~/Library/LaunchAgents/local.pewpew.aura.plist
       ```
@@ -247,7 +247,8 @@ they exist.
 - Results file.
 - Router channel used.
 - Firmware compared (v16.0.1 vs v0.15.4) and chosen.
-- Delivered `leds.fps`, median per board at 40, 50 and 60 fps, and pass^3
+- Delivered `leds.fps`, median per board at 30 and 60 fps (a DDP rate divides the loop's
+  `--fps`), and pass^3
   (held = median ≥ 0.9× sent, no reboot).
 - RSSI range per board.
 - Chosen DDP rate (`--ddp-fps`).

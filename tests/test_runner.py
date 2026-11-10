@@ -46,7 +46,7 @@ from pewpew.pace import PacedLoop
 from pewpew.rig import EXAMPLES
 from pewpew.run import preview_url, status_line
 from pewpew.sinks import ddp, preview
-from pewpew.sinks.sink import to_linear_u8
+from pewpew.sinks.sink import Dither
 from pewpew.testing.clock import FakeClock
 from pewpew.watchdog import Watchdog
 
@@ -71,7 +71,8 @@ def usage_error(argv, capsys) -> str:
 
 
 def test_run_renders_n_frames_to_ansi_and_exits_clean():
-    rc, out = run_main(["run", looks_file(), "--map", "line:8", "--frames", "3"])
+    # The terminal takes 30 fps, so a 30 fps loop sends it every frame.
+    rc, out = run_main(["run", looks_file(), "--map", "line:8", "--frames", "3", "--fps", "30"])
     assert rc == 0
     # Pipe mode (StringIO is not a tty): three frame blocks, no cursor codes.
     # Exactly three because teardown drains the mailbox before stopping —
@@ -262,7 +263,7 @@ def test_dry_run_prints_the_plan_and_sends_nothing(audit_log, recorder, capsys):
     assert run_main(argv)[0] == 0
     out = capsys.readouterr().out
     assert "nothing sent" in out
-    assert "ddp 10.0.0.12:4048  pixels 1280-2559 (1280)  3 packets/frame  154,800 B/s at 40 fps" in out
+    assert "ddp 10.0.0.12:4048  pixels 1280-2559 (1280)  3 packets/frame  232,200 B/s at 60 fps" in out
     assert recorder.sent == []
     assert not audit_log.exists()
 
@@ -287,7 +288,7 @@ def test_dry_run_refuses_what_a_launch_would(looks, message, tmp_path, recorder)
 
 def test_real_run_audits_first_then_streams(audit_log, recorder, capsys):
     argv = ["run", looks_file(), "--map", "line:8", "--frames", "3", "--ddp", "127.0.0.1:4049=0+8",
-            "--ddp-fps", "50"]
+            "--fps", "50", "--ddp-fps", "50"]
     assert run_main(argv)[0] == 0
     assert len(recorder.sent) == 3  # one packet per frame, last frame drained
     assert {addr for _, addr in recorder.sent} == {("127.0.0.1", 4049)}
@@ -310,6 +311,14 @@ def test_ddp_rate_is_capped_by_the_loop_rate(audit_log, recorder, capsys):
     assert run_main([*base, "--frames", "2"])[0] == 0
     [entry] = [json.loads(s) for s in audit_log.read_text().splitlines()]
     assert entry["fps"] == 30.0
+
+
+@pytest.mark.parametrize("ddp_fps, shown", [("60", 60), ("50", 30), ("40", 30), ("29", 20)])
+def test_the_ddp_rate_is_the_loop_rate_over_a_whole_number(ddp_fps, shown, capsys):
+    # Every k-th loop frame, evenly spaced: 60 fps never feeds a board 50.
+    base = ["run", looks_file(), "--map", "line:8", "--ddp", "127.0.0.1=0+8", "--ddp-fps", ddp_fps]
+    assert run_main([*base, "--dry-run"])[0] == 0
+    assert f"at {shown} fps" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("flag, value, message", [
@@ -516,7 +525,8 @@ def test_the_boards_receive_the_render_of_the_args_dimmed_by_the_master(extra, c
     assert run_main(argv)[0] == 0
     # The look runs its layer `base`, seeded from the look's own seed.
     made = frames(hosted(program_of(chain), line(8), seed=layer_seed(0, "base")), 3)
-    want = [to_linear_u8(f * np.float32(scale)).tobytes() for f in made]
+    dither = Dither()
+    want = [dither(f * np.float32(scale)).tobytes() for f in made]
     assert [data[ddp.HEADER_LEN:] for data, _ in recorder.sent] == want
 
 

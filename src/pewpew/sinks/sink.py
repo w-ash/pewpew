@@ -5,10 +5,13 @@ linear-light frame to a terminal, a browser or a DDP socket. A sink may
 block and raise; the render loop may not, so a sink never runs on the loop
 thread:
 
-    PacedLoop(renderer, on_frame=[SinkDriver(sink.send)])
+    PacedLoop(renderer, fps, on_frame=[SinkDriver(sink.send, every=stride(fps, sink.max_fps))])
 
-`SinkDriver` coalesces frames newest-wins and contains errors, and the sink
-paces its own output rate with a `RateGate` inside `send` (ADR-010).
+The loop is the only clock (ADR-010). A sink that takes fewer frames than
+the loop renders gets every k-th tick (`stride`), so its frames are evenly
+spaced; no sink sleeps to pace itself, since a second clock beats against
+the loop's and drops frames unevenly. `SinkDriver` coalesces frames
+newest-wins and contains errors.
 
 Fill/latch (ADR-003): `send` fills a frame's packets and sets the latch on
 the last one, so `send(t, frame)` is the whole per-frame surface. A latch
@@ -18,6 +21,7 @@ synchronized across receivers would be a coordinator above several sinks.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -42,6 +46,10 @@ DISPLAY_GAMMA = 2.2
 class Sink(Protocol):
     """What every output implements; see the module docstring for how a
     sink composes with `SinkDriver` and where fill/latch semantics live."""
+
+    max_fps: float
+    """The most frames a second it takes; the loop feeds it every
+    `stride(loop_fps, max_fps)`-th tick."""
 
     def start(self) -> None:
         """Acquire the transport (open socket, take over the terminal)."""
@@ -146,15 +154,6 @@ def from_display_u8(rgb: np.ndarray, gamma: float = DISPLAY_GAMMA) -> np.ndarray
     return table[np.asarray(rgb, dtype=np.uint8)]
 
 
-def to_linear_u8(frame: np.ndarray) -> np.ndarray:
-    """Linear-light float frame -> linear `(N, 3)` uint8 for an LED wire.
-
-    The quantize-once point for 8-bit LED sinks: sanitize and quantize with
-    no curve, because LED PWM duty is linear in emitted light.
-    """
-    return _quantize(sanitize(frame))
-
-
 def sanitize(frame: np.ndarray) -> np.ndarray:
     """A frame as a sink shows it: NaN and -inf -> 0, +inf -> 1, then
     clipped to [0, 1]. Any shape."""
@@ -166,41 +165,68 @@ def _quantize(v: np.ndarray) -> np.ndarray:
     return (v * 255.0).round().astype(np.uint8)
 
 
-class RateGate:
-    """Blocking output-rate limiter for a sink's `send`.
+# Temporal dither (ADR-002 tier 3, after HyperHDR's adaptive temporal
+# error diffusion, research/code-reading/hyperhdr.md §2). Units are 8-bit steps.
+DITHER_MOTION = 0.01  # least change of a pixel's fastest channel that carries error
+DITHER_LEAK_FLOOR = 0.8  # share of the error a fast change keeps
+DITHER_FAST = 50.0  # a change c (full scale = 1) is fast when c**2 * DITHER_FAST >= 1
 
-    Call `wait()` at the top of `send`: the first call passes at once, and
-    later calls sleep until the next output slot. The SinkDriver mailbox
-    coalesces frames while the gate sleeps, so a 30 fps sink under a 60 fps
-    engine drops every other frame. Falling behind re-bases the schedule to
-    now: a sink has no backlog to clear, only a newest frame.
+
+class Dither:
+    """Linear-light float frames -> linear `(N, 3)` uint8 for an 8-bit LED
+    wire, with temporal error diffusion per pixel.
+
+    LED duty is linear in light (ADR-001), so there is no curve. Each pixel
+    carries its rounding error into its next frame, so a slow fade shows
+    the mean of its true level over the frames, not a staircase. Error
+    carries only while the pixel's fastest channel moves the same way as
+    in the frame before, by at least `DITHER_MOTION` steps: a reversal or
+    a jitter gets plain rounding, which does not shimmer. A fast change
+    keeps less of the error (down to `DITHER_LEAK_FLOOR`). A pixel equal to
+    its last input, or below half a step, gets plain rounding and drops
+    its error, so a held color is steady.
+
+    One per output stream: the state is the last frame's. A frame of a new
+    size starts it again. Same frames in, same bytes out.
     """
 
-    def __init__(
-        self,
-        max_fps: float,
-        *,
-        now: Callable[[], float] = time.perf_counter,
-        sleep: Callable[[float], None] = time.sleep,
-    ) -> None:
-        if max_fps <= 0.0:
-            raise ValueError(f"max_fps must be positive, got {max_fps!r}")
-        self._period = 1.0 / float(max_fps)
-        self._now = now
-        self._sleep = sleep
-        self._next_due: float | None = None
+    def __init__(self) -> None:
+        self._last: np.ndarray | None = None  # (N, 3) float32, in steps
+        self._error = np.zeros((0, 3), np.float32)
+        self._flow = np.zeros(0, np.int8)  # sign of each pixel's last change
 
-    def wait(self) -> None:
-        t = self._now()
-        if self._next_due is None:
-            self._next_due = t + self._period
-            return
-        slack = self._next_due - t
-        if slack > 0.0:
-            self._sleep(slack)
-            self._next_due += self._period
-        else:
-            self._next_due = t + self._period
+    def __call__(self, frame: np.ndarray) -> np.ndarray:
+        x = sanitize(np.asarray(frame, np.float32)) * np.float32(255.0)
+        last = self._last
+        self._last = x
+        if last is None or last.shape != x.shape:
+            self._error = np.zeros_like(x)
+            self._flow = np.zeros(len(x), np.int8)
+            return np.rint(x).astype(np.uint8)
+        diff = x - last
+        fastest = diff[np.arange(len(x)), np.abs(diff).argmax(axis=1)]
+        flow = np.sign(fastest).astype(np.int8)
+        carry = (flow != 0) & (flow == self._flow) & (np.abs(fastest) >= DITHER_MOTION)
+        target = x + np.where(carry[:, None], self._error, np.float32(0.0))
+        out = np.clip(np.rint(target), 0.0, 255.0)
+        fast = np.clip((fastest / np.float32(255.0)) ** 2 * np.float32(DITHER_FAST), 0.0, 1.0)
+        leak = np.float32(1.0) - np.float32(1.0 - DITHER_LEAK_FLOOR) * fast
+        error = (target - out) * leak[:, None]
+        held = (flow == 0) | (x.max(axis=1) < 0.5)
+        out[held] = np.rint(x[held])
+        error[held] = 0.0
+        flow[held] = 0
+        self._error = error.astype(np.float32)
+        self._flow = flow
+        return out.astype(np.uint8)
+
+
+def stride(loop_fps: float, max_fps: float) -> int:
+    """Loop ticks between a sink's frames: the least whole k with
+    `loop_fps / k <= max_fps`."""
+    if loop_fps <= 0.0 or max_fps <= 0.0:
+        raise ValueError(f"rates must be positive, got {loop_fps!r} and {max_fps!r}")
+    return max(1, math.ceil(loop_fps / max_fps - 1e-9))
 
 
 # What a SinkDriver carries: the loop's frame, or a fan-out sink's
@@ -218,15 +244,23 @@ class SinkDriver(Generic[P]):
     `send` are contained and counted (`errors`), the first of each type
     logged. A driver is its own `on_frame` callable.
 
+    With `every` k, it takes the first submit and every k-th after it and
+    ignores the rest, so a slower sink gets evenly spaced loop ticks
+    (`stride`).
+
     One-shot: `start()` once, `stop()` once. Submitting while the worker is
     not running drops the frame with one warning. `drain()` before `stop()`
     is the orderly exit: it waits for the pending frame to be sent, which
     `stop()` does not.
     """
 
-    def __init__(self, send: Callable[[float, P], None], *, name: str = "sink") -> None:
+    def __init__(self, send: Callable[[float, P], None], *, name: str = "sink", every: int = 1) -> None:
+        if every < 1:
+            raise ValueError(f"every must be at least 1, got {every!r}")
         self._send = send
         self.name = name
+        self.every = every
+        self._ticks = 0  # submits seen, for `every`
         self.dropped = 0  # frames coalesced away by newest-wins, or dropped dead
         self.errors = 0  # contained send exceptions
         self._cond = threading.Condition()
@@ -292,7 +326,11 @@ class SinkDriver(Generic[P]):
         self.stop()
 
     def submit(self, t: float, frame: P) -> None:
-        """Hand the newest frame to the worker; never blocks, never raises."""
+        """Hand the newest frame to the worker, if this submit is one of
+        every `every`; never blocks, never raises."""
+        tick, self._ticks = self._ticks, self._ticks + 1
+        if tick % self.every:
+            return
         if not self._worker.is_alive():
             self.dropped += 1
             if not self._warned_dead:

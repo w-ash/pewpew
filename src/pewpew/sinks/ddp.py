@@ -24,19 +24,24 @@ packets (3waylabs DDP spec; WLED v16.0.1 `wled00/e131.cpp`):
   the old run's last sequence number drops packets of the new run's first
   frame (`wled00/e131.cpp:43-52`).
 
-Colour: linear light quantized once to u8 (`to_linear_u8`), no gamma. LED
-duty is linear in light (ADR-001), and WLED applies no colour gamma to
-realtime data by default (`arlsDisableGammaCorrection`, `wled00/wled.h`).
-WLED still scales realtime data by its own brightness, so each board is
-pinned at 255 with "Force max brightness" (architecture §4b).
+Colour: linear light to u8 through `Dither`, no gamma: temporal error
+diffusion per pixel, so a dim fade averages to its true level (ADR-002
+tier 3). LED duty is linear in light (ADR-001), and WLED applies no colour
+gamma to realtime data by default (`arlsDisableGammaCorrection`,
+`wled00/wled.h`). WLED still scales realtime data by its own brightness,
+so each board is pinned at 255 with "Force max brightness" (architecture
+§4b).
 
-Pacing: `RateGate` at `max_fps` (default 40). WLED shows a streamed frame
-only when more than 15 ms have passed since it last showed one, so a steady
-rate below about 66 fps is what a board can display.
+Pacing: the render loop feeds the sink every k-th tick (`stride`), at most
+`max_fps` (default 40) frames a second; the sink never sleeps. WLED shows
+a pushed frame only when more than 15 ms have passed since it last showed
+one (`wled00/udp.cpp:477` in v16.0.1), and a frame that arrives before the
+waiting one is shown overwrites it. Evenly spaced frames at 60 fps (16.7
+ms) clear that gate; frames that bunch do not.
 
-Packet bytes depend only on the frames sent and their order: no clock
-shapes them, and the socket is injectable so tests read packets without a
-network.
+Packet bytes depend only on the frames sent and their order (the dither
+keeps state from frame to frame): no clock shapes them, and the socket is
+injectable so tests read packets without a network.
 
 Addressing. A board's host is an IPv4 address literal or an mDNS name such
 as `pewpew-1.local`, the name WLED advertises (`board_host`). The sink
@@ -62,14 +67,13 @@ import math
 import re
 import socket
 import struct
-import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
 
-from pewpew.sinks.sink import RateGate, to_linear_u8
+from pewpew.sinks.sink import Dither
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +271,10 @@ class Layout:
 
 
 class DdpSink:
-    """Send each frame to every board as DDP, paced by `RateGate`."""
+    """Send each frame to every board as DDP, dithered to 8 bits.
+
+    `max_fps` is the rate the loop feeds it, which the plan and the audit
+    log report."""
 
     def __init__(
         self,
@@ -276,11 +283,11 @@ class DdpSink:
         *,
         max_fps: float = 40.0,
         open_socket: Callable[[], DatagramSocket] | None = None,
-        now: Callable[[], float] = time.perf_counter,
-        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        if max_fps <= 0.0:
+            raise ValueError(f"max_fps must be positive, got {max_fps!r}")
         self.max_fps = float(max_fps)
-        self._gate = RateGate(max_fps, now=now, sleep=sleep)
+        self._dither = Dither()
         self._open_socket = open_socket
         self._sock: DatagramSocket | None = None
         # (host, port) -> socket address, or None while a name is unresolved.
@@ -355,7 +362,6 @@ class DdpSink:
             sock.close()
 
     def send(self, t: float, frame: np.ndarray) -> None:
-        self._gate.wait()
         sock = self._sock
         if sock is None:
             raise RuntimeError("DdpSink.send() before start()")
@@ -364,7 +370,7 @@ class DdpSink:
             if len(frame) == layout.previous_n:
                 return  # rendered before a map reload; the next frame fits
             raise ValueError(f"frame has {len(frame)} pixels; the boards were laid out for {layout.n_pixels}")
-        rgb = to_linear_u8(frame)
+        rgb = self._dither(frame)
         for i, board in enumerate(layout.boards):
             packets, layout.seq[i] = board_packets(rgb[board.start : board.stop].tobytes(), layout.seq[i])
             addr = self._addresses.get((board.host, board.port))

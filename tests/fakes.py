@@ -138,15 +138,14 @@ class UdpRecorder:
 
 
 def ddp_sink(boards: list[Board], n: int, *, fail_for: str | None = None,
-             start: bool = True) -> tuple[DdpSink, UdpRecorder, FakeTime]:
-    """A 40 fps DDP sink of `n` pixels on a fake clock and a recording
-    socket, started unless `start` is False."""
+             start: bool = True) -> tuple[DdpSink, UdpRecorder]:
+    """A 40 fps DDP sink of `n` pixels on a recording socket, started
+    unless `start` is False."""
     rec = UdpRecorder(fail_for)
-    ft = FakeTime()
-    sink = DdpSink(boards, n, open_socket=lambda: rec, now=ft.now, sleep=ft.sleep)
+    sink = DdpSink(boards, n, open_socket=lambda: rec)
     if start:
         sink.start()
-    return sink, rec, ft
+    return sink, rec
 
 
 def no_watch(source, stop):
@@ -234,7 +233,7 @@ def client_for(sink: PreviewSink):
 def preview_sink(mapping, **kw) -> PreviewSink:
     """A preview of `mapping` on a free port and a fake clock, not started."""
     ft = FakeTime()
-    return PreviewSink(mapping, port=0, now=ft.now, sleep=ft.sleep, **kw)
+    return PreviewSink(mapping, port=0, now=ft.now, **kw)
 
 
 @contextlib.contextmanager
@@ -667,12 +666,11 @@ class Painter:
 
 
 def run_main(argv: list[str], *, ansi_stream: io.StringIO | None = None, **kw) -> tuple[int, str]:
-    """`main` on a fake clock, with no file watcher: the RateGate then costs
-    no wall time. The sinks and the loop share that clock, and a frame
-    reaches a sink only if the loop does not outrun it, so each time the
-    loop thread reads or sleeps the clock it first waits for every sink
-    driver to send what it holds, whatever the CPU load. Frame counts are
-    then exact. Returns the exit code and what the ANSI sink wrote."""
+    """`main` on a fake clock, with no file watcher. A frame reaches a sink
+    only if the loop does not outrun it, so each time the loop thread reads
+    the clock it first waits for every sink driver to send what it holds,
+    whatever the CPU load. Frame counts are then exact. Returns the exit
+    code and what the ANSI sink wrote."""
     ft = FakeTime()
     stream = ansi_stream if ansi_stream is not None else io.StringIO()
     kw.setdefault("watch", no_watch)
@@ -693,12 +691,8 @@ def run_main(argv: list[str], *, ansi_stream: io.StringIO | None = None, **kw) -
         settle()
         return ft.now()
 
-    def sleep(s: float) -> None:
-        settle()
-        ft.sleep(s)
-
     with mock.patch.object(SinkDriver, "__init__", tracking):
-        rc = main(argv, ansi_stream=stream, now=now, sleep=sleep, **kw)
+        rc = main(argv, ansi_stream=stream, now=now, **kw)
     return rc, stream.getvalue()
 
 
@@ -707,8 +701,8 @@ def build(argv: list[str], **kw) -> Run:
     the same fakes as `run_main`."""
     ft = FakeTime()
     kw.setdefault("watch", no_watch)
-    launch = Launch.read(parse(argv), argv, now=ft.now, sleep=ft.sleep)
-    return Run(launch, ansi_stream=io.StringIO(), now=ft.now, sleep=ft.sleep, **kw)
+    launch = Launch.read(parse(argv), argv)
+    return Run(launch, ansi_stream=io.StringIO(), now=ft.now, **kw)
 
 
 def instant_looks(monkeypatch) -> None:
