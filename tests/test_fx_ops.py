@@ -255,3 +255,33 @@ def test_a_saw_osc_wrap_counts_as_a_flash_and_stays_within_the_gate_at_the_top_r
         return measure(frames, FPS).flash_rate_max
 
     assert 0.0 < flashes(1.0) <= FLASH_LIMIT
+
+
+def test_a_dither_sparkles_only_next_to_an_edge() -> None:
+    """A light reaches half a spacing at amount 0.5, so only a light beside
+    a hard edge ever changes; the flat parts hold still."""
+    mapping = line(24)
+    still = run(program_of("shape(0, 0.3, 0)"), mapping, 1)[0]
+    shown = run(program_of("shape(0, 0.3, 0).dither(0.5, 6)"), mapping, 120)
+    changed = np.flatnonzero(np.ptp(shown, axis=0).max(axis=-1) > 1e-6)
+    edges = np.flatnonzero(np.abs(np.diff(still, axis=0)).max(axis=-1) > 0.5)
+    beside = set(edges) | set(edges + 1)
+    assert len(changed) and set(changed) <= beside, (changed, edges)
+
+
+def test_a_dither_at_rate_0_holds_its_spots() -> None:
+    shown = run(program_of("shape(0, 0.3, 0).dither(1, 0)"), line(24), 30)
+    assert np.array_equal(shown[0], shown[-1])
+
+
+def test_a_dither_reaches_by_the_spacing_along_each_axis() -> None:
+    """Bars far apart, lights close together along each: the spacing along
+    x is the gap between bars, along y the gap between lights."""
+    from pewpew.fx.ops.coord import _pitch
+
+    xs = np.repeat(np.array([0.0, 0.15, 0.30, 0.45], np.float32), 64)
+    ys = np.tile(np.linspace(0.0, 1.0, 64, dtype=np.float32), 4)
+    assert _pitch(xs, 0.45, len(xs), 0.05) == pytest.approx(0.15, rel=1e-3)
+    assert _pitch(ys, 1.0, len(ys), 0.05) == pytest.approx(1 / 63, rel=1e-3)
+    scattered = np.random.default_rng(0).random(256).astype(np.float32)
+    assert _pitch(scattered, 1.0, 256, 0.05) == 0.05

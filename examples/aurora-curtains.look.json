@@ -1,0 +1,32 @@
+{
+  "version": 4,
+  "current": "aurora-curtains",
+  "looks": {
+    "aurora-curtains": {
+      "seed": 4, "master": 0.9, "fade": 5.0, "cycle": true,
+      "layers": [
+        {"id": "curtain", "out": "tint", "nodes": {
+            "folds": {"op": "osc", "args": {"freq": 3.5, "sync": 0.05, "axis": "x"}},
+            "breeze": {"op": "noise", "args": {"scale": 2.2, "speed": 0.1, "octaves": 2}},
+            "tall": {"op": "scale", "in": ["breeze"], "args": {"amount": 1.5, "axis": "y"}},
+            "ripple": {"op": "modulate", "in": ["folds", "tall"], "args": {"amount": 0.5}},
+            "hem": {"op": "osc", "args": {"freq": 0.8, "sync": 0.0, "offset": 0.03, "axis": "y"}},
+            "sway": {"op": "modulate", "in": ["hem", "tall"], "args": {"amount": 0.2}},
+            "edge": {"op": "contrast", "in": ["sway"], "args": {"amount": 1.6}},
+            "veil": {"op": "mult", "in": ["ripple", "edge"], "args": {}},
+            "tint": {"op": "palette", "in": ["veil"], "args": {"palette": {"label": "aurora", "stops": [{"at": 0, "h": 250, "s": 1, "v": 0.03}, {"at": 0.4, "h": 145, "s": 1, "v": 0.35}, {"at": 1, "h": 122, "s": 1, "v": 1}]}}}}},
+        {"id": "crown", "opacity": 0.6, "blend": "screen", "out": "tint", "nodes": {
+            "folds": {"op": "osc", "args": {"freq": 3.5, "sync": 0.05, "axis": "x"}},
+            "breeze": {"op": "noise", "args": {"scale": 2.2, "speed": 0.1, "octaves": 2}},
+            "ripple": {"op": "modulate", "in": ["folds", "breeze"], "args": {"amount": 0.5}},
+            "cap": {"op": "osc", "args": {"freq": 0.8, "sync": 0.0, "offset": 0.55, "axis": "y"}},
+            "edge": {"op": "contrast", "in": ["cap"], "args": {"amount": 1.8}},
+            "glow": {"op": "mult", "in": ["ripple", "edge"], "args": {}},
+            "tint": {"op": "palette", "in": ["glow"], "args": {"palette": {"label": "red crown", "stops": [{"at": 0, "h": 330, "s": 1, "v": 0.0}, {"at": 0.5, "h": 345, "s": 1, "v": 0.15}, {"at": 1, "h": 0, "s": 1, "v": 0.6}]}}}}}],
+      "signals": {
+          "gust": {"op": "walk", "args": {"rate": 0.06}},
+          "flare": {"op": "lfo", "args": {"rate": 0.023}}},
+      "routes": [
+          {"source": "gust", "path": "layers.curtain.ripple.amount", "depth": 0.2},
+          {"source": "flare", "path": "layers.crown.opacity", "depth": 0.3}],
+      "front": ["layers.curtain.folds.freq", "layers.curtain.ripple.amount", "layers.crown.opacity"]}}}

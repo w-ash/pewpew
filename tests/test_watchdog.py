@@ -140,7 +140,7 @@ def test_each_frame_the_loop_completes_is_a_beat():
     dog = Watchdog(5.0, now=ft.now)
     loop = PacedLoop(hosted(costed(ft), line(8)), fps=60.0, on_frame=[dog.beat], now=ft.now, sleep=ft.sleep)
     loop.run(frames=3)
-    last = ft.t - ft.sleeps[-1]  # the beat comes before the frame's sleep
+    last = ft.t  # the beat comes at the end of the frame's slot
     ft.t = last + 4.9
     assert dog.check() is None
     ft.t = last + 5.0

@@ -1,7 +1,7 @@
 """PreviewSink protocol tests: real loopback sockets, no browser.
 
-Ephemeral ports (port=0) so tests never collide; the sink's RateGate runs
-on fake time so nothing here sleeps for pacing. The stall-isolation
+Ephemeral ports (port=0) so tests never collide; the sink's clock is fake
+time, so nothing here sleeps. The stall-isolation
 guarantee itself (submit never blocks) is SinkDriver's, proven in
 tests/test_sink_driver.py — here we prove the sink wires one driver per
 client and contains a dead client without losing the live ones.
@@ -940,12 +940,14 @@ def test_live_values_are_read_at_most_ten_times_a_second_and_sent_only_on_change
     ft = FakeTime()
     controls = FakeControl()
     frame = np.zeros((4, 3), dtype=np.float32)
-    with PreviewSink(line(4), port=0, max_fps=60.0, now=ft.now, sleep=ft.sleep,
+    with PreviewSink(line(4), port=0, now=ft.now,
                      control=controls) as sink:  # type: ignore[arg-type]  # the fake has what a sink reads
         ws, greeting = greet(sink)
         with ws:
             assert greeting["mod"] == {"type": "mod", "values": {}}
             for i in range(60):  # a second at 60 fps, a new live value every frame
+                if i:
+                    ft.sleep(1 / 60)
                 controls.mods = {"speed": i / 100}
                 sink.send(ft.now(), frame)
             assert ft.now() == pytest.approx(59 / 60)

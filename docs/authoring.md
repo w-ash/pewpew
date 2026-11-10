@@ -378,9 +378,7 @@ flashes, as for any look.
 
 ### Example looks
 
-`examples/` holds fourteen looks, one per file: the eleven below and three
-small ones the MCP examples use (`mcp-ember`, `mcp-prism`, `mcp-tide`),
-each passing `verify looks
+`examples/` holds twenty looks, one per file, each passing `verify looks
 examples/` (which renders a program on a 16x16 panel) and `verify looks
 --map` on the maps it is for (`line:120` for a strip, `lattice:6` for a
 volume). The gate does not probe what a map's shape cannot show, as each
@@ -391,28 +389,53 @@ spread along, such as `lissajous`'s `b` on a strip along x, or `mirror`'s
 choices that read the map alike, such as `u` against the axis a strip runs
 along.
 
-- `copper-tide` (strip): copper and teal tides meet in the middle, their
-  palettes cycling a golden ratio apart.
-- `warp-lane` (strip): stars at the centre stream out to both ends through
-  a zooming feedback field.
-- `milk-bloom` (panel): a kaleidoscope of noise falls into a swirling
-  feedback drain.
-- `penrose-lagoon` (panel): seven-fold quasicrystal waves under a
-  five-fold glint, palettes cycling a golden ratio apart.
-- `turing-garden` (panel): Gray-Scott coral grows from seeds and keeps
-  reseeding.
+Each keeps to one color family, starts dark and keeps its bright colors
+saturated, so a diffuser blending neighbouring lights does not wash it to
+white; some go fully dark in places.
+
+- `copper-tide` (strip): a mirrored copper-gold tide meets a crimson
+  counter-tide, their palettes cycling a golden ratio apart.
+- `warp-lane` (strip): stars stream out of a central mouth through a
+  zooming feedback field, deep indigo to ice blue.
+- `firefly-ink` (strip): lime fireflies wander and fade on near-black
+  green, their glow bleeding along the points.
 - `sway` (panel): rainbow bars sway back and forth on a slow `lfo` while
   `rotate` spins their direction.
-- `depth-charge` (volume): drops fall in a pond of points and rings spread
-  through it.
+- `prism` (panel): five-fold kaleidoscope spokes in red-violet and
+  yellow-orange, their edges broken into a sparkle by `dither`.
+- `milk-bloom` (panel): kaleidoscope noise blooms into a swirling
+  feedback drain, magenta to rose over dark violet.
+- `penrose-lagoon` (panel): a seven-fold quasicrystal turns through deep
+  blue water under rare green-cyan glints.
+- `turing-garden` (panel or room): a cyclic cellular automaton on a grid of
+  cells laid over the lights (`life`'s `cell`), its emerald spiral fronts
+  born bright and dying through a faint holly-red ember, over a dim bed of
+  dividing Gray-Scott cells.
+- `eddy` (panel or strip): swells rippled by noise, cobalt over dark
+  blue-violet.
+- `ember` (panel): slow crimson heat with rose sparks drifting up.
+- `lava-lamp` (panel): heavy metaballs drift, swell and melt together,
+  orange cores fading through red to deep violet.
+- `comet-knot` (panel): four comets chase round a 3:2 Lissajous knot,
+  gold heads with tails fading through orange to deep red.
+- `orchid-twinkle` (panel): lights twinkle on near-black indigo, each on
+  its own clock, violet to orchid pink, now and then a rose flare.
+- `stained-glass` (panel): ruby and indigo panes glow between dark
+  Voronoi seams, drifting and changing color slowly.
+- `aurora-curtains` (panel): green curtains ripple and fold, brightest
+  low, under a dim red crown that swells.
+- `maelstrom` (panel): violet spiral arms pull into a black core down a
+  `tunnel` while two orchid comets orbit with feedback trails.
+- `tide` (panel or room): blue-to-cyan waves fold into five mirrored
+  wedges over deep indigo, an echo layer feeding back the frame below and
+  seafoam glints on top.
+- `depth-charge` (volume): drops fall in a deep-blue pond, teal rings
+  spreading through it, and teal bubbles rise on the beat.
 - `lorenz-lantern` (volume): sixteen Lorenz moths trail light as the
-  butterfly turns.
-- `ember-fountain` (volume or room): embers rise from the floor on a
-  curl-noise breeze, smoke trailing up.
-- `tide` (panel or room): five-fold stripes rippled by noise, an echo
-  layer that feeds back the frame below, and sparks on top.
-- `firefly-ink` (any map): fireflies wander, and their glow bleeds along
-  the points.
+  butterfly turns, violet edges, magenta inside, rose-red heads, over a
+  faint indigo mist.
+- `ember-fountain` (volume or room): red-orange embers rise from
+  smouldering coals on a curl-noise breeze, dark-red smoke trailing up.
 
 Each also has signals and routes (a slow `walk` or `lfo` on a hue, a warp,
 a size or a flow; the beat or a sound band on what pulses) and a `front` list of

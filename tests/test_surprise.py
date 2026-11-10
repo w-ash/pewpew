@@ -234,7 +234,7 @@ def test_the_ops_of_each_role_run_on_the_map_and_a_warp_along_an_axis_runs_on_ev
         for role in ("field", "sim", "warp", "tone", "state"):
             assert all(space.dims in cls.dims for cls in surprise.ops(space, role))
     warps = {spec: {cls.op for cls in surprise.ops(_space(spec), "warp")} for spec in ("line:16", "grid:4x4")}
-    assert warps["line:16"] == {"mirror", "modulate", "repeat", "scale"}
+    assert warps["line:16"] == {"dither", "mirror", "modulate", "repeat", "scale"}
     assert {"kaleid", "mirror", "polar", "repeat", "rotate", "scale", "tunnel"} <= warps["grid:4x4"]
 
 
@@ -280,7 +280,7 @@ def test_nothing_that_passes_is_no_look_whether_made_or_changed(monkeypatch):
     monkeypatch.setattr(surprise, "judge", lambda candidate, space: surprise.Verdict(("flashes",)))
     with pytest.raises(surprise.NoLook, match="try another seed"):
         surprise.generate(0, parse_map("line:8"))
-    look = ready(EXAMPLES / "mcp-tide.look.json").look
+    look = ready(EXAMPLES / "eddy.look.json").look
     with pytest.raises(surprise.NoLook, match="no change of the look made from seed 1 passed the content gate"):
         surprise.mutate(look, 1, parse_map("line:8"))
 
@@ -306,7 +306,7 @@ def test_an_op_defined_outside_the_engine_never_joins_the_grammar():
 
 
 def test_keep_names_what_is_there():
-    look = ready(EXAMPLES / "mcp-tide.look.json").look
+    look = ready(EXAMPLES / "eddy.look.json").look
     with pytest.raises(Refused) as caught:
         surprise.mutate(look, 0, parse_map("line:8"), keep=["layers.base", "layers.base.swel"])
     (problem,) = caught.value.problems
@@ -316,10 +316,14 @@ def test_keep_names_what_is_there():
     assert surprise.Held.of(["layers.base.swell"], ready(look)).holds("layers.base.swell.freq")
 
 
+# Every part of eddy: its one layer and its two signals.
+EDDY_WHOLE = ["layers.base", "signals.tide", "signals.drift"]
+
+
 def test_vary_holding_the_whole_look_makes_nothing_and_says_so(tmp_path):
-    look = ready(EXAMPLES / "mcp-tide.look.json").look
+    look = ready(EXAMPLES / "eddy.look.json").look
     with pytest.raises(surprise.NoLook, match="keep less"):
-        lab.vary(look, 3, 2, keep=["layers.base"], map_spec="line:32", cache=Cache(tmp_path))
+        lab.vary(look, 3, 2, keep=EDDY_WHOLE, map_spec="line:32", cache=Cache(tmp_path))
 
 
 def test_a_candidate_carries_the_taste_gates_its_render_fails(monkeypatch, tmp_path, fake_ops):
@@ -334,7 +338,7 @@ def test_a_candidate_carries_the_taste_gates_its_render_fails(monkeypatch, tmp_p
 
 @pytest.mark.parametrize("strength", [0, 0.0, -1, 5.0, float("nan"), True, "0.5"])
 def test_a_strength_not_above_0_and_at_most_1_is_refused_never_clamped(strength):
-    look = ready(EXAMPLES / "mcp-tide.look.json").look
+    look = ready(EXAMPLES / "eddy.look.json").look
     words = r"a strength is a number above 0 and at most 1 \(at 0 a look does not change\), got "
     with pytest.raises(ValueError, match=words):
         surprise.mutate(look, 0, parse_map("line:8"), strength=strength)
@@ -349,7 +353,7 @@ def test_a_map_whose_points_sit_at_one_place_is_refused_saying_why():
             surprise.generate(0, mapping)
         assert not isinstance(err.value, surprise.NoLook)
         with pytest.raises(ValueError, match="sit at one place"):
-            surprise.mutate(ready(EXAMPLES / "mcp-tide.look.json").look, 0, mapping)
+            surprise.mutate(ready(EXAMPLES / "eddy.look.json").look, 0, mapping)
 
 
 @pytest.mark.parametrize("spec", ["line:32", "grid:16x16"])
@@ -367,7 +371,7 @@ def test_a_drawn_look_never_costs_more_than_its_budget(spec):
 
 def test_a_change_never_takes_a_look_past_its_budget():
     mapping = parse_map("grid:16x16")
-    for name in ("copper-tide", "turing-garden", "mcp-tide"):
+    for name in ("copper-tide", "turing-garden", "eddy"):
         staged = ready(EXAMPLES / f"{name}.look.json")
         budget = surprise.look_cost(staged.look, len(mapping))  # no room for one node more
         space = surprise.Space.of(mapping, budget)
@@ -398,18 +402,18 @@ def test_a_change_draws_a_choice_again_only_among_those_the_map_spans():
 
 
 def test_a_held_layer_node_or_signal_holds_the_look_s_seed_and_a_held_knob_does_not():
-    staged = ready(EXAMPLES / "mcp-tide.look.json")
+    staged = ready(EXAMPLES / "eddy.look.json")
     seed = staged.look.seed
     for keep in (["layers.base"], ["layers.base.chop"]):
         assert {made.seed for made in _changed(staged, "line:32", keep)} == {seed}
     assert {made.seed for made in _changed(staged, "line:32", ["layers.base.chop.scale"])} - {seed}
-    # The look's one layer held: nothing is left to change, so nothing is made.
+    # The look's one layer and its signals held: nothing is left to change, so nothing is made.
     with pytest.raises(surprise.NoLook, match="keep less"):
-        surprise.mutate(staged.look, 3, parse_map("line:32"), strength=1.0, keep=["layers.base"])
+        surprise.mutate(staged.look, 3, parse_map("line:32"), strength=1.0, keep=EDDY_WHOLE)
 
 
 def test_a_held_signal_keeps_its_routes_whatever_is_swapped():
-    for name, signal in (("turing-garden", "grow"), ("warp-lane", "hue"), ("ember-fountain", "gust")):
+    for name, signal in (("turing-garden", "wander"), ("warp-lane", "hue"), ("ember-fountain", "gust")):
         staged = ready(EXAMPLES / f"{name}.look.json")
         routes = {route for route in staged.look.routes if route.source == signal}
         assert routes

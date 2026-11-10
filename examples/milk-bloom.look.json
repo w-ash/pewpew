@@ -3,20 +3,20 @@
   "current": "milk-bloom",
   "looks": {
     "milk-bloom": {
-      "seed": 21, "master": 0.65, "fade": 5.0, "cycle": true,
+      "seed": 21, "master": 0.9, "fade": 5.0, "cycle": true,
       "layers": [
         {"id": "base", "out": "fb", "nodes": {
-            "cells": {"op": "noise", "args": {"scale": 3.0, "speed": 0.3, "octaves": 2}},
+            "cells": {"op": "noise", "args": {"scale": 3.0, "speed": 0.3, "octaves": 3}},
             "fold": {"op": "kaleid", "in": ["cells"], "args": {"sides": 6}},
-            "ink": {"op": "palette", "in": ["fold"], "args": {"palette": {"stops": [{"at": 0, "h": 255, "s": 0.9, "v": 0}, {"at": 0.3, "h": 265, "s": 0.9, "v": 0}, {"at": 0.6, "h": 295, "s": 0.8, "v": 0.5}, {"at": 0.85, "h": 330, "s": 0.6, "v": 0.9}, {"at": 1, "h": 25, "s": 0.3, "v": 1}]}}},
-            "fb": {"op": "feedback", "in": ["ink"], "args": {"decay": 1.0, "zoom": 0.85, "spin": 20.0, "swirl": 90.0, "warp": 0.1}}}}],
+            "ink": {"op": "palette", "in": ["fold"], "args": {"palette": {"stops": [{"at": 0, "h": 280, "s": 1, "v": 0.02}, {"at": 0.34, "h": 292, "s": 1, "v": 0.05}, {"at": 0.43, "h": 308, "s": 0.95, "v": 0.2}, {"at": 0.5, "h": 324, "s": 1, "v": 0.5}, {"at": 0.58, "h": 340, "s": 1, "v": 0.95}, {"at": 1, "h": 348, "s": 1, "v": 1}]}}},
+            "fb": {"op": "feedback", "in": ["ink"], "args": {"decay": 0.6, "zoom": 0.85, "spin": 20.0, "swirl": 90.0, "warp": 0.1}}}}],
       "signals": {
           "turn": {"op": "lfo", "args": {"rate": 0.03, "offset": 0.375}},
           "hue": {"op": "walk", "args": {"rate": 0.02}},
           "trip": {"op": "knob", "args": {"value": 0.0}}},
       "routes": [
           {"source": "turn", "path": "layers.base.fb.spin", "depth": 35.0},
-          {"source": "hue", "path": "layers.base.ink.shift", "depth": 90.0},
+          {"source": "hue", "path": "layers.base.ink.shift", "depth": 25.0},
           {"source": "trip", "path": "layers.base.fb.zoom", "depth": -0.3},
           {"source": "trip", "path": "layers.base.fb.decay", "depth": 1.5},
           {"source": "trip", "path": "layers.base.fb.swirl", "depth": 60.0}],

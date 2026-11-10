@@ -1,4 +1,4 @@
-"""DDP sink: packet bytes, per-board split, sequence, quantization."""
+"""DDP sink: packet bytes, per-board split, sequence, the dither."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pytest
 from fakes import ddp_sink
 from pewpew.sinks import ddp
 from pewpew.sinks.ddp import Board, check_boards, parse_board
-from pewpew.sinks.sink import to_linear_u8
+from pewpew.sinks.sink import Dither
 
 
 def header(packet: bytes) -> tuple[int, int, int, int, int, int]:
@@ -28,7 +28,7 @@ def frame(n: int, t: float = 0.0) -> np.ndarray:
 
 
 def test_header_and_payload_golden():
-    sink, rec, _ = ddp_sink([Board("10.0.0.11", 0, 2)], 2)
+    sink, rec = ddp_sink([Board("10.0.0.11", 0, 2)], 2)
     sink.send(0.0, np.array([[1.0, 0.0, 0.5], [0.0, 1.0, 0.0]], dtype=np.float32))
     [(packet, addr)] = rec.sent
     assert addr == ("10.0.0.11", 4048)
@@ -37,11 +37,11 @@ def test_header_and_payload_golden():
 
 
 def test_three_boards_split_into_offset_packets_with_push_last():
-    sink, rec, _ = ddp_sink(THREE, 3840)
+    sink, rec = ddp_sink(THREE, 3840)
     f = frame(3840)
     sink.send(0.0, f)
     assert len(rec.sent) == 9
-    expected = to_linear_u8(f)
+    expected = Dither()(f)
     for b_i, board in enumerate(THREE):
         packets = rec.sent[3 * b_i : 3 * b_i + 3]
         assert {addr for _, addr in packets} == {(board.host, 4048)}
@@ -57,7 +57,7 @@ def test_three_boards_split_into_offset_packets_with_push_last():
 
 
 def test_sequence_is_continuous_across_frames_and_wraps_past_15():
-    sink, rec, _ = ddp_sink(THREE, 3840)
+    sink, rec = ddp_sink(THREE, 3840)
     for k in range(6):
         sink.send(k / 40, frame(3840, k / 10))
     for board in THREE:
@@ -69,26 +69,39 @@ def test_sequence_is_continuous_across_frames_and_wraps_past_15():
 def test_packet_bytes_are_identical_run_to_run():
     runs = []
     for _ in range(2):
-        sink, rec, _ = ddp_sink(THREE, 3840)
+        sink, rec = ddp_sink(THREE, 3840)
         for k in range(4):
             sink.send(k / 40, frame(3840, k / 10))
         runs.append(rec.sent)
     assert runs[0] == runs[1]
 
 
-def test_quantization_is_linear_and_rounds_once():
+def test_the_first_frame_is_linear_and_rounds_once():
     v = np.array(
         [0.0, 1.0, np.nextafter(np.float32(1.0), np.float32(0.0)), 0.998, 1 / 255, np.nan, np.inf, -1.0, 2.0],
         dtype=np.float32,
     )
-    out = to_linear_u8(np.stack([v, v, v], axis=1))[:, 0]
-    assert out.tolist() == [0, 255, 255, 254, 1, 0, 255, 0, 255]
+    sink, rec = ddp_sink([Board("10.0.0.11", 0, 9)], 9)
+    sink.send(0.0, np.stack([v, v, v], axis=1))
+    assert list(rec.sent[0][0][ddp.HEADER_LEN :: 3]) == [0, 255, 255, 254, 1, 0, 255, 0, 255]
     # No display gamma: mid-grey stays mid code, unlike to_display_u8's 186.
-    assert to_linear_u8(np.full((1, 3), 0.5, np.float32))[0, 0] == 128
+    assert Dither()(np.full((1, 3), 0.5, np.float32))[0, 0] == 128
+
+
+def test_a_dim_fade_reaches_the_boards_dithered():
+    # A fade from 3 to 4 steps over a second at 60 fps: plain rounding
+    # shows one jump; the boards get a mix of 3 and 4 that averages true.
+    sink, rec = ddp_sink([Board("10.0.0.11", 0, 1)], 1)
+    levels = np.linspace(3.0, 4.0, 60, dtype=np.float32)
+    for k, v in enumerate(levels):
+        sink.send(k / 60, np.full((1, 3), v / 255.0, np.float32))
+    shown = np.array([p[ddp.HEADER_LEN] for p, _ in rec.sent])
+    assert abs(shown.mean() - levels.mean()) <= 1 / 60
+    assert np.count_nonzero(np.diff(shown)) > 2
 
 
 def test_one_failing_board_does_not_starve_the_others_and_is_counted_with_its_text(caplog):
-    sink, rec, _ = ddp_sink(THREE, 3840, fail_for="10.0.0.12")
+    sink, rec = ddp_sink(THREE, 3840, fail_for="10.0.0.12")
     sink.send(0.0, frame(3840))
     assert {addr[0] for _, addr in rec.sent} == {"10.0.0.11", "10.0.0.13"}
     assert sink.errors == [0, 1, 0]
@@ -96,7 +109,7 @@ def test_one_failing_board_does_not_starve_the_others_and_is_counted_with_its_te
 
 
 def test_frame_size_mismatch_and_lifecycle():
-    sink, rec, _ = ddp_sink(THREE, 3840, start=False)
+    sink, rec = ddp_sink(THREE, 3840, start=False)
     with pytest.raises(RuntimeError, match="before start"):
         sink.send(0.0, frame(3840))
     sink.start()
@@ -105,13 +118,6 @@ def test_frame_size_mismatch_and_lifecycle():
     sink.stop()
     sink.stop()  # idempotent
     assert rec.closed == 1
-
-
-def test_rate_gate_paces_sends():
-    sink, _, ft = ddp_sink([Board("10.0.0.11", 0, 8)], 8)
-    for _ in range(3):
-        sink.send(0.0, frame(8))
-    assert ft.sleeps == pytest.approx([0.025, 0.025])
 
 
 @pytest.mark.parametrize(
@@ -155,7 +161,7 @@ def test_check_boards_rejects_overflow_and_overlap():
 
 
 def test_relayout_swaps_board_ranges_and_drops_a_stale_frame():
-    sink, rec, _ = ddp_sink(THREE, 3840)
+    sink, rec = ddp_sink(THREE, 3840)
     layout = sink.prepare([Board("10.0.0.21", 0, 64), Board("10.0.0.22", 64, 64)], 128)
     assert sink.n_pixels == 3840  # prepare changes nothing
     sink.commit(layout)
@@ -173,7 +179,7 @@ def test_prepare_looks_up_no_name_and_a_named_board_waits_for_its_address(monkey
     A named board is skipped until `set_address` gives it an address."""
     monkeypatch.setattr(ddp.socket, "gethostbyname", lambda host: pytest.fail(f"looked up {host}"))
     boards = [Board("10.0.0.11", 0, 4), Board("pewpew-2.local", 4, 4)]
-    sink, rec, _ = ddp_sink(boards, 8)
+    sink, rec = ddp_sink(boards, 8)
     assert sink.address("10.0.0.11") == ("10.0.0.11", 4048)
     assert sink.address("pewpew-2.local") is None
     sink.send(0.0, frame(8))
@@ -184,7 +190,7 @@ def test_prepare_looks_up_no_name_and_a_named_board_waits_for_its_address(monkey
 
 
 def test_an_address_outlives_a_relayout_that_keeps_the_board():
-    sink, rec, _ = ddp_sink([Board("pewpew-1.local", 0, 4)], 4)
+    sink, rec = ddp_sink([Board("pewpew-1.local", 0, 4)], 4)
     sink.set_address("pewpew-1.local", 4048, ("192.0.2.20", 4048))
     sink.commit(sink.prepare([Board("pewpew-1.local", 0, 8), Board("10.0.0.12", 8, 4)], 12))
     sink.send(0.0, frame(12))
@@ -192,7 +198,7 @@ def test_an_address_outlives_a_relayout_that_keeps_the_board():
 
 
 def test_prepare_refuses_boards_that_do_not_fit():
-    sink, _, _ = ddp_sink(THREE, 3840)
+    sink, _ = ddp_sink(THREE, 3840)
     with pytest.raises(ValueError, match="do not fit"):
         sink.prepare([Board("10.0.0.21", 0, 200)], 128)
     assert sink.n_pixels == 3840

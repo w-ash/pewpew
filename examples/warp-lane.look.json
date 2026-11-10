@@ -7,11 +7,11 @@
       "layers": [
         {"id": "lane", "out": "tint", "nodes": {
             "stars": {"op": "voronoi", "args": {"scale": 16.0, "speed": 0.6}},
-            "spark": {"op": "contrast", "in": ["stars"], "args": {"amount": 4.0}},
-            "core": {"op": "shape", "args": {"sides": 4, "radius": 0.15, "smooth": 0.08}},
+            "spark": {"op": "contrast", "in": ["stars"], "args": {"amount": 2.5}},
+            "core": {"op": "shape", "args": {"sides": 4, "radius": 0.3, "smooth": 0.08}},
             "mouth": {"op": "mult", "in": ["spark", "core"], "args": {}},
-            "fb": {"op": "feedback", "in": ["mouth"], "args": {"decay": 0.6, "zoom": 3.5, "warp": 0.05}},
-            "tint": {"op": "palette", "in": ["fb"], "args": {"palette": {"stops": [{"at": 0, "h": 0, "s": 1, "v": 0}, {"at": 0.4, "h": 8, "s": 0.95, "v": 0.3}, {"at": 0.75, "h": 28, "s": 0.9, "v": 0.8}, {"at": 1, "h": 48, "s": 0.35, "v": 1}]}}}}}],
+            "fb": {"op": "feedback", "in": ["mouth"], "args": {"decay": 1.2, "zoom": 3.0, "warp": 0.05}},
+            "tint": {"op": "palette", "in": ["fb"], "args": {"palette": {"stops": [{"at": 0, "h": 238, "s": 1, "v": 0.03}, {"at": 0.3, "h": 232, "s": 0.95, "v": 0.22}, {"at": 0.6, "h": 222, "s": 0.95, "v": 0.6}, {"at": 0.88, "h": 210, "s": 0.9, "v": 0.92}, {"at": 1, "h": 200, "s": 0.85, "v": 1}]}}}}}],
       "signals": {
           "pulse": {"op": "band", "args": {"band": "mid"}},
           "kick": {"op": "beat", "args": {}},
@@ -21,5 +21,6 @@
           {"source": "pulse", "path": "layers.lane.fb.zoom", "depth": 0.5},
           {"source": "pulse", "path": "layers.lane.core.radius", "depth": 0.03},
           {"source": "thump", "path": "layers.lane.core.radius", "depth": 0.04},
-          {"source": "hue", "path": "layers.lane.stars.scale", "depth": 6.0}],
+          {"source": "hue", "path": "layers.lane.stars.scale", "depth": 6.0},
+          {"source": "hue", "path": "layers.lane.tint.shift", "depth": 15.0}],
       "front": ["layers.lane.fb.zoom", "layers.lane.fb.decay", "layers.lane.stars.scale"]}}}

@@ -467,11 +467,11 @@ def load_looks(path: Path, **kw: Any) -> LookBook:
 def examples_book(folder: Path) -> LookBook:
     """The book of the example looks in `folder`: the current look of each
     looks file `*.look.json` (else its first), named by the file, in the
-    order of the file names. The first is current, so the look a Gallery
+    order of those names. The first is current, so the look a Gallery
     visit starts in follows the folder alone, with no name in the code.
     Raises OSError as the filesystem does, LookError for the content."""
     looks: dict[str, Look] = {}
-    for path in sorted(Path(folder).glob("*.look.json")):
+    for path in sorted(Path(folder).glob("*.look.json"), key=lambda p: p.name.removesuffix(".look.json")):
         book = load_looks(path)
         looks[path.name.removesuffix(".look.json")] = book.looks[book.current or next(iter(book.looks))]
     return LookBook(looks, next(iter(looks), None))

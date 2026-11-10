@@ -1,0 +1,20 @@
+{
+  "version": 4,
+  "current": "comet-knot",
+  "looks": {
+    "comet-knot": {
+      "seed": 5, "master": 0.9, "fade": 5.0, "cycle": true,
+      "layers": [
+        {"id": "knot", "out": "tint", "nodes": {
+            "heads": {"op": "lissajous", "args": {"a": 3, "b": 2, "c": 5, "speed": 0.08, "heads": 4, "width": 0.09}},
+            "tail": {"op": "trails", "in": ["heads"], "args": {"tail": 0.6}},
+            "tint": {"op": "palette", "in": ["tail"], "args": {"palette": {"label": "solar gold", "stops": [
+                {"at": 0, "h": 8, "s": 1, "v": 0.0},
+                {"at": 0.25, "h": 12, "s": 1, "v": 0.15},
+                {"at": 0.55, "h": 24, "s": 1, "v": 0.55},
+                {"at": 1, "h": 42, "s": 1, "v": 1}]}}}}}],
+      "signals": {
+          "drift": {"op": "walk", "args": {"rate": 0.05}}},
+      "routes": [
+          {"source": "drift", "path": "layers.knot.heads.speed", "depth": 0.03}],
+      "front": ["layers.knot.heads.speed", "layers.knot.tail.tail", "layers.knot.heads.heads"]}}}

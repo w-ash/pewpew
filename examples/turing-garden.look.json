@@ -3,16 +3,26 @@
   "current": "turing-garden",
   "looks": {
     "turing-garden": {
-      "seed": 42, "master": 0.7, "fade": 8.0, "cycle": true,
+      "seed": 2, "master": 0.8, "fade": 8.0, "cycle": true,
       "layers": [
-        {"id": "garden", "out": "tint", "nodes": {
-            "rd": {"op": "reaction", "args": {"kind": "coral", "size": 0.25, "speed": 90.0, "seeds": 0.3}},
-            "edge": {"op": "contrast", "in": ["rd"], "args": {"amount": 1.4}},
-            "tint": {"op": "palette", "in": ["edge"], "args": {"palette": {"stops": [{"at": 0, "h": 230, "s": 1, "v": 0}, {"at": 0.5, "h": 195, "s": 0.9, "v": 0.3}, {"at": 0.85, "h": 12, "s": 0.7, "v": 0.75}, {"at": 1, "h": 32, "s": 0.3, "v": 1}]}, "shift": 0.0}}}}],
+        {"id": "bed", "out": "moss", "nodes": {
+            "cells": {"op": "reaction", "args": {"kind": "mitosis", "size": 0.2, "speed": 60.0, "seeds": 0.3}},
+            "moss": {"op": "palette", "in": ["cells"], "args": {"palette": {"stops": [{"at": 0, "h": 155, "s": 1, "v": 0}, {"at": 0.5, "h": 150, "s": 1, "v": 0.045}, {"at": 1, "h": 145, "s": 1, "v": 0.15}]}}}}},
+        {"id": "chase", "blend": "max", "out": "tint", "nodes": {
+            "life": {"op": "life", "args": {"states": 8, "speed": 6.0, "sparks": 8.0, "cell": 1.1}},
+            "tint": {"op": "palette", "in": ["life"], "args": {"palette": {"stops": [
+                {"at": 0, "h": 116, "s": 1, "v": 1},
+                {"at": 0.125, "h": 126, "s": 1, "v": 0.3},
+                {"at": 0.25, "h": 136, "s": 1, "v": 0.06},
+                {"at": 0.375, "h": 142, "s": 1, "v": 0},
+                {"at": 0.5, "h": 142, "s": 1, "v": 0},
+                {"at": 0.625, "h": 358, "s": 1, "v": 0.14},
+                {"at": 0.75, "h": 0, "s": 1, "v": 0},
+                {"at": 0.875, "h": 128, "s": 1, "v": 0},
+                {"at": 1, "h": 116, "s": 1, "v": 1}]}}}}}],
       "signals": {
-          "grow": {"op": "walk", "args": {"rate": 0.01}},
-          "hue": {"op": "lfo", "args": {"rate": 0.013, "offset": 0.375}}},
+          "wander": {"op": "walk", "args": {"rate": 0.01}}},
       "routes": [
-          {"source": "grow", "path": "layers.garden.rd.size", "depth": 0.1},
-          {"source": "hue", "path": "layers.garden.tint.shift", "depth": 40.0}],
-      "front": ["layers.garden.rd.kind", "layers.garden.rd.size", "layers.garden.tint.shift"]}}}
+          {"source": "wander", "path": "layers.bed.cells.size", "depth": 0.05},
+          {"source": "wander", "path": "layers.chase.life.speed", "depth": 1.5}],
+      "front": ["layers.chase.life.speed", "layers.chase.life.cell", "layers.chase.life.sparks", "layers.bed.cells.kind"]}}}

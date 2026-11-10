@@ -18,10 +18,15 @@ One tick, in order, on the loop thread:
 4. Each `after` stage takes `(t, frame)` and returns the frame or a new
    array, never writing into it (blink, then the master). The loop copies
    the frame when no stage replaced it and makes the result read-only.
-5. Every `on_frame` callable gets that one shared copy.
+5. The loop sleeps to the end of the frame's slot, then every `on_frame`
+   callable gets that one shared copy. Frames go out on the slot schedule,
+   one period after their slot starts, whatever each render costs, so a
+   sink sees them evenly spaced (a board that drops frames closer than
+   its gate needs this, `pewpew.sinks.ddp`).
 
-Steps 4 and 5 run only when there is an `on_frame` callable. A hook or a
-stage must not raise: an exception from one ends `run()`.
+Step 4 and the hand-off in step 5 run only when there is an `on_frame`
+callable. A hook or a stage must not raise: an exception from one ends
+`run()`.
 
 Threading: `run()` blocks its calling thread, which becomes the loop
 thread and the sole owner of the source. Mutate the source only from a
@@ -233,6 +238,7 @@ class PacedLoop:
                 frame = self._source.advance_to(t)
                 self._stats.ticks += 1
                 done += 1
+                out = None
                 if self._on_frame:
                     # One immutable copy shared by every sink: the source's
                     # live frame must not be held across frames (render.py),
@@ -243,8 +249,6 @@ class PacedLoop:
                     if out is frame:
                         out = frame.copy()
                     out.setflags(write=False)
-                    for cb in self._on_frame:
-                        cb(t, out)
                 next_due += clock.period  # deadline-corrected: error accumulates here
                 slack = next_due - self._now()
                 if slack > 0:
@@ -259,6 +263,9 @@ class PacedLoop:
                     clock.advance(missed)  # engine time stays locked to slots
                     self._stats.skips += 1
                     self._stats.missed_frames += missed
+                if out is not None:
+                    for cb in self._on_frame:
+                        cb(t, out)
             return self._stats
         finally:
             self._stop.clear()

@@ -83,7 +83,7 @@ REPLY = {
 
 def capture(folder: Path) -> dict:
     """Run the aura and record what one client is sent, as the golden holds it."""
-    ddp, _, _ = ddp_sink([Board(HOST, 0, 320)], 320)
+    ddp, _ = ddp_sink([Board(HOST, 0, 320)], 320)
     stats, ft = PaceStats(), FakeTime()
     replies = {HOST: REPLY, "192.168.1.77": {**REPLY, "mac": "001122334455", "name": "WLED", "live": False}}
     monitor = HealthMonitor(

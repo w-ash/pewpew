@@ -407,7 +407,7 @@ class Net:
 
 def named_rig(boards, replies, names, **kw):
     """A started DDP sink on a recorder, and a monitor over it."""
-    sink, _, _ = ddp_sink(boards, sum(b.count for b in boards))
+    sink, _ = ddp_sink(boards, sum(b.count for b in boards))
     net = Net(names)
     fetch = CannedFetch(replies)
     ft = FakeTime()

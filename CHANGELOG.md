@@ -9,6 +9,18 @@ series (batch mode).
 
 ### Added
 
+- The `dither` coord op: each light reads its pattern a little off its own spot
+  and jumps to a new spot `rate` times a second, on a clock of its own, so a hard
+  edge sparkles between the colors on each side instead of stepping from light to
+  light. `amount` is in the lights' spacing along each axis, measured per axis, so
+  bars far apart and lights close along each bar both dither. The spots follow a
+  low-discrepancy sequence.
+- `life`'s `cell`: above 0 the automaton runs on a grid of square cells laid over
+  the map, each light showing the cell nearest it, so waves cross the gaps between
+  bars; 0 runs it on the lights.
+- Six example looks: `lava-lamp`, `comet-knot`, `orchid-twinkle`, `stained-glass`,
+  `aurora-curtains` and `maelstrom`, for twenty in all.
+
 - Shuffle on the Console: a row under the make actions whose switch turns it on or
   off, off reading "stays on this look". While on, the row counts down to the next
   look (or says why it waits) and opens how long each look plays and whether it
@@ -852,6 +864,22 @@ series (batch mode).
   `look-critic` subagent or a person to judge. Evidence only, never a gate.
 
 ### Changed
+
+- DDP output dithers in time (ADR-002): each pixel carries its rounding error into
+  its next frame while it fades, so a dim fade steps by fractions of a level;
+  a held color rounds plainly and does not shimmer.
+- Sinks ride the render loop's clock (ADR-010 amendment): each sink takes every
+  k-th tick, its rate dividing `--fps`, evenly spaced, so two clocks no longer beat.
+  The loop renders, sleeps to the end of its slot, then hands off: one frame more
+  latency. `--ddp-fps` defaults to 60.
+- Every example look keeps to one color family, starts dark and keeps its bright
+  colors saturated, so a diffuser blending neighbouring lights no longer washes it
+  to white. `turing-garden` is rebuilt as a cyclic cellular automaton over a bed of
+  Gray-Scott cells. `penrose-lagoon` runs through deep blue, and `copper-tide`'s
+  counter-tide is crimson.
+- The example looks `mcp-prism`, `mcp-ember` and `mcp-tide` are now `prism`,
+  `ember` and `eddy`. `prism` dithers its edges and runs red-violet to yellow-orange.
+- The example looks book lists looks in the order of their names.
 
 - Names: the engine's page is the Console and the hosted app is the Gallery, in titles,
   headings and docs; code names (`studio`, `python -m pewpew studio`) stay.

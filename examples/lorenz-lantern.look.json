@@ -3,14 +3,17 @@
   "current": "lorenz-lantern",
   "looks": {
     "lorenz-lantern": {
-      "seed": 7, "master": 0.7, "fade": 5.0, "cycle": true,
+      "seed": 7, "master": 1.0, "fade": 5.0, "cycle": true,
       "layers": [
         {"id": "moth", "out": "tint", "nodes": {
-            "flock": {"op": "attractor", "args": {"kind": "lorenz", "count": 16, "speed": 0.25, "spin": 8.0, "size": 0.05, "trail": 0.6}},
-            "trail": {"op": "feedback", "in": ["flock"], "args": {"decay": 1.2, "zoom": 1.0, "spin": 6.0, "warp": 0.05}},
-            "tint": {"op": "palette", "in": ["trail"], "args": {"palette": {"stops": [{"at": 0, "h": 215, "s": 0.6, "v": 0.03}, {"at": 0.5, "h": 40, "s": 0.7, "v": 0.5}, {"at": 1, "h": 55, "s": 0.2, "v": 1}]}}}}}],
+            "flock": {"op": "attractor", "args": {"kind": "lorenz", "count": 16, "speed": 0.35, "spin": 14.0, "size": 0.075, "trail": 0.6}},
+            "trail": {"op": "feedback", "in": ["flock"], "args": {"decay": 0.9, "zoom": 1.0, "spin": 6.0, "warp": 0.1}},
+            "tint": {"op": "palette", "in": ["trail"], "args": {"palette": {"stops": [{"at": 0, "h": 258, "s": 1, "v": 0.02}, {"at": 0.15, "h": 266, "s": 1, "v": 0.3}, {"at": 0.4, "h": 292, "s": 1, "v": 0.65}, {"at": 0.68, "h": 322, "s": 1, "v": 0.9}, {"at": 1, "h": 348, "s": 1, "v": 1}]}}}}},
+        {"id": "veil", "opacity": 1.0, "blend": "max", "out": "glass", "nodes": {
+            "mist": {"op": "noise", "args": {"scale": 1.5, "speed": 0.05, "octaves": 2}},
+            "glass": {"op": "palette", "in": ["mist"], "args": {"palette": {"stops": [{"at": 0, "h": 250, "s": 1, "v": 0}, {"at": 0.45, "h": 254, "s": 1, "v": 0.05}, {"at": 1, "h": 270, "s": 1, "v": 0.28}]}}}}}],
       "signals": {
           "hue": {"op": "walk", "args": {"rate": 0.02}}},
       "routes": [
-          {"source": "hue", "path": "layers.moth.tint.shift", "depth": 120.0}],
+          {"source": "hue", "path": "layers.moth.tint.shift", "depth": 30.0}],
       "front": ["layers.moth.trail.decay", "layers.moth.flock.speed", "layers.moth.flock.spin"]}}}

@@ -3,12 +3,15 @@
   "current": "ember-fountain",
   "looks": {
     "ember-fountain": {
-      "seed": 13, "master": 0.7, "fade": 4.0, "cycle": true,
+      "seed": 13, "master": 0.85, "fade": 4.0, "cycle": true,
       "layers": [
         {"id": "embers", "out": "tint", "nodes": {
-            "sparks": {"op": "particles", "args": {"rate": 30.0, "life": 1.5, "speed": 0.2, "gravity": 0.12, "swirl": 0.25, "emit": "bottom", "size": 0.1}},
+            "sparks": {"op": "particles", "args": {"rate": 34.0, "life": 1.5, "speed": 0.2, "gravity": 0.18, "swirl": 0.25, "emit": "bottom", "size": 0.09}},
             "smoke": {"op": "feedback", "in": ["sparks"], "args": {"decay": 1.5, "zoom": 1.0, "drift": 0.1, "warp": 0.2}},
-            "tint": {"op": "palette", "in": ["smoke"], "args": {"palette": {"stops": [{"at": 0, "h": 0, "s": 1, "v": 0}, {"at": 0.35, "h": 5, "s": 1, "v": 0.35}, {"at": 0.7, "h": 25, "s": 0.95, "v": 0.85}, {"at": 1, "h": 45, "s": 0.5, "v": 1}]}}}}}],
+            "tint": {"op": "palette", "in": ["smoke"], "args": {"palette": {"stops": [{"at": 0, "h": 0, "s": 1, "v": 0}, {"at": 0.15, "h": 0, "s": 1, "v": 0.1}, {"at": 0.5, "h": 4, "s": 1, "v": 0.5}, {"at": 0.85, "h": 14, "s": 1, "v": 0.85}, {"at": 1, "h": 22, "s": 1, "v": 1}]}}}}},
+        {"id": "coals", "opacity": 1.0, "blend": "max", "out": "glow", "nodes": {
+            "heat": {"op": "noise", "args": {"scale": 2.5, "speed": 0.12, "octaves": 2}},
+            "glow": {"op": "palette", "in": ["heat"], "args": {"palette": {"stops": [{"at": 0, "h": 0, "s": 1, "v": 0}, {"at": 0.45, "h": 0, "s": 1, "v": 0.03}, {"at": 0.8, "h": 3, "s": 1, "v": 0.13}, {"at": 1, "h": 10, "s": 1, "v": 0.25}]}}}}}],
       "signals": {
           "crackle": {"op": "band", "args": {"band": "high", "release": 0.5}},
           "gust": {"op": "walk", "args": {"rate": 0.03}}},

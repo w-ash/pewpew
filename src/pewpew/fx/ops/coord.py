@@ -16,7 +16,7 @@ from types import MappingProxyType
 
 import numpy as np
 
-from pewpew.fx.op import ALL, Cost, Op, Rate, U, axis_choice, plane_choice
+from pewpew.fx.op import ALL, BindCtx, Cost, Op, Rate, U, axis_choice, plane_choice
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import space
 from pewpew.fx.prims.vec import AXES, Axis, plane_axes
@@ -168,6 +168,76 @@ class Tunnel(_Coord, op="tunnel"):
         i, _ = plane_axes(plane, q)
         q[i] = q[i] * self.depth + self.phase("speed")
         return c.moved(tuple(q))
+
+
+# The steps of the R4 sequence: 1 / g ** (d + 1) for the root g of
+# g ** 5 = g + 1 (Roberts 2018, "The unreasonable effectiveness of
+# quasirandom sequences"). Each point steps x, y, z and u by them, so its
+# spots spread evenly through its cell.
+_G4 = 1.1673039782614187
+_R4 = tuple(1.0 / _G4 ** (d + 1) for d in range(4))
+# A step along an axis below this share of its span is the same coordinate.
+_SAME = 1e-5
+
+
+def _pitch(values: np.ndarray, span: float, n: int, side: float) -> float:
+    """How far apart the points sit along one axis: the median gap of
+    their distinct coordinates where points share coordinates (a lattice,
+    parallel bars), else `side`, the side of a cell holding one point."""
+    distinct = np.unique(np.round(values / max(span * _SAME, 1e-12)))
+    if len(distinct) < 2 or len(distinct) > n // 2:
+        return side
+    return float(np.median(np.diff(distinct))) * span * _SAME
+
+
+class Dither(_Coord, op="dither"):
+    """Breaks hard edges into a sparkle: each light reads the pattern a little
+    off its own spot, and jumps to a new spot now and then, on a clock of
+    its own. Where the pattern is flat nothing changes; at an edge a light
+    twinkles between the colors on each side, as often as the edge covers
+    its spot, so a hard edge reads as glitter and an edge that moves
+    shimmers across the lights rather than stepping from one to the next.
+    `amount` sets how far a light reaches, in the spacing of the lights
+    along each axis, and `rate` how often each light jumps."""
+
+    amount = Float(0.5, 0.0, 3.0, "×", sweet=(0.25, 1.5),
+                   help="How far each light reaches: 0.5 is halfway to its neighbours; more sparkles wider")
+    # A light's spot index is floor(phase + its offset), so it jumps once at
+    # each wrap of the phase: every DRIFT / rate s, over 11 min at the fastest.
+    rate = Rate(2.0, 0.0, 6.0, "/s", period=DRIFT, flash_sensitive=True,
+                help="Jumps a second for each light: more twinkles faster; above about 2 an edge can flash")
+    examples = ('osc(5, axis="y").polar().kaleid(5).dither(1).palette("synthwave")',
+                'voronoi(4, edge=0.8).dither(1, 1.5).palette("aurora")')
+    cost = Cost(2.5, 6.0)
+
+    def setup(self, ctx: BindCtx) -> None:
+        super().setup(ctx)
+        n = max(ctx.n, 1)
+        spans = [s for s, on in zip(ctx.spans, ctx.spanned, strict=True) if on]
+        side = (math.prod(spans) / n) ** (1.0 / len(spans)) if spans else 0.0
+        self.pitches = (
+            *(_pitch(axis, span, n, side) if on else 0.0
+              for axis, span, on in zip(ctx.coords.xyz, ctx.spans, ctx.spanned, strict=True)),
+            1.0 / max(n - 1, 1),
+        )
+        # Each light's start in each axis's sequence (rows 0-3) and its
+        # clock's offset (row 4), so neighbours jump at different times.
+        self.starts = ctx.rng().random((5, n))
+
+    def warp(self, c: Coords) -> Coords:
+        if self.amount == 0.0:
+            return c
+        starts = self.starts[:, c.index]
+        step = np.floor(self.phase("rate") + starts[4])
+        moved = []
+        for d, (axis, pitch) in enumerate(zip((*c.xyz, c.u), self.pitches, strict=True)):
+            if pitch == 0.0:
+                moved.append(axis)
+                continue
+            spot = (starts[d] + step * _R4[d]) % 1.0 - 0.5
+            moved.append((axis + (spot * (2.0 * self.amount * pitch)).astype(np.float32)).astype(np.float32))
+        x, y, z, u = moved
+        return replace(c.moved((x, y, z)), u=u)
 
 
 class Repeat(_Coord, op="repeat"):

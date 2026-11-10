@@ -69,8 +69,8 @@ socket. An input that listens elsewhere needs a token and a
 sender allowlist (ADR-009).
 
 Budget: a map over `max_pixels` (LedFx caps at 4096 [S508]) is decimated
-once, evenly; the client never knows. `max_fps` throttles through
-`RateGate`.
+once, evenly; the client never knows. It takes at most `max_fps` frames a
+second.
 
 Fan-out: `send` encodes each frame once and submits it to one `SinkDriver`
 per client, so a stalled tab stalls only itself. The payload carries the
@@ -105,7 +105,7 @@ from pewpew.aura.control import Exported, wire_states
 from pewpew.errors import Refusal
 from pewpew.floorplan import IMAGE_TYPES
 from pewpew.jsonfile import loads
-from pewpew.sinks.sink import DISPLAY_GAMMA, Control, RateGate, SinkDriver, to_display_u8
+from pewpew.sinks.sink import DISPLAY_GAMMA, Control, SinkDriver, to_display_u8
 
 logger = logging.getLogger(__name__)
 
@@ -536,7 +536,6 @@ class PreviewSink:
         rig: dict | None = None,
         power: Callable[[], dict[str, float] | None] | None = None,
         now: Callable[[], float] = time.perf_counter,
-        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._max_pixels = max_pixels
         self._power = power
@@ -545,7 +544,7 @@ class PreviewSink:
         self._view = View.of(mapping, max_pixels, 0, room, plan_image, self._capabilities, page_build(), rig)
         self._control = control
         self._states = StateTexts(control, now)
-        self._gate = RateGate(max_fps, now=now, sleep=sleep)
+        self.max_fps = float(max_fps)
         self._status = status
         self._current_status: tuple[str, str, str | None] | None = None
         self.host = host
@@ -633,7 +632,6 @@ class PreviewSink:
         )
 
     def send(self, t: float, frame: np.ndarray) -> None:
-        self._gate.wait()
         view = self._view
         if len(frame) != view.total:
             return  # rendered before a remap; the next frame fits

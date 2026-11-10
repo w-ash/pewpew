@@ -1,0 +1,17 @@
+{
+  "version": 4,
+  "current": "prism",
+  "looks": {
+    "prism": {"fade": 2, "layers": [
+      {"id": "base", "out": "tint", "nodes": {
+        "rings": {"op": "osc", "args": {"freq": 5.0, "sync": 0.1, "axis": "y"}},
+        "swirl": {"op": "polar", "in": ["rings"], "args": {}},
+        "fold": {"op": "kaleid", "in": ["swirl"], "args": {"sides": 5}},
+        "shimmer": {"op": "dither", "in": ["fold"], "args": {"amount": 0.6, "rate": 2.0}},
+        "tint": {"op": "palette", "in": ["shimmer"], "args": {"palette": {"label": "red-violet to yellow-orange", "stops": [
+          {"at": 0, "h": 325, "s": 1, "v": 0.25},
+          {"at": 0.5, "h": 325, "s": 1, "v": 0.9},
+          {"at": 1, "h": 38, "s": 1, "v": 1}]}, "cycle": 0.03}}}}
+    ]}
+  }
+}

@@ -453,6 +453,50 @@
         "flash_sensitive": false
       }
     ],
+    "dither": [
+      {
+        "name": "amount",
+        "kind": "float",
+        "label": "Amount",
+        "help": "How far each light reaches: 0.5 is halfway to its neighbours; more sparkles wider",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "×",
+        "lo": 0.0,
+        "hi": 3.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.25,
+          1.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "rate",
+        "kind": "float",
+        "label": "Rate",
+        "help": "Jumps a second for each light: more twinkles faster; above about 2 an edge can flash",
+        "group": "",
+        "widget": "",
+        "default": 2.0,
+        "unit": "/s",
+        "lo": 0.0,
+        "hi": 6.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          6.0
+        ],
+        "flash_sensitive": true
+      }
+    ],
     "env": [
       {
         "name": "attack",
@@ -899,6 +943,27 @@
         "sweet": [
           0.5,
           8.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cell",
+        "kind": "float",
+        "label": "Cell",
+        "help": "At 0 it runs on the lights; above 0 on square cells this many times the lights' mean spacing wide, laid over the map, so waves cross the gaps between strips",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "×",
+        "lo": 0.0,
+        "hi": 8.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          3.0
         ],
         "flash_sensitive": false
       }

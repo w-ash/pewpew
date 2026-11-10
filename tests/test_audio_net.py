@@ -237,7 +237,7 @@ def trace_run_frames(tmp_path: Path, seconds: float = 5.0) -> list[bytes]:
     run = build(["run", HEARD, "--audio", str(wav), "--ansi"])
     source = TraceSource(Trace.from_bytes(TRACE.read_bytes()), kick_loop(124.0, 2.0))
     run = type(run)(dataclasses.replace(run.launch, audio=source), ansi_stream=io.StringIO(), now=lambda: 0.0,
-                    sleep=lambda s: None, watch=no_watch)
+                    watch=no_watch)
     assert run.audio is not None and run.audio.source is source and run.capture is None
     clock, out = SlotClock(FPS), []
     for _ in range(int(seconds * FPS)):

@@ -10,16 +10,16 @@
             "drift": {"op": "noise", "args": {"scale": 3.0, "speed": 0.1}},
             "fold": {"op": "kaleid", "in": ["waves"], "args": {"sides": 5, "plane": "xy"}},
             "warp": {"op": "modulate", "in": ["fold", "drift"], "args": {"amount": 0.2}},
-            "tint": {"op": "palette", "in": ["warp"], "args": {"palette": {"stops": [{"at": 0, "h": 20, "s": 0.9, "v": 0.05}, {"at": 0.6, "h": 30, "s": 0.85, "v": 0.5}, {"at": 1, "h": 50, "s": 0.4, "v": 1}]}, "shift": 0.0}}}},
-        {"id": "echo", "opacity": 0.3, "blend": "add", "out": "fb", "nodes": {
+            "tint": {"op": "palette", "in": ["warp"], "args": {"palette": {"stops": [{"at": 0, "h": 228, "s": 1, "v": 0.03}, {"at": 0.45, "h": 212, "s": 1, "v": 0.16}, {"at": 0.78, "h": 190, "s": 1, "v": 0.45}, {"at": 1, "h": 200, "s": 1, "v": 0.9}]}, "shift": 0.0}}}},
+        {"id": "echo", "opacity": 0.35, "blend": "screen", "out": "fb", "nodes": {
             "b": {"op": "below", "args": {}},
             "fb": {"op": "feedback", "in": ["b"], "args": {"decay": 1.5, "zoom": 1.3, "spin": 4.0}}}},
         {"id": "sparks", "opacity": 0.6, "blend": "screen", "out": "glint", "nodes": {
-            "sparks": {"op": "particles", "args": {"rate": 80.0, "life": 0.6, "speed": 0.02, "emit": "anywhere", "size": 0.03}},
-            "glint": {"op": "palette", "in": ["sparks"], "args": {"palette": "ember"}}}}],
+            "sparks": {"op": "particles", "args": {"rate": 24.0, "life": 1.6, "speed": 0.02, "emit": "anywhere", "size": 0.05}},
+            "glint": {"op": "palette", "in": ["sparks"], "args": {"palette": {"stops": [{"at": 0, "h": 175, "s": 1, "v": 0}, {"at": 0.6, "h": 172, "s": 1, "v": 0.4}, {"at": 1, "h": 165, "s": 0.85, "v": 1}]}}}}}],
       "signals": {
           "swell": {"op": "lfo", "args": {"rate": 0.1}}},
       "routes": [
           {"source": "swell", "path": "layers.base.warp.amount", "depth": 0.15},
-          {"source": "swell", "path": "layers.base.tint.shift", "depth": 40.0}],
+          {"source": "swell", "path": "layers.base.tint.shift", "depth": 20.0}],
       "front": ["layers.base.waves.freq", "layers.base.fold.sides", "layers.echo.opacity"]}}}

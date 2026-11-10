@@ -7,7 +7,8 @@ volume, never across a gap with no points.
 - `ripple`: a pond; drops fall at random and rings spread and bounce.
 - `reaction`: Gray-Scott reaction-diffusion grown from a few seeds.
 - `life`: a cyclic cellular automaton, whose noise turns into spirals,
-  kept going by random sparks.
+  kept going by random sparks; on the lights, or on a grid of cells laid
+  over the map (pewpew.fx.field), so its waves cross gaps.
 
 The graph is built once per map (`graph`) and kept for the next bind. Each
 simulation keeps one value per point, so no coord op may sit above it.
@@ -26,6 +27,7 @@ from functools import lru_cache
 
 import numpy as np
 
+from pewpew.fx.field import CAPS, Lattice, lattice_axes
 from pewpew.fx.op import BindCtx, Cost, FrameCtx, Op
 from pewpew.fx.prims import knn
 from pewpew.fx.prims.knn import Neighbors
@@ -271,7 +273,9 @@ class Life(_GraphSim, op="life"):
     turning spirals form. On a strip or a small map the waves die out and
     the points settle, so `sparks` move points on at random, and each starts
     a new wave. It shows each point's step as a share of the cycle, so give
-    it a palette whose ends match."""
+    it a palette whose ends match. With `cell` above 0 it runs on a grid of
+    square cells laid over the map instead, each light showing the cell it
+    is in, so waves cross the gaps between strips a few apart."""
 
     label = "Chase"
     sig = Sig.SOURCE
@@ -280,7 +284,10 @@ class Life(_GraphSim, op="life"):
     speed = Float(6.0, 0.5, 20.0, "/s", sweet=(2.0, 10.0), flash_sensitive=True, help="How fast the waves chase")
     sparks = Float(2.0, 0.0, 20.0, "/s", sweet=(0.5, 8.0),
                    help="Points a second that move on by themselves, each starting a wave; at 0 a strip settles")
-    examples = ("life(6, 20, 4)", 'life(5, speed=4).palette("synthwave", cycle=0.02)')
+    cell = Float(0.0, 0.0, 8.0, "×", sweet=(0.0, 3.0),
+                 help="At 0 it runs on the lights; above 0 on square cells this many times the lights' mean spacing "
+                      "wide, laid over the map, so waves cross the gaps between strips")
+    examples = ("life(6, 20, 4)", 'life(5, speed=4).palette("synthwave", cycle=0.02)', "life(8, 6, 8, cell=1.5)")
     cost = Cost(20.0, 4.5)
 
     def setup(self, ctx: BindCtx) -> None:
@@ -289,9 +296,34 @@ class Life(_GraphSim, op="life"):
         self.last = ctx.buffer("last", ctx.n)
         self.progress = ctx.buffer("progress", 1, np.float64)
         self.countdown = ctx.buffer("countdown", 1, np.float64)
+        # The cells' steps, row by row (`Lattice.shape`), in the first
+        # `cells_in` entries: room for the most cells a lattice holds.
+        room = CAPS[len(lattice_axes(ctx))]
+        self.cells = ctx.buffer("cells", room)
+        self.cells_last = ctx.buffer("cells_last", room)
+        self.lattice: Lattice | None = None
+        self.laid = 0.0  # the `cell` the lattice was laid at; 0 for none
+        rng = ctx.rng()
         if ctx.n and not self.state.any():  # new, not carried: start from noise
-            self.state[...] = ctx.rng().integers(self.states, size=ctx.n)
+            self.state[...] = rng.integers(self.states, size=ctx.n)
             self.last[...] = self.state
+        if self.cell > 0.0:
+            self.lay(rng)
+
+    def lay(self, rng: np.random.Generator) -> None:
+        """Lay the lattice at the current `cell`: each cell takes the step
+        of the old lattice's nearest cell, or, with none, a random step;
+        each light reads the cell nearest it."""
+        lattice = Lattice.over(self.ctx, 1.0 / self.cell)
+        count = math.prod(lattice.counts)
+        if self.lattice is None:
+            self.cells[:count] = rng.integers(self.states, size=count)
+            self.cells_last[:count] = self.cells[:count]
+        else:
+            near = _nearest(self.lattice, lattice.unit(lattice.grid())).ravel()
+            self.cells[:count], self.cells_last[:count] = self.cells[near], self.cells_last[near]
+        self.lattice, self.laid = lattice, self.cell
+        self.index = _nearest(lattice, lattice.at(self.ctx.coords))
 
     def advance(self, ctx: FrameCtx, inputs: Sequence[Fn]) -> None:
         cycle = float(self.states)
@@ -301,6 +333,9 @@ class Life(_GraphSim, op="life"):
         steps = min(int(self.progress[0]), MOST)
         self.progress[0] = min(self.progress[0] - steps, 1.0)
         rng = ctx.rng()
+        if self.cell > 0.0:
+            self.advance_cells(cycle, steps, rng)
+            return
         for _ in range(steps):
             ahead = (self.state + 1.0) % cycle
             moves = (self.state[self.nbrs.idx] == ahead[:, None]).any(axis=1)
@@ -308,10 +343,45 @@ class Life(_GraphSim, op="life"):
             self.last[...] = self.state
             self.state[...] = np.where(moves, ahead, self.state)
 
+    def advance_cells(self, cycle: float, steps: int, rng: np.random.Generator) -> None:
+        """`steps` steps of the automaton on the lattice, each cell linked
+        to the cells next to it along each axis."""
+        if self.laid != self.cell:
+            self.lay(rng)
+        assert self.lattice is not None
+        shape, count = self.lattice.shape, math.prod(self.lattice.counts)
+        cells, last = self.cells[:count], self.cells_last[:count]
+        np.remainder(cells, cycle, out=cells)
+        np.remainder(last, cycle, out=last)
+        for _ in range(steps):
+            now = cells.reshape(shape)
+            ahead = (now + 1.0) % cycle
+            moves = np.zeros(shape, bool)
+            for axis in range(len(shape)):
+                lo = tuple(slice(None, -1) if k == axis else slice(None) for k in range(len(shape)))
+                hi = tuple(slice(1, None) if k == axis else slice(None) for k in range(len(shape)))
+                moves[lo] |= now[hi] == ahead[lo]
+                moves[hi] |= now[lo] == ahead[hi]
+            moves.reshape(-1)[_landings(self.countdown, self.sparks, 1.0 / self.speed, rng, count)] = True
+            last[...] = cells
+            cells[...] = np.where(moves, ahead, now).reshape(-1)
+
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def life(c: Coords) -> np.ndarray:
             cycle = float(self.states)
-            moved = (self.state != self.last).astype(np.float32)
-            return ((self.last + moved * float(self.progress[0])) * (1.0 / cycle)) % 1.0
+            if self.cell > 0.0 and self.laid:
+                state, last = self.cells[self.index], self.cells_last[self.index]
+            else:
+                state, last = self.state, self.last
+            moved = (state != last).astype(np.float32)
+            return ((last + moved * float(self.progress[0])) * (1.0 / cycle)) % 1.0
 
         return life
+
+
+def _nearest(lattice: Lattice, units: Sequence[np.ndarray]) -> np.ndarray:
+    """The flat index (row by row, as `Lattice.shape`) of the node of
+    `lattice` nearest each position, given in lattice units (0 to 1, one
+    array per axis)."""
+    along = [np.clip(np.rint(np.asarray(u) * (n - 1)), 0, n - 1).astype(np.intp) for u, n in zip(units, lattice.counts)]
+    return np.ravel_multi_index(tuple(reversed(along)), lattice.shape)
