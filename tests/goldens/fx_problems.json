@@ -1,6 +1,6 @@
 {
   "unknown op": [
-    "layers.base.fold: unknown op 'kaleidd' (did you mean 'kaleid'?); ops: add, attractor, below, blend, contrast, diff, diffuse, feedback, hue, kaleid, life, lissajous, metaballs, mirror, modulate, mult, noise, osc, palette, particles, polar, posterize, prev, quasicrystal, reaction, repeat, ripple, rotate, scale, shape, trails, tunnel, twist, voronoi"
+    "layers.base.fold: unknown op 'kaleidd' (did you mean 'kaleid'?); ops: add, attractor, below, blend, contrast, diff, diffuse, dither, feedback, hue, kaleid, life, lissajous, metaballs, mirror, modulate, mult, noise, osc, palette, particles, polar, posterize, prev, quasicrystal, reaction, repeat, ripple, rotate, scale, shape, trails, tunnel, twist, voronoi"
   ],
   "unknown param": [
     "layers.base.waves: unknown param 'freqq' (did you mean 'freq'?); params: freq, sync, offset, axis, shape"

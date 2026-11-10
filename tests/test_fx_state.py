@@ -181,6 +181,71 @@ def test_life_never_settles(states: int, map_name: str, pooled: Pooled) -> None:
     assert np.abs(np.diff(late, axis=0)).max() > 0.0
 
 
+def bars(count: int = 6, lights: int = 24, gap: float = 0.25) -> np.ndarray:
+    """`count` upright bars of `lights` each, `gap` apart: about 6 times
+    the lights' pitch along a bar, so the graph links no light, not even
+    one at a bar's end, to another bar."""
+    along = line(lights)[:, ::-1][:, [1, 2, 0]]  # the strip stood upright: y from 0 to 1
+    return np.concatenate([along + np.array([k * gap, 0.0, 0.0], np.float32) for k in range(count)]).astype(np.float32)
+
+
+def life_from_one_bar(cell: float) -> np.ndarray:
+    """Life with no sparks on `bars()`, every light at step 0 but the first
+    bar's, one step ahead: the frames that follow."""
+    shown = hosted(sim_program("life", {"states": 6, "speed": 6.0, "sparks": 0.0, "cell": cell}), bars())
+    op = fakes.op_of(shown, "sim")
+    first = np.arange(24)
+    if cell:
+        op.cells[...] = 0.0
+        op.cells[op.index[first]] = 1.0
+        op.cells_last[...] = op.cells
+    else:
+        op.state[...] = 0.0
+        op.state[first] = 1.0
+        op.last[...] = op.state
+    return frames(shown, 120)[:, :, 0]
+
+
+def test_life_on_cells_crosses_the_gaps_between_bars() -> None:
+    """On the lights, a wave never leaves its bar; on a grid of cells laid
+    over the map it runs on to the next bars."""
+    assert not life_from_one_bar(0.0)[:, 24:].any(), "on the lights, the other bars never move"
+    crossed = life_from_one_bar(1.0)[-1, 24:].reshape(5, 24)
+    assert (crossed > 0.0).any(axis=1).all(), "on cells, the wave reaches every other bar"
+
+
+def test_life_on_cells_gives_the_same_bytes_for_the_same_seed() -> None:
+    program = sim_program("life", {"states": 8, "cell": 1.1})
+    once, again = (frames(hosted(program, bars()), 40) for _ in range(2))
+    assert once.tobytes() == again.tobytes()
+    assert not np.array_equal(once, frames(hosted(program, bars(), seed=8), 40)), "another seed, another stream"
+
+
+def test_life_without_cell_runs_on_the_lights_as_before() -> None:
+    """`cell` at 0, its default, leaves the automaton on the lights: the
+    same bytes as a node that does not name it, and no lattice laid. The
+    golden frames (test_fx_goldens.py) hold its picture."""
+    plain = hosted(sim_program("life", {"states": 6}), grid(12, 12))
+    named = hosted(sim_program("life", {"states": 6, "cell": 0.0}), grid(12, 12))
+    assert frames(plain, 30).tobytes() == frames(named, 30).tobytes()
+    assert fakes.op_of(plain, "sim").lattice is None
+
+
+def test_a_live_cell_change_lays_the_lattice_again() -> None:
+    """A knob set while it runs moves `cell`; the next frame lays the
+    lattice at the new size, each cell taking the nearest old cell's step,
+    and the automaton runs on."""
+    shown = hosted(sim_program("life", {"states": 8, "cell": 1.0}), bars())
+    op = fakes.op_of(shown, "sim")
+    frames(shown, 10)
+    before = op.lattice.counts
+    op.cell = 2.0
+    after = frames(shown, 30)
+    assert op.lattice.counts != before and op.laid == 2.0
+    assert np.isfinite(after).all() and after.min() >= 0.0 and after.max() < 1.0
+    assert np.abs(np.diff(after, axis=0)).max() > 0.0
+
+
 def test_a_clifford_cloud_turns_in_a_panel_s_plane() -> None:
     """Turned about the up axis, a flat cloud would show edge on to a
     panel; it turns in the panel's plane instead, so it spans the panel at

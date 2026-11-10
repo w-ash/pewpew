@@ -37,16 +37,18 @@ Reads none; gives rgb. Dimensions: 1, 2, 3.
 
 ### `life` — Chase
 
-Waves of color that chase round and round across the lights: a cyclic cellular automaton, each point counting round its steps and moving on a step when a neighbor is one step ahead. `states` sets how many steps. From noise, waves and turning spirals form. On a strip or a small map the waves die out and the points settle, so `sparks` move points on at random, and each starts a new wave. It shows each point's step as a share of the cycle, so give it a palette whose ends match.
+Waves of color that chase round and round across the lights: a cyclic cellular automaton, each point counting round its steps and moving on a step when a neighbor is one step ahead. `states` sets how many steps. From noise, waves and turning spirals form. On a strip or a small map the waves die out and the points settle, so `sparks` move points on at random, and each starts a new wave. It shows each point's step as a share of the cycle, so give it a palette whose ends match. With `cell` above 0 it runs on a grid of square cells laid over the map instead, each light showing the cell it is in, so waves cross the gaps between strips a few apart.
 
 Reads none; gives scalar. Dimensions: 1, 2, 3.
 
 - `states`: 6 3..12. Steps in one cycle: more give wider bands, which settle sooner.
 - `speed`: 6.0 0.5..20.0 /s. How fast the waves chase.
 - `sparks`: 2.0 0.0..20.0 /s. Points a second that move on by themselves, each starting a wave; at 0 a strip settles.
+- `cell`: 0.0 0.0..8.0 ×. At 0 it runs on the lights; above 0 on square cells this many times the lights' mean spacing wide, laid over the map, so waves cross the gaps between strips.
 
     life(6, 20, 4)
     life(5, speed=4).palette("synthwave", cycle=0.02)
+    life(8, 6, 8, cell=1.5)
 
 ### `lissajous` — Lissajous
 
@@ -205,6 +207,18 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
     voronoi(6).palette("forest")
 
 ## Coord ops
+
+### `dither` — Dither
+
+Breaks hard edges into a sparkle: each light reads the pattern a little off its own spot, and jumps to a new spot now and then, on a clock of its own. Where the pattern is flat nothing changes; at an edge a light twinkles between the colors on each side, as often as the edge covers its spot, so a hard edge reads as glitter and an edge that moves shimmers across the lights rather than stepping from one to the next. `amount` sets how far a light reaches, in the spacing of the lights along each axis, and `rate` how often each light jumps.
+
+Reads `in` (same); gives same. Dimensions: 1, 2, 3.
+
+- `amount`: 0.5 0.0..3.0 ×. How far each light reaches: 0.5 is halfway to its neighbours; more sparkles wider.
+- `rate`: 2.0 0.0..6.0 /s. Jumps a second for each light: more twinkles faster; above about 2 an edge can flash.
+
+    osc(5, axis="y").polar().kaleid(5).dither(1).palette("synthwave")
+    voronoi(4, edge=0.8).dither(1, 1.5).palette("aurora")
 
 ### `kaleid` — Kaleidoscope
 

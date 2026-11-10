@@ -268,7 +268,7 @@
       "op": "life",
       "sig": "source",
       "label": "Chase",
-      "doc": "Waves of color that chase round and round across the lights: a cyclic cellular automaton, each point counting round its steps and moving on a step when a neighbor is one step ahead. `states` sets how many steps. From noise, waves and turning spirals form. On a strip or a small map the waves die out and the points settle, so `sparks` move points on at random, and each starts a new wave. It shows each point's step as a share of the cycle, so give it a palette whose ends match.",
+      "doc": "Waves of color that chase round and round across the lights: a cyclic cellular automaton, each point counting round its steps and moving on a step when a neighbor is one step ahead. `states` sets how many steps. From noise, waves and turning spirals form. On a strip or a small map the waves die out and the points settle, so `sparks` move points on at random, and each starts a new wave. It shows each point's step as a share of the cycle, so give it a palette whose ends match. With `cell` above 0 it runs on a grid of square cells laid over the map instead, each light showing the cell it is in, so waves cross the gaps between strips a few apart.",
       "inputs": [],
       "out": "scalar",
       "dims": [
@@ -342,6 +342,27 @@
             8.0
           ],
           "flash_sensitive": false
+        },
+        {
+          "name": "cell",
+          "kind": "float",
+          "label": "Cell",
+          "help": "At 0 it runs on the lights; above 0 on square cells this many times the lights' mean spacing wide, laid over the map, so waves cross the gaps between strips",
+          "group": "",
+          "widget": "",
+          "default": 0.0,
+          "unit": "×",
+          "lo": 0.0,
+          "hi": 8.0,
+          "step": 0.05,
+          "decimals": 2,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.0,
+            3.0
+          ],
+          "flash_sensitive": false
         }
       ],
       "cost": {
@@ -407,6 +428,23 @@
                     ]
                   },
                   "cycle": 0.02
+                }
+              }
+            }
+          }
+        },
+        {
+          "py": "life(8, 6, 8, cell=1.5)",
+          "json": {
+            "out": "life",
+            "nodes": {
+              "life": {
+                "op": "life",
+                "args": {
+                  "states": 8,
+                  "speed": 6.0,
+                  "sparks": 8.0,
+                  "cell": 1.5
                 }
               }
             }
@@ -2446,6 +2484,210 @@
                         "h": 65.0,
                         "s": 0.7,
                         "v": 0.9
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "dither",
+      "sig": "coord",
+      "label": "Dither",
+      "doc": "Breaks hard edges into a sparkle: each light reads the pattern a little off its own spot, and jumps to a new spot now and then, on a clock of its own. Where the pattern is flat nothing changes; at an edge a light twinkles between the colors on each side, as often as the edge covers its spot, so a hard edge reads as glitter and an edge that moves shimmers across the lights rather than stepping from one to the next. `amount` sets how far a light reaches, in the spacing of the lights along each axis, and `rate` how often each light jumps.",
+      "inputs": [
+        {
+          "name": "in",
+          "ty": "same"
+        }
+      ],
+      "out": "same",
+      "dims": [
+        1,
+        2,
+        3
+      ],
+      "stateful": false,
+      "warpable": true,
+      "fix": "",
+      "params": [
+        {
+          "name": "amount",
+          "kind": "float",
+          "label": "Amount",
+          "help": "How far each light reaches: 0.5 is halfway to its neighbours; more sparkles wider",
+          "group": "",
+          "widget": "",
+          "default": 0.5,
+          "unit": "×",
+          "lo": 0.0,
+          "hi": 3.0,
+          "step": 0.02,
+          "decimals": 2,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.25,
+            1.5
+          ],
+          "flash_sensitive": false
+        },
+        {
+          "name": "rate",
+          "kind": "float",
+          "label": "Rate",
+          "help": "Jumps a second for each light: more twinkles faster; above about 2 an edge can flash",
+          "group": "",
+          "widget": "",
+          "default": 2.0,
+          "unit": "/s",
+          "lo": 0.0,
+          "hi": 6.0,
+          "step": 0.05,
+          "decimals": 2,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.0,
+            6.0
+          ],
+          "flash_sensitive": true
+        }
+      ],
+      "cost": {
+        "ns_per_point": 2.5,
+        "us_fixed": 6.0
+      },
+      "examples": [
+        {
+          "py": "osc(5, axis=\"y\").polar().kaleid(5).dither(1).palette(\"synthwave\")",
+          "json": {
+            "out": "palette",
+            "nodes": {
+              "osc": {
+                "op": "osc",
+                "args": {
+                  "freq": 5.0,
+                  "axis": "y"
+                }
+              },
+              "polar": {
+                "op": "polar",
+                "in": [
+                  "osc"
+                ],
+                "args": {}
+              },
+              "kaleid": {
+                "op": "kaleid",
+                "in": [
+                  "polar"
+                ],
+                "args": {
+                  "sides": 5
+                }
+              },
+              "dither": {
+                "op": "dither",
+                "in": [
+                  "kaleid"
+                ],
+                "args": {
+                  "amount": 1.0
+                }
+              },
+              "palette": {
+                "op": "palette",
+                "in": [
+                  "dither"
+                ],
+                "args": {
+                  "palette": {
+                    "label": "synthwave",
+                    "stops": [
+                      {
+                        "at": 0.0,
+                        "h": 275.0,
+                        "s": 1.0,
+                        "v": 0.25
+                      },
+                      {
+                        "at": 0.5,
+                        "h": 315.0,
+                        "s": 0.9,
+                        "v": 0.9
+                      },
+                      {
+                        "at": 1.0,
+                        "h": 190.0,
+                        "s": 0.85,
+                        "v": 1.0
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "py": "voronoi(4, edge=0.8).dither(1, 1.5).palette(\"aurora\")",
+          "json": {
+            "out": "palette",
+            "nodes": {
+              "voronoi": {
+                "op": "voronoi",
+                "args": {
+                  "scale": 4.0,
+                  "edge": 0.8
+                }
+              },
+              "dither": {
+                "op": "dither",
+                "in": [
+                  "voronoi"
+                ],
+                "args": {
+                  "amount": 1.0,
+                  "rate": 1.5
+                }
+              },
+              "palette": {
+                "op": "palette",
+                "in": [
+                  "dither"
+                ],
+                "args": {
+                  "palette": {
+                    "label": "aurora",
+                    "stops": [
+                      {
+                        "at": 0.0,
+                        "h": 150.0,
+                        "s": 1.0,
+                        "v": 0.1
+                      },
+                      {
+                        "at": 0.4,
+                        "h": 140.0,
+                        "s": 0.85,
+                        "v": 0.7
+                      },
+                      {
+                        "at": 0.7,
+                        "h": 185.0,
+                        "s": 0.7,
+                        "v": 0.8
+                      },
+                      {
+                        "at": 1.0,
+                        "h": 285.0,
+                        "s": 0.65,
+                        "v": 0.7
                       }
                     ]
                   }

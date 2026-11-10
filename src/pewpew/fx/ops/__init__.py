@@ -3,7 +3,7 @@ registry by op name once they are in.
 
 - `source`: osc, noise, voronoi, shape, quasicrystal, metaballs,
   lissajous, below, prev
-- `coord`: rotate, scale, kaleid, polar, mirror, twist, tunnel, repeat
+- `coord`: rotate, scale, kaleid, polar, mirror, twist, tunnel, dither, repeat
 - `color`: palette, hue, contrast, posterize
 - `combine`: add, mult, diff, blend, and modulate
 - `signal`: lfo, env, band, beat, walk, knob, smooth: one number a

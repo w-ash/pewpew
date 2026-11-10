@@ -56,7 +56,7 @@ def test_a_search_narrows_by_kind_and_words() -> None:
 def test_the_fx_verbs_print_the_catalog(capsys: pytest.CaptureFixture[str]) -> None:
     assert run_main(["fx", "catalog", "--kind", "coord", "--json"])[0] == 0
     found = json.loads(capsys.readouterr().out)["items"]
-    assert [r["sig"] for r in found] == ["coord"] * len(found) and len(found) == 8
+    assert [r["sig"] for r in found] == ["coord"] * len(found) and len(found) == 9
     assert run_main(["fx", "catalog", "--query", "kaleidoscope"])[0] == 0
     assert capsys.readouterr().out.startswith("kaleid ")
     assert run_main(["fx", "show", "kaleid", "--json"])[0] == 0
