@@ -44,7 +44,7 @@ from pewpew.fx.bound_program import BoundProgram
 from pewpew.mapping import line
 from pewpew.pace import PacedLoop
 from pewpew.rig import EXAMPLES
-from pewpew.run import preview_url, status_line
+from pewpew.run import looks_book, preview_url, seed_looks, status_line
 from pewpew.sinks import ddp, preview
 from pewpew.sinks.sink import Dither
 from pewpew.testing.clock import FakeClock
@@ -94,9 +94,30 @@ def test_an_explicit_map_wins_over_the_default():
     assert out.count("█") == 8  # the 8 asked for, not the default grid's 256
 
 
-def test_run_rejects_a_bad_looks_file_and_a_bad_map(tmp_path, capsys):
+def test_a_new_looks_file_starts_with_every_example_look(tmp_path, caplog):
+    path = tmp_path / "new.look.json"
+    rc, _ = run_main(["run", str(path), "--frames", "1"])
+    examples = sorted(p.name.removesuffix(".look.json") for p in EXAMPLE_LOOKS.glob("*.look.json"))
+    book = json.loads(path.read_text())
+    assert rc == 0 and list(book["looks"]) == examples and book["current"] == examples[0]
+    assert f"a new looks file, with the {len(examples)} example looks" in caplog.text
+    # The file now exists, so the next run reads it as it is.
+    path.write_text(json.dumps({**book, "current": examples[-1]}))
+    assert build(["run", str(path)]).looks.book.current == examples[-1]
+
+
+def test_a_new_looks_file_is_refused_unattended_and_without_examples(tmp_path):
+    missing = tmp_path / "nope.look.json"
     with pytest.raises(SystemExit, match=r"nope.look.json: cannot read the looks file: No such file or directory$"):
-        main(["run", str(tmp_path / "nope.look.json"), "--frames", "1"])
+        looks_book(missing, 1.0, unattended=True)
+    with pytest.raises(SystemExit, match=r"nope.look.json: no such looks file, and no example looks in "):
+        seed_looks(missing, examples=tmp_path)
+    with pytest.raises(SystemExit, match=r"new.look.json: cannot write the looks file: No such file or directory$"):
+        seed_looks(tmp_path / "no-folder" / "new.look.json", examples=EXAMPLE_LOOKS)
+    assert not missing.exists()
+
+
+def test_run_rejects_a_bad_looks_file_and_a_bad_map(tmp_path, capsys):
     unknown = unknown_op(tmp_path)
     with pytest.raises(SystemExit, match=rf"^{re.escape(unknown)}: look 'look': layers.base.nope: unknown "
                        "op 'nope'; ops: add, "):

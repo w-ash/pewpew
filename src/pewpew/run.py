@@ -14,7 +14,9 @@ so every part gets what it needs at construction. The health monitor
 reaches the rig reload, built after the aura, only once the run starts. The
 watchdog is armed before the aura is built, so a look that hangs while it
 builds still ends the run. The run starts in the looks file's current
-look (else its first), and saves go to the same file; after a stall it
+look (else its first), and saves go to the same file; an attended run on
+a looks file that does not exist yet first writes it with every example
+look (`seed_looks`). After a stall it
 starts in the next look the stall marker does not name instead (`after_stall`). The map is `--map`
 (`pewpew.lab.geometry.parse_geometry`), else `DEFAULT_MAP`. An arrangement
 `--map` (a rig, `pewpew.rig.runtime`) gives the mapping, a power model,
@@ -82,14 +84,14 @@ import numpy as np
 from pewpew import audit
 from pewpew.audio import AudioFeatures, AudioSource, FeatureLog, LiveSource, ReplayFeatures
 from pewpew.audio.inputs import NET, read_input
-from pewpew.aura.book import LookBook, load_looks, route_reasons
+from pewpew.aura.book import LookBook, examples_book, load_looks, route_reasons
 from pewpew.aura.looks import Looks
 from pewpew.aura.pipeline import build_aura_pipeline
 from pewpew.awake import KeepAwake
 from pewpew.compose import LayerError, Look
 from pewpew.features import EventFeatures, FakeFeatures, FeatureSource
 from pewpew.health import HealthMonitor
-from pewpew.jsonfile import read_or_exit
+from pewpew.jsonfile import read_or_exit, write_atomic
 from pewpew.lab.check import dims_reasons
 from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.mapping import DEFAULT_MAP, dimensions
@@ -113,6 +115,7 @@ logger = logging.getLogger(__name__)
 
 GRACE_S = 2.0  # extra seconds to wait on a mid-send worker before releasing
 PREVIEW_RETRY_S = 5.0  # how often a preview that cannot listen tries again
+EXAMPLES = Path(__file__).resolve().parents[2] / "examples"  # the example looks a new looks file starts with
 
 
 @dataclass(frozen=True)
@@ -145,7 +148,7 @@ class Launch:
 
     @classmethod
     def read(cls, args: argparse.Namespace, argv: list[str]) -> Launch:
-        book = looks_book(args.looks, args.master_cap)
+        book = looks_book(args.looks, args.master_cap, unattended=args.unattended)
         geometry = map_geometry(args.map)
         rig, mapping = geometry.rig, geometry.mapping
         book = start_look(args.looks, book, mapping)
@@ -586,14 +589,33 @@ def power_cap(max_watts: float | None, max_brightness: float | None, rig: Compil
     )
 
 
-def looks_book(path: Path, cap: float) -> LookBook:
-    """Load and check the looks file at launch. A missing or malformed file
-    is one clean exit line naming it; a look whose route reaches no knob is
-    a warning, and its recall refuses it as it does mid-run."""
+def looks_book(path: Path, cap: float, *, unattended: bool = False) -> LookBook:
+    """Load and check the looks file at launch. An attended run on a file
+    that does not exist first writes it with the example looks
+    (`seed_looks`); an unattended run refuses it, so a mistyped path never
+    plays the examples on a rig. A malformed file, or one that cannot be
+    read, is one clean exit line naming it; a look whose route reaches no
+    knob is a warning, and its recall refuses it as it does mid-run."""
+    if not unattended and not path.exists():
+        seed_looks(path)
     book = read_or_exit(path, "looks file", lambda: load_looks(path, cap=cap))
     for problem in route_reasons(book):
         logger.warning("%s: %s", path, problem)
     return book
+
+
+def seed_looks(path: Path, examples: Path = EXAMPLES) -> None:
+    """Write a new looks file at `path` with every example look in
+    `examples` (`examples_book`), its first current. One clean exit line
+    when there are no example looks or the file cannot be written."""
+    book = read_or_exit(examples, "example looks", lambda: examples_book(examples))
+    if not book.looks:
+        raise SystemExit(f"{path}: no such looks file, and no example looks in {examples} to start one with")
+    try:
+        write_atomic(path, book.to_bytes())
+    except OSError as exc:
+        raise SystemExit(f"{path}: cannot write the looks file: {exc.strerror or exc}") from None
+    logger.warning("%s: a new looks file, with the %d example looks", path, len(book.looks))
 
 
 def start_look(path: Path, book: LookBook, mapping: np.ndarray) -> LookBook:

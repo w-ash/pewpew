@@ -145,7 +145,8 @@ def _parser() -> argparse.ArgumentParser:
     looks = run.add_argument_group("the looks")
     looks.add_argument("looks", type=Path, metavar="LOOKS",
                        help="a looks file, version 4 (a .look.json file is one): the run starts in its current "
-                       "look, and the page's saves go to it (docs/authoring.md)")
+                       "look, and the page's saves go to it; a file that does not exist yet starts with every "
+                       "example look (docs/authoring.md)")
     looks.add_argument("--seed", type=whole(0, "a seed"), default=0,
                        help="seeds the stand-in features and the looks made in the run (default 0); each look's "
                        "own seed seeds its layers")

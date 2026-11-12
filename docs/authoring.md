@@ -14,7 +14,9 @@ $ uv run python -m pewpew run looks.json --map examples/canopy-60-bars.arrangeme
 
 `run LOOKS` plays a looks file, a version-4 book of looks (a `.look.json`
 file is one), starting in its `current` look. The Console's saves go
-to that same file. With no `--map` the map is `grid:16x16`.
+to that same file. A looks file that does not exist yet is made with
+every example look in `examples/`, so a new rig or arrangement starts
+with all of them (an `--unattended` run refuses a missing file instead). With no `--map` the map is `grid:16x16`.
 The other flags are in `run --help`.
 
 You change a look with the Console, the `fx` verbs (§6) or an agent

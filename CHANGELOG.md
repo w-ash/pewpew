@@ -9,6 +9,9 @@ series (batch mode).
 
 ### Added
 
+- `run` on a looks file that does not exist yet makes it with every example look,
+  so a new rig or arrangement opens in the Console with all of them. An
+  `--unattended` run still refuses a missing looks file.
 - `run` warns when the LEDs will jerk though the preview is smooth: each board's
   health row warns when its WLED target refresh rate (`hw.led.fps`, read once from
   `/json/cfg`, again after a reboot) is below the DDP rate, and on macOS the run logs a
