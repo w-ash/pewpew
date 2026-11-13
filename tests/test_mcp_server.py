@@ -224,6 +224,15 @@ async def test_look_render_moves_a_knob_by_its_route(client: Client) -> None:
     assert plain["motion_energy"] == 0 < moved["motion_energy"], "only the route moves the stripes"
 
 
+async def test_look_render_takes_a_colorway(client: Client) -> None:
+    look = {**FIRST, "colorways": {"ice": {"layers.base.tint.palette": "ice"}}}
+    result = await client.call_tool("look_render", {"look": look, **FAST, "sheet": False, "colorway": "ice"})
+    assert payload(result) == lab.render(look, "line:64", 1, 10, colorway="ice").brief().to_json()
+    assert payload(result)["handle"] != lab.render(look, "line:64", 1, 10).handle
+    refused = await client.call_tool("look_render", {"look": look, **FAST, "sheet": False, "colorway": "icee"})
+    assert refusal(refused)["problems"][0]["did_you_mean"] == "ice"
+
+
 async def test_look_compare_takes_a_handle_and_a_look(client: Client) -> None:
     a = payload(await client.call_tool("look_render", {"look": FIRST, **FAST, "sheet": False}))["handle"]
     finer = stripes(freq=8.0)

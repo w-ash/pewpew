@@ -90,6 +90,7 @@ def look(
     fade: float | None = None,
     cycle: bool = False,
     front: Sequence[str] = (),
+    colorways: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Look: ...
 def attractor(
     kind: str = ...,

@@ -91,7 +91,9 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
     }),
     fields: {
       stack: {
-        keys: keys<StackState>({ layers: true, signals: true, routes: true, front: true, dims: true }),
+        keys: keys<StackState>({
+          layers: true, signals: true, routes: true, front: true, colorways: true, colorway: true, dims: true,
+        }),
         fields: {
           layers: {
             keys: keys<LayerItem>({ id: true, nodes: true }),
@@ -195,6 +197,7 @@ const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   remove_layer: { lid: true },
   move_layer: { lid: true, to: true },
   front: { paths: true },
+  colorway: { name: true },
   master: { value: true },
   blackout: { on: true },
   recall: { name: true, fade: true },

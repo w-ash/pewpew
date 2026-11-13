@@ -773,6 +773,11 @@
           "signals.macro.value",
           "layers.base.zoo.level"
         ],
+        "colorways": [
+          "green",
+          "red"
+        ],
+        "colorway": "green",
         "dims": 1
       },
       "fading": false,
@@ -1449,6 +1454,8 @@
         "signals": [],
         "routes": [],
         "front": [],
+        "colorways": [],
+        "colorway": null,
         "dims": 1
       },
       "fading": false,
@@ -2050,6 +2057,9 @@
     ],
     "front": [
       "paths"
+    ],
+    "colorway": [
+      "name"
     ],
     "master": [
       "value"

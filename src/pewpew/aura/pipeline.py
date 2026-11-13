@@ -123,7 +123,7 @@ def build_aura_pipeline(
     features = features if features is not None else EventFeatures(FakeFeatures(seed))
     stack = Compositor(
         look.layers, mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
-        features=features, bypass=bypass, now=now,
+        colorways=look.colorways, features=features, bypass=bypass, now=now,
     )
     # The loop drives the crossfader, and everything that would reach the
     # stack reaches it, so a look recall can put a new stack in place.

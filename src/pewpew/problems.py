@@ -14,7 +14,9 @@ A path is dotted: `looks.<name>` for a look of a book, then a knob's
 address (ADR-006: `layers.<layer>.<node>.<arg>`, `layers.<layer>.opacity`,
 `signals.<signal>.<arg>`), a node's or signal's own part
 (`layers.<layer>.<node>.op`, `.in`), a route's or front
-knob's place and key (`routes[<index>].path`, `front[<index>]`), or the
+knob's place and key (`routes[<index>].path`, `front[<index>]`), a
+colorway's knob by its address after `colorways.<name>`
+(`looks.dusk.colorways.ice.layers.base.tint.palette`), or the
 key refused, such as `looks.dusk.master` or `cycle.end`. A layer
 that has no usable id yet is `layers[<index>]`. The path of a problem with
 a single look starts at the look, with no `looks.<name>`.
@@ -94,7 +96,7 @@ class Problem(Result):
         """The edit that fixes it, from its did-you-mean, example or valid
         values; a list its reason gives already is not given again."""
         where = self.path or "the look"
-        key = self.path.rpartition(".")[2]
+        key = _key(self.path)
         listed = len(self.valid) > 2 and ", ".join(self.valid) in self.reason
         if self.code == Code.UNKNOWN_KEY:
             if self.did_you_mean is not None:
@@ -133,6 +135,9 @@ _REPR = r"""'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*\""""
 _END = r"(?:: | (?=is |holds ))"  # a location ends at ": ", or before a reason about itself
 _LOOK = re.compile(rf"look ({_REPR}){_END}")
 _TRIGGER = re.compile(rf"trigger ({_REPR}){_END}")
+_COLORWAY = re.compile(rf"colorway ({_REPR}){_END}")
+# A path into a colorway: its knob's address is the key there.
+_COLORWAY_KEY = re.compile(r"(?:^|\.)colorways\.[^.]+\.(.+)$")
 _CYCLE = re.compile(r"cycle: ")
 _INDEX = re.compile(rf"layers\[(\d+)\]{_END}")
 _ITEM = re.compile(rf"(routes|front)\[(\d+)\]{_END}")
@@ -180,6 +185,10 @@ def _locate(text: str, doc: Any) -> tuple[list[str], Any, list[str] | None, str]
         elif m := _TRIGGER.match(rest):
             name = _unrepr(m[1])
             path, node = ["triggers", name], member(member(doc, "triggers"), name)
+        elif m := _COLORWAY.match(rest):
+            name = _unrepr(m[1])
+            path, node = [*path, "colorways", name], member(member(node, "colorways"), name)
+            look = list(path)  # an address names the colorway's knob
         elif m := _CYCLE.match(rest):
             path, node = ["cycle"], member(doc, "cycle")
         elif m := _INDEX.match(rest):
@@ -304,6 +313,13 @@ def _param(subject: list[str], verb: str, rest: str) -> tuple[Code, list[str], t
     if rest.startswith("true or false"):
         return Code.WRONG_KIND, subject, ("true", "false"), None, None
     return Code.WRONG_KIND, subject, (), None, None
+
+
+def _key(path: str) -> str:
+    """The key a problem at `path` names: a colorway's knob's address, or
+    the last part of the path."""
+    m = _COLORWAY_KEY.search(path)
+    return m[1] if m else path.rpartition(".")[2]
 
 
 def _unrepr(text: str) -> str:

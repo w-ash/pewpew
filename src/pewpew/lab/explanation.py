@@ -76,10 +76,11 @@ class Explanation(Result):
         return "\n".join(lines)
 
 
-def explain(look: LookDoc, *, name: str | None = None) -> Explanation:
-    """`look` (a look, or the look `name` of a looks file) in words.
-    Raises Refused for a look with problems."""
-    staged = ready(look, name=name)
+def explain(look: LookDoc, *, name: str | None = None, colorway: str | None = None) -> Explanation:
+    """`look` (a look, or the look `name` of a looks file), in its colorway
+    `colorway` when given, in words. Raises Refused for a look with
+    problems or no such colorway."""
+    staged = ready(look, name=name, colorway=colorway)
     shown = staged.look
     stack = ", then ".join(f"{layer.id} ({_mix(layer)})" for layer in shown.layers)
     count = len(shown.layers)
@@ -96,6 +97,8 @@ def explain(look: LookDoc, *, name: str | None = None) -> Explanation:
                     f"{driven} knob{'s' if driven != 1 else ''} each frame (each signal's note says how far).")
     if shown.front:
         summary += f" A page shows {', '.join(shown.front)} first."
+    if shown.colorways:
+        summary += f" Colorways: {', '.join(shown.colorways)}."
     knobs = look_controls(shown)
     spans = ranges(signals)
     notes = tuple(_signal(node, spans[node.id], shown.routes, knobs) for node in signals)

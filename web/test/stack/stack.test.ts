@@ -56,7 +56,7 @@ test("a look that lists no front shows the knobs the engine would pick: routed, 
   const named = (name: string, layer: string, node: string) => ({ name, layer, node, group: "" });
   const params = [named("layers.base.wash.speed", "base", "wash"), named("layers.top.sparkle.rate", "top", "sparkle"), named("layers.top.opacity", "top", "")];
   const routes = [{ source: "breath", path: "layers.top.sparkle.rate", depth: 1 }];
-  const stack = { layers, signals: [], routes, front: [], dims: 2 as const };
+  const stack = { layers, signals: [], routes, front: [], colorways: [], colorway: null, dims: 2 as const };
   expect(panelOf(params, stack, null).front.map((p) => p.name)).toEqual(["layers.top.sparkle.rate", "layers.base.wash.speed"]);
   expect(pickedFront({ ...stack, routes: [] }, params)).toEqual(["layers.base.wash.speed", "layers.top.sparkle.rate"]);
   // A lone layer's first knob is in front too, as the engine picks it.
@@ -73,7 +73,7 @@ test("the panel shows the front knobs and the signals', then a lone layer's knob
   ];
   const signals = [{ id: "breath", op: "walk", label: "Random", in: [], range: SWING }];
   const routes = [{ source: "breath", path: "layers.top.sparkle.rate", depth: 1 }];
-  const stack = { layers, signals, routes, front: ["layers.top.opacity", "layers.top.sparkle.rate"], dims: 2 as const };
+  const stack = { layers, signals, routes, front: ["layers.top.opacity", "layers.top.sparkle.rate"], colorways: [], colorway: null, dims: 2 as const };
   const names = (view: ReturnType<typeof panelOf<(typeof params)[number]>>) => [
     view.front.map((p) => p.name), view.loose.map((p) => p.name),
     view.sections.map((s) => [s.title, s.params.map((p) => p.name)]),

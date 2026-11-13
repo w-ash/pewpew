@@ -22,7 +22,8 @@ boards: writing a WLED preset freezes the board's lights for seconds
                     "nodes": {"motes": {"op": "particles", "args": {}}}}],
                  "signals": {"breath": {"op": "lfo", "args": {"rate": 0.05}}},
                  "routes": [{"source": "breath", "path": "layers.sparks.opacity", "depth": 0.3}],
-                 "front": ["layers.base.waves.sync"]},
+                 "front": ["layers.base.waves.sync"],
+                 "colorways": {"ice": {"layers.base.tint.palette": "ice", "layers.sparks.opacity": 0.3}}},
         "breathe": {"layers": [{"id": "base", "nodes": {"glow": {"op": "osc", "args": {"freq": 1.0}}}}]}
       },
       "cycle": {"idle": 300, "each": [40, 90], "rounds": 0, "end": null,
@@ -38,10 +39,14 @@ boards: writing a WLED preset freezes the board's lights for seconds
 
 `looks` keeps its order, which is the order the page shows. Each look's
 body (its layers and their programs, its signals, routes and front knobs,
-seed, master, fade and cycle) is the effect-program codec's
+colorways, seed, master, fade and cycle) is the effect-program codec's
 (pewpew.fx.codec), which reads and writes it; this module holds the file
 around it. A route's knob is judged at recall, and `route_reasons`
-lists at launch a route that no longer reaches one. `current` is the look last recalled
+lists at launch a route that no longer reaches one. A look's `colorways`
+are named sets of knob values, by address, that a page sets in one press
+(pewpew.compose.stack; ADR-006 amendment "colorways"): which colorway
+is active is never stored, so a save of the live values keeps it, and the
+idle cycle and the triggers play a look as saved. `current` is the look last recalled
 or saved, so a restart comes back in it.
 
 `cycle` is the idle cycle, ADR-006's playlist under pewpew's own names,
@@ -84,15 +89,14 @@ file fails at launch, not mid-run. A look whose route reaches no knob is
 not malformed: `route_reasons` lists it for a launch warning, and a
 recall refuses it.
 
-`check_name` is the aura's request check for a look's name too, on any
-thread. Names only: a look name may cross the preview socket; the file's
+`check_name` (pewpew.compose.stack) is the aura's request check for a
+look's name too, on any thread. Names only: a look name may cross the preview socket; the file's
 path never does.
 """
 
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -101,7 +105,7 @@ from typing import Any
 
 from pewpew.compose.controls import look_controls
 from pewpew.compose.modulation import route_problems
-from pewpew.compose.stack import Look, is_seed
+from pewpew.compose.stack import Look, check_name, is_seed
 from pewpew.fx.codec import decode_look, encode_look
 from pewpew.jsonfile import ProblemsError, is_number, parse_json
 
@@ -109,10 +113,6 @@ VERSION = 4
 MAX_LOOKS = 64
 MAX_FAVORITES = 20
 DEFAULT_FAVORITES = 9  # the looks a file with no "favorites" key shows
-MAX_NAME = 32  # characters in a look's name
-# Letters and digits first, then also space, "_" and "-": short enough for a
-# phone button, and nothing that reads as a path.
-_NAME = re.compile(rf"[A-Za-z0-9][A-Za-z0-9 _-]{{0,{MAX_NAME - 1}}}")
 
 _TOP_KEYS = {"version", "current", "looks", "cycle", "triggers", "favorites", "notes"}
 _CYCLE_KEYS = {"idle", "each", "rounds", "end", "seed", "window", "fresh", "weights"}
@@ -133,18 +133,6 @@ MAX_CYCLE_TIME = 86400.0
 
 class LookError(ProblemsError):
     """The looks file is malformed."""
-
-
-def check_name(name: object, noun: str = "look") -> str | None:
-    """Why `name` cannot name a look (or a `noun`), or None. Never raises."""
-    if not isinstance(name, str):
-        return f"a {noun} name is text, got {name!r}"
-    if not _NAME.fullmatch(name):
-        return (
-            f"bad {noun} name {name!r}: 1 to {MAX_NAME} letters, digits, spaces, '_' or '-', "
-            "starting with a letter or digit"
-        )
-    return None
 
 
 class Keep(Enum):

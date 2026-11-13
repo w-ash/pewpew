@@ -263,17 +263,19 @@ def look(
     fade: float | None = None,
     cycle: bool = False,
     front: Sequence[str] = (),
+    colorways: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Look:
     """The look of `layers`, bottom first, with `routes` and the routes of
     signals given as args, and the look's own fields (pewpew.compose.stack
-    .Look; `fade` None is its default). Its signals are the ones its routes
-    take, and the ones they read. Raises ValueError for a look that its
-    programs, its signals, its routes or its own fields refuse, each
+    .Look; `fade` None is its default), its `colorways` each value in its
+    knob's JSON form. Its signals are the ones its routes take, and the
+    ones they read. Raises ValueError for a look that its programs, its
+    signals, its routes, its colorways or its own fields refuse, each
     problem by its path."""
     # The compose package imports this module, so it is imported here.
     from pewpew.compose.controls import layer_address, look_controls, signal_address
     from pewpew.compose.modulation import route_problems, signal_problems
-    from pewpew.compose.stack import DEFAULT_FADE, Layer, Look, Route, order_signals
+    from pewpew.compose.stack import DEFAULT_FADE, Layer, Look, Route, order_signals, parse_colorways
 
     built: list[Layer] = []
     wires: list[Routed] = []
@@ -295,11 +297,14 @@ def look(
         raise ValueError("; ".join(problems))
     result = Look(tuple(built), Graph(nodes) if nodes else None, made, seed, master,
                   DEFAULT_FADE if fade is None else fade, cycle, tuple(front))
-    problems = signal_problems(result.signals, result.routes) or route_problems(
-        result.routes, result.front, look_controls(result))
+    knobs = look_controls(result)
+    problems = signal_problems(result.signals, result.routes) or route_problems(result.routes, result.front, knobs)
     if problems:
         raise ValueError("; ".join(problems))
-    return result
+    painted, problems = parse_colorways(colorways or {}, knobs)
+    if problems:
+        raise ValueError("; ".join(problems))
+    return replace(result, colorways=painted)
 
 
 def __getattr__(name: str) -> Callable[..., Expr]:

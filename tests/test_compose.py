@@ -549,7 +549,7 @@ def test_the_stack_is_a_look_again_at_its_live_values():
     assert comp.state() == {
         "layers": [{"id": "base", "nodes": [{"id": "noise", "op": "noise", "label": "Noise", "in": []}]},
                    {"id": "top", "nodes": [{"id": "solid", "op": "solid_test", "label": "Solid_test", "in": []}]}],
-        "signals": [], "routes": [], "front": [], "dims": 1,
+        "signals": [], "routes": [], "front": [], "colorways": [], "colorway": None, "dims": 1,
     }
 
 

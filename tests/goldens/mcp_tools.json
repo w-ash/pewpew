@@ -179,7 +179,7 @@
       "properties": {
         "look": {
           "additionalProperties": true,
-          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame.",
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame, and \"colorways\", {name: {knob address: value}}, named sets of knob values that recolour it.",
           "examples": [
             {
               "layers": [
@@ -396,14 +396,14 @@
   },
   {
     "name": "look_render",
-    "description": "Render a look offline, as the aura runs it, and measure the frames. Returns a handle (r1-...) that look_compare and pewpew://render/{handle}/sheet.png take; the metrics (flash_rate_max at most 3 per second, mean_luma, black_fraction, clip_fraction, motion_energy, frozen_fraction, palette_spread, ...); warnings, such as a gate the look would fail; and a contact sheet of the frames. Read the metrics before the image. The same arguments always give the same handle and frames.",
+    "description": "Render a look offline, as the aura runs it, and measure the frames. Returns a handle (r1-...) that look_compare and pewpew://render/{handle}/sheet.png take; the metrics (flash_rate_max at most 3 per second, mean_luma, black_fraction, clip_fraction, motion_energy, frozen_fraction, palette_spread, ...); warnings, such as a gate the look would fail; and a contact sheet of the frames. Read the metrics before the image. The same arguments always give the same handle and frames. A look's `colorways` are named sets of knob values; `colorway` renders it in one.",
     "inputSchema": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "look": {
           "additionalProperties": true,
-          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame.",
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame, and \"colorways\", {name: {knob address: value}}, named sets of knob values that recolour it.",
           "examples": [
             {
               "layers": [
@@ -506,6 +506,22 @@
           ],
           "title": "Response Format",
           "type": "string"
+        },
+        "colorway": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Render the look in one of its colorways, by name: the look with that colorway's knobs set; omit it for the look as it sets its knobs",
+          "examples": [
+            "ice"
+          ],
+          "title": "Colorway"
         }
       },
       "required": [
@@ -1625,7 +1641,7 @@
         },
         "look": {
           "additionalProperties": true,
-          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame.",
+          "description": "A look, {\"layers\": [...]}, bottom layer first, or a looks file, {\"version\": 4, \"looks\": {...}}. A layer is {\"id\", \"nodes\": {node id: {\"op\", \"in\": [node ids], \"args\": {...}}}}. A look may add \"signals\", {signal id: {\"op\", \"args\"}}, and \"routes\", [{\"source\": signal id, \"path\": knob address, \"depth\"}], that move knobs each frame, and \"colorways\", {name: {knob address: value}}, named sets of knob values that recolour it.",
           "examples": [
             {
               "layers": [

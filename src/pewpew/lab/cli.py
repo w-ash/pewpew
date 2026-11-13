@@ -14,6 +14,8 @@ cache, writes only the cache and the `--out` file, and sends nothing.
 
 FILE is a looks file (a `.look.json` file is one), as `run LOOKS`
 reads it; `-` reads a looks file or a single look, as JSON, from stdin.
+`--look NAME` picks a look of the file, and `--colorway NAME` renders,
+measures, compares or explains it in one of its colorways.
 With `--json` a verb prints exactly one JSON document on stdout, its
 result's `to_json()`, and diagnostics go to stderr. Exit codes: 0 ok; 1
 problems with the look or a failed gate; 2 a usage error; 3 a handle the
@@ -58,6 +60,9 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
     look = _options()
     look.add_argument("--look", dest="name", default=None, metavar="NAME",
                       help="the look of a looks file to use (default: its only look, else its 'current' one)")
+    paint = _options()
+    paint.add_argument("--colorway", default=None, metavar="NAME",
+                       help="render the look in its colorway NAME (default: as the look sets its knobs)")
     span = _options()
     span.add_argument("--map", type=_map, default=DEFAULT_MAP, metavar="SPEC",
                       help=f"line:64, grid:16x16, lattice:8 or an arrangement file (.json) (default {DEFAULT_MAP}, "
@@ -84,25 +89,25 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
     p.add_argument("source", type=_source, metavar="FILE", help=file_help)
     _handle(p, _check)
 
-    p = verbs.add_parser("render", parents=[out, look, timing],
+    p = verbs.add_parser("render", parents=[out, look, paint, timing],
                          help="render a look; print its handle, spec and metrics")
     p.add_argument("source", type=_source, metavar="FILE", help=file_help)
     p.add_argument("--out", type=png_path, default=None, metavar="PNG", help="also write a contact sheet to PNG")
     _handle(p, _render)
 
-    p = verbs.add_parser("sheet", parents=[out, look, timing, picture, draw],
+    p = verbs.add_parser("sheet", parents=[out, look, paint, timing, picture, draw],
                          help="draw a render as a contact sheet")
     p.add_argument("source", type=_source, metavar="HANDLE|FILE", help=source_help)
     p.add_argument("--tiles", type=int, default=8, help="frames a tiled sheet shows (default 8)")
     _handle(p, _sheet)
 
-    p = verbs.add_parser("metrics", parents=[out, look, timing], help="measure a render's frames")
+    p = verbs.add_parser("metrics", parents=[out, look, paint, timing], help="measure a render's frames")
     p.add_argument("source", type=_source, metavar="HANDLE|FILE", help=source_help)
     p.add_argument("--liveness", action="store_true",
                    help="also check that each knob changes the picture (renders the look again per probe)")
     _handle(p, _metrics)
 
-    p = verbs.add_parser("compare", parents=[out, look, timing, picture, draw],
+    p = verbs.add_parser("compare", parents=[out, look, paint, timing, picture, draw],
                          help="how render B differs from render A")
     p.add_argument("a", type=_source, metavar="A", help=f"{source_help}; a look renders as B did when only B is a "
                    "render")
@@ -110,7 +115,7 @@ def add_parser(sub: argparse._SubParsersAction, verbs: argparse._SubParsersActio
     p.add_argument("--tiles", type=int, default=4, help="frames per row of the sheet (default 4)")
     _handle(p, _compare)
 
-    p = verbs.add_parser("explain", parents=[out, look], help="describe a look in words")
+    p = verbs.add_parser("explain", parents=[out, look, paint], help="describe a look in words")
     p.add_argument("source", type=_source, metavar="FILE", help=file_help)
     _handle(p, _explain)
 
@@ -177,7 +182,7 @@ def _compare(args: argparse.Namespace) -> int:
         raise _Usage("only one of A and B can be -, stdin")
     a, b = (side if is_handle(side) else _doc(side) for side in (args.a, args.b))
     kw: dict[str, Any] = {"map_spec": args.map, "seconds": args.seconds, "fps": args.fps, "seed": args.seed,
-                          "name": args.name}
+                          "name": args.name, "colorway": args.colorway}
     result = compare(a, b, **kw)
     drawn = None
     if args.out is not None:
@@ -187,7 +192,7 @@ def _compare(args: argparse.Namespace) -> int:
 
 
 def _explain(args: argparse.Namespace) -> int:
-    _show(args, explain(_doc(args.source), name=args.name), Explanation.text)
+    _show(args, explain(_doc(args.source), name=args.name, colorway=args.colorway), Explanation.text)
     return OK
 
 
@@ -261,7 +266,8 @@ def _doc(source: str | Path) -> LookDoc:
 
 def _rendering(args: argparse.Namespace, source: str | Path) -> Rendered:
     """`source` rendered as the options say, its warnings on stderr."""
-    rendered = render(_doc(source), args.map, args.seconds, args.fps, args.seed, name=args.name)
+    rendered = render(_doc(source), args.map, args.seconds, args.fps, args.seed, name=args.name,
+                      colorway=args.colorway)
     for warning in rendered.warnings:
         print(f"{args.cmd} {args.verb}: {warning}", file=sys.stderr)
     return rendered

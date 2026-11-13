@@ -8,7 +8,9 @@ It runs on the caller's thread and returns why it was refused, or None:
 part of a look it refused or carries an arrangement's issues; a
 `surprise` or a `vary` returns a future of its answer instead. A param is set by its address
 (pewpew.compose.controls), such as `layers.base.waves.freq`,
-`layers.base.opacity` or a signal's `signals.breath.rate`. A `look`
+`layers.base.opacity` or a signal's `signals.breath.rate`. A `colorway`
+sets every knob of one of the running look's colorways
+(pewpew.compose.stack) in one frame: an edit, as a `set` is. A `look`
 request runs a whole look sent by a client outside the package, only in a
 run that takes looks (`run --accept-looks`; ADR-020 amendment
 "capabilities"). A `surprise` fades to a look made from a seed, a `vary`
@@ -99,6 +101,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "remove_layer": (("lid", None),),
     "move_layer": (("lid", None), ("to", None)),
     "front": (("paths", None),),
+    "colorway": (("name", None),),
     "master": (("value", None),),
     "blackout": (("on", None),),
     "recall": (("name", None), ("fade", None)),
@@ -336,6 +339,31 @@ class AuraControl:
         assert found is not None
         knob, parsed = found
         self._calls.call_soon(lambda: self._set(name, knob, parsed))
+        return None
+
+    def colorway(self, name: object) -> str | None:
+        """Set every knob of the running look's colorway `name` at once:
+        each value is parsed here, as `set` parses one, and one refused
+        refuses them all; then they land together, before one frame, so the
+        motion carries on. An edit a save keeps, as a `set` is."""
+        stack = self._deck.fader.current
+        colorways = stack.colorways
+        if not isinstance(name, str) or name not in colorways:
+            return unknown("colorway", name, colorways, suggest=True)
+        controls = stack.controls
+        sets: list[tuple[str, Knob, Any]] = []
+        for path, value in colorways[name].items():
+            found, reason = controls.parse(path, value)
+            if reason is not None:
+                return f"colorway {name!r}: {reason}"
+            assert found is not None
+            sets.append((path, *found))
+
+        def apply() -> None:
+            for path, knob, parsed in sets:
+                self._put(path, knob, parsed)
+
+        self._calls.call_soon(lambda: self._operator(apply))
         return None
 
     def add_layer(self, layer: object, below: object = None) -> Refusal | str | None:
@@ -608,22 +636,22 @@ class AuraControl:
         return fn()
 
     def _set(self, path: str, knob: Knob, value: Any) -> None:
-        """Operator input: set `knob` at address `path`, as it passed `parse`
-        on another thread. Must not raise: a layer edit or a recall queued
-        first runs another program by now, so it drops the set, with the
-        reason in the log."""
+        """Operator input: set `knob` at address `path` (`_put`)."""
+        self._operator(lambda: self._put(path, knob, value))
 
-        def apply() -> None:
-            found = self._deck.controls.find(path)
-            if found is None or found.params is not knob.params:
-                logger.warning("dropped a live set of %r: the node it was for no longer runs", path)
-                return
-            try:
-                knob.params.set(knob.name, value)
-            except ValueError:
-                logger.warning("dropped a live set of %r to %r: the param no longer accepts it", path, value)
-
-        self._operator(apply)
+    def _put(self, path: str, knob: Knob, value: Any) -> None:
+        """Set `knob` at address `path`, as it passed `parse` on another
+        thread. Must not raise: a layer edit or a recall queued first runs
+        another program by now, so it drops the set, with the reason in the
+        log."""
+        found = self._deck.controls.find(path)
+        if found is None or found.params is not knob.params:
+            logger.warning("dropped a live set of %r: the node it was for no longer runs", path)
+            return
+        try:
+            knob.params.set(knob.name, value)
+        except ValueError:
+            logger.warning("dropped a live set of %r to %r: the param no longer accepts it", path, value)
 
     def _layer(self, layer: object) -> str | None:
         """Why `layer` names no layer of the running stack, or None."""

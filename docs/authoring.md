@@ -237,6 +237,37 @@ top:
 | `stencil` | the layer where it has color, the layers below where it is black |
 | `highlight` | lights only what the layers below already light |
 
+A look's `colorways` are named sets of knob values that recolour it in
+one press while its motion carries on: each maps a knob's address to a
+value, as a `set` takes it (a palette, a hue, a color, a layer's opacity
+or blend, a signal's knob). A look holds at most 12, each of 1 to 32
+knobs, and a name is 1 to 32 letters, digits, spaces, `_` or `-`:
+
+```json
+"colorways": {
+  "ember": {"layers.base.tint.palette": "ember", "layers.sparks.glint.palette": "ember"},
+  "ice":   {"layers.base.tint.palette": "ice", "layers.sparks.glint.palette": "ice",
+            "layers.sparks.opacity": 0.4},
+  "dawn":  {"layers.base.tint.palette": {"stops": [{"at": 0, "h": 330, "s": 0.9, "v": 0.05},
+                                                   {"at": 1, "h": 40, "s": 0.6, "v": 1}]}}
+}
+```
+
+Each value is checked as a `set` checks it, an address that names no knob
+gets a did-you-mean, and a checked look holds each value in its knob's
+JSON form (a palette's stops, a number as a float). On the Console the
+look panel shows a chip per colorway above the look's knobs; a press sets
+every knob of it in one frame, as one edit: nothing restarts, a route on
+one of its knobs moves around the new value, the look shows unsaved
+changes until a save, and reverting brings the saved colours back. The
+chip of the active colorway is lit: the first whose every value is its
+knob's own value now, so turning one of its knobs by hand leaves no chip
+lit. A client sends `{"type": "colorway", "name": "ice"}`; the aura state's
+`stack.colorways` lists the names and `stack.colorway` names the active
+one, or null. A save keeps the colorways, less the knobs an edit took
+away (a colorway left with none goes), and the idle cycle and the
+triggers play a look as saved.
+
 Multiply, min, subtract and highlight over black stay black, so on the
 bottom layer they black the room. Each layer draws its own random stream
 from the look's `seed` and its own id, so adding a layer never changes
@@ -489,6 +520,11 @@ python -m pewpew verify looks looks/                # the gate before an unatten
 - **`fx compare A B`** renders a look B as A was rendered: the same map
   spec, seconds, fps and seed; a look A renders as B was when B alone is
   a handle.
+- **`--colorway NAME`** renders, measures, compares or explains a look in
+  one of its colorways (§4): `fx render dusk.look.json --colorway ice`.
+  It goes with `fx render`, `sheet`, `metrics`, `compare` (each side that
+  is a look) and `explain`; a name the look has not is refused with the
+  closest.
 - **`verify looks`** (its `--map` defaults to `grid:16x16`, as do `fx
   render`, `compare`, `vary` and the MCP tools) passes a look that checks, has no layer that raises,
   flashes at most 3 times a second (WCAG 2.3.1), is not black in every
@@ -500,7 +536,10 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   at one end of its range that stops the look from running. A probe the
   map's shape cannot show is not run (pewpew.lab.liveness). A render under one second fails,
   since it is too short to count flashes per second. It renders fresh,
-  never from the cache. A folder stands for its `*.look.json` files; a folder with none,
+  never from the cache. Each colorway renders too and passes the same
+  render gates (no layer raises, the flash rate, not all black), its knobs
+  not probed again, and no two colorways may show the same picture (they
+  must differ by more than a knob must). A folder stands for its `*.look.json` files; a folder with none,
   or a file with no look, fails.
 
 - **`fx vary`** makes looks (pewpew.fx.surprise): from nothing, or like
@@ -510,7 +549,8 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   holds the look's seed too, as its noise comes from it). A made look is a grammar over the catalog: a
   source, warps, a palette that starts dark, maybe one or two more layers
   and a slow route or two, each knob inside its param's `sweet` range and
-  each speed near its default. Each is judged on the map before it is
+  each speed near its default. A look made from nothing has no colorways;
+  one made like FILE keeps FILE's, less the knobs it no longer has. Each is judged on the map before it is
   given: it passes `verify looks` (with room to spare on each knob's
   probe). Taste is a preference: a made look is not too dark, washed
   out, dying out, frozen, noise or grey when one of its tries manages
@@ -618,7 +658,7 @@ tools answer with the JSON the matching verb prints with `--json`:
 |---|---|---|
 | `catalog_search` | `fx catalog` | a page of the catalog; concise, or detailed with each whole record |
 | `look_check` | `fx check`, `fx explain` | a look's problems, each with a fix, or the look normalized |
-| `look_render` | `fx render` | a handle, the metrics, warnings and a contact sheet image |
+| `look_render` | `fx render` | a handle, the metrics, warnings and a contact sheet image; `colorway` renders one of the look's colorways |
 | `look_compare` | `fx compare` | how render B differs from A, and an A/B sheet |
 | `look_vary` | `fx vary` | up to 8 looks made from a seed or like a look, each rendered, and a numbered sheet |
 | `engine_observe` | `observe` | a running engine's state and approximate metrics, and a sheet |

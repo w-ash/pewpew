@@ -1127,8 +1127,9 @@ def _reroute(draw: Draw, programs: dict[str, Program], mixes: dict[str, dict[str
 def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route]) -> Look:
     """`made` with `signals` and `routes`, less each route that cannot move
     its knob any more (pewpew.compose.modulation.route_problems), each
-    signal nothing reads, with the routes into its knobs, and each front
-    knob that is gone."""
+    signal nothing reads, with the routes into its knobs, each front
+    knob that is gone, and each colorway's knob that is gone or now refuses
+    its value, with a colorway left with none."""
     controls = look_controls(replace(made, signals=Graph(tuple(signals)) if signals else None, routes=(),
                                          front=()))
     kept = [route for route in routes if not route_problems([route], (), controls)]
@@ -1143,4 +1144,9 @@ def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route]) -> Loo
     gone = {node.id for node in signals} - {node.id for node in left}
     front = tuple(path for path in made.front
                   if signal_of(path) not in gone and not route_problems((), (path,), controls))
-    return replace(made, signals=Graph(tuple(left)) if left else None, routes=tuple(kept), front=front)
+    painted = ({path: value for path, value in values.items()
+                if signal_of(path) not in gone and controls.parse(path, value)[1] is None}
+               for values in made.colorways.values())
+    colorways = {name: values for name, values in zip(made.colorways, painted, strict=True) if values}
+    return replace(made, signals=Graph(tuple(left)) if left else None, routes=tuple(kept), front=front,
+                   colorways=colorways)

@@ -41,13 +41,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from pewpew.aura.book import KEEP, MAX_FAVORITES, MAX_LOOKS, MAX_NAME, CycleConfig, Keep, LookBook, check_name
+from pewpew.aura.book import KEEP, MAX_FAVORITES, MAX_LOOKS, CycleConfig, Keep, LookBook, check_name
 from pewpew.aura.deck import Deck
 from pewpew.aura.director import Director, Slot
 from pewpew.aura.master import Master
 from pewpew.aura.variety import Made, Submit, Variety, fade_to, in_background
 from pewpew.compose import DEFAULT_FADE, Layer, Look
-from pewpew.compose.stack import parse_fade
+from pewpew.compose.stack import MAX_NAME, parse_fade
 from pewpew.errors import describe_exception, unknown
 from pewpew.fx.graph import Graph
 from pewpew.jsonfile import write_atomic

@@ -14,7 +14,8 @@ with every knob of every node and signal at its value, the defaults
 written out, as a look saved from the running aura is. A program is
 checked against a map only when it renders (`dims_problems`).
 
-`ready` gives one look of the file ready to run (`Ready`), and
+`ready` gives one look of the file ready to run (`Ready`), in one of its
+colorways when asked (pewpew.compose.stack.with_colorway), and
 `ready_looks` every look; each raises `Refused` with the problems.
 """
 
@@ -28,6 +29,7 @@ from typing import Any
 
 from pewpew.aura.book import VERSION, LookBook, LookError, parse_looks, route_reasons
 from pewpew.compose import Layer, LayerControls, Look, layer_address
+from pewpew.compose.stack import with_colorway
 from pewpew.errors import describe_exception, did_you_mean, unknown
 from pewpew.fx.codec import encode_look
 from pewpew.fx.compile import check
@@ -76,15 +78,16 @@ def check_look(doc: LookDoc) -> Check:
     return Check(True, json.loads(normalized.to_bytes()))
 
 
-def ready(doc: LookDoc, *, name: str | None = None) -> Ready:
+def ready(doc: LookDoc, *, name: str | None = None, colorway: str | None = None) -> Ready:
     """A look of `doc` ready to run: a single look, or the look `name` of a
-    looks file, by default its only look or else its `current` one. Raises
-    Refused with every problem."""
+    looks file, by default its only look or else its `current` one; with
+    `colorway`, with that colorway's knobs set. Raises Refused with every
+    problem, or for a colorway the look has not."""
     read = _Read.of(doc)
     if read.problems:
         raise Refused(read.problems)
     if read.single:
-        return read.looks[_SINGLE]
+        return painted(read.looks[_SINGLE], colorway, "")
     looks = list(read.looks)
     if name is None:
         name = looks[0] if len(looks) == 1 else read.book.current
@@ -94,7 +97,19 @@ def ready(doc: LookDoc, *, name: str | None = None) -> Ready:
     if name not in read.looks:
         reason = unknown("look", name, looks)
         raise Refused([Problem(f"looks.{name}", Code.BAD_REF, reason, did_you_mean(name, looks), tuple(looks))])
-    return read.looks[name]
+    return painted(read.looks[name], colorway, f"looks.{name}.")
+
+
+def painted(staged: Ready, colorway: str | None, where: str = "") -> Ready:
+    """`staged` with colorway `colorway` set (None: as it is). Raises
+    Refused for a colorway the look has not, its path prefixed `where`."""
+    if colorway is None:
+        return staged
+    names = tuple(staged.look.colorways)
+    if colorway not in names:
+        reason = unknown("colorway", colorway, names, suggest=True)
+        raise Refused([Problem(f"{where}colorways", Code.BAD_REF, reason, did_you_mean(colorway, names), names)])
+    return Ready(with_colorway(staged.look, colorway), with_colorway(staged.authored, colorway))
 
 
 def ready_looks(path: Path) -> dict[str, Ready]:

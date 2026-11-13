@@ -8,7 +8,7 @@ import { capText, stepMaster } from "../../src/aura/master";
 import { nowOf, type AuraState } from "../../src/aura/aura";
 import { armable, cueText, lastText } from "../../src/aura/triggers";
 
-const stack = { layers: [{ id: "base", nodes: [{ id: "osc", op: "osc", label: "Oscillator", in: [] }] }], signals: [], routes: [], front: [], dims: 1 } as const;
+const stack = { layers: [{ id: "base", nodes: [{ id: "osc", op: "osc", label: "Oscillator", in: [] }] }], signals: [], routes: [], front: [], colorways: [], colorway: null, dims: 1 } as const;
 const aura = (patch: Partial<AuraState>): AuraState => ({
   stack, fading: false, progress: null, master: 1, cap: 1,
   blackout: false, looks: null, triggers: null, ...patch,
