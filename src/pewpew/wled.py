@@ -10,7 +10,9 @@ sweep leaves it out and `audio list` lists it (pewpew.audio.net). `resolve_name`
 looks an mDNS name up and `sender_address` gives this laptop's address on
 the route to a board. `failure` puts a failed request in a few words, and
 `no_route` spots the macOS Local Network block (`PRIVACY`), so every
-command words it the same way. Reads only: tier 0 (CLAUDE.md T-7).
+command words it the same way. Every request to a board goes through
+`open_url`, which never asks for the system proxy. Reads only: tier 0
+(CLAUDE.md T-7).
 """
 
 from __future__ import annotations
@@ -33,6 +35,12 @@ TIMEOUT_S = 2.0  # per request
 MAX_INFO_BYTES = 64 * 1024  # a WLED /json/info or /json/cfg reply is a few KB
 SCAN_TIMEOUT_S = 0.8
 SCAN_WORKERS = 32
+
+# A proxy never applies to a board on the local network. On macOS, the
+# system proxy lookup (`urllib.request.getproxies`) also makes every later
+# TCP connect from this process to the local subnet stall until it times
+# out, so this opener has no proxies and never does that lookup.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 PRIVACY = "System Settings → Privacy & Security → Local Network"
 NODE_BRAND = "pewpew"  # a capture node's `brand` (firmware/audio-node/main/wire.h)
 
@@ -60,9 +68,16 @@ def target_fps(cfg: dict) -> int | None:
     return fps if isinstance(fps, int) and not isinstance(fps, bool) else None
 
 
+def open_url(url: str | urllib.request.Request, timeout: float) -> Any:
+    """Open `url` like `urllib.request.urlopen`, but without a proxy and
+    without the system proxy lookup (`_OPENER`). Use it for every request
+    to a board."""
+    return _OPENER.open(url, timeout=timeout)
+
+
 def _fetch_json(host: str, path: str, timeout: float) -> dict:
     deadline = time.monotonic() + 2 * timeout
-    with urllib.request.urlopen(f"http://{host}{path}", timeout=timeout) as reply:
+    with open_url(f"http://{host}{path}", timeout) as reply:
         body = bytearray()
         while chunk := reply.read1(16 * 1024):
             body += chunk

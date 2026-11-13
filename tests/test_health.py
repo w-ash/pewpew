@@ -4,10 +4,12 @@ addressing, the MAC check, and find boards."""
 
 from __future__ import annotations
 
+import http.server
 import ipaddress
 import threading
 import time
 import urllib.error
+import urllib.request
 
 import pytest
 
@@ -603,9 +605,34 @@ class _Reply:
 def test_fetch_info_bounds_the_size_and_the_time_of_a_reply(monkeypatch, chunks, error):
     clock = [0.0]
     monkeypatch.setattr(wled.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(wled.urllib.request, "urlopen", lambda url, timeout: _Reply(chunks, clock))
+    monkeypatch.setattr(wled, "open_url", lambda url, timeout: _Reply(chunks, clock))
     with pytest.raises((ValueError, TimeoutError), match=error):
         REAL_FETCH_INFO("10.0.0.11", 2.0)
+
+
+def test_fetch_info_never_asks_for_the_system_proxy(monkeypatch):
+    """On macOS the system proxy lookup stalls every later connect to the
+    local subnet, so a board read must not do it, nor use a proxy."""
+
+    class Info(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b'{"ver": "16.0.1"}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):
+            pass
+
+    def no_lookup():
+        raise AssertionError("the system proxy lookup ran")
+
+    monkeypatch.setattr(urllib.request, "getproxies", no_lookup)
+    monkeypatch.setenv("http_proxy", "http://192.0.2.1:9")  # TEST-NET-1: a proxy here never answers
+    with http.server.HTTPServer(("127.0.0.1", 0), Info) as server:
+        threading.Thread(target=server.handle_request, daemon=True).start()
+        assert REAL_FETCH_INFO(f"127.0.0.1:{server.server_port}", 2.0) == {"ver": "16.0.1"}
 
 
 def test_scan_lines_reads_like_the_terminal_table():
