@@ -11,13 +11,15 @@ looks an mDNS name up and `sender_address` gives this laptop's address on
 the route to a board. `failure` puts a failed request in a few words, and
 `no_route` spots the macOS Local Network block (`PRIVACY`), so every
 command words it the same way. Every request to a board goes through
-`open_url`, which never asks for the system proxy. Reads only: tier 0
+`open_url`, which connects over IPv4 only and never asks for the system
+proxy. Reads only: tier 0
 (CLAUDE.md T-7).
 """
 
 from __future__ import annotations
 
 import errno
+import http.client
 import ipaddress
 import socket
 import threading
@@ -36,11 +38,48 @@ MAX_INFO_BYTES = 64 * 1024  # a WLED /json/info or /json/cfg reply is a few KB
 SCAN_TIMEOUT_S = 0.8
 SCAN_WORKERS = 32
 
-# A proxy never applies to a board on the local network. On macOS, the
-# system proxy lookup (`urllib.request.getproxies`) also makes every later
-# TCP connect from this process to the local subnet stall until it times
-# out, so this opener has no proxies and never does that lookup.
-_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+def _connect_ipv4(host: str, port: int, timeout: float | None) -> socket.socket:
+    """Connect to `host` over IPv4 only.
+
+    A board has an IPv4 address only. On macOS, once anything in this
+    process starts CoreFoundation (the file watcher's FSEvents, the
+    system proxy lookup), the system resolver returns an IPv4 literal
+    such as 192.168.1.20 to an unspecified-family lookup as a NAT64 IPv6
+    address while the default route is an IPv6-only link with NAT64 (a
+    tethered phone). That address goes out the tether, not to the board
+    on the Wi-Fi, so the connect times out. An IPv4 lookup is never
+    rewritten.
+    """
+    family, kind, proto, _, address = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)[0]
+    sock = socket.socket(family, kind, proto)
+    try:
+        sock.settimeout(timeout)
+        sock.connect(address)
+    except BaseException:
+        sock.close()
+        raise
+    return sock
+
+
+class _Ipv4Connection(http.client.HTTPConnection):
+    """An HTTP connection over IPv4 only (`_connect_ipv4`)."""
+
+    def connect(self) -> None:
+        self.sock = _connect_ipv4(self.host, self.port, self.timeout)
+
+
+class _Ipv4Handler(urllib.request.HTTPHandler):
+    """Open `http:` URLs with `_Ipv4Connection`."""
+
+    def http_open(self, req: urllib.request.Request) -> http.client.HTTPResponse:
+        return self.do_open(_Ipv4Connection, req)
+
+
+# A proxy never applies to a board on the local network, and on macOS the
+# system proxy lookup (`urllib.request.getproxies`) starts CoreFoundation
+# (`_connect_ipv4`), so this opener has no proxies and never does that lookup.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), _Ipv4Handler)
 PRIVACY = "System Settings → Privacy & Security → Local Network"
 NODE_BRAND = "pewpew"  # a capture node's `brand` (firmware/audio-node/main/wire.h)
 
@@ -69,9 +108,9 @@ def target_fps(cfg: dict) -> int | None:
 
 
 def open_url(url: str | urllib.request.Request, timeout: float) -> Any:
-    """Open `url` like `urllib.request.urlopen`, but without a proxy and
-    without the system proxy lookup (`_OPENER`). Use it for every request
-    to a board."""
+    """Open `url` like `urllib.request.urlopen`, but over IPv4 only, without
+    a proxy and without the system proxy lookup (`_OPENER`). Use it for
+    every request to a board."""
     return _OPENER.open(url, timeout=timeout)
 
 
