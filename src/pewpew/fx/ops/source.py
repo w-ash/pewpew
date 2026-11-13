@@ -9,16 +9,17 @@ axis, so it changes in place on a strip or a panel.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import MappingProxyType
+from typing import Any
 
 import numpy as np
 
-from pewpew.fx.op import BindCtx, Cost, Op, Rate, plane_choice
+from pewpew.fx.op import CENTRE_ALONG, BindCtx, Cost, Op, Rate, centre_args, normal_axis, plane_choice, plane_of
 from pewpew.fx.op import axis_choice as _axis_choice
 from pewpew.fx.prims import noise as prim
 from pewpew.fx.prims import sdf
-from pewpew.fx.prims.vec import F32, TWO_PI, plane_axes, wave
+from pewpew.fx.prims.vec import AXES, F32, TWO_PI, plane_axes, wave
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.params import Choice, Float, Int
 
@@ -122,8 +123,9 @@ class Voronoi(Op, op="voronoi"):
 
 
 class Shape(Op, op="shape"):
-    """A filled circle or regular polygon at the room's center: a sphere in
-    a volume, a segment on a strip."""
+    """A filled circle or regular polygon at the room's center, or at the
+    point `cx`, `cy` and `cz` set: a sphere in a volume, a segment on a
+    strip. A polygon lies in `plane`; a circle is round in every plane."""
 
     sig = Sig.SOURCE
     out = Ty.SCALAR
@@ -131,12 +133,28 @@ class Shape(Op, op="shape"):
     radius = Float(0.3, 0.0, 1.0, sweet=(0.05, 0.5), help="Size from the center to the rim or a corner")
     smooth = Float(0.05, 0.0, 0.5, help="Softness of the edge")
     plane = plane_choice()
+    # A shape centred off the map is gone, so its center stays on it.
+    cx, cy, cz = centre_args(0.0, 1.0)
+    along = CENTRE_ALONG
     examples = ("shape(5, 0.3)", 'shape(0, 0.2, 0.1).palette("ember")')
     cost = Cost(9.1, 7.3)
 
+    @classmethod
+    def shows(cls, name: str, a: Any, b: Any, args: Mapping[str, Any], spans: Sequence[float]) -> bool:
+        """As `Op.shows`, but `plane` only for a polygon, since a circle
+        (fewer than 3 sides) is a sphere, the same in every plane; and the
+        center along the plane's normal only for a circle, since a polygon
+        is a prism along it."""
+        polygon = args["sides"] >= 3
+        if name == "plane" and not polygon:
+            return False
+        if name in CENTRE_ALONG and polygon and AXES.index(CENTRE_ALONG[name]) == normal_axis(plane_of(args, spans)):
+            return False
+        return super().shows(name, a, b, args, spans)
+
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def shape(c: Coords) -> np.ndarray:
-            centre = self.ctx.centre
+            centre = self.ctx.at((self.cx, self.cy, self.cz))
             if self.sides < 3:
                 d = sdf.sphere(c.xyz, self.radius, centre)
             else:

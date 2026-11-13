@@ -104,6 +104,26 @@ def polar(p: VecLike, plane: Plane = "xy", center: Center = MID) -> Vec:
     return _with(q, {i: np.hypot(a, b), j: np.where(turn < 1.0, turn, np.float32(0.0))})
 
 
+def spherical(p: VecLike, plane: Plane = "xy", center: Center = MID) -> Vec:
+    """Replace the three axes of 3-axis points with spherical coordinates
+    about `center`: the plane's first axis becomes the distance from
+    `center`, its second the turn in [0, 1) (as `polar` gives it), and the
+    third axis, the plane's normal, the elevation in [0, 1] from the low
+    pole (0) to the high pole (1). The elevation at `center` is 0.5."""
+    q = vec(p)
+    if len(q) != 3:
+        raise ValueError(f"spherical takes points of 3 axes, got {len(q)}")
+    i, j = plane_axes(plane, q)
+    k = 3 - i - j
+    center = plain_center(center)
+    turned = polar(q, plane, center)
+    up = q[k] - center[k]
+    r = np.sqrt(turned[i] * turned[i] + up * up)
+    # up / r is in [-1, 1]; at the centre (r = 0) it reads 0, the equator.
+    cos = np.clip(up / np.maximum(r, np.float32(1e-12)), -1.0, 1.0)
+    return _with(turned, {i: r, k: 1.0 - np.arccos(cos) * (1.0 / math.pi)})
+
+
 def cartesian(p: VecLike, plane: Plane = "xy", center: Center = MID) -> Vec:
     """The inverse of `polar`: read the axes of `plane` as (radius, turn)
     about `center` and return them as plain coordinates."""

@@ -196,11 +196,13 @@ def writable(url: str, allow_hosts: Collection[str] = ()) -> tuple[str, ...]:
     url = engine_url(url)
     uri = parse_uri(url)
     allowed = {ipaddress.ip_address(host) for host in allow_hosts}
-    try:
-        found = socket.getaddrinfo(uri.host, uri.port, type=socket.SOCK_STREAM)
-    except socket.gaierror as exc:
-        raise Unreachable(why_unreachable(url, exc, 0.0)) from exc
-    addresses = tuple(dict.fromkeys(str(info[4][0]) for info in found))
+    addresses = _literal(uri.host)
+    if not addresses:
+        try:
+            found = socket.getaddrinfo(uri.host, uri.port, type=socket.SOCK_STREAM)
+        except socket.gaierror as exc:
+            raise Unreachable(why_unreachable(url, exc, 0.0)) from exc
+        addresses = tuple(dict.fromkeys(str(info[4][0]) for info in found))
     fleet = [a for a in addresses if not ((ip := ipaddress.ip_address(a)).is_loopback or ip in allowed)]
     if fleet:
         where = uri.host if fleet == [uri.host] else f"{uri.host} resolves to {', '.join(fleet)}, which"
@@ -210,6 +212,18 @@ def writable(url: str, allow_hosts: Collection[str] = ()) -> tuple[str, ...]:
             "`python -m pewpew observe`"
         )
     return addresses
+
+
+def _literal(host: str) -> tuple[str, ...]:
+    """`host` alone when it is an IP address, else ().
+
+    An IP address is its own address and gets no lookup: on macOS, a
+    lookup can return an IPv4 address as a NAT64 IPv6 address
+    (`pewpew.wled._connect_ipv4`)."""
+    try:
+        return (str(ipaddress.ip_address(host)),)
+    except ValueError:
+        return ()
 
 
 def _write(

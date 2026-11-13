@@ -2,25 +2,41 @@
 what comes before it (Hydra's rule): `osc(8).rotate(30)` turns the
 stripes. The input may be a scalar or rgb, and the op gives the same.
 
-Each pivots on the map's centre (`BindCtx.centre`) in the plane it works
-in (`auto`: the two axes the map spreads most along). An op that needs a
-plane is refused on a strip, with what to use instead (`fix`).
+Each pivots on the map's centre (`BindCtx.centre`), or on the point its
+`cx`, `cy` and `cz` set (`BindCtx.at`), in the plane it works in (`auto`:
+the two axes the map spreads most along). An op that needs a plane is
+refused on a strip, with what to use instead (`fix`).
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import MappingProxyType
+from typing import Any
 
 import numpy as np
 
-from pewpew.fx.op import ALL, BindCtx, Cost, Op, Rate, U, axis_choice, plane_choice
+from pewpew.fx.op import (
+    ALL,
+    CENTRE_ALONG,
+    BindCtx,
+    Cost,
+    Op,
+    Rate,
+    U,
+    axis_choice,
+    centre_args,
+    normal_axis,
+    plane_choice,
+    plane_of,
+)
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import space
 from pewpew.fx.prims.vec import AXES, Axis, plane_axes
 from pewpew.fx.types import SAME, Coords, Fn, Port, Sig
+from pewpew.mapping import spanned
 from pewpew.params import Choice, Float, Int
 
 _AXES: dict[str, Axis] = {"x": "x", "y": "y", "z": "z"}
@@ -99,16 +115,65 @@ class Kaleid(_Coord, op="kaleid"):
 class Polar(_Coord, op="polar"):
     """Bends a pattern into rings and spokes round the center: stripes along x
     become rings and stripes along y become spokes. In polar coordinates,
-    the plane's first axis becomes the radius and its second the turn."""
+    the plane's first axis becomes the radius and its second the turn.
+    `cx`, `cy` and `cz` set the center, and `spiral` turns the spokes
+    further the farther along the plane's normal a point sits, so on bars
+    standing across the plane they wind round as a helix."""
 
     dims = frozenset({2, 3})
     fix = "a strip has no plane to wrap round; use mirror along the strip"
     plane = plane_choice()
-    examples = ("osc(6).polar()", 'osc(5, axis="y").polar().palette("aurora")')
+    cx, cy, cz = centre_args()
+    spiral = Float(0.0, -4.0, 4.0, "turns/unit", sweet=(-2.0, 2.0),
+                   help="Turns the spokes per unit along the plane's normal: 0 keeps them straight")
+    along = CENTRE_ALONG
+    examples = ("noise(3).polar()", "osc(6).polar()", 'osc(5, axis="y").polar().palette("aurora")')
     cost = Cost(5.1, 6.4)
 
+    @classmethod
+    def shows(cls, name: str, a: Any, b: Any, args: Mapping[str, Any], spans: Sequence[float]) -> bool:
+        """As `Op.shows`, but the center along the plane's normal moves
+        the picture only through `spiral`, and `spiral` only on a map that
+        spreads along the normal."""
+        normal = normal_axis(plane_of(args, spans))
+        if name == "spiral":
+            return spanned(spans)[normal]
+        if name in CENTRE_ALONG and AXES.index(CENTRE_ALONG[name]) == normal and args["spiral"] == 0.0:
+            return False
+        return super().shows(name, a, b, args, spans)
+
     def warp(self, c: Coords) -> Coords:
-        return c.moved(space.polar(c.xyz, self.ctx.plane(self.plane), self.ctx.centre))
+        plane = self.ctx.plane(self.plane)
+        centre = self.ctx.at((self.cx, self.cy, self.cz))
+        q = space.polar(c.xyz, plane, centre)
+        if self.spiral:
+            j, k = plane_axes(plane, q)[1], normal_axis(plane)
+            turn = (q[j] + self.spiral * (c.xyz[k] - centre[k])) % 1.0
+            # A tiny negative turn rounds up to 1.0 in float32; it is the turn 0.
+            q = tuple(np.where(turn < 1.0, turn, np.float32(0.0)) if a == j else axis for a, axis in enumerate(q))
+        return c.moved(q)
+
+
+class Spherical(_Coord, op="spherical"):
+    """Wraps a pattern round a point in 3D: stripes along x become shells
+    round the point, stripes along y wedges round it, and stripes along z
+    cones that open from its low pole to its high pole. In spherical
+    coordinates, the plane's first axis becomes the distance from the point,
+    its second the turn round the plane's normal, and the normal the
+    elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz`
+    set the point."""
+
+    dims = frozenset({2, 3})
+    fix = "a strip has no space to wrap round; use mirror at the point, or pulse"
+    plane = plane_choice()
+    cx, cy, cz = centre_args()
+    along = CENTRE_ALONG
+    examples = ("noise(3).spherical()", 'osc(6).spherical().palette("ice")')
+    cost = Cost(6.1, 14.0)
+
+    def warp(self, c: Coords) -> Coords:
+        centre = self.ctx.at((self.cx, self.cy, self.cz))
+        return c.moved(space.spherical(c.xyz, self.ctx.plane(self.plane), centre))
 
 
 class Mirror(_Coord, op="mirror"):

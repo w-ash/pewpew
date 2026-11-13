@@ -21,6 +21,20 @@ series (batch mode).
   `compare` and `explain` take `--colorway NAME`, and the MCP `look_render` tool a
   `colorway`; `verify looks` renders each colorway through the render gates and
   fails two that show the same picture.
+- The `spherical` coord op: wraps a pattern round a point in 3D, its plane's first
+  axis becoming the true distance from the point, its second the turn and the
+  normal the elevation, so `osc(6).spherical()` is shells round the point. `cx`,
+  `cy` and `cz` set the point as a share of the map's extent on each axis.
+- `polar` takes a center (`cx`, `cy`, `cz`) and a `spiral`, which turns the spokes
+  per unit along the plane's normal, so on bars standing across the plane they wind
+  as a helix. At its defaults it renders as before, byte for byte.
+- The `pulse` source: soft shells that swell out of a point on the map (`cx`, `cy`,
+  `cz`) `rate` times a second or on each beat. Each holds its full level and eases
+  out over the last `fade` of its `life` (up to 20 s, so slow shells cross a large
+  rig); overlapping shells add as light does, never past full. A beat within 0.4 s
+  of the last starts none.
+- `shape` takes a center (`cx`, `cy`, `cz`, on the map), at the map's center by
+  default as before.
 - `run` on a looks file that does not exist yet makes it with every example look,
   so a new rig or arrangement opens in the Console with all of them. An
   `--unattended` run still refuses a missing looks file.
@@ -1502,6 +1516,20 @@ series (batch mode).
 
 ### Fixed
 
+- On macOS, the board health check, `boards` and `wifi` no longer report a board
+  that streams fine as unreachable ("no answer: timed out") while the Mac's
+  default route is a tethered phone. Their requests to a board connect over IPv4
+  only: once the process starts CoreFoundation (the run's file watcher, the
+  system proxy lookup), macOS turns a board's IPv4 address into a NAT64 IPv6
+  address that leaves by the tether. They also skip the system proxy lookup.
+- `push`, `engine_set` and `engine_rename` no longer refuse an engine named by an allowed IPv4
+  address as "not this machine" on a Mac whose default route is a tethered
+  phone: an IP address in the URL is checked as given, not looked up.
+- `verify looks` no longer fails a `beat` signal of shape `phase` or `fall` for a
+  dead `width`, which only the pulse reads.
+- `verify looks` no longer fails a round `shape` (fewer than 3 sides) on a 3D map
+  for a dead `plane`: a circle is a sphere in every plane, so the gate does not
+  probe it, nor a polygon's center along its plane's normal.
 - A near-flat axis (a rotated flat ring's height, about 1e-16 m on Linux) maps to 0
   like an exactly flat one, so a layout maps the same on every platform; compiled
   fixture matrices go out rounded to 1e-12. `observe` waits for the engine's hello

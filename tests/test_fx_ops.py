@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator, Mapping
+from dataclasses import replace
 from functools import partial
 from types import MappingProxyType
 from typing import Any
@@ -18,12 +19,18 @@ import pytest
 import fakes
 from fakes import op_of, program_of
 from pewpew.compose import Look
+from pewpew.features import FakeFeatures
 from pewpew.fx.catalog import example
 from pewpew.fx.compile import check, field_ops
+from pewpew.fx.expr import beat, layer, look
 from pewpew.fx.graph import Program
 from pewpew.fx.op import Op, axis_choice, reach
 from pewpew.fx.ops import OPS
 from pewpew.fx.ops.source import DRIFT
+from pewpew.fx.prims import space
+from pewpew.lab.check import ready
+from pewpew.lab.geometry import parse_geometry
+from pewpew.lab.liveness import probe_knobs
 from pewpew.mapping import extents, grid, lattice, line
 from pewpew.metrics import FLASH_LIMIT, LIVENESS_RMS, measure, rms
 from pewpew.params import Float, ParamSet
@@ -285,3 +292,169 @@ def test_a_dither_reaches_by_the_spacing_along_each_axis() -> None:
     assert _pitch(ys, 1.0, len(ys), 0.05) == pytest.approx(1 / 63, rel=1e-3)
     scattered = np.random.default_rng(0).random(256).astype(np.float32)
     assert _pitch(scattered, 1.0, 256, 0.05) == 0.05
+
+
+def test_spherical_reads_the_true_distance_from_the_point_it_sets() -> None:
+    """`osc(1, 0)` read through `spherical` is a wave of the distance in
+    all three axes from the point `cx`, `cy`, `cz` set, a share of the
+    map's extent on each axis; so every point at one distance shows one
+    value, a shell."""
+    renderer = hosted(program_of("osc(1, 0).spherical(cx=0.2, cy=0.7, cz=0.4)"), lattice(5))
+    shown = renderer.advance_to(1.0)[:, 0].astype(np.float64)
+    ctx = op_of(renderer, "spherical").ctx
+    point = [lo + f * span for lo, f, span in zip(ctx.lo, (0.2, 0.7, 0.4), ctx.spans, strict=True)]
+    d = np.sqrt(sum((axis.astype(np.float64) - m) ** 2 for axis, m in zip(ctx.coords.xyz, point, strict=True)))
+    np.testing.assert_allclose(shown, 0.5 + 0.5 * np.sin(2.0 * np.pi * d), atol=1e-5)
+    centred = hosted(program_of("osc(3, 0).spherical()"), lattice(5)).advance_to(1.0)[:, 0]
+    xyz = np.stack(op_of(renderer, "spherical").ctx.coords.xyz, axis=-1).astype(np.float64)
+    shells = np.round(np.linalg.norm(xyz - xyz.mean(axis=0), axis=-1), 6)
+    for r in np.unique(shells):
+        assert np.ptp(centred[shells == r]) < 1e-5, r
+
+
+def test_the_centre_at_one_half_is_the_maps_centre_to_the_bit() -> None:
+    """`BindCtx.at` gives `centre` exactly at 0.5 on every axis, so
+    `polar` and `shape` at their default center render the same bytes as
+    before they had one."""
+    rng = np.random.default_rng(3)
+    for _ in range(200):
+        lo, span = rng.uniform(-3.0, 3.0, 3), rng.uniform(0.0, 5.0, 3) * (rng.random(3) > 0.2)
+        ctx = replace(op_of(hosted(program_of("noise(3).polar()"), grid(4, 4)), "polar").ctx,
+                      lo=tuple(lo.tolist()), hi=tuple((lo + span).tolist()))
+        assert ctx.at((0.5, 0.5, 0.5)) == ctx.centre
+
+
+def test_polar_at_its_defaults_reads_the_maps_centre_with_straight_spokes() -> None:
+    """The default `polar` is the polar map about `BindCtx.centre`, byte for
+    byte, on a map whose extent is not 0 to 1."""
+    mapping = (lattice(5) * np.float32(0.76) + np.float32(0.12)).astype(np.float32)
+    renderer = hosted(program_of("osc(3, 0).polar()"), mapping)
+    shown = renderer.advance_to(1.0)
+    ctx = op_of(renderer, "polar").ctx
+    radius = space.polar(ctx.coords.xyz, ctx.plane("auto"), ctx.centre)[0]
+    want = (0.5 + 0.5 * np.sin(2.0 * np.pi * (radius * np.float32(3.0)))).astype(np.float32)
+    assert shown[:, 0].tobytes() == want.tobytes()
+
+
+def test_polar_reads_its_center_along_the_normal_only_through_spiral() -> None:
+    """With straight spokes the center's place along the plane's normal
+    changes nothing; with `spiral` set, the spokes turn by `spiral` per unit
+    from it, so moving it turns them."""
+    def frame(args: str) -> np.ndarray:
+        return run(program_of(f"noise(3).polar({args})"), lattice(6), 2)
+
+    assert np.array_equal(frame("cz=0.2"), frame("cz=0.8"))
+    assert rms(frame("cz=0.2, spiral=2"), frame("cz=0.8, spiral=2")) > 10 * LIVENESS_RMS
+    polar = OPS["polar"]
+    args, cube, panel = ParamSet(polar).snapshot(), spans(lattice(6)), spans(grid(6, 6))
+    assert not polar.shows("cz", 0.0, 1.0, args, cube)
+    assert polar.shows("cz", 0.0, 1.0, {**args, "spiral": 2.0}, cube)
+    assert polar.shows("spiral", -4.0, 4.0, args, cube) and not polar.shows("spiral", -4.0, 4.0, args, panel)
+    assert not polar.shows("cy", 0.0, 1.0, {**args, "plane": "xz"}, cube)
+
+
+def test_a_round_shape_takes_no_plane_and_a_polygon_no_center_along_its_normal() -> None:
+    """A circle is a sphere, the same in every plane, and a polygon is a
+    prism along its plane's normal, so the gate does not probe either knob
+    where it does nothing."""
+    shape, cube = OPS["shape"], spans(lattice(6))
+    round_, polygon = ParamSet(shape).snapshot(), {**ParamSet(shape).snapshot(), "sides": 5}
+    assert not shape.shows("plane", "auto", "yz", round_, cube) and shape.shows("plane", "auto", "yz", polygon, cube)
+    assert shape.shows("cz", 0.0, 1.0, round_, cube) and not shape.shows("cz", 0.0, 1.0, polygon, cube)
+    staged = ready(look(layer("base", program_of("shape(0, 0.2, 0.1)")), seed=7))
+    paths = [probe.path for probe in probe_knobs(staged, parse_geometry("lattice:6"), 0)]
+    assert paths and not any(".plane" in path for path in paths), paths
+
+
+def test_a_steady_pulse_starts_a_shell_every_one_over_rate_seconds_and_a_new_rate_shows_at_once() -> None:
+    renderer = hosted(program_of("pulse(0.5, life=3)"), grid(6, 6))
+    pulse = op_of(renderer, "pulse")
+    renderer.advance_to(1.0)
+    assert pulse.ages() == pytest.approx([1.0])
+    renderer.bound.node_params["pulse"].set("rate", 2.0)
+    assert pulse.ages() == pytest.approx([0.25 + 0.5 * k for k in range(6)]), "the phase held, the spacing is new"
+    renderer.advance_to(1.25)
+    assert pulse.ages()[0] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_pulse_shells_leave_the_point_softly_and_never_pass_full() -> None:
+    """Each shell fades in, so the point does not pop when one starts; a
+    shell's ring is brightest at `speed` times its age from the point."""
+    frames = run(program_of("pulse(1.0, speed=0.3, width=0.1, life=4, cx=0, cy=0)"), grid(16, 16), 120)
+    assert frames.min() >= 0.0 and frames.max() <= 1.0
+    # The steepest step is the fade-in's middle, 1.5 / rise a second; a pop would be near 1.
+    assert np.abs(np.diff(frames, axis=0)).max() < 0.2, "no frame jumps"
+    renderer = hosted(program_of("pulse(0.25, speed=0.3, width=0.1, life=8, cx=0, cy=0)"), grid(16, 16))
+    shown = renderer.advance_to(2.0)[:, 0]
+    xyz = op_of(renderer, "pulse").ctx.coords.xyz
+    d = np.hypot(xyz[0] - xyz[0].min(), xyz[1] - xyz[1].min())
+    assert abs(float(d[np.argmax(shown)]) - 0.6) < 0.05
+
+
+class _Beats:
+    """Features whose beat comes `per_s` times a second."""
+
+    def __init__(self, per_s: float) -> None:
+        self.per_s = per_s
+        self.base = FakeFeatures(0)
+
+    def at(self, t: float) -> Any:
+        return replace(self.base.at(t), beat_phase=(self.per_s * t) % 1.0)
+
+
+@pytest.mark.parametrize("per_s, gap", [(2.0, 0.5), (3.0, 2.0 / 3.0)])
+def test_a_beat_pulse_starts_a_shell_on_each_beat_but_one_too_close_to_the_last(per_s: float, gap: float) -> None:
+    """A beat within 0.4 s of the last starts no shell, so shells start at
+    most 2.5 times a second whatever the tempo."""
+    renderer = hosted(program_of('pulse(sync="beat", life=8)'), grid(6, 6), features=_Beats(per_s))
+    clock = SlotClock(FPS)
+    for _ in range(int(4.0 * FPS)):
+        renderer.advance_to(clock.advance())
+    ages = op_of(renderer, "pulse").ages()
+    assert len(ages) >= 3
+    np.testing.assert_allclose(np.diff(ages), gap, atol=1e-6)
+
+
+def test_a_pulse_at_its_top_rate_stays_within_the_flash_limit() -> None:
+    """Thin, fast shells two a second pass a point twice a second: under
+    WCAG's three flashes."""
+    frames = run(program_of('pulse(2.0, speed=2.0, width=0.04, life=8, cx=0).palette("ember")'), line(32), 180)
+    assert 0.0 < measure(frames, FPS).flash_rate_max <= FLASH_LIMIT
+
+
+@pytest.mark.parametrize("chain", ["pulse(1.0, life=4)", 'pulse(sync="beat", speed=0.6, life=2)'])
+def test_a_pulse_renders_the_same_bytes_every_time(chain: str) -> None:
+    """No wall clock, no unseeded RNG: the same program, map and times give
+    the same frames."""
+    frames = [run(program_of(chain), lattice(5), 90) for _ in range(2)]
+    assert frames[0].tobytes() == frames[1].tobytes()
+    assert frames[0].std() > 0
+
+
+def test_a_pulse_shell_holds_its_level_and_eases_out_over_the_last_fade_of_its_life() -> None:
+    """A shell fades in, holds full, and eases out over the last `fade` of
+    its life with no kink; a `fade` of 1 eases it out from the start."""
+    renderer = hosted(program_of("pulse(0.5, speed=0.12, life=5.5, fade=0.4)"), grid(6, 6))
+    pulse = op_of(renderer, "pulse")
+    rise, hold = pulse.rise(), 5.5 * 0.6
+    ages = np.linspace(0.0, 5.5, 2201)
+    levels = np.array([pulse.level(float(a)) for a in ages])
+    assert levels[0] == 0.0 and levels[-1] == pytest.approx(0.0, abs=1e-12)
+    assert np.all(levels[(ages >= rise) & (ages <= hold)] == 1.0)
+    assert np.all(np.diff(levels[ages >= hold]) <= 0.0)
+    slopes = np.diff(levels) / np.diff(ages)
+    assert np.abs(np.diff(slopes)).max() < 0.01, "the slope never jumps"
+    renderer.bound.node_params["pulse"].set("fade", 1.0)
+    assert pulse.level(rise) < 1.0 and pulse.level(2.75) == pytest.approx(0.5, abs=0.02)
+
+
+def test_a_beats_width_shows_only_for_its_pulse() -> None:
+    """The phase and the fall do not read `width`, so the gate does not
+    probe it there."""
+    shown = OPS["beat"].shows
+    assert shown("width", 0.05, 0.95, {"shape": "pulse", "width": 0.25}, [1.0, 0.0, 0.0])
+    assert not shown("width", 0.05, 0.95, {"shape": "fall", "width": 0.25}, [1.0, 0.0, 0.0])
+    made = look(layer("base", program_of('osc(6).palette("ocean")')),
+                routes=[beat("fall").to("layers.base.osc.offset", depth=0.25)])
+    paths = [probe.path for probe in probe_knobs(ready(made), parse_geometry("line:16"), 0)]
+    assert "signals.beat.shape=phase" in paths and not any(path.startswith("signals.beat.width") for path in paths)

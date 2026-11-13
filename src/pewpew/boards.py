@@ -86,7 +86,7 @@ class UrllibHttp:
     """`Http` over urllib."""
 
     def get(self, url: str, timeout: float) -> bytes:
-        with urllib.request.urlopen(url, timeout=timeout) as r:
+        with wled.open_url(url, timeout) as r:
             return r.read()
 
     def upload(self, url: str, filename: str, data: bytes, timeout: float) -> tuple[int, str]:
@@ -103,7 +103,7 @@ class UrllibHttp:
             headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as r:
+            with wled.open_url(request, timeout) as r:
                 return r.status, r.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as exc:
             with exc:
