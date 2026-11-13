@@ -1496,6 +1496,9 @@ series (batch mode).
   only: once the process starts CoreFoundation (the run's file watcher, the
   system proxy lookup), macOS turns a board's IPv4 address into a NAT64 IPv6
   address that leaves by the tether. They also skip the system proxy lookup.
+- `push`, `engine_set` and `engine_rename` no longer refuse an engine named by an allowed IPv4
+  address as "not this machine" on a Mac whose default route is a tethered
+  phone: an IP address in the URL is checked as given, not looked up.
 - A near-flat axis (a rotated flat ring's height, about 1e-16 m on Linux) maps to 0
   like an exactly flat one, so a layout maps the same on every platform; compiled
   fixture matrices go out rounded to 1e-12. `observe` waits for the engine's hello
