@@ -1180,6 +1180,16 @@
   flex-direction: column;
   gap: var(--space-sm);
 }
+/* The look's colorways, laid out as a knob (.param): its head, then its chips 8 apart, wrapping on a narrow
+   column; 12 over the main knobs, as knobs are apart. */
+.colorways:not(:last-child) {
+  margin-bottom: var(--space-sm);
+}
+.colorway-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
 .param-head {
   display: flex;
   align-items: center;

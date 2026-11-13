@@ -12,6 +12,7 @@ import { useHeightVar } from "../design/useHeightVar";
 import { useOnChange } from "../design/useOnChange";
 import { LookKnobs, usePanel } from "../params/ParamPanel";
 import { failedText } from "../status/StatusBar";
+import { Colorways } from "./Colorways";
 import { LookEditor, LookRename, LookSettings } from "./LookEditor";
 
 type Open = "save" | "rename" | "settings" | null;
@@ -38,7 +39,8 @@ const NO_LOOKS = "this run can't keep looks";
  * While a cue holds a look, or a recall waits for the running fade, the header says so and there is no save,
  * and what is under it waits, inert: edits there would be lost when the hold ends or the recall lands.
  * Without a looks file the header says the look cannot be saved, and on the laptop how to start a run that
- * can. Then the look's main knobs. Without a looks file or main knobs, there is no block. Across a reconnect
+ * can. Then the look's colorways, a chip each (`Colorways`), and its main knobs. Without a looks file, colorways or
+ * main knobs, there is no block. Across a reconnect
  * the last aura state stands in (`useStandingAura`), so an engine restart keeps the editor, its typed name and its
  * switches. Its title (`titleId`, given) names the region the editor is. */
 export function LookPanel({ titleId: given }: { titleId?: string }) {
@@ -102,7 +104,7 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   }, [open, renameId, saveId]);
   if (!aura) return null;
   const { triggers } = aura;
-  if (!looks && !view.front.length && !view.signals.length) return null;
+  if (!looks && !view.front.length && !view.signals.length && !aura.stack.colorways.length) return null;
   const now = nowOf(aura);
   const current = looks?.current ?? null;
   const held = holdReason(triggers, "edit") ?? pendingText(looks);
@@ -239,6 +241,7 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
             </div>
           )}
         </div>
+        <Colorways stack={aura.stack} />
         <LookKnobs />
       </div>
       <p className="sr-only" role="status">
