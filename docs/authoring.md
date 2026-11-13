@@ -270,7 +270,7 @@ Most ops pivot on the middle of the map. `polar`, `spherical`, `shape` and
 `pulse` work about a point you set instead: `cx`, `cy` and `cz` place it as
 a share of the map's extent along each axis, 0 at the low end, 1 at the
 high end and 0.5 (the default) in the middle, and the point may sit off
-the map (-0.5 to 1.5; `shape` stays on it). `spherical` reads true 3D
+the map (-0.5 to 1.5; `shape`'s and `pulse`'s stay on it, 0 to 1). `spherical` reads true 3D
 distance from the point, so `osc(6).spherical()` is shells round it;
 `pulse` sends soft shells out of it at a rate or on the beat, each holding
 its level until it eases out over the last `fade` of its `life`; and `polar`'s

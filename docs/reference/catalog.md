@@ -149,9 +149,9 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `width`: 0.15 0.04..0.6. How thick each shell is; more is softer.
 - `life`: 3.0 0.3..20.0 s. Seconds each shell lasts, start to end.
 - `fade`: 0.4 0.05..1.0. The share of its life a shell spends fading out at the end: 1 fades it from the start.
-- `cx`: 0.5 -0.5..1.5. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
-- `cy`: 0.5 -0.5..1.5. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
-- `cz`: 0.5 -0.5..1.5. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cx`: 0.5 0.0..1.0. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cy`: 0.5 0.0..1.0. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cz`: 0.5 0.0..1.0. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
 
     pulse(1.0, life=4)
     pulse(0.4, speed=0.15, width=0.3, life=6).palette("ice")

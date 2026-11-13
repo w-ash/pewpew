@@ -16,11 +16,11 @@ series (batch mode).
 - `polar` takes a center (`cx`, `cy`, `cz`) and a `spiral`, which turns the spokes
   per unit along the plane's normal, so on bars standing across the plane they wind
   as a helix. At its defaults it renders as before, byte for byte.
-- The `pulse` source: soft shells that swell out of a point (`cx`, `cy`, `cz`)
-  `rate` times a second or on each beat. Each holds its full level and eases out
-  over the last `fade` of its `life` (up to 20 s, so slow shells cross a large rig);
-  overlapping shells add as light does, never past full. A beat within 0.4 s of the
-  last starts none.
+- The `pulse` source: soft shells that swell out of a point on the map (`cx`, `cy`,
+  `cz`) `rate` times a second or on each beat. Each holds its full level and eases
+  out over the last `fade` of its `life` (up to 20 s, so slow shells cross a large
+  rig); overlapping shells add as light does, never past full. A beat within 0.4 s
+  of the last starts none.
 - `shape` takes a center (`cx`, `cy`, `cz`, on the map), at the map's center by
   default as before.
 - `run` on a looks file that does not exist yet makes it with every example look,

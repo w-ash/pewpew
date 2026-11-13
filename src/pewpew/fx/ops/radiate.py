@@ -58,7 +58,8 @@ class Pulse(Op, op="pulse"):
     life = Float(3.0, 0.3, 20.0, "s", sweet=(1.0, 10.0), help="Seconds each shell lasts, start to end")
     fade = Float(0.4, 0.05, 1.0, sweet=(0.2, 0.8),
                  help="The share of its life a shell spends fading out at the end: 1 fades it from the start")
-    cx, cy, cz = centre_args()
+    # Off the map, a shell's reach (speed times life) may not touch it, so the center stays on it.
+    cx, cy, cz = centre_args(0.0, 1.0)
     along = CENTRE_ALONG
     examples = ("pulse(1.0, life=4)", 'pulse(0.4, speed=0.15, width=0.3, life=6).palette("ice")',
                 'pulse(sync="beat", speed=0.6, life=2).palette("ember")')
