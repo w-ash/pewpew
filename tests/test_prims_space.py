@@ -10,7 +10,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from pewpew.fx.prims import space
+from pewpew.fx.prims import sample, space
 from pewpew.fx.prims.vec import MID
 from prim_points import points, radius
 
@@ -55,6 +55,47 @@ def test_polar_round_trips_and_turns_are_in_0_1(p, plane) -> None:
     assert np.all((q[j] >= 0.0) & (q[j] < 1.0))
     assert np.all(q[i] >= 0.0)
     assert _close(space.cartesian(q, plane), p, atol=4 * ATOL)
+
+
+@given(points, planes, st.tuples(*(st.floats(-0.5, 1.5) for _ in range(3))))
+def test_spherical_gives_the_true_distance_the_turn_and_the_elevation(p, plane, centre) -> None:
+    """The plane's first axis becomes the distance from the centre in all
+    three axes, its second the turn as `polar` gives it, and the normal
+    the elevation, 0 at the low pole and 1 at the high."""
+    q = space.spherical(p, plane, centre)
+    assert _float32(q)
+    i, j = "xyz".index(plane[0]), "xyz".index(plane[1])
+    k = 3 - i - j
+    d = np.sqrt(sum((p[a].astype(np.float64) - centre[a]) ** 2 for a in range(3)))
+    assert np.allclose(q[i], d, atol=4 * ATOL, rtol=1e-6)
+    assert np.array_equal(q[j], space.polar(p, plane, centre)[j])
+    assert np.all((q[k] >= 0.0) & (q[k] <= 1.0))
+    above = (p[k].astype(np.float64) - centre[k]) > 1e-3 * np.maximum(d, 1e-3)
+    assert np.all(q[k][above] > 0.5) and np.all(q[k][(p[k].astype(np.float64) - centre[k]) < -1e-3] < 0.5)
+
+
+def test_spherical_shells_are_the_points_at_one_distance_and_its_poles_are_0_and_1() -> None:
+    """Points on a sphere about the centre all read one distance; the
+    points straight below and above it read elevation 0 and 1."""
+    centre = (0.3, 0.6, 0.2)
+    rng = np.random.default_rng(0)
+    heading = rng.normal(size=(3, 50))
+    heading /= np.linalg.norm(heading, axis=0)
+    p = tuple((m + 0.4 * h).astype(np.float32) for m, h in zip(centre, heading))
+    q = space.spherical(p, "xy", centre)
+    assert np.allclose(q[0], 0.4, atol=1e-6)
+    poles = tuple(np.array([m, m], np.float32) for m in centre[:2]) + (np.array([-0.1, 0.5], np.float32),)
+    assert np.allclose(space.spherical(poles, "xy", centre)[2], [0.0, 1.0], atol=1e-6)
+
+
+@given(points)
+def test_spherical_in_xz_turns_and_rises_as_the_sphere_texture_does(p) -> None:
+    """`sample.spherical` is the texture of the same sphere about y: its u
+    is the turn and its v the elevation."""
+    q = space.spherical(p, "xz")
+    u, v = sample.spherical(p)
+    assert np.array_equal(q[2], u)
+    assert np.allclose(q[1], v, atol=4 * ATOL)
 
 
 @given(points, st.integers(1, 12), planes)
@@ -141,3 +182,5 @@ def test_refusals_name_the_fix() -> None:
         space.repeat(p2, 0.0, "x")
     with pytest.raises(ValueError, match="rotate_about takes points of 3 axes"):
         space.rotate_about(p2, 1.0)
+    with pytest.raises(ValueError, match="spherical takes points of 3 axes"):
+        space.spherical(p2)

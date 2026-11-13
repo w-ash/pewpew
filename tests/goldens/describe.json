@@ -2022,6 +2022,90 @@
             "label": "yz"
           }
         ]
+      },
+      {
+        "name": "cx",
+        "kind": "float",
+        "label": "Center x",
+        "help": "Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": -0.5,
+        "hi": 1.5,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cy",
+        "kind": "float",
+        "label": "Center y",
+        "help": "Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": -0.5,
+        "hi": 1.5,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cz",
+        "kind": "float",
+        "label": "Center z",
+        "help": "Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": -0.5,
+        "hi": 1.5,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "spiral",
+        "kind": "float",
+        "label": "Spiral",
+        "help": "Turns the spokes per unit along the plane's normal: 0 keeps them straight",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "turns/unit",
+        "lo": -4.0,
+        "hi": 4.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          -2.0,
+          2.0
+        ],
+        "flash_sensitive": false
       }
     ],
     "posterize": [
@@ -2048,6 +2132,195 @@
       }
     ],
     "prev": [],
+    "pulse": [
+      {
+        "name": "rate",
+        "kind": "float",
+        "label": "Rate",
+        "help": "Shells a second when steady: more is busier",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "/s",
+        "lo": 0.05,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.1,
+          1.0
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "sync",
+        "kind": "choice",
+        "label": "Sync",
+        "help": "Steady starts shells at the rate; beat starts one on each beat",
+        "group": "",
+        "widget": "",
+        "default": "steady",
+        "options": [
+          {
+            "value": "steady",
+            "label": "Steady"
+          },
+          {
+            "value": "beat",
+            "label": "Beat"
+          }
+        ]
+      },
+      {
+        "name": "speed",
+        "kind": "float",
+        "label": "Speed",
+        "help": "How fast each shell swells, in units a second",
+        "group": "",
+        "widget": "",
+        "default": 0.25,
+        "unit": "/s",
+        "lo": 0.02,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "width",
+        "kind": "float",
+        "label": "Width",
+        "help": "How thick each shell is; more is softer",
+        "group": "",
+        "widget": "",
+        "default": 0.15,
+        "unit": "",
+        "lo": 0.04,
+        "hi": 0.6,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.08,
+          0.4
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "life",
+        "kind": "float",
+        "label": "Life",
+        "help": "Seconds each shell lasts, start to end",
+        "group": "",
+        "widget": "",
+        "default": 3.0,
+        "unit": "s",
+        "lo": 0.3,
+        "hi": 20.0,
+        "step": 0.1,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1.0,
+          10.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "fade",
+        "kind": "float",
+        "label": "Fade",
+        "help": "The share of its life a shell spends fading out at the end: 1 fades it from the start",
+        "group": "",
+        "widget": "",
+        "default": 0.4,
+        "unit": "",
+        "lo": 0.05,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cx",
+        "kind": "float",
+        "label": "Center x",
+        "help": "Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cy",
+        "kind": "float",
+        "label": "Center y",
+        "help": "Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cz",
+        "kind": "float",
+        "label": "Center z",
+        "help": "Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      }
+    ],
     "quasicrystal": [
       {
         "name": "waves",
@@ -2592,6 +2865,69 @@
             "label": "yz"
           }
         ]
+      },
+      {
+        "name": "cx",
+        "kind": "float",
+        "label": "Center x",
+        "help": "Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cy",
+        "kind": "float",
+        "label": "Center y",
+        "help": "Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cz",
+        "kind": "float",
+        "label": "Center z",
+        "help": "Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
       }
     ],
     "smooth": [
@@ -2613,6 +2949,98 @@
         "sweet": [
           0.05,
           2.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
+    "spherical": [
+      {
+        "name": "plane",
+        "kind": "choice",
+        "label": "Plane",
+        "help": "Which two axes it works across; auto picks the room's",
+        "group": "",
+        "widget": "",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "xy",
+            "label": "xy"
+          },
+          {
+            "value": "xz",
+            "label": "xz"
+          },
+          {
+            "value": "yz",
+            "label": "yz"
+          }
+        ]
+      },
+      {
+        "name": "cx",
+        "kind": "float",
+        "label": "Center x",
+        "help": "Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": -0.5,
+        "hi": 1.5,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cy",
+        "kind": "float",
+        "label": "Center y",
+        "help": "Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": -0.5,
+        "hi": 1.5,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cz",
+        "kind": "float",
+        "label": "Center z",
+        "help": "Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": -0.5,
+        "hi": 1.5,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
         ],
         "flash_sensitive": false
       }
