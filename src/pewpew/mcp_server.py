@@ -120,7 +120,7 @@ LookArg = Annotated[dict[str, Any], Field(
     description='A look, {"layers": [...]}, bottom layer first, or a looks file, {"version": 4, "looks": {...}}. '
     'A layer is {"id", "nodes": {node id: {"op", "in": [node ids], "args": {...}}}}. A look may add "signals", '
     '{signal id: {"op", "args"}}, and "routes", [{"source": signal id, "path": knob address, "depth"}], that move '
-    'knobs each frame.',
+    'knobs each frame, and "colorways", {name: {knob address: value}}, named sets of knob values that recolour it.',
     examples=[FIRST_LOOK, PROGRAM_LOOK],
 )]
 Query = Annotated[str | None, Field(description="Words that each must appear in a name, label or doc",
@@ -141,6 +141,11 @@ MapArg = Annotated[str, Field(
 Seconds = Annotated[float, Field(gt=0, le=MAX_SECONDS, description="Seconds to render; flashing needs at least 1")]
 Fps = Annotated[float, Field(gt=0, le=MAX_FPS, description="Frames per second")]
 Seed = Annotated[int, Field(ge=0, description="Seeds the stand-in audio and room features (`run --seed`)")]
+ColorwayArg = Annotated[str | None, Field(
+    description="Render the look in one of its colorways, by name: the look with that colorway's knobs set; "
+    "omit it for the look as it sets its knobs",
+    examples=["ice"],
+)]
 SheetArg = Annotated[bool, Field(description="Also return the frames as a contact sheet image")]
 RenderFormat = Annotated[Detail, Field(description="concise: handle, metrics and warnings; detailed: also the "
                                        "render spec, with the whole look normalized")]
@@ -219,13 +224,15 @@ def build(tier: int = 0, *, allow_hosts: Sequence[str] = (), argv: Sequence[str]
     def look_render(
         look: LookArg, map: MapArg = DEFAULT_MAP, seconds: Seconds = DEFAULT_SECONDS, fps: Fps = DEFAULT_FPS,
         seed: Seed = 0, sheet: SheetArg = True, response_format: RenderFormat = "concise",
+        colorway: ColorwayArg = None,
     ) -> Annotated[CallToolResult, Rendered]:
         """Render a look offline, as the aura runs it, and measure the frames. Returns a handle (r1-...) that
         look_compare and pewpew://render/{handle}/sheet.png take; the metrics (flash_rate_max at most 3 per
         second, mean_luma, black_fraction, clip_fraction, motion_energy, frozen_fraction, palette_spread,
         ...); warnings, such as a gate the look would fail; and a contact sheet of the frames. Read the
-        metrics before the image. The same arguments always give the same handle and frames."""
-        rendered = lab.render(look, map, seconds, fps, seed)
+        metrics before the image. The same arguments always give the same handle and frames. A look's
+        `colorways` are named sets of knob values; `colorway` renders it in one."""
+        rendered = lab.render(look, map, seconds, fps, seed, colorway=colorway)
         images = (Path(lab.sheet(rendered).path).read_bytes(),) if sheet else ()
         return _ok(rendered if response_format == "detailed" else rendered.brief(), images=images)
 

@@ -44,6 +44,12 @@ A running stack takes a layer in (`insert`), lets one go (`remove`) or
 runs one at another place (`move`); each leaves
 every other layer's renderer, buffers and seed as they are (ADR-021).
 
+The look's colorways ride along (`colorways`), each less the addresses
+that name no whole knob of the stack now, as `front` does: a colorway
+left with none is gone. The active colorway (`colorway`) is not stored:
+it is the first whose every value equals its knob's own value, so a
+route on one of its knobs moves around that value and it stays active.
+
 `now` (a clock, injected as `pewpew.pace.PacedLoop` takes it) times each
 layer's frame into `timings`. Timing never reaches a frame.
 
@@ -70,7 +76,7 @@ from pewpew.compose.controls import (
     layer_address,
 )
 from pewpew.compose.modulation import Modulation
-from pewpew.compose.stack import Layer, Look, Route, layer_seed, stack_problems
+from pewpew.compose.stack import Colorways, Layer, Look, Route, layer_seed, stack_problems
 from pewpew.errors import describe_exception, unknown
 from pewpew.features import FakeFeatures, FeatureSource, memo
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
@@ -155,6 +161,7 @@ class Compositor:
         signals: Graph | None = None,
         routes: Iterable[Route] = (),
         front: Iterable[str] = (),
+        colorways: Colorways | None = None,
         features: FeatureSource | None = None,
         bypass: bool = False,
         now: Callable[[], float] | None = None,
@@ -162,7 +169,7 @@ class Compositor:
     ) -> None:
         """Build every layer of `layers` on `mapping`, at engine time `t`,
         with the look's `signals`, `routes` and `front`
-        (pewpew.compose.modulation). `features` is as for `Renderer`; the
+        (pewpew.compose.modulation) and its `colorways`, unchecked. `features` is as for `Renderer`; the
         default features are the seeded fake. Raises
         LayerError for a layer that cannot be built, ValueError for no
         layers or a repeated id (`stack_problems`), a signal's value its
@@ -170,6 +177,7 @@ class Compositor:
         a signal whose op is not a signal op. A `front` path that names no
         whole knob is left out."""
         self._seed = seed
+        self._colorways = {name: dict(values) for name, values in (colorways or {}).items()}
         self._modulation = Modulation(signals, tuple(routes), tuple(front), seed)
         self._features = memo(FakeFeatures(seed) if features is None else features)
         self._bypass = bypass
@@ -227,6 +235,20 @@ class Compositor:
                 return err
         return self._modulation.error
 
+    @property
+    def colorways(self) -> Colorways:
+        """The look's colorways, each less the addresses that name no whole
+        knob of the stack now (module docstring)."""
+        return self._live_colorways
+
+    def colorway(self) -> str | None:
+        """The active colorway, or None (module docstring)."""
+        controls = self._controls
+        for name, values in self._live_colorways.items():
+            if all(_json_value(controls, path) == value for path, value in values.items()):
+                return name
+        return None
+
     def mod(self) -> Mapping[str, float]:
         """Each knob a route drives, at its value as of the last frame, by
         address: the page's live readout."""
@@ -241,33 +263,35 @@ class Compositor:
 
     def snapshot(self) -> Look:
         """The stack as a look: each layer and signal at its live values,
-        the routes that run, the front knobs, and the seed."""
+        the routes that run, the front knobs, the colorways, and the seed."""
         signals, routes, front = self._modulation.snapshot()
         layers = tuple(live.snapshot() for live in self._layers)
-        return Look(layers, signals, routes, seed=self._seed, front=front)
+        return Look(layers, signals, routes, seed=self._seed, front=front, colorways=self._live_colorways)
 
     def state(self) -> dict[str, Any]:
         """The stack for a page: each layer's id and nodes (id, op, the label
         it shows, and what it reads), the signals (the same), the routes that run,
-        the front knobs, and the mapping's dimensions. JSON-ready, names
-        only."""
+        the front knobs, the colorways' names in the look's order and the
+        active one, and the mapping's dimensions. JSON-ready, names only."""
         return {
             "layers": [{"id": live.id, "nodes": live.nodes()} for live in self._layers],
             **self._modulation.state(),
+            "colorways": list(self._live_colorways),
+            "colorway": self.colorway(),
             "dims": self._dims,
         }
 
     # ---- building (loop thread) -------------------------------------------
 
     def spawn(self, look: Look) -> Compositor:
-        """A new stack of `look`'s layers, seed, signals, routes and front,
-        on this one's mapping, features and `bypass`, at
+        """A new stack of `look`'s layers, seed, signals, routes, front and
+        colorways, on this one's mapping, features and `bypass`, at
         its engine time: the incoming side of a recall. Fresh state: a
         recalled look renders the same whatever ran before it. Raises as
         the constructor does, with this stack untouched."""
         return Compositor(
             look.layers, self._mapping, seed=look.seed, signals=look.signals, routes=look.routes, front=look.front,
-            features=self._features, bypass=self._bypass, now=self._now, t=self._t,
+            colorways=look.colorways, features=self._features, bypass=self._bypass, now=self._now, t=self._t,
         )
 
     def insert(self, layer: Layer, index: int) -> None:
@@ -347,6 +371,9 @@ class Compositor:
         self._modulation.bind(controls, strict=strict)
         self._layers = layers
         self._controls = controls
+        live = ({path: value for path, value in values.items() if _whole(controls, path)}
+                for values in self._colorways.values())
+        self._live_colorways = {name: values for name, values in zip(self._colorways, live, strict=True) if values}
 
     # ---- the frame path ------------------------------------------------------
 
@@ -406,3 +433,18 @@ class Compositor:
                 timings[live.id] = self._now() - start
         self._unbound.discard(live.id)
         return frame, live.renderer.error is None
+
+
+def _whole(controls: Controls, path: str) -> bool:
+    """Whether `path` names a whole knob among `controls`."""
+    knob = controls.find(path)
+    return knob is not None and not knob.part
+
+
+def _json_value(controls: Controls, path: str) -> Any:
+    """The own value, JSON form, of the whole knob at `path` among
+    `controls`, or None when there is none."""
+    knob = controls.find(path)
+    if knob is None or knob.part:
+        return None
+    return knob.params.declarations[knob.name].to_json(knob.params[knob.name])

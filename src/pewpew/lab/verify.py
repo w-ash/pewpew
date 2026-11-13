@@ -3,8 +3,12 @@
 A look passes when it checks (pewpew.lab.check), and its render, made
 fresh with no cache read, has no layer that raises, flashes at most 3
 times a second (WCAG 2.3.1), is not black in every frame, and every knob
-of every enabled layer changes the picture (pewpew.lab.liveness). A
-render under one second fails, since it cannot show the flash rate
+of every enabled layer changes the picture (pewpew.lab.liveness). Each
+of its colorways renders too, as the look with that colorway set, and
+passes the same render gates (no layer raises, the flash rate, not all
+black); its knobs are not probed again. Each pair of colorways must
+differ by more than a knob must (`LIVENESS_RMS`), so no colorway repeats
+another. A render under one second fails, since it cannot show the flash rate
 (`Metrics.flash_safe`). A folder means every `*.look.json` file in it. A
 folder with no such file fails, and so does a file with no look: a gate
 never passes on nothing.
@@ -16,14 +20,17 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from pewpew.lab.check import Ready, ready_looks
+import numpy as np
+
+from pewpew.lab.check import Ready, painted, ready_looks
 from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.lab.liveness import dead, probe_knobs, unprobed
 from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, frame_count, limits, play
 from pewpew.mapping import DEFAULT_MAP
-from pewpew.metrics import Metrics, measure
+from pewpew.metrics import LIVENESS_RMS, Metrics, measure, rms
 from pewpew.problems import Code, Problem, Refused
 from pewpew.result import Result
+from pewpew.sinks.sink import sanitize
 
 PATTERN = "*.look.json"  # the files a folder stands for
 
@@ -111,4 +118,29 @@ def _judge(name: str, staged: Ready, geometry: Geometry, frames: int, fps: float
     failures = (*errors, *limits(metrics), *unprobed(probed))
     if still:
         failures += (f"knobs that do not change the picture: {', '.join(still)}",)
+    failures += _colorways(staged, geometry, frames, fps, seed)
     return LookVerdict(name, not failures, failures, metrics, still)
+
+
+def _colorways(staged: Ready, geometry: Geometry, frames: int, fps: float, seed: int) -> tuple[str, ...]:
+    """Why `staged`'s colorways fail the gate (module docstring): each
+    one's render gates, then each pair that shows the same picture."""
+    failures: list[str] = []
+    shown: dict[str, np.ndarray] = {}
+    for colorway in staged.look.colorways:
+        at = f"colorway {colorway!r}"
+        try:
+            rendered, errors = play(painted(staged, colorway), geometry, frames, fps, seed)
+        except Refused as exc:
+            failures += (f"{at}: {problem}" for problem in exc.problems)
+            continue
+        failures += (f"{at}: {reason}" for reason in (*errors, *limits(measure(rendered, fps))))
+        shown[colorway] = sanitize(rendered)
+    names = list(shown)
+    for i, a in enumerate(names):
+        for b in names[i + 1 :]:
+            change = rms(shown[a], shown[b])
+            if change <= LIVENESS_RMS:
+                failures.append(f"colorways {a!r} and {b!r} show the same picture (RMS {change:.2g}); "
+                                "give each its own colours")
+    return tuple(failures)

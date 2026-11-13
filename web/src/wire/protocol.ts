@@ -232,6 +232,9 @@ export type ClientMessage =
   | { readonly type: "move_layer"; readonly lid: string; readonly to: number }
   /** Show the knobs at addresses `paths` first, in that order: the look's front, an edit a save keeps. */
   | { readonly type: "front"; readonly paths: readonly string[] }
+  /** Set every knob of the running look's colorway `name` at once, in one frame: an edit, as a `set` is. One
+   * value refused refuses them all. */
+  | { readonly type: "colorway"; readonly name: string }
   /** At most the cap. */
   | { readonly type: "master"; readonly value: number }
   | { readonly type: "blackout"; readonly on: boolean }

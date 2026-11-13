@@ -970,3 +970,90 @@ fresh (ADR-022 "Generation is a grammar over the catalog").
   is late, would shift every later draw; a stream per slot number keeps
   each slot's draw its own [S1412].
 
+
+## Amendment (2026-11-13) — colorways
+
+A look's colours come from the knobs of its palette nodes, colors and
+hues, often several of them across its layers. The maintainer asked for
+each look to swap between at least five colour versions of itself in one
+press, with its motion carrying on. Before this amendment a look had no
+colour-variant concept: the `palette` kind's presets are one engine-wide
+list per op (the 2026-11-05 amendment "layered paths"), so a look with
+two palette nodes took two edits to recolour, and a saved copy per colour
+restarted the look on each swap. Code: `src/pewpew/compose/stack.py`
+(`parse_colorways`, `with_colorway`), `src/pewpew/compose/compositor.py`,
+`src/pewpew/aura/control.py` (`colorway`), `src/pewpew/fx/codec.py`.
+
+Status stays **Proposed**.
+
+### Decision
+
+- **A colorway is a named partial state of one look.** A look's optional
+  `colorways` maps a name (the look-name rules, `check_name`) to knob
+  values by address: any whole knob a `set` takes, at most 32 a colorway,
+  at most 12 colorways a look. The codec checks each value against the
+  look's own knobs as a `set` does and stores it in the knob's JSON form,
+  so a checked look is self-contained, as a palette value is. The key is
+  optional in looks file version 4, with no version bump: the codec
+  refuses an unknown look key, so an engine older than this refuses a file
+  that uses it, by name.
+- **A press is an edit, not a recall.** `colorway` parses every value on
+  the caller's thread and refuses the colorway whole if one is refused;
+  otherwise one loop-thread call sets them all before the next frame. The
+  stack, its renderers and its buffers run on, so feedback, particles and
+  signals carry on, and a route on one of the knobs moves around the new
+  value. The look shows unsaved changes, and a save keeps the values.
+- **The active colorway is derived, never stored.** It is the first
+  colorway whose every value equals its knob's own value (the set's value,
+  without route offsets). A save of the live values therefore keeps it,
+  with no new key, and turning one of its knobs by hand leaves none
+  active.
+- **What runs prunes, as `front` does.** A colorway's address that no
+  longer names a whole knob (an edit took its node away) drops out of the
+  stack's colorways and out of a save; a colorway left with none goes.
+  `fx vary` prunes the same way, and a look made from nothing has none.
+- **The gate.** `verify looks` renders each colorway through the render
+  gates (no layer raises, the flash rate, not all black) and fails two
+  colorways whose frames differ by no more than a live knob's must
+  (`LIVENESS_RMS`). Knobs are probed once, on the look as saved.
+
+### Consequences
+
+- One look holds its colour versions, so the book, its favorites and the
+  idle cycle stay one entry a look; the idle cycle and the triggers play a
+  look as saved.
+- An operator recolours a running look without a crossfade or a restart.
+- The Console draws a chip per colorway above the look's knobs, the active
+  one pressed; a client sends `{"type": "colorway", "name"}` and reads
+  `stack.colorways` and `stack.colorway`.
+- A colorway may set any knob, not only colours; the gate's pairwise test
+  is the only check that it changes the picture.
+
+### Evidence
+
+- [S1507] MadMapper keeps two recall kinds: a scene stores everything, a
+  cue only the parameters chosen for it. A colorway is the second kind,
+  scoped to one look's colour knobs.
+- [S1265] Chromatik's snapshots toggle what they store, so one recall can
+  carry a chosen part of the state; its palette is a set of global
+  swatches, the engine-wide model this amendment does not take for a
+  look's own colours.
+
+That a recall restarts a look's state rests on pewpew's own code
+(`Compositor.spawn`: "Fresh state"), not on a cited source.
+
+### Rejected alternatives
+
+- **A saved copy of the look per palette.** Five versions of each look
+  fill the book (at most 64 looks) and the favorites row (at most 20), and
+  a swap is a recall, which builds a fresh stack, so feedback, particles
+  and signals restart on every swap. MadMapper's scene, which stores
+  everything, is this model [S1507].
+- **Engine-wide palette presets.** A global palette or preset list, as
+  Chromatik's swatches are [S1265] and as the `palette` op's presets are,
+  names one palette at a time: a look with several palette nodes, or
+  colours in a hue or a color knob, cannot be recoloured in one move, and
+  a preset cannot hold the look's own pairings.
+- **Storing the active colorway.** It would go stale the moment a knob is
+  turned by hand and would need its own key in the file; deriving it from
+  the values costs a comparison per state message.

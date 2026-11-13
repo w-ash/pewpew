@@ -96,14 +96,16 @@ def render(
     seed: int = 0,
     *,
     name: str | None = None,
+    colorway: str | None = None,
     cache: Cache | None = None,
 ) -> Rendered:
-    """Render `look` (a look, or the look `name` of a looks file) on the
+    """Render `look` (a look, or the look `name` of a looks file), in its
+    colorway `colorway` when given, on the
     map `map_spec` names (pewpew.lab.geometry), or on a geometry, for
     `seconds` at `fps`, the features seeded `seed` (module docstring). The
-    cache answers a render it holds. Raises Refused for a look with problems, and ValueError for
-    a bad map spec, seconds or fps."""
-    staged = ready(look, name=name)
+    cache answers a render it holds. Raises Refused for a look with problems or no such colorway, and
+    ValueError for a bad map spec, seconds or fps."""
+    staged = ready(look, name=name, colorway=colorway)
     geometry = where(map_spec)
     spec = RenderSpec(
         encode_look(staged.look), geometry.spec, geometry.points, geometry.dims, float(seconds), float(fps),

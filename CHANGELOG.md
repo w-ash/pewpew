@@ -9,6 +9,18 @@ series (batch mode).
 
 ### Added
 
+- Colorways: a look's `colorways` are named sets of knob values that recolour it in
+  one press while its motion carries on, such as
+  `{"ice": {"layers.base.tint.palette": "ice", "layers.sparks.glint.palette": "ice"}}`
+  (at most 12 a look, each of 1 to 32 knobs a `set` takes). The new `colorway`
+  request sets every knob of one in a single frame as an edit, which a save keeps;
+  the aura state's `stack.colorways` lists them and `stack.colorway` names the
+  active one, the first whose values every knob holds now. The Console shows them as
+  a row of chips above the look's knobs. `fx check` checks each value as a `set`
+  does, with a did-you-mean for an address; `fx render`, `sheet`, `metrics`,
+  `compare` and `explain` take `--colorway NAME`, and the MCP `look_render` tool a
+  `colorway`; `verify looks` renders each colorway through the render gates and
+  fails two that show the same picture.
 - The `spherical` coord op: wraps a pattern round a point in 3D, its plane's first
   axis becoming the true distance from the point, its second the turn and the
   normal the elevation, so `osc(6).spherical()` is shells round the point. `cx`,

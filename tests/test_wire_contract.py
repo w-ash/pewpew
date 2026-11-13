@@ -1,9 +1,9 @@
 """The wire contract: `tests/goldens/wire.json` is what a real preview
 sends, captured from a `PreviewSink` over an `AuraControl` on fakes, in a
 run that takes looks and has a Gallery to publish to. The run starts in a
-look with two signals, routes into a param and a color's part, and front
-knobs, so the greeting carries them (`aura.stack`, the signals' knobs, and
-the `mod` readout). Its rig file is an arrangement the page may edit, so
+look with two signals, routes into a param and a color's part, front
+knobs and two colorways, the first active, so the greeting carries them
+(`aura.stack`, the signals' knobs, and the `mod` readout). Its rig file is an arrangement the page may edit, so
 the greeting carries the `arrangement` and the rig's `report`, a fixed
 `power` reading, and the capabilities `look`, `arrange`, `export` and
 `publish`. It holds a new client's greeting, its `catalog` cut to two
@@ -98,6 +98,8 @@ def capture(folder: Path) -> dict:
         signals=Graph((Node("breath", "lfo", {"rate": 0.5}), Node("macro", "knob", {"value": 0.5}))),
         routes=(Route("breath", "layers.base.zoo.level", 0.2), Route("macro", "layers.base.zoo.color.h", 60.0)),
         front=("signals.macro.value", "layers.base.zoo.level"),
+        colorways={"green": {"layers.base.zoo.color": {"h": 120.0, "s": 1.0, "v": 1.0}},
+                   "red": {"layers.base.zoo.color": {"h": 0.0, "s": 1.0, "v": 1.0}, "layers.base.zoo.shape": "steps"}},
     )
     looks = {"warm": warm, "cool": look(ZOO, {"level": 0.2}, node="zoo", fade=0.0)}
     triggers = {"door": Trigger(look="cool", hold=8.0, debounce=0.0), "bell": Trigger()}

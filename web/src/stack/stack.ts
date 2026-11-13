@@ -42,6 +42,10 @@ export interface StackState {
   readonly routes: readonly RouteItem[];
   /** The addresses of the knobs a page shows first. */
   readonly front: readonly string[];
+  /** The look's colorways, named sets of knob values a press sets at once, in the look's order. */
+  readonly colorways: readonly string[];
+  /** The active colorway: the first whose every value its knob holds now; null for none. */
+  readonly colorway: string | null;
   /** How many axes the map spans: 0 for a point, 1 a strip, 2 a panel or flat room, 3 a volume. */
   readonly dims: 0 | 1 | 2 | 3;
 }

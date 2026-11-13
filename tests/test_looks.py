@@ -165,7 +165,7 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(looks={"a": layered("solid_test", [1])}),
      "look 'a': layers.base.solid: 'args' is an object of name: value"),
     (looks_file(looks={"a": {"pattern": "solid"}}),
-     "look 'a': unknown key 'pattern'; expected cycle, fade, front, layers, master, routes, seed, signals"),
+     "look 'a': unknown key 'pattern'; expected colorways, cycle, fade, front, layers, master, routes, seed, signals"),
     (looks_file(looks={"a": layered("solid_test", routes=[{"source": "breath", "path": "layers.base.opacity",
                                                       "depth": 0.2}])}),
      "look 'a': routes[0]: unknown signal 'breath'; signals: (none)"),

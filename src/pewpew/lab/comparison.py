@@ -7,8 +7,9 @@ fps, with its seed. Two looks both render with the arguments given. So a
 render's spec always gives its handle again, and two renders whose maps
 differ do not compare. The look diff names each knob by its address (ADR-006), a
 layer's or signal's node by its own (its op and what it reads), plus the
-look's own fields, its layer order, its front knobs, and each route by
-`routes[<source> -> <path>]`, its value the route's depth.
+look's own fields, its layer order, its front knobs, each route by
+`routes[<source> -> <path>]`, its value the route's depth, and each
+colorway's knob by `colorways.<name>.<address>`.
 
 The frame numbers are diagnostics, never gates, taken from the frames as
 a sink shows them (NaN to 0, +inf to 1, clipped to [0, 1]), as the
@@ -77,12 +78,13 @@ def compare(
     fps: float = DEFAULT_FPS,
     seed: int = 0,
     name: str | None = None,
+    colorway: str | None = None,
     cache: Cache | None = None,
 ) -> Comparison:
-    """B against A (module docstring). The render arguments and `name`,
-    the look of a looks file, apply to a side that is a look. Raises Refused, Expired, and
-    ValueError for two renders that are not alike."""
-    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name), cache)
+    """B against A (module docstring). The render arguments, `name`, the
+    look of a looks file, and `colorway`, its colorway, apply to a side that is a look. Raises Refused,
+    Expired, and ValueError for two renders that are not alike."""
+    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name, colorway), cache)
     ma, mb = measure(first.frames, first.spec.fps), measure(second.frames, second.spec.fps)
     fa, fb = sanitize(first.frames), sanitize(second.frames)
     divergent = np.flatnonzero((fa != fb).any(axis=(1, 2)))
@@ -112,13 +114,14 @@ def compare_sheet(
     fps: float = DEFAULT_FPS,
     seed: int = 0,
     name: str | None = None,
+    colorway: str | None = None,
     cache: Cache | None = None,
 ) -> Picture:
     """A and B in one sheet, rows labeled A and B (pewpew.sheet.compare_sheet),
     written to `out` or into A's cache folder. Raises as `compare` does,
     and OSError when the file cannot be written."""
     cache = cache if cache is not None else Cache()
-    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name), cache)
+    first, second = _pair(a, b, _Looks(map_spec, seconds, fps, seed, name, colorway), cache)
     drawn = draw_pair(
         first.frames, second.frames, first.geometry.mapping, first.spec.fps, layout=layout, tiles=tiles, width=width,
     )
@@ -145,6 +148,8 @@ def _knobs(look: Mapping[str, Any]) -> dict[str, Any]:
         out |= _nodes(layer["nodes"], partial(layer_address, layer["id"]))
     out |= _nodes(look.get("signals") or {}, signal_address)
     out |= {f"routes[{route['source']} -> {route['path']}]": route["depth"] for route in look.get("routes") or ()}
+    out |= {f"colorways.{name}.{path}": value
+            for name, values in (look.get("colorways") or {}).items() for path, value in values.items()}
     return out
 
 
@@ -168,6 +173,7 @@ class _Looks:
     fps: float
     seed: int
     name: str | None
+    colorway: str | None = None
 
 
 def _pair(a: Side, b: Side, how: _Looks, cache: Cache | None) -> tuple[Take, Take]:
@@ -201,7 +207,8 @@ def _side(side: Side, how: _Looks, cache: Cache | None) -> Take:
     if _is_render(side):
         return take(side, cache)
     rendered = render(
-        cast("LookDoc", side), how.map_spec, how.seconds, how.fps, how.seed, name=how.name, cache=cache,
+        cast("LookDoc", side), how.map_spec, how.seconds, how.fps, how.seed, name=how.name, colorway=how.colorway,
+        cache=cache,
     )
     return take(rendered, cache)
 

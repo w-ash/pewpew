@@ -31,9 +31,9 @@ from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import TypeVar
 
-from pewpew.aura.book import MAX_NAME
 from pewpew.aura.deck import Deck
 from pewpew.compose import Look
+from pewpew.compose.stack import MAX_NAME
 from pewpew.errors import scrub
 from pewpew.fx import surprise
 from pewpew.problems import Refused

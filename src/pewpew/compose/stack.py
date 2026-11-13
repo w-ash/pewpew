@@ -11,6 +11,12 @@ shows first. Which knob a route's path names, and whether it can be
 moved, is checked against the stack's knobs
 (pewpew.compose.modulation.route_problems).
 
+A look's `colorways` are named sets of knob values, by address, each
+value in its knob's JSON form (ADR-006 amendment "colorways"): a press
+sets them all at once, so the look takes other colours while its motion
+carries on. `parse_colorways` checks them against a stack's knobs, and
+`with_colorway` gives the look with one of them set.
+
 A layer's program is an effect program (pewpew.fx): nodes of ops, the
 node it shows (`out`) and the node that masks it (`alpha`), so node
 `waves`'s arg `freq` is `layers.base.waves.freq` on a layer `base`. A
@@ -27,23 +33,36 @@ never changes its picture. The JSON form is the looks file's
 from __future__ import annotations
 
 import math
+import re
 import zlib
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from pewpew.compose.controls import MIX, LayerControls, mix_problems, signal_of
-from pewpew.errors import unknown
+from pewpew.compose.controls import MIX, LayerControls, layer_address, mix_problems, signal_address, signal_of
+from pewpew.errors import typo_hint, unknown
 from pewpew.fx.graph import Graph, Node, Program, order, require_id
 from pewpew.params import Bool, Float
 from pewpew.params.kinds import Parsed
 from pewpew.result import Result
 
+if TYPE_CHECKING:
+    from pewpew.compose.controls import Controls
+
 DEFAULT_FADE = 2.0
 MAX_FADE = 600.0
+MAX_NAME = 32  # characters in a look's, a trigger's or a colorway's name
+# Letters and digits first, then also space, "_" and "-": short enough for a
+# phone button, and nothing that reads as a path.
+_NAME = re.compile(rf"[A-Za-z0-9][A-Za-z0-9 _-]{{0,{MAX_NAME - 1}}}")
+MAX_COLORWAYS = 12
+MAX_COLORWAY_KNOBS = 32  # knobs one colorway sets
+
+# A look's colorways: each colorway's knob values by address, JSON form.
+Colorways = Mapping[str, Mapping[str, Any]]
 
 
 _FADE = Float(DEFAULT_FADE, 0.0, MAX_FADE, "s")
@@ -70,6 +89,18 @@ def check_fade(value: object) -> str | None:
 def check_on_off(control: str, value: object) -> str | None:
     """Why `value` cannot switch `control` on or off, or None. Never raises."""
     return _ON_OFF.parse(control, value)[1]
+
+
+def check_name(name: object, noun: str = "look") -> str | None:
+    """Why `name` cannot name a look (or a `noun`), or None. Never raises."""
+    if not isinstance(name, str):
+        return f"a {noun} name is text, got {name!r}"
+    if not _NAME.fullmatch(name):
+        return (
+            f"bad {noun} name {name!r}: 1 to {MAX_NAME} letters, digits, spaces, '_' or '-', "
+            "starting with a letter or digit"
+        )
+    return None
 
 
 def is_seed(value: object) -> bool:
@@ -175,13 +206,15 @@ class Look:
     """A saved state of the aura: its layers bottom to top, the signals and
     routes that drive their knobs, the look's seed, and how it is recalled:
     the master it sets (None: the master stays), its fade in seconds,
-    whether the idle cycle plays it, and the knobs a page shows first, by
-    address. Raises ValueError for no layers or a repeated layer id
-    (`stack_problems`), a seed that is not a whole number of at least 0, a
-    fade, master or cycle its param refuses (`parse_fade`, `parse_master`,
-    `check_on_off`), a route `source_problems` refuses, or a knob listed
-    twice in `front`, and TypeError for a layer that is not a `Layer` or a
-    route that is not a `Route`."""
+    whether the idle cycle plays it, the knobs a page shows first, by
+    address, and its colorways (module docstring). Raises ValueError for no
+    layers or a repeated layer id (`stack_problems`), a seed that is not a
+    whole number of at least 0, a fade, master or cycle its param refuses
+    (`parse_fade`, `parse_master`, `check_on_off`), a route
+    `source_problems` refuses, a knob listed twice in `front`, or colorways
+    of the wrong shape (`colorway_shape`), and TypeError for a layer that is
+    not a `Layer` or a route that is not a `Route`. Which knobs a
+    colorway's addresses name is `parse_colorways`'s to say."""
 
     layers: tuple[Layer, ...]
     signals: Graph | None = None
@@ -191,6 +224,7 @@ class Look:
     fade: float = DEFAULT_FADE
     cycle: bool = False
     front: tuple[str, ...] = ()
+    colorways: Colorways = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "layers", tuple(self.layers))
@@ -216,3 +250,80 @@ class Look:
             raise ValueError("; ".join(problems))
         if len(set(self.front)) != len(self.front) or not all(isinstance(path, str) for path in self.front):
             raise ValueError(f"a look's front lists knob addresses, each once, got {self.front!r}")
+        if problems := colorway_shape(self.colorways):
+            raise ValueError("; ".join(problems))
+        object.__setattr__(self, "colorways", {name: dict(values) for name, values in self.colorways.items()})
+
+
+# ---- colorways ---------------------------------------------------------------------
+
+
+def colorway_shape(raw: object) -> list[str]:
+    """Why `raw` cannot be a look's colorways by its shape alone: not an
+    object, too many, a bad name, or a colorway that is not an object of
+    1 to `MAX_COLORWAY_KNOBS` knob addresses. Never raises."""
+    if not isinstance(raw, Mapping):
+        return ["'colorways' is an object of colorway name: {knob address: value}"]
+    problems = [f"{len(raw)} colorways; at most {MAX_COLORWAYS}"] if len(raw) > MAX_COLORWAYS else []
+    for name, values in raw.items():
+        if (reason := check_name(name, "colorway")) is not None:
+            problems.append(reason)
+        elif not isinstance(values, Mapping) or not values or not all(isinstance(path, str) for path in values):
+            problems.append(f"colorway {name!r} is an object of knob address: value, with at least one knob")
+        elif len(values) > MAX_COLORWAY_KNOBS:
+            problems.append(f"colorway {name!r}: {len(values)} knobs; at most {MAX_COLORWAY_KNOBS}")
+    return problems
+
+
+def parse_colorways(raw: object, controls: Controls) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """`raw` as a look's colorways on a stack of knobs `controls`, each
+    value in its knob's JSON form, and why each part is refused: its shape
+    (`colorway_shape`), an address that names no whole knob, or a value its
+    knob refuses, named `colorway '<name>'`. Never raises."""
+    problems = colorway_shape(raw)
+    if problems:
+        return {}, problems
+    assert isinstance(raw, Mapping)  # colorway_shape refuses anything else
+    knobs = list(controls.snapshot_json())
+    out: dict[str, dict[str, Any]] = {}
+    for name, values in raw.items():
+        parsed: dict[str, Any] = {}
+        for path, value in values.items():
+            if controls.find(path) is None:
+                found, reason = None, f"unknown key {path!r}{typo_hint(path, knobs)}; expected {', '.join(knobs)}"
+            else:
+                found, reason = controls.parse(path, value)
+            if reason is not None:
+                problems.append(f"colorway {name!r}: {reason}")
+                continue
+            assert found is not None
+            knob, native = found
+            parsed[path] = knob.params.declarations[knob.name].to_json(native)
+        out[name] = parsed
+    return (out, []) if not problems else ({}, problems)
+
+
+def with_colorway(look: Look, name: str) -> Look:
+    """`look` with every knob colorway `name` sets at its value there: a
+    node's arg, a layer's mix or a signal's arg. An address that names no
+    knob of the look is passed over. Raises ValueError for a name that is
+    not one of the look's colorways, with the closest."""
+    values = look.colorways.get(name)
+    if values is None:
+        raise ValueError(unknown("colorway", name, look.colorways, suggest=True))
+    layers = []
+    for layer in look.layers:
+        mix = {key: values[path] for key in MIX if (path := layer_address(layer.id, key)) in values}
+        graph = Graph(tuple(_painted(node, layer_address(layer.id, node.id), values) for node in layer.program.graph))
+        layers.append(replace(layer, program=replace(layer.program, graph=graph), **mix))
+    signals = None if look.signals is None else Graph(
+        tuple(_painted(node, signal_address(node.id), values) for node in look.signals))
+    return replace(look, layers=tuple(layers), signals=signals)
+
+
+def _painted(node: Node, owner: str, values: Mapping[str, Any]) -> Node:
+    """`node`, whose knobs are `<owner>.<arg>`, with each arg `values` sets."""
+    head = f"{owner}."
+    args = {path[len(head):]: value for path, value in values.items()
+            if path.startswith(head) and "." not in path[len(head):]}
+    return replace(node, args={**node.args, **args}) if args else node

@@ -20,7 +20,8 @@ A look (ADR-006 amendment "layered paths"):
                            "tint": {"op": "palette", "in": ["fold"], "args": {"palette": "ember"}}}}],
      "signals": {"breath": {"op": "lfo", "args": {"rate": 0.1}}},
      "routes": [{"source": "breath", "path": "layers.base.tint.shift", "depth": 40.0}],
-     "front": ["layers.base.waves.freq"]}
+     "front": ["layers.base.waves.freq"],
+     "colorways": {"ice": {"layers.base.tint.palette": "ice", "layers.base.tint.shift": 0.0}}}
 
 Every key of a layer but `id` and `nodes` has a default: the mix's
 (`LayerControls`), `out` the last node, `alpha` none. A node's `in` lists
@@ -31,10 +32,14 @@ look's `master` left out leaves the master alone; `fade` defaults to 2 s,
 a layer's node form, each put after the signals it reads and the signals
 whose routes drive it; each of its `routes` moves the knob at `path` by
 `depth` times its `source` signal, in the knob's units; `front` lists the
-knobs a page shows first. Each may be left out or null, and is written
-only when it holds something. Which knob a route's path names is checked
-against the stack's knobs (pewpew.compose.modulation.route_problems,
-through pewpew.aura.book.route_reasons).
+knobs a page shows first; `colorways` maps a colorway's name to the
+knob values it sets, by address (pewpew.compose.stack.parse_colorways),
+each a whole knob a `set` takes, read back in its JSON form. Each may be
+left out or null, and is written only when it holds something. Which
+knob a route's path names is checked against the stack's knobs
+(pewpew.compose.modulation.route_problems, through
+pewpew.aura.book.route_reasons); a colorway's addresses and values are
+checked here, once the rest of the look reads.
 """
 
 from __future__ import annotations
@@ -42,9 +47,10 @@ from __future__ import annotations
 import json
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
-from pewpew.compose.controls import LAYERS, MIX, SIGNALS, LayerControls, layer_address, mix_problems
+from pewpew.compose.controls import LAYERS, MIX, SIGNALS, LayerControls, layer_address, look_controls, mix_problems
 from pewpew.compose.modulation import signal_problems
 from pewpew.compose.stack import (
     DEFAULT_FADE,
@@ -54,6 +60,7 @@ from pewpew.compose.stack import (
     check_on_off,
     is_seed,
     order_signals,
+    parse_colorways,
     parse_fade,
     parse_master,
     source_problems,
@@ -72,7 +79,7 @@ MAX_LAYERS = 16
 MAX_NODES = 32
 MAX_ROUTES = 64
 
-LOOK_KEYS = ("seed", "master", "fade", "cycle", "layers", "signals", "routes", "front")
+LOOK_KEYS = ("seed", "master", "fade", "cycle", "layers", "signals", "routes", "front", "colorways")
 LAYER_KEYS = ("id", *MIX, "out", "alpha", "nodes")
 NODE_KEYS = ("op", "in", "args")
 ROUTE_KEYS = ("source", "path", "depth")
@@ -97,6 +104,8 @@ def encode_look(look: Look) -> dict[str, Any]:
         out["routes"] = [route.to_json() for route in look.routes]
     if look.front:
         out["front"] = list(look.front)
+    if look.colorways:
+        out["colorways"] = {name: dict(values) for name, values in look.colorways.items()}
     return out
 
 
@@ -156,7 +165,11 @@ def decode_look(raw: Any, *, where: str = "look", cap: float = 1.0) -> tuple[Loo
     if problems:
         return None, problems
     assert fade is not None
-    return Look(layers, signals, routes, seed, master, fade, cycle, front), []
+    look = Look(layers, signals, routes, seed, master, fade, cycle, front)
+    colorways, found = parse_colorways(_given(raw, "colorways", {}), look_controls(look))
+    if found:
+        return None, [f"{where}: {reason}" for reason in found]
+    return replace(look, colorways=colorways), []
 
 
 def _layers(where: str, raw: Any, problems: Problems) -> tuple[Layer, ...]:
@@ -403,7 +416,8 @@ def _look_python(look: Look) -> str:
         lines = (f"        {chain(r.source)}.to({_py(r.path)}, depth={_py(r.depth)}),\n" for r in look.routes)
         args.append(f"routes=[\n{''.join(lines)}    ]")
     fields = (("seed", look.seed, 0), ("master", look.master, None), ("fade", look.fade, DEFAULT_FADE),
-              ("cycle", look.cycle, False), ("front", list(look.front), []))
+              ("cycle", look.cycle, False), ("front", list(look.front), []),
+              ("colorways", {name: dict(values) for name, values in look.colorways.items()}, {}))
     args += (f"{name}={_py(value)}" for name, value, default in fields if value != default)
     return "look(\n" + "".join(f"    {arg},\n" for arg in args) + ")"
 
