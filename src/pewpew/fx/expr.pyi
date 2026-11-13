@@ -23,10 +23,24 @@ class Expr:
     def dither(self, amount: float | Expr = ..., rate: float | Expr = ...) -> Expr: ...
     def kaleid(self, sides: int | Expr = ..., plane: str = ...) -> Expr: ...
     def mirror(self, axis: str = ..., centre: float | Expr = ...) -> Expr: ...
-    def polar(self, plane: str = ...) -> Expr: ...
+    def polar(
+        self,
+        plane: str = ...,
+        cx: float | Expr = ...,
+        cy: float | Expr = ...,
+        cz: float | Expr = ...,
+        spiral: float | Expr = ...,
+    ) -> Expr: ...
     def repeat(self, count: int | Expr = ..., axis: str = ...) -> Expr: ...
     def rotate(self, angle: float | Expr = ..., speed: float | Expr = ..., plane: str = ...) -> Expr: ...
     def scale(self, amount: float | Expr = ..., axis: str = ...) -> Expr: ...
+    def spherical(
+        self,
+        plane: str = ...,
+        cx: float | Expr = ...,
+        cy: float | Expr = ...,
+        cz: float | Expr = ...,
+    ) -> Expr: ...
     def tunnel(
         self,
         depth: float | Expr = ...,
@@ -139,6 +153,16 @@ def particles(
     size: float | Expr = ...,
 ) -> Expr: ...
 def prev() -> Expr: ...
+def pulse(
+    rate: float | Expr = ...,
+    sync: str = ...,
+    speed: float | Expr = ...,
+    width: float | Expr = ...,
+    life: float | Expr = ...,
+    cx: float | Expr = ...,
+    cy: float | Expr = ...,
+    cz: float | Expr = ...,
+) -> Expr: ...
 def quasicrystal(
     waves: int | Expr = ...,
     scale: float | Expr = ...,
@@ -162,6 +186,9 @@ def shape(
     radius: float | Expr = ...,
     smooth: float | Expr = ...,
     plane: str = ...,
+    cx: float | Expr = ...,
+    cy: float | Expr = ...,
+    cz: float | Expr = ...,
 ) -> Expr: ...
 def voronoi(scale: float | Expr = ..., speed: float | Expr = ..., edge: float | Expr = ...) -> Expr: ...
 def band(

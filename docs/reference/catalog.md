@@ -137,6 +137,25 @@ Reads none; gives rgb. Dimensions: 1, 2, 3.
 
     lissajous(heads=1).blend(prev(), "max", 0.9)
 
+### `pulse` — Pulse
+
+Soft shells of light that swell out of a point and fade as they travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`, fades in as it swells off the point and out over its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point.
+
+Reads none; gives scalar. Dimensions: 1, 2, 3.
+
+- `rate`: 0.5 0.05..2.0 /s. Shells a second when steady: more is busier.
+- `sync`: 'steady' of steady, beat. Steady starts shells at the rate; beat starts one on each beat.
+- `speed`: 0.25 0.02..2.0 /s. How fast each shell swells, in units a second.
+- `width`: 0.15 0.04..0.6. How thick each shell is; more is softer.
+- `life`: 3.0 0.3..8.0 s. Seconds each shell lasts, fading as it goes.
+- `cx`: 0.5 -0.5..1.5. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cy`: 0.5 -0.5..1.5. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cz`: 0.5 -0.5..1.5. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+
+    pulse(1.0, life=4)
+    pulse(0.4, speed=0.15, width=0.3, life=6).palette("ice")
+    pulse(sync="beat", speed=0.6, life=2).palette("ember")
+
 ### `quasicrystal` — Quasicrystal
 
 Patterns with many-fold symmetry that never repeat: waves from several evenly turned directions, summed. `waves` sets how many directions.
@@ -181,7 +200,7 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 
 ### `shape` — Shape
 
-A filled circle or regular polygon at the room's center: a sphere in a volume, a segment on a strip.
+A filled circle or regular polygon at the room's center, or at the point `cx`, `cy` and `cz` set: a sphere in a volume, a segment on a strip. A polygon lies in `plane`; a circle is round in every plane.
 
 Reads none; gives scalar. Dimensions: 1, 2, 3.
 
@@ -189,6 +208,9 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `radius`: 0.3 0.0..1.0. Size from the center to the rim or a corner.
 - `smooth`: 0.05 0.0..0.5. Softness of the edge.
 - `plane`: 'auto' of auto, xy, xz, yz. Which two axes it works across; auto picks the room's.
+- `cx`: 0.5 0.0..1.0. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cy`: 0.5 0.0..1.0. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cz`: 0.5 0.0..1.0. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
 
     shape(5, 0.3)
     shape(0, 0.2, 0.1).palette("ember")
@@ -246,12 +268,17 @@ Reads `in` (same); gives same. Dimensions: 1, 2, 3.
 
 ### `polar` — Polar
 
-Bends a pattern into rings and spokes round the center: stripes along x become rings and stripes along y become spokes. In polar coordinates, the plane's first axis becomes the radius and its second the turn.
+Bends a pattern into rings and spokes round the center: stripes along x become rings and stripes along y become spokes. In polar coordinates, the plane's first axis becomes the radius and its second the turn. `cx`, `cy` and `cz` set the center, and `spiral` turns the spokes further the farther along the plane's normal a point sits, so on bars standing across the plane they wind round as a helix.
 
 Reads `in` (same); gives same. Dimensions: 2, 3. a strip has no plane to wrap round; use mirror along the strip
 
 - `plane`: 'auto' of auto, xy, xz, yz. Which two axes it works across; auto picks the room's.
+- `cx`: 0.5 -0.5..1.5. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cy`: 0.5 -0.5..1.5. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cz`: 0.5 -0.5..1.5. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+- `spiral`: 0.0 -4.0..4.0 turns/unit. Turns the spokes per unit along the plane's normal: 0 keeps them straight.
 
+    noise(3).polar()
     osc(6).polar()
     osc(5, axis="y").polar().palette("aurora")
 
@@ -292,6 +319,20 @@ Reads `in` (same); gives same. Dimensions: 1, 2, 3.
 
     noise(3).scale(2)
     noise(3).scale(0.5, "x").palette("ember")
+
+### `spherical` — Spherical
+
+Wraps a pattern round a point in 3D: stripes along x become shells round the point, stripes along y wedges round it, and stripes along z cones that open from its low pole to its high pole. In spherical coordinates, the plane's first axis becomes the distance from the point, its second the turn round the plane's normal, and the normal the elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz` set the point.
+
+Reads `in` (same); gives same. Dimensions: 2, 3. a strip has no space to wrap round; use mirror at the point, or pulse
+
+- `plane`: 'auto' of auto, xy, xz, yz. Which two axes it works across; auto picks the room's.
+- `cx`: 0.5 -0.5..1.5. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cy`: 0.5 -0.5..1.5. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cz`: 0.5 -0.5..1.5. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+
+    noise(3).spherical()
+    osc(6).spherical().palette("ice")
 
 ### `tunnel` — Tunnel
 

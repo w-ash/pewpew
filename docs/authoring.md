@@ -256,15 +256,25 @@ from pewpew.fx.expr import noise, osc
 program = osc(8, 0.1).id("waves").kaleid(5).modulate(noise(3, 0.1), 0.2).palette("ember").id("tint")
 ```
 
-A source (`osc`, `noise`, `voronoi`, `shape`, ...) is
+A source (`osc`, `noise`, `voronoi`, `shape`, `pulse`, ...) is
 a function; every other op is a method of what it reads. A coord op
-(`kaleid`, `rotate`, `mirror`, `polar`, `tunnel`, ...) changes the
+(`kaleid`, `rotate`, `mirror`, `polar`, `spherical`, `tunnel`, ...) changes the
 coordinates its input reads, so it wraps what comes before it:
 `osc(8).rotate(30)` turns the stripes. `palette` colors a scalar field;
 `add`, `mult`, `diff` and `blend` mix two inputs; `a.modulate(b, 0.2)` lets
 `b` ripple `a`. `python -m pewpew fx catalog` lists every op and `fx show
 kaleid` one op's args and examples; docs/reference/catalog.md is the same
 list.
+
+Most ops pivot on the middle of the map. `polar`, `spherical`, `shape` and
+`pulse` work about a point you set instead: `cx`, `cy` and `cz` place it as
+a share of the map's extent along each axis, 0 at the low end, 1 at the
+high end and 0.5 (the default) in the middle, and the point may sit off
+the map (-0.5 to 1.5; `shape` stays on it). `spherical` reads true 3D
+distance from the point, so `osc(6).spherical()` is shells round it;
+`pulse` sends soft shells out of it at a rate or on the beat; and `polar`'s
+`spiral` winds its spokes along the plane's normal, so on bars standing
+across the plane they turn as a helix.
 
 Each node's args are params with ranges, so a bad value fails where it is
 written (`kaleid.sides must be within 1..24, got 40`), and each is a knob
@@ -387,9 +397,11 @@ volume). The gate does not probe what a map's shape cannot show, as each
 op declares it (`planar`, `along`, and its axis and plane choices): on a
 strip, `feedback`'s spin and swirl; a knob along an axis the map does not
 spread along, such as `lissajous`'s `b` on a strip along x, or `mirror`'s
-`centre` when it folds z on a panel; a choice of such an axis; and two
+`centre` when it folds z on a panel; a choice of such an axis; two
 choices that read the map alike, such as `u` against the axis a strip runs
-along.
+along; and a knob another knob switches off, such as `shape`'s `plane` for
+a circle, `polar`'s center along the plane's normal while `spiral` is 0,
+and `pulse`'s `rate` on the beat.
 
 Each keeps to one color family, starts dark and keeps its bright colors
 saturated, so a diffuser blending neighbouring lights does not wash it to

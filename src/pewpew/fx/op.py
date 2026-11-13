@@ -125,6 +125,35 @@ def axis_choice(default: str = "x", *, also: Iterable[str] = (), **meta: Any) ->
     return AxisChoice(default, {key: key for key in keys}, **meta)
 
 
+def centre_args(lo: float = -0.5, hi: float = 1.5) -> tuple[Float, Float, Float]:
+    """The `cx`, `cy` and `cz` args of an op that works about a point you
+    set: where the point sits on each axis, as a share of the map's extent
+    (`BindCtx.at`) from `lo` to `hi`, 0.5 at the centre. Each acts along
+    its own axis (`CENTRE_ALONG`)."""
+    x, y, z = (
+        Float(0.5, lo, hi, sweet=(0.2, 0.8), label=f"Center {axis}",
+              help=f"Where the center sits along {axis}: 0 is the low end, 1 the high end, 0.5 the middle")
+        for axis in AXES
+    )
+    return x, y, z
+
+
+# Each of `centre_args` acts along its own axis (`Op.along`).
+CENTRE_ALONG: Mapping[str, str] = MappingProxyType({"cx": "x", "cy": "y", "cz": "z"})
+
+
+def normal_axis(plane: str) -> int:
+    """The index of the axis normal to `plane` (xy, xz or yz)."""
+    return 3 - sum(AXES.index(a) for a in plane)
+
+
+def plane_of(args: Mapping[str, Any], spans: Sequence[float]) -> Plane:
+    """The plane a node of `args`, whose `plane` is a `plane_choice`,
+    works in on a map of extent `spans` (`BindCtx.plane`)."""
+    choice = str(args["plane"])
+    return auto_plane(spans) if choice == AUTO else next(p for p in PLANES if p == choice)
+
+
 def reach(place: str, spans: Sequence[float]) -> frozenset[str]:
     """What an `AxisChoice` option `place` reads on a map of extent
     `spans`: each axis it names that the map spreads along (a plane's two;
@@ -195,6 +224,15 @@ class BindCtx:
         """The middle of the map's extent on each axis: where a fold, a
         turn or a shape pivots, on a strip's line or a panel's plane."""
         x, y, z = ((a + b) / 2.0 for a, b in zip(self.lo, self.hi))
+        return x, y, z
+
+    def at(self, fractions: Sequence[float]) -> Center:
+        """The point at `fractions` of the map's extent on each axis, from
+        the low end (0) to the high end (1): `centre` exactly at 0.5, and on
+        an axis with no extent the map's own position there."""
+        x, y, z = (
+            m + (float(f) - 0.5) * span for m, f, span in zip(self.centre, fractions, self.spans, strict=True)
+        )
         return x, y, z
 
     @property
