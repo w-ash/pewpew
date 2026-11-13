@@ -139,7 +139,7 @@ Reads none; gives rgb. Dimensions: 1, 2, 3.
 
 ### `pulse` — Pulse
 
-Soft shells of light that swell out of a point and fade as they travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`, fades in as it swells off the point and out over its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point.
+Soft shells of light that swell out of a point and fade at the end of their travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`. It fades in as it swells off the point, holds its full level, and eases out over the last `fade` of its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point.
 
 Reads none; gives scalar. Dimensions: 1, 2, 3.
 
@@ -147,7 +147,8 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `sync`: 'steady' of steady, beat. Steady starts shells at the rate; beat starts one on each beat.
 - `speed`: 0.25 0.02..2.0 /s. How fast each shell swells, in units a second.
 - `width`: 0.15 0.04..0.6. How thick each shell is; more is softer.
-- `life`: 3.0 0.3..8.0 s. Seconds each shell lasts, fading as it goes.
+- `life`: 3.0 0.3..20.0 s. Seconds each shell lasts, start to end.
+- `fade`: 0.4 0.05..1.0. The share of its life a shell spends fading out at the end: 1 fades it from the start.
 - `cx`: 0.5 -0.5..1.5. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
 - `cy`: 0.5 -0.5..1.5. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
 - `cz`: 0.5 -0.5..1.5. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.

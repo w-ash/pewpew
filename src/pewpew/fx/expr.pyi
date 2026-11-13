@@ -159,6 +159,7 @@ def pulse(
     speed: float | Expr = ...,
     width: float | Expr = ...,
     life: float | Expr = ...,
+    fade: float | Expr = ...,
     cx: float | Expr = ...,
     cy: float | Expr = ...,
     cz: float | Expr = ...,

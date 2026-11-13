@@ -272,7 +272,8 @@ a share of the map's extent along each axis, 0 at the low end, 1 at the
 high end and 0.5 (the default) in the middle, and the point may sit off
 the map (-0.5 to 1.5; `shape` stays on it). `spherical` reads true 3D
 distance from the point, so `osc(6).spherical()` is shells round it;
-`pulse` sends soft shells out of it at a rate or on the beat; and `polar`'s
+`pulse` sends soft shells out of it at a rate or on the beat, each holding
+its level until it eases out over the last `fade` of its `life`; and `polar`'s
 `spiral` winds its spokes along the plane's normal, so on bars standing
 across the plane they turn as a helix.
 

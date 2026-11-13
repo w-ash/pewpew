@@ -22,7 +22,7 @@ from pewpew.compose import Look
 from pewpew.features import FakeFeatures
 from pewpew.fx.catalog import example
 from pewpew.fx.compile import check, field_ops
-from pewpew.fx.expr import layer, look
+from pewpew.fx.expr import beat, layer, look
 from pewpew.fx.graph import Program
 from pewpew.fx.op import Op, axis_choice, reach
 from pewpew.fx.ops import OPS
@@ -429,3 +429,32 @@ def test_a_pulse_renders_the_same_bytes_every_time(chain: str) -> None:
     frames = [run(program_of(chain), lattice(5), 90) for _ in range(2)]
     assert frames[0].tobytes() == frames[1].tobytes()
     assert frames[0].std() > 0
+
+
+def test_a_pulse_shell_holds_its_level_and_eases_out_over_the_last_fade_of_its_life() -> None:
+    """A shell fades in, holds full, and eases out over the last `fade` of
+    its life with no kink; a `fade` of 1 eases it out from the start."""
+    renderer = hosted(program_of("pulse(0.5, speed=0.12, life=5.5, fade=0.4)"), grid(6, 6))
+    pulse = op_of(renderer, "pulse")
+    rise, hold = pulse.rise(), 5.5 * 0.6
+    ages = np.linspace(0.0, 5.5, 2201)
+    levels = np.array([pulse.level(float(a)) for a in ages])
+    assert levels[0] == 0.0 and levels[-1] == pytest.approx(0.0, abs=1e-12)
+    assert np.all(levels[(ages >= rise) & (ages <= hold)] == 1.0)
+    assert np.all(np.diff(levels[ages >= hold]) <= 0.0)
+    slopes = np.diff(levels) / np.diff(ages)
+    assert np.abs(np.diff(slopes)).max() < 0.01, "the slope never jumps"
+    renderer.bound.node_params["pulse"].set("fade", 1.0)
+    assert pulse.level(rise) < 1.0 and pulse.level(2.75) == pytest.approx(0.5, abs=0.02)
+
+
+def test_a_beats_width_shows_only_for_its_pulse() -> None:
+    """The phase and the fall do not read `width`, so the gate does not
+    probe it there."""
+    shown = OPS["beat"].shows
+    assert shown("width", 0.05, 0.95, {"shape": "pulse", "width": 0.25}, [1.0, 0.0, 0.0])
+    assert not shown("width", 0.05, 0.95, {"shape": "fall", "width": 0.25}, [1.0, 0.0, 0.0])
+    made = look(layer("base", program_of('osc(6).palette("ocean")')),
+                routes=[beat("fall").to("layers.base.osc.offset", depth=0.25)])
+    paths = [probe.path for probe in probe_knobs(ready(made), parse_geometry("line:16"), 0)]
+    assert "signals.beat.shape=phase" in paths and not any(path.startswith("signals.beat.width") for path in paths)

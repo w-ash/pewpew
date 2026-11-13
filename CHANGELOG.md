@@ -17,8 +17,10 @@ series (batch mode).
   per unit along the plane's normal, so on bars standing across the plane they wind
   as a helix. At its defaults it renders as before, byte for byte.
 - The `pulse` source: soft shells that swell out of a point (`cx`, `cy`, `cz`)
-  `rate` times a second or on each beat, and fade as they travel; overlapping shells
-  add as light does, never past full. A beat within 0.4 s of the last starts none.
+  `rate` times a second or on each beat. Each holds its full level and eases out
+  over the last `fade` of its `life` (up to 20 s, so slow shells cross a large rig);
+  overlapping shells add as light does, never past full. A beat within 0.4 s of the
+  last starts none.
 - `shape` takes a center (`cx`, `cy`, `cz`, on the map), at the map's center by
   default as before.
 - `run` on a looks file that does not exist yet makes it with every example look,
@@ -1502,6 +1504,8 @@ series (batch mode).
 
 ### Fixed
 
+- `verify looks` no longer fails a `beat` signal of shape `phase` or `fall` for a
+  dead `width`, which only the pulse reads.
 - `verify looks` no longer fails a round `shape` (fewer than 3 sides) on a 3D map
   for a dead `plane`: a circle is a sphere in every plane, so the gate does not
   probe it, nor a polygon's center along its plane's normal.

@@ -2219,20 +2219,41 @@
         "name": "life",
         "kind": "float",
         "label": "Life",
-        "help": "Seconds each shell lasts, fading as it goes",
+        "help": "Seconds each shell lasts, start to end",
         "group": "",
         "widget": "",
         "default": 3.0,
         "unit": "s",
         "lo": 0.3,
-        "hi": 8.0,
-        "step": 0.05,
-        "decimals": 2,
+        "hi": 20.0,
+        "step": 0.1,
+        "decimals": 1,
         "periodic": false,
         "text": [],
         "sweet": [
           1.0,
-          6.0
+          10.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "fade",
+        "kind": "float",
+        "label": "Fade",
+        "help": "The share of its life a shell spends fading out at the end: 1 fades it from the start",
+        "group": "",
+        "widget": "",
+        "default": 0.4,
+        "unit": "",
+        "lo": 0.05,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
         ],
         "flash_sensitive": false
       },

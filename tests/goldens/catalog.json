@@ -1632,7 +1632,7 @@
       "op": "pulse",
       "sig": "source",
       "label": "Pulse",
-      "doc": "Soft shells of light that swell out of a point and fade as they travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`, fades in as it swells off the point and out over its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point.",
+      "doc": "Soft shells of light that swell out of a point and fade at the end of their travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`. It fades in as it swells off the point, holds its full level, and eases out over the last `fade` of its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point.",
       "inputs": [],
       "out": "scalar",
       "dims": [
@@ -1730,20 +1730,41 @@
           "name": "life",
           "kind": "float",
           "label": "Life",
-          "help": "Seconds each shell lasts, fading as it goes",
+          "help": "Seconds each shell lasts, start to end",
           "group": "",
           "widget": "",
           "default": 3.0,
           "unit": "s",
           "lo": 0.3,
-          "hi": 8.0,
-          "step": 0.05,
-          "decimals": 2,
+          "hi": 20.0,
+          "step": 0.1,
+          "decimals": 1,
           "periodic": false,
           "text": [],
           "sweet": [
             1.0,
-            6.0
+            10.0
+          ],
+          "flash_sensitive": false
+        },
+        {
+          "name": "fade",
+          "kind": "float",
+          "label": "Fade",
+          "help": "The share of its life a shell spends fading out at the end: 1 fades it from the start",
+          "group": "",
+          "widget": "",
+          "default": 0.4,
+          "unit": "",
+          "lo": 0.05,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.2,
+            0.8
           ],
           "flash_sensitive": false
         },

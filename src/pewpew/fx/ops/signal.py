@@ -26,9 +26,9 @@ from __future__ import annotations
 
 import math
 from abc import abstractmethod
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import lru_cache
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pewpew.fx.graph import Node
 from pewpew.fx.op import REGISTRY, Cost, FrameCtx, Op, Rate, stream
@@ -215,6 +215,14 @@ class Beat(SignalOp, op="beat"):
         'depth=0.25)])'),
     )
     cost = Cost(0.0, 1.0)
+
+    @classmethod
+    def shows(cls, name: str, a: Any, b: Any, args: Mapping[str, Any], spans: Sequence[float]) -> bool:
+        """As `Op.shows`, but `width` only for the pulse: the phase and the
+        fall do not read it."""
+        if name == "width" and args["shape"] != "pulse":
+            return False
+        return super().shows(name, a, b, args, spans)
 
     def sample(self, ctx: FrameCtx, inputs: Sequence[float]) -> float:
         phase = float(ctx.features.beat_phase) % 1.0
