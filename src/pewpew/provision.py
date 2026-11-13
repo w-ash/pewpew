@@ -311,7 +311,7 @@ def _post(url: str, body: dict[str, Any]) -> Any:
     req = urllib.request.Request(
         url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
     )
-    with urllib.request.urlopen(req, timeout=5) as resp:
+    with wled.open_url(req, 5) as resp:
         return loads(resp.read() or b"null")
 
 

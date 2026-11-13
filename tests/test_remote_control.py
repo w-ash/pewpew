@@ -211,6 +211,13 @@ def test_tier_one_writes_only_to_loopback_unless_the_address_is_allowed(audit_lo
     assert planned.ok and planned.addresses == ("192.168.1.50",)
 
 
+def test_an_allowed_ip_address_is_not_looked_up(monkeypatch):
+    """On macOS a lookup can return an IPv4 address as a NAT64 IPv6 one."""
+    resolving(monkeypatch, "10.0.0.7", "64:ff9b::a00:7")
+    planned = push("ws://10.0.0.7:7447/", SPARKS, dry_run=True, allow_hosts=["10.0.0.7"])
+    assert planned.ok and planned.addresses == ("10.0.0.7",)
+
+
 def test_a_host_that_resolves_to_loopback_and_another_address_is_refused(monkeypatch):
     resolving(monkeypatch, "bench.test", "127.0.0.1", "10.0.0.7")
     with pytest.raises(Forbidden, match=r"^bench\.test resolves to 10\.0\.0\.7, which is not this machine: tier 1"):
