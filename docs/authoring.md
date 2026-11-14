@@ -277,8 +277,8 @@ on, and turning one of its knobs by hand leaves no chip
 lit. A client sends `{"type": "colorway", "name": "ice"}`; the aura state's
 `stack.colorways` lists the names and `stack.colorway` names the active
 one, or null. A save keeps the colorways, less the knobs an edit took
-away (a colorway left with none goes), and the idle cycle and the
-triggers play a look as saved.
+away (a colorway left with none goes). The triggers play a look as
+saved, and so does the idle cycle unless its `colorways` is on (§6).
 
 A look may ask to change colorway by itself now and then, so a look left
 running keeps moving on, with `colorway_drift`:
@@ -681,8 +681,16 @@ skips, are up to the wall clock:
 
 ```json
 "cycle": {"idle": 300, "each": [40, 90], "rounds": 0, "end": null,
-          "seed": 0, "window": 2, "fresh": 5, "weights": {"dusk": 2}}
+          "seed": 0, "window": 2, "fresh": 5, "weights": {"dusk": 2},
+          "colorways": true}
 ```
+
+With `colorways` true, each look the cycle plays that has colorways (§4)
+and no colorway drift of its own that is on starts in one of them, drawn
+from the cycle's `seed` and the slot, settled rather than gliding, since
+the look fades in. It is the look playing, not an unsaved edit, so the
+cycle runs on. A look that drifts keeps its own drift. Left out, it is
+false, and a file written before it replays to the same frames.
 
 Any operator input stops the cycle, and it starts again after `idle` more
 seconds untouched; an `idle` no longer than the shortest dwell keeps it

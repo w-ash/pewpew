@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import islice
 from typing import NamedTuple
 
@@ -41,10 +41,14 @@ from pewpew.fx.surprise import Draw
 @dataclass(frozen=True, slots=True)
 class Slot:
     """What the director plays next: the saved look `name`, or a look made
-    fresh from `seed` when `name` is None."""
+    fresh from `seed` when `name` is None. `number` is the slot's number in
+    the run, which keys a draw made for it (pewpew.aura.looks: its
+    colorway), and no part of what a slot plays, so two slots of one look
+    compare equal."""
 
     name: str | None
     seed: int = 0
+    number: int = field(default=0, compare=False)
 
 
 class Timing(NamedTuple):
@@ -71,8 +75,8 @@ class Director:
         self._slot = 0  # slots played this run: the stream's counter
         self._count = 0  # slots played since the cycle last began
         self._recent: deque[str] = deque(maxlen=MAX_LOOKS)  # the window never spans more
-        # The fresh slot playing: its seed and the look drawn to play instead.
-        self._fresh: tuple[int, str] | None = None
+        # The fresh slot playing: its seed, the look drawn to play instead, and its number.
+        self._fresh: tuple[int, str, int] | None = None
         # The seed of a fresh look a slot played `instead`, which the next fresh slot plays.
         self._owed: int | None = None
         self._timing = Timing(last_input=self._last_input)
@@ -155,18 +159,18 @@ class Director:
         that slot. With `owe`, the next fresh slot plays the fresh look;
         without (its making failed), it plays one of its own."""
         assert self._fresh is not None, "instead follows a tick that began a fresh slot"
-        seed, name = self._fresh
+        seed, name, number = self._fresh
         self._fresh = None
         self._owed = seed if owe else None
         self._recent.append(name)
-        return Slot(name)
+        return Slot(name, number=number)
 
     def rename(self, old: str, new: str) -> None:
         """Follow a rename of look `old` to `new` in the no-repeat window
         and in the fresh slot's drawn look."""
         self._recent = deque((new if n == old else n for n in self._recent), maxlen=MAX_LOOKS)
         if self._fresh is not None and self._fresh[1] == old:
-            self._fresh = (self._fresh[0], new)
+            self._fresh = (self._fresh[0], new, self._fresh[2])
 
     def _rounds_done(self, names: Sequence[str], config: CycleConfig) -> bool:
         return bool(config.rounds) and self._count >= config.rounds * len(names)
@@ -183,11 +187,11 @@ class Director:
         name = draw.pick({name: config.weights.get(name, 1.0) for name in names if name not in recent})
         if _is_fresh(self._count, config):
             seed = self._seed(config, slot)
-            self._fresh, self._owed = (seed, name), None
-            return Slot(None, seed)
+            self._fresh, self._owed = (seed, name, slot), None
+            return Slot(None, seed, slot)
         self._fresh = None
         self._recent.append(name)
-        return Slot(name)
+        return Slot(name, number=slot)
 
     def _seed(self, config: CycleConfig, slot: int) -> int:
         """The seed of the look made fresh for slot `slot` of the run: the

@@ -319,8 +319,9 @@ class Looks:
         self._recalled = self._saved(self._book.looks[current].master)
         self._drift_from(current)
 
-    def recall(self, name: str, fade: float | None = None) -> str | None:
-        """Recall look `name` over `fade` seconds (None: its own fade).
+    def recall(self, name: str, fade: float | None = None, colorway: str | None = None) -> str | None:
+        """Recall look `name` over `fade` seconds (None: its own fade), in
+        its `colorway` when one is given, settled, as the look playing.
         Returns why not, or None once it runs or waits for the running fade."""
         if name not in self._book.looks:
             return self._unknown(name)
@@ -330,9 +331,9 @@ class Looks:
                 return reason
         self.release()
         if self._fader.fading:
-            self._pending = _Recall(name, lambda now: self._start(name, fade))
+            self._pending = _Recall(name, lambda now: self._start(name, fade, colorway))
             return None
-        return self._start(name, fade)
+        return self._start(name, fade, colorway)
 
     def save(self, name: str | None = None, fade: float | None = None, master: bool | None = True) -> str | None:
         """Save the live state as look `name`, replacing one of that name;
@@ -687,16 +688,28 @@ class Looks:
 
     def _play_slot(self, slot: Slot) -> None:
         """Play the director's `slot`: recall a saved look, unless it is the
-        current one as saved and no fade runs, or play a fresh one."""
+        current one as saved and no fade runs, or play a fresh one. With the
+        cycle's `colorways`, a look with colorways and no drift of its own
+        starts in one drawn for the slot."""
         book = self._book
         if slot.name is None:
             self._play_fresh(slot.seed)
         elif (
             slot.name in book.looks
             and (slot.name != book.current or self.changed() or self._fader.fading)
-            and (reason := self.recall(slot.name)) is not None
+            and (reason := self.recall(slot.name, colorway=self._slot_colorway(slot))) is not None
         ):
             self._fail(reason)
+
+    def _slot_colorway(self, slot: Slot) -> str | None:
+        """The colorway the idle cycle starts slot `slot`'s look in, or None
+        for the look as saved: one of its colorways, drawn from the cycle's
+        seed and the slot's number, when the cycle's `colorways` is on and
+        the look has colorways and no drift of its own that is on."""
+        cycle, look = self._book.cycle, self._book.looks.get(slot.name or "")
+        if not cycle.colorways or look is None or not look.colorways or (look.drift is not None and look.drift.on):
+            return None
+        return Draw("cycle colorway", cycle.seed, slot.number).choice(list(look.colorways))
 
     def _play_fresh(self, seed: int) -> None:
         """Play the look made fresh from `seed`, made ahead (or now) and done;
@@ -721,20 +734,23 @@ class Looks:
         if (reason := self.play(made)) is not None:
             self._fail(reason)
 
-    def _start(self, name: str, fade: float | None) -> str | None:
-        """Recall saved look `name`: fade to it and make it current."""
+    def _start(self, name: str, fade: float | None, colorway: str | None = None) -> str | None:
+        """Recall saved look `name`, in its `colorway` when given: fade to
+        it and make it current."""
         look = self._book.looks.get(name)
         if look is None:
             return f"cannot recall {name!r}: it was deleted"
+        if colorway is not None and colorway in look.colorways:
+            look = with_colorway(look, colorway)
         if (reason := self._begin(look, name, fade)) is not None:
             return reason
         self._recalled = self._saved(look.master)
         self._made = None
         self.error = None
-        self._drift_from(name)
         logger.info("recalled look %s", name)
         if self._commit(self._book.with_current(name)) is not None:
             logger.warning("look %r is running, but the looks file still names the last one", name)
+        self._drift_from(name)  # once it is current, which its drift needs
         return None
 
     def _drift_from(self, name: str) -> None:

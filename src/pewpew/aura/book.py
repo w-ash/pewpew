@@ -29,7 +29,7 @@ boards: writing a WLED preset freezes the board's lights for seconds
         "breathe": {"layers": [{"id": "base", "nodes": {"glow": {"op": "osc", "args": {"freq": 1.0}}}}]}
       },
       "cycle": {"idle": 300, "each": [40, 90], "rounds": 0, "end": null,
-                "seed": 0, "window": 2, "fresh": 0, "weights": {"dusk": 2}},
+                "seed": 0, "window": 2, "fresh": 0, "weights": {"dusk": 2}, "colorways": true},
       "triggers": {
         "cue1": {"look": "breathe", "hold": 8, "priority": "button",
                  "debounce": 0.05, "cooldown": 1.0},
@@ -50,7 +50,7 @@ gliding there over the look's `fade` (pewpew.compose.stack,
 pewpew.compose.compositor; ADR-006 amendments "colorways" and "colorway
 glides, drift and the cycle's picks"): which colorway
 is active is never stored, so a save of the live values keeps it, and the
-idle cycle and the triggers play a look as saved. A look's
+triggers, and the idle cycle unless its `colorways` is on, play a look as saved. A look's
 `colorway_drift` changes its colorway by itself now and then while it is
 current, from its seed and engine time (pewpew.aura.looks); its `on` is
 switched like `cycle`, at once in the file. `current` is the look last recalled
@@ -65,7 +65,11 @@ of `each` seconds (a number, or a range `[min, max]` it draws from); every
 `fresh`th slot (0, the default, is never) it plays a look made fresh
 (pewpew.fx.surprise) instead, unsaved. After `rounds` rounds of as many
 slots as there are looks (0 is forever) it recalls `end` (null stays on
-the last). `seed` seeds its draws, so the same file plays the same order.
+the last). `seed` seeds its draws, so the same file plays the same order. With
+`colorways` true (default false, so a file without it replays as it
+did), a look it recalls that has colorways and no drift of its own
+starts in one of them, drawn for the slot, settled, as the look playing:
+not an unsaved edit.
 `idle` null turns it off. Any operator input stops it, and it starts again
 after `idle` more seconds: an `idle` no longer than the shortest dwell
 keeps it going, since after a touch the look plays at most one turn. An
@@ -122,7 +126,7 @@ MAX_FAVORITES = 20
 DEFAULT_FAVORITES = 9  # the looks a file with no "favorites" key shows
 
 _TOP_KEYS = {"version", "current", "looks", "cycle", "triggers", "favorites", "notes"}
-_CYCLE_KEYS = {"idle", "each", "rounds", "end", "seed", "window", "fresh", "weights"}
+_CYCLE_KEYS = {"idle", "each", "rounds", "end", "seed", "window", "fresh", "weights", "colorways"}
 _TRIGGER_KEYS = {"look", "hold", "priority", "debounce", "cooldown"}
 
 # Trigger priority classes, lowest first; a class's rank is its index.
@@ -176,6 +180,7 @@ class CycleConfig:
     window: int = 2
     fresh: int = 0
     weights: Mapping[str, float] = field(default_factory=dict)
+    colorways: bool = False
 
     @property
     def dwell(self) -> tuple[float, float]:
@@ -183,9 +188,11 @@ class CycleConfig:
         return self.each if isinstance(self.each, tuple) else (self.each, self.each)
 
     def to_json(self) -> dict:
-        return {"idle": self.idle, "each": list(self.each) if isinstance(self.each, tuple) else self.each,
-                "rounds": self.rounds, "end": self.end, "seed": self.seed, "window": self.window,
-                "fresh": self.fresh, "weights": dict(self.weights)}
+        """Its JSON form; `colorways` only when on, so a file that never set it reads back as written."""
+        doc = {"idle": self.idle, "each": list(self.each) if isinstance(self.each, tuple) else self.each,
+               "rounds": self.rounds, "end": self.end, "seed": self.seed, "window": self.window,
+               "fresh": self.fresh, "weights": dict(self.weights)}
+        return {**doc, "colorways": True} if self.colorways else doc
 
 
 @dataclass(frozen=True)
@@ -391,11 +398,15 @@ def _cycle(raw: Any, looks: Mapping[str, Any], problems: list[str]) -> CycleConf
             problems.append(f"cycle: 'weights' names {name!r}, which is not a look")
         elif not (is_number(weight) and weight > 0):
             problems.append(f"cycle: the weight of {name!r} is a number above 0, got {weight!r}")
+    colorways = raw.get("colorways", base.colorways)
+    if not isinstance(colorways, bool):
+        problems.append(f"cycle: 'colorways' is true or false, got {colorways!r}")
     if len(problems) > before:
         return base
     return CycleConfig(
         None if idle is None else float(idle), float(each) if is_number(each) else (float(each[0]), float(each[1])),
-        int(rounds), end, weights={name: float(weight) for name, weight in weights.items()}, **counts,
+        int(rounds), end, weights={name: float(weight) for name, weight in weights.items()}, colorways=colorways,
+        **counts,
     )
 
 

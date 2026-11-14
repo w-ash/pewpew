@@ -1110,6 +1110,23 @@ Status stays **Proposed**.
   off one more dwell; a recall starts it again. Its `on` is switched like
   the cycle flag, written to the file at once; a save keeps the key less
   the colorways gone. Only a saved, current look drifts.
+- **The idle cycle picks colorways, opt-in.** With the cycle's
+  `"colorways": true`, a look it plays that has colorways and no drift of
+  its own that is on starts in one of them, drawn from the cycle's seed
+  and the slot's number, settled (the look fades in anyway), as the look
+  playing rather than an edit. Off by default, so a file written before
+  it replays to the same frames.
+
+### Consequences
+
+- The room never jumps in colour on a colorway change, and a press costs
+  no recall; a glide costs one table build a frame per gliding palette.
+- A look can keep moving through its colours unattended, and the idle
+  cycle can vary a look's colours as well as the look; the "colorways"
+  amendment's "the idle cycle plays a look as saved" holds only while the
+  cycle's `colorways` is off.
+- The Console's colorway row gains a wind sign that switches a look's
+  drift; `looks.items` carry `drift`, and the `drift` request sets it.
 
 ### Evidence
 
@@ -1118,11 +1135,11 @@ Status stays **Proposed**.
   palette if blend style is FADE": a firmware for LEDs moves a palette
   change over a transition rather than in one frame.
 - [S1265] Chromatik's snapshots carry a transition time, so a recall of
-  part of the state moves there over seconds.
+  part of the state moves there over seconds, and an auto-cycle flag, so
+  a set of partial states can step by itself, as a drift steps a look's
+  colorways.
 - [S055] OKLab is built for blending and gradients, the space pewpew's
   palettes already blend their stops in (ADR-001).
-- [S1265] Chromatik's snapshots carry an auto-cycle flag, so a set of
-  partial states can step by itself, as a drift steps a look's colorways.
 - [S1266] LedFx's playlists play in sequence or shuffled, with a duration
   variation per item, the shape of a drift's dwell drawn between two
   bounds.
@@ -1160,6 +1177,10 @@ Status stays **Proposed**.
 - **A drift that counts as an edit.** It would mark the look changed and
   hold the idle cycle's wait, which exists for an operator's edits, and a
   save would be offered for colours nobody chose.
+- **The cycle always picks a colorway.** A file written before this
+  amendment would play other colours than it did, which breaks the
+  replay of a looks file the idle cycle promises (the 2026-11-05
+  amendment "the director" above).
 - **An unseeded or wall-clock draw.** The same file would play
   differently on each run, against pewpew's determinism rule (T-1…T-5);
   a stream per change number keeps each draw its own [S1412].

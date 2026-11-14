@@ -210,9 +210,10 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(cycle={"end": {"a": 1}}), "'end' names {'a': 1}, which is not a look"),
     (looks_file(cycle={"idle": 0}), "'idle' is a number of seconds above 0"),
     (looks_file(cycle={"rounds": 1.5}), "'rounds' is a whole number"),
-    (looks_file(cycle={"dur": 60}), "cycle: unknown key 'dur'; expected each, end, fresh, idle, rounds, seed"),
+    (looks_file(cycle={"dur": 60}),
+     "cycle: unknown key 'dur'; expected colorways, each, end, fresh, idle, rounds, seed"),
     (looks_file(cycle=[1]),  # every key it takes
-     "'cycle' is an object with 'each', 'end', 'fresh', 'idle', 'rounds', 'seed', 'weights', 'window'"),
+     "'cycle' is an object with 'colorways', 'each', 'end', 'fresh', 'idle', 'rounds', 'seed', 'weights', 'window'"),
 ])
 def test_a_bad_file_is_refused_naming_the_problem(text, message):
     with pytest.raises(LookError) as err:

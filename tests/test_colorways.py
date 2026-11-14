@@ -17,7 +17,7 @@ from fakes import LoopThread, aura_rig, filed, restore
 from params_zoo import ZOO
 from pewpew import lab
 from pewpew.__main__ import main
-from pewpew.aura.book import CycleConfig
+from pewpew.aura.book import CycleConfig, parse_looks
 from pewpew.color import EMBER, ICE, MONO, gradient_lut, oklab
 from pewpew.compose import Layer
 from pewpew.compose.stack import Drift, kept_drift, with_colorway
@@ -392,6 +392,55 @@ def test_a_save_keeps_the_drift_less_the_colorways_gone():
     assert rig.looks.book.looks["dusk"].drift == look.drift
     assert rig.looks.save("copy") is None
     assert rig.looks.book.looks["copy"].drift is None, "a new look starts with none"
+
+
+# ---- the idle cycle's picks -------------------------------------------------------------
+
+
+def test_the_cycle_s_colorways_key_is_read_written_only_when_on_and_refused_by_its_path():
+    book = parse_looks(json.dumps({"version": 4, "looks": {"dusk": DOC}, "cycle": {"colorways": True}}))
+    assert book.cycle.colorways and book.to_json()["cycle"]["colorways"] is True
+    assert parse_looks(book.to_bytes()) == book
+    plain = parse_looks(json.dumps({"version": 4, "looks": {"dusk": DOC}}))
+    assert not plain.cycle.colorways and "colorways" not in plain.to_json()["cycle"]
+    doc = {"version": 4, "looks": {"dusk": DOC}, "cycle": {"colorways": "yes"}}
+    (problem,) = lab.check_look(doc).problems
+    assert (problem.path, problem.code) == ("cycle.colorways", Code.WRONG_KIND)
+
+
+def shuffled(colorways: bool, seconds: float = 90.0, **looks) -> list[tuple[str | None, str | None, bool]]:
+    """Each look the idle cycle starts over `seconds`, with the colorway it shows once it has faded in and
+    whether it reads changed, on a cycle that starts at once and plays each look 6 s."""
+    looks = looks or {name: replace(decoded({**DOC, "colorways": THREE}), cycle=True) for name in ("a", "b", "c")}
+    cycle = CycleConfig(idle=1.0, each=6.0, seed=3, window=0, colorways=colorways)
+    rig = aura_rig(next(iter(looks.values())), looks=looks, current=next(iter(looks)), cycle=cycle)
+    assert restore(rig) is None
+    out, seen = [], None
+    end = rig.clock.t + seconds
+    while rig.clock.t < end:
+        rig.frame(rig.clock.advance(6))
+        current = rig.looks.book.current
+        if current != seen and not rig.fader.fading:
+            out.append((current, stack_state(rig)["colorway"], rig.looks.changed()))
+            seen = current
+    return out
+
+
+def test_the_cycle_starts_each_look_in_a_seeded_colorway_the_same_way_every_run():
+    runs = [shuffled(True) for _ in range(2)]
+    assert runs[0] == runs[1], "same seed, same file: the same looks in the same colorways"
+    assert len(runs[0]) >= 10
+    assert len({colorway for _, colorway, _ in runs[0]}) == 3, "the picks reach every colorway"
+    assert not any(changed for _, _, changed in runs[0]), "a pick is the look playing, not an unsaved edit"
+    saved = shuffled(False)
+    assert {colorway for _, colorway, _ in saved[1:]} == {"ember"}, "off, each look plays as saved"
+    assert [name for name, _, _ in saved] == [name for name, _, _ in runs[0]], "the order is the cycle's own"
+
+
+def test_the_cycle_leaves_a_look_that_drifts_to_its_drift():
+    drifting = replace(decoded({**DRIFTING, "colorway_drift": {"every": 600}}), cycle=True)
+    looks = {name: drifting for name in ("a", "b")}
+    assert {colorway for _, colorway, _ in shuffled(True, 60.0, **looks)} == {"ember"}
 
 
 # ---- the lab -----------------------------------------------------------------------

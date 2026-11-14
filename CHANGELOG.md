@@ -37,6 +37,10 @@ series (batch mode).
   the looks state's `items` carries `drift`; the Console's colorway row has a wind
   sign at its head to switch it. `fx check` refuses a bad one by path, such as
   `colorway_drift.names[1]`.
+- The idle cycle's optional `"colorways": true` starts each look it plays that has
+  colorways and no drift of its own in one of them, drawn from the cycle's seed and
+  the slot, so the same file plays the same looks in the same colours; left out
+  (false), a file replays as before.
 - The `spherical` coord op: wraps a pattern round a point in 3D, its plane's first
   axis becoming the true distance from the point, its second the turn and the
   normal the elevation, so `osc(6).spherical()` is shells round the point. `cx`,
