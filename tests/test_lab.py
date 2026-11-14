@@ -48,6 +48,7 @@ from pewpew.lab import (
 from pewpew.lab.check import ready
 from pewpew.lab.geometry import Geometry, parse_geometry
 from pewpew.lab.handles import ENGINE, Cache, fingerprint
+from pewpew.lab.liveness import PATIENT_SECONDS, dead, each_probe, probe_knobs
 from pewpew.lab.rendering import take
 from pewpew.metrics import LIVENESS_RMS
 from pewpew.params import Float, Int, Palette, ParamSet
@@ -625,10 +626,10 @@ def test_liveness_moves_a_color_part_with_the_others_as_the_look_sets_them(fake_
     assert probes["layers.base.zoo.color.s"].live
 
 
-def late_op() -> None:
-    """Define op `late_test`: its `level` shows only once it has run half a
-    second, as a trail or a simulation shows once it has filled; its `idle`
-    never shows."""
+def late_op(after: float = 0.5) -> None:
+    """Define op `late_test`: its `level` shows only once it has run
+    `after` seconds, as a trail or a simulation shows once it has filled;
+    its `idle` never shows."""
 
     class LateTest(Op, op="late_test"):
         sig = Sig.SOURCE
@@ -646,7 +647,7 @@ def late_op() -> None:
 
         def build(self, inputs) -> Fn:
             def late(c: Coords) -> np.ndarray:
-                return np.full((len(c.index), 3), self.level * min(max(self.t - 0.5, 0.0), 0.5), np.float32)
+                return np.full((len(c.index), 3), self.level * min(max(self.t - after, 0.0), 0.5), np.float32)
 
             return late
 
@@ -661,6 +662,23 @@ def test_liveness_warms_up_so_a_knob_that_acts_late_is_live_and_one_that_never_a
     late, idle = probed["layers.base.late.level"], probed["layers.base.late.idle"]
     assert late.live and late.rms is not None and late.rms > 100 * LIVENESS_RMS
     assert not idle.live and idle.rms == 0.0
+
+
+def test_a_knob_dead_in_the_first_second_is_looked_at_again_for_eight(fake_ops):
+    """A knob that shows only after 3 s reads dead in the gate's first
+    second, so it is rendered again for 8 s, where it shows; a knob that
+    never shows is dead in 8 s too, and says how long it was looked at.
+    `fx vary`'s quick look (`patient=False`) does not look again."""
+    late_op(after=3.0)
+    staged = ready(one("late_test", "late"))
+    geometry = parse_geometry(MAP)
+    quick = {p.path: p for p in each_probe(staged, geometry, 0)}
+    assert not quick["layers.base.late.level"].live and quick["layers.base.late.level"].seconds == 1.0
+    probed = {p.path: p for p in probe_knobs(staged, geometry, 0)}
+    late, idle = probed["layers.base.late.level"], probed["layers.base.late.idle"]
+    assert late.live and late.seconds == PATIENT_SECONDS
+    assert not idle.live and idle.rms == 0.0 and idle.seconds == PATIENT_SECONDS
+    assert dead(probed.values()) == ("layers.base.late.idle",)
 
 
 def test_liveness_leaves_out_what_the_map_cannot_draw():

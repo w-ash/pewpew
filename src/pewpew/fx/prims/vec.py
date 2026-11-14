@@ -115,3 +115,10 @@ def fade(dt: float, tau: float) -> float:
     the frame rate (stumble #2). Returns a Python float, as the study did, so
     no numpy scalar changes a downstream dtype."""
     return math.exp(-dt / tau)
+
+
+def ease(x: float) -> float:
+    """Smoothstep of `x` clamped to 0..1: 0 below, 1 above, with no kink.
+    A Python float."""
+    x = min(max(x, 0.0), 1.0)
+    return x * x * (3.0 - 2.0 * x)

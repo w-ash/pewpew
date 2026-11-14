@@ -348,6 +348,36 @@ its level until it eases out over the last `fade` of its `life`; and `polar`'s
 `spiral` winds its spokes along the plane's normal, so on bars standing
 across the plane they turn as a helix.
 
+A `pulse` at its defaults is an even train. `jitter` (0 to 1) makes each
+shell its own: its start moves by up to 40% of the spacing, its speed and
+width by up to 30% either way, its peak falls to as little as 40%, and up
+to a quarter of the shells are left out, so the train has gaps. `wander`
+(0 to 0.5) starts each shell from its own point, up to that share of the
+room from the center, so shells reach the lights at different places and
+moments. A shell keeps its own for its whole life, and the look's seed
+chooses them: `pulse(0.5, speed=0.12, life=6, jitter=0.8, wander=0.2)`.
+The train is on its way from the first frame: a steady train as if it had
+always run, and a beat train, one frame in, as if the beat had been
+arriving at the tempo it moves at. For shells that bend as they travel,
+ripple the distance before `spherical` reads it:
+`osc(6, 0.1).modulate(noise(2, 0.05), 0.15).spherical()`.
+
+`spherical` takes `distance="log"`, which reads the distance in
+doublings (log2 of it over the map's largest span, the point itself at
+-10): stripes travelling out along it each grow as they go while new ones
+start small at the point, an endless zoom out of it, as `tunnel` does in
+a plane: `osc(3, 0.1).spherical(distance="log")`.
+
+`noise` is fractal: `octaves` finer layers, each `lacunarity` times finer
+than the one before (1.75 to 3, in quarters) and counting `gain` as much
+(0.3 to 0.8; more is rougher). `ridge` (0 to 1) folds each layer into a
+soft crest where it crosses its middle and lets finer crests grow only
+along coarser ones, so with octaves the hills become veins that branch,
+like rivers or lightning, mostly dark between them (a ridged
+multifractal). Stretched along the distance and read through
+`spherical`, the veins branch out of the point:
+`noise(6, 0.05, octaves=5, ridge=1).scale(3, "x").spherical()`.
+
 Each node's args are params with ranges, so a bad value fails where it is
 written (`kaleid.sides must be within 1..24, got 40`), and each is a knob
 with an address, `layers.<layer>.<node>.<arg>` (`layers.base.waves.freq`).
@@ -404,8 +434,14 @@ time.
 
 A knob can move by itself. A look's `signals` are signal ops, each one
 number a frame: `lfo` and `walk` swing from -1 to 1; `env`, `band`,
-`beat` and `knob` give a level from 0 to 1; `smooth` follows another
-signal. A route adds `depth` times a signal to a knob, in the knob's own
+`beat`, `flare` and `knob` give a level from 0 to 1; `smooth` follows
+another signal. `flare` is the "now and then something happens"
+modulator: at random moments, `rate` a second on average, it rises over
+`attack` to a peak drawn between `floor` and 1 and falls over `release`;
+the look opens on one, and the look's seed and the signal's id choose
+the moments. Keep `attack` at 0.2 s or more, or a firing steps. Route it
+to a brightness, a speed or a size:
+`flare(0.2, 0.5, 4).to("layers.base.shape.radius", depth=0.3)`. A route adds `depth` times a signal to a knob, in the knob's own
 units: a hue wraps round, anything else stops at its range. The knob's
 own value stays what the page shows and a save stores; the page marks
 where the route moves it now. Signals and routes belong to a look, so
@@ -473,7 +509,8 @@ spread along, such as `lissajous`'s `b` on a strip along x, or `mirror`'s
 choices that read the map alike, such as `u` against the axis a strip runs
 along; and a knob another knob switches off, such as `shape`'s `plane` for
 a circle, `polar`'s center along the plane's normal while `spiral` is 0,
-and `pulse`'s `rate` on the beat.
+and `pulse`'s `rate` on the beat. A `plane` needs one of its options, not
+each, to change the picture (§6).
 
 Each keeps to one color family, starts dark and keeps its bright colors
 saturated, so a diffuser blending neighbouring lights does not wash it to
@@ -587,7 +624,16 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   builds up (a trail, a feedback field, a simulation) has filled. A knob it
   cannot probe fails too: a palette with no preset to move to, or a knob
   at one end of its range that stops the look from running. A probe the
-  map's shape cannot show is not run (pewpew.lab.liveness). A render under one second fails,
+  map's shape cannot show is not run (pewpew.lab.liveness). A probe that
+  reads dead in that second is rendered again for 8 s, the last 4 s
+  compared, and fails only if it is still dead there, so a slow knob (a
+  `walk` at 0.02 Hz, a long `decay`, a `diffuse` bleed, a slow shell)
+  passes without a faster setting; the failure says "in 8 s". A choice of
+  `plane` passes when any of its options changes the picture: the op
+  cannot see what its input reads, and `osc(6).spherical()` reads only
+  the distance, which xy and xz both put on x, so xz shows as xy does
+  (`alike` in `--json`) while yz changes it. A `plane` none of whose
+  options changes anything still fails. A render under one second fails,
   since it is too short to count flashes per second. It renders fresh,
   never from the cache. Each colorway renders too and passes the same
   render gates (no layer raises, the flash rate, not all black), its knobs
@@ -605,7 +651,7 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   each speed near its default. A look made from nothing has no colorways;
   one made like FILE keeps FILE's, less the knobs it no longer has. Each is judged on the map before it is
   given: it passes `verify looks` (with room to spare on each knob's
-  probe). Taste is a preference: a made look is not too dark, washed
+  probe, in the first second: it never looks again for 8 s). Taste is a preference: a made look is not too dark, washed
   out, dying out, frozen, noise or grey when one of its tries manages
   that, else it fails the fewest of those, and `--json` lists each
   candidate's failures as `taste`. A seed whose changes of FILE all fail
@@ -657,8 +703,8 @@ the favorites, and filters as you type: ↑ and ↓ move, Enter plays, Esc clear
 and then closes.
 
 The page calls a look's signals **modulators**, each by its kind: LFO,
-random (`walk`), beat, envelope (`env`), audio follower (`band`), macro
-(`knob`) and smooth. A knob a route moves reads `modulated by ‘breath’
+random (`walk`), flare, beat, envelope (`env`), audio follower (`band`),
+macro (`knob`) and smooth. A knob a route moves reads `modulated by ‘breath’
 ±0.2 Hz`: ± for a modulator that swings both ways (`lfo`, `walk`, a
 `smooth` of either), and the route's own sign, + or −, for one that gives a
 level. The master is the page's **brightness**, its cap its **max**; the

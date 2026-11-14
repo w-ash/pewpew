@@ -208,5 +208,7 @@ def test_a_period_is_refused_unless_whole_per_axis() -> None:
     for bad in ([64], [64, 0], [64, 2.5]):
         with pytest.raises(ValueError, match="period gives a whole number above 0, or None, for each of the 2 axes"):
             gradient(_points(2), period=bad)
-    with pytest.raises(ValueError, match="a periodic octave sum takes a whole lacunarity, got 2.1"):
+    with pytest.raises(ValueError, match="a periodic octave sum takes a lacunarity whose powers keep the period whole, "
+                                         "got 2.1"):
         fbm(gradient, _points(2), lacunarity=2.1, period=[None, 64])
+    assert np.isfinite(fbm(gradient, _points(2), octaves=4, lacunarity=2.25, period=[None, 4096])).all()

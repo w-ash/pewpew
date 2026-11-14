@@ -711,6 +711,92 @@
         "flash_sensitive": false
       }
     ],
+    "flare": [
+      {
+        "name": "rate",
+        "kind": "float",
+        "label": "Rate",
+        "help": "Firings a second, on average: 0.1 is one every ten seconds",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "/s",
+        "lo": 0.01,
+        "hi": 2.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.02,
+          0.5
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "attack",
+        "kind": "float",
+        "label": "Rise",
+        "help": "Seconds each firing takes to rise; under about 0.2 it steps",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "s",
+        "lo": 0.0,
+        "hi": 5.0,
+        "step": 0.05,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          2.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "release",
+        "kind": "float",
+        "label": "Release",
+        "help": "Seconds each firing takes to fall back to nothing",
+        "group": "",
+        "widget": "",
+        "default": 3.0,
+        "unit": "s",
+        "lo": 0.0,
+        "hi": 20.0,
+        "step": 0.1,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          8.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "floor",
+        "kind": "float",
+        "label": "Floor",
+        "help": "The least a firing peaks at; each draws its peak between this and full",
+        "group": "",
+        "widget": "",
+        "default": 0.4,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.0,
+          1.0
+        ],
+        "flash_sensitive": false
+      }
+    ],
     "hue": [
       {
         "name": "amount",
@@ -1381,6 +1467,69 @@
             "label": "Value"
           }
         ]
+      },
+      {
+        "name": "gain",
+        "kind": "float",
+        "label": "Roughness",
+        "help": "How much each finer layer counts against the one before: more is rougher",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.3,
+        "hi": 0.8,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.4,
+          0.65
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "lacunarity",
+        "kind": "float",
+        "label": "Layer step",
+        "help": "How much finer each layer is than the one before, in quarter steps",
+        "group": "",
+        "widget": "",
+        "default": 2.0,
+        "unit": "",
+        "lo": 1.75,
+        "hi": 3.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1.75,
+          2.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "ridge",
+        "kind": "float",
+        "label": "Ridge",
+        "help": "Folds the hills into soft-crested ridges; with octaves, branching veins",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          1.0
+        ],
+        "flash_sensitive": false
       }
     ],
     "osc": [
@@ -2319,6 +2468,48 @@
           0.8
         ],
         "flash_sensitive": false
+      },
+      {
+        "name": "jitter",
+        "kind": "float",
+        "label": "Jitter",
+        "help": "How uneven the shells are: each its own start, speed, width and strength, some left out",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "wander",
+        "kind": "float",
+        "label": "Wander",
+        "help": "How far each shell's own point strays from the center, as a share of the room",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          0.3
+        ],
+        "flash_sensitive": false
       }
     ],
     "quasicrystal": [
@@ -3043,6 +3234,25 @@
           0.8
         ],
         "flash_sensitive": false
+      },
+      {
+        "name": "distance",
+        "kind": "choice",
+        "label": "Distance",
+        "help": "Log reads the distance in doublings: what travels along it grows as it moves out and new ones start small at the center, an endless zoom",
+        "group": "",
+        "widget": "",
+        "default": "linear",
+        "options": [
+          {
+            "value": "linear",
+            "label": "Linear"
+          },
+          {
+            "value": "log",
+            "label": "Log"
+          }
+        ]
       }
     ],
     "trails": [

@@ -61,10 +61,10 @@
     "layers.base.w: lfo is a signal, one number a frame, not a field; put it in the look's signals and route it to a knob"
   ],
   "a field op in the signals": [
-    "look: signals.w: osc is not a signal op; a look's signals run band, beat, env, knob, lfo, smooth, walk, and osc goes in a layer's program"
+    "look: signals.w: osc is not a signal op; a look's signals run band, beat, env, flare, knob, lfo, smooth, walk, and osc goes in a layer's program"
   ],
   "an unknown signal op": [
-    "look: signals.b: unknown op 'lfoo' (did you mean 'lfo'?); ops: band, beat, env, knob, lfo, smooth, walk"
+    "look: signals.b: unknown op 'lfoo' (did you mean 'lfo'?); ops: band, beat, env, flare, knob, lfo, smooth, walk"
   ],
   "a signal's arg": [
     "look: signals.breath.rate must be within 0.0..10.0, got 99.0"

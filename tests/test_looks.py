@@ -173,8 +173,8 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(looks={"a": layered("solid_test", signals={"breath": {"op": "lfo"}})}),
      "look 'a': signals.breath: nothing reads signal 'breath'; route it to a knob, or remove it"),
     (looks_file(looks={"a": layered("solid_test", signals={"w": {"op": "osc"}})}),
-     ("look 'a': signals.w: osc is not a signal op; a look's signals run band, beat, env, knob, lfo, smooth, walk, "
-     "and osc goes in a layer's program")),
+     ("look 'a': signals.w: osc is not a signal op; a look's signals run band, beat, env, flare, knob, lfo, smooth, "
+     "walk, and osc goes in a layer's program")),
     (looks_file(looks={"a": layered("solid_test", **{**BREATH, "routes": [{"source": "breath", "depth": "deep"}]})}),
      "look 'a': routes[0]: 'path' is missing"),
     (looks_file(looks={"a": layered("solid_test", front=0)}),

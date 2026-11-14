@@ -29,8 +29,8 @@ from pewpew.fx.ops import OPS
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import space
 from pewpew.lab.check import ready
-from pewpew.lab.geometry import parse_geometry
-from pewpew.lab.liveness import probe_knobs
+from pewpew.lab.geometry import Geometry, parse_geometry
+from pewpew.lab.liveness import KnobProbe, dead, probe_knobs
 from pewpew.mapping import extents, grid, lattice, line
 from pewpew.metrics import FLASH_LIMIT, LIVENESS_RMS, measure, rms
 from pewpew.params import Float, ParamSet
@@ -446,6 +446,175 @@ def test_a_pulse_shell_holds_its_level_and_eases_out_over_the_last_fade_of_its_l
     assert np.abs(np.diff(slopes)).max() < 0.01, "the slope never jumps"
     renderer.bound.node_params["pulse"].set("fade", 1.0)
     assert pulse.level(rise) < 1.0 and pulse.level(2.75) == pytest.approx(0.5, abs=0.02)
+
+
+def test_pulse_jitter_makes_each_shell_its_own_for_its_whole_life() -> None:
+    """At `jitter` each shell has its own start, speed, width and peak,
+    and some are left out; a shell keeps them as it travels, and the
+    youngest's ages are uneven where at 0 they are evenly spaced."""
+    renderer = hosted(program_of("pulse(1.0, life=12, jitter=1.0)"), grid(6, 6))
+    pulse = op_of(renderer, "pulse")
+    clock, seen = SlotClock(FPS), {}
+    for _ in range(int(20 * FPS)):
+        renderer.advance_to(clock.advance())
+        for shell in pulse.shells():
+            key = (round(shell.speed, 12), round(shell.width, 12))
+            seen.setdefault(key, []).append(shell.level)
+    speeds = {speed for speed, _ in seen}
+    assert len(speeds) > 10 and min(speeds) >= 0.25 * 0.7 - 1e-9 and max(speeds) <= 0.25 * 1.3 + 1e-9
+    ages = pulse.ages()
+    assert len(ages) < 12, "some shells are left out"
+    assert np.ptp(np.diff(ages)) > 0.3, "uneven"
+    even = hosted(program_of("pulse(1.0, life=12)"), grid(6, 6))
+    even.advance_to(20.0)
+    np.testing.assert_allclose(np.diff(op_of(even, "pulse").ages()), 1.0)
+
+
+def test_pulse_wander_starts_each_shell_from_its_own_point_near_the_centre() -> None:
+    renderer = hosted(program_of("pulse(1.0, life=6, wander=0.3)"), lattice(5))
+    renderer.advance_to(1.0)
+    offsets = np.array([shell.offset for shell in op_of(renderer, "pulse").shells()])
+    assert len(offsets) == 6 and len({tuple(o) for o in offsets.tolist()}) == 6
+    assert np.linalg.norm(offsets, axis=1).max() <= 0.3 + 1e-12
+
+
+@pytest.mark.parametrize("dims", sorted(MAPS))
+@pytest.mark.parametrize("name, a, b", [("jitter", 0.0, 1.0), ("wander", 0.0, 0.5)])
+def test_pulse_jitter_and_wander_change_the_picture_on_each_map(dims: int, name: str, a: float, b: float) -> None:
+    def shown(value: float) -> np.ndarray:
+        return run(program_of(f"pulse(1.0, life=4, {name}={value})"), MAPS[dims], 60)
+
+    assert rms(shown(a), shown(b)) > LIVENESS_RMS
+
+
+def test_an_uneven_pulse_stays_soft_within_full_and_under_the_flash_limit() -> None:
+    """Jitter and wander move whole shells, never a step: each shell still
+    fades in and out, and a turn of `jitter` fades a shell it leaves out."""
+    frames = run(program_of("pulse(1.0, speed=0.3, width=0.1, life=4, jitter=1, wander=0.3)"), grid(16, 16), 240)
+    assert frames.min() >= 0.0 and frames.max() <= 1.0
+    assert np.abs(np.diff(frames, axis=0)).max() < 0.2
+    top = run(program_of('pulse(2.0, speed=2.0, width=0.04, life=8, cx=0, jitter=1).palette("ember")'), line(32), 600)
+    assert 0.0 < measure(top, FPS).flash_rate_max <= FLASH_LIMIT
+    renderer = hosted(program_of("pulse(1.0, life=8, jitter=0.5)"), grid(8, 8))
+    renderer.advance_to(3.0)
+    before = renderer.advance_to(3.0 + 1 / FPS).copy()
+    renderer.bound.node_params["pulse"].set("jitter", 0.52)
+    assert np.abs(renderer.advance_to(3.0 + 2 / FPS) - before).max() < 0.1, "a small turn moves shells a little"
+
+
+def _hollow() -> np.ndarray:
+    """A volume with nothing within 0.22 of its centre, where a pulse starts."""
+    points = lattice(9)
+    return points[np.linalg.norm(points - 0.5, axis=1) >= 0.22]
+
+
+def test_a_slow_steady_pulse_is_on_its_way_from_the_first_frame_and_every_knob_shows() -> None:
+    """A steady train is as if it had always run: at the first frame the
+    shells started before it are out at their range, so a slow pulse on
+    a map with nothing near its point shows in the gate's one second."""
+    renderer = hosted(program_of("pulse(0.5, speed=0.04, width=0.12, life=12)"), _hollow())
+    assert renderer.advance_to(1 / FPS).max() > 0.5
+    staged = ready(look(layer("base", program_of("pulse(0.5, speed=0.04, width=0.12, life=12)")), seed=7))
+    probed = probe_knobs(staged, Geometry("hollow", _hollow()), 0)
+    assert probed and not dead(probed), dead(probed)
+
+
+def test_a_beat_pulse_starts_with_the_train_the_beat_would_have_sent() -> None:
+    """The beat runs whether a pulse watched it or not, so on its second
+    frame a beat pulse remembers the beats of the last 20 s at the tempo
+    the phase moves at, each at least 0.4 s apart, and every knob shows in
+    the gate's one second."""
+    renderer = hosted(program_of('pulse(sync="beat", life=8)'), grid(6, 6), features=_Beats(3.0))
+    renderer.advance_to(1 / FPS)
+    assert op_of(renderer, "pulse").ages() == []
+    renderer.advance_to(2 / FPS)
+    ages = op_of(renderer, "pulse").ages()
+    assert ages[0] == pytest.approx(2 / FPS, abs=1e-9) and ages[-1] > 7.0
+    np.testing.assert_allclose(np.diff(ages), 2.0 / 3.0, atol=1e-9)
+    chain = 'pulse(sync="beat", speed=0.12, width=0.14, life=5.4, fade=0.3).palette("ember")'
+    probed = probe_knobs(ready(look(layer("base", program_of(chain)), seed=7)), Geometry("hollow", _hollow()), 0)
+    assert probed and not dead(probed), dead(probed)
+
+
+def test_a_plane_that_reads_the_input_alike_passes_when_another_plane_shows() -> None:
+    """`osc` along x through `spherical` reads only the distance, which
+    xy and xz both put on x: xz shows as xy does, yz does not, so `plane`
+    is live and xz is `alike`. Stripes along the wiring (u) read no axis
+    `spherical` moves, so no plane changes them, and `plane` is dead."""
+    def probed(chain: str) -> dict[str, KnobProbe]:
+        made = ready(look(layer("base", program_of(chain)), seed=7))
+        return {p.path: p for p in probe_knobs(made, parse_geometry("lattice:6"), 0)}
+
+    shells = probed('osc(6).spherical().palette("ice")')
+    plane = {path: p for path, p in shells.items() if ".plane=" in path}
+    assert {path.rsplit("=", 1)[1]: p.alike for path, p in plane.items()} == {"xz": True, "yz": False}
+    assert all(p.live for p in plane.values()) and not dead(shells.values())
+    wired = dead(probed('osc(2, axis="u").spherical()').values())
+    assert {"layers.base.spherical.plane=xz", "layers.base.spherical.plane=yz"} <= set(wired), wired
+
+
+@pytest.mark.parametrize("dims", sorted(MAPS))
+@pytest.mark.parametrize("name, a, b", [("gain", 0.3, 0.8), ("lacunarity", 1.75, 3.0), ("ridge", 0.0, 1.0)])
+def test_noise_gain_lacunarity_and_ridge_change_the_picture_on_each_map(
+    dims: int, name: str, a: float, b: float,
+) -> None:
+    def shown(value: float) -> np.ndarray:
+        return run(program_of(f"noise(3, 0.1, octaves=4, {name}={value})"), MAPS[dims], 20)
+
+    assert rms(shown(a), shown(b)) > LIVENESS_RMS
+
+
+def test_noise_weighs_and_spaces_finer_layers_only_when_it_has_them() -> None:
+    noise, args = OPS["noise"], ParamSet(OPS["noise"]).snapshot()
+    cube = spans(lattice(6))
+    assert not noise.shows("gain", 0.3, 0.8, args, cube) and not noise.shows("lacunarity", 1.75, 3.0, args, cube)
+    assert noise.shows("gain", 0.3, 0.8, {**args, "octaves": 3}, cube) and noise.shows("ridge", 0.0, 1.0, args, cube)
+
+
+def test_a_ridged_noise_is_dark_with_soft_bright_crests_within_zero_to_one() -> None:
+    """Folded, the hills become crests: most of the room dark, the crests
+    bright, and no crest a hard line or a kink: with lights twice as dense
+    the steepest step between neighbours halves, and the sharpest bend
+    falls to a quarter, as for any smooth curve."""
+    room = run(program_of("noise(8, 0.1, octaves=4, ridge=1)"), grid(48, 48), 1)[0, :, 0]
+    assert 0.0 <= room.min() and room.max() <= 1.0
+    assert np.median(room) < 0.4 < np.percentile(room, 95)
+    coarse, fine = (run(program_of("noise(8, 0.1, octaves=4, ridge=1)"), line(n), 1)[0, :, 0].astype(np.float64)
+                    for n in (2000, 4000))
+    assert np.abs(np.diff(fine)).max() < 0.6 * np.abs(np.diff(coarse)).max()
+    assert np.abs(np.diff(fine, 2)).max() < 0.35 * np.abs(np.diff(coarse, 2)).max()
+
+
+def test_a_noise_of_a_quarter_lacunarity_drifts_across_its_wrap_without_a_jump() -> None:
+    """A lacunarity in quarters keeps each octave's lattice period whole,
+    so the drift wraps with no jump; between quarters it reads the nearest."""
+    program = program_of("noise(3, 2.0, octaves=4, lacunarity=2.25)")
+    calm = steps(program, 30)
+    across = steps(program, 30, ("noise", DRIFT / 2 - 0.4))
+    assert across.max() < 1.5 * calm.max()
+    np.testing.assert_array_equal(run(program_of("noise(3, 0.1, octaves=3, lacunarity=2.3)"), grid(6, 6), 2),
+                                  run(program_of("noise(3, 0.1, octaves=3, lacunarity=2.25)"), grid(6, 6), 2))
+
+
+def test_a_log_distance_reads_doublings_of_the_distance_over_the_maps_span() -> None:
+    """`distance="log"` puts log2(distance / the map's largest span) on the
+    distance axis, at least 2^-10 of the span from the point, so each
+    doubling of the distance holds as many stripes as the one before."""
+    renderer = hosted(program_of('osc(1, 0).spherical(cx=0.2, distance="log")'), lattice(5))
+    shown = renderer.advance_to(1.0)[:, 0].astype(np.float64)
+    ctx = op_of(renderer, "spherical").ctx
+    point = ctx.at((0.2, 0.5, 0.5))
+    d = np.sqrt(sum((axis.astype(np.float64) - m) ** 2 for axis, m in zip(ctx.coords.xyz, point, strict=True)))
+    logged = np.log2(np.maximum(d / max(ctx.spans), 2.0**-10))
+    np.testing.assert_allclose(shown, 0.5 + 0.5 * np.sin(2.0 * np.pi * logged), atol=2e-4)
+
+
+@pytest.mark.parametrize("mapping", [grid(8, 8), lattice(6)])
+def test_a_log_distance_changes_the_picture(mapping: np.ndarray) -> None:
+    def shown(distance: str) -> np.ndarray:
+        return run(program_of(f'noise(3).spherical(distance="{distance}")'), mapping, 10)
+
+    assert rms(shown("linear"), shown("log")) > LIVENESS_RMS
 
 
 def test_a_beats_width_shows_only_for_its_pulse() -> None:
