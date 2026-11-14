@@ -12,7 +12,7 @@ series (batch mode).
 - Colorways: a look's `colorways` are named sets of knob values that recolour it in
   one press while its motion carries on, such as
   `{"ice": {"layers.base.tint.palette": "ice", "layers.sparks.glint.palette": "ice"}}`
-  (at most 12 a look, each of 1 to 32 knobs a `set` takes). The new `colorway`
+  (at most 24 a look, each of 1 to 32 knobs a `set` takes). The new `colorway`
   request sets every knob of one in a single frame as an edit, which a save keeps;
   the aura state's `stack.colorways` lists them and `stack.colorway` names the
   active one, the first whose values every knob holds now. The Console shows them as

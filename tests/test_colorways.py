@@ -74,7 +74,7 @@ def test_colorways_round_trip_in_their_knobs_json_form():
      f"set colorways.ice.{PALETTE} to 'ice'"),
     ({"ice": {}}, "colorways.ice", Code.WRONG_KIND, None),
     ({"no.dots": {SHIFT: 1}}, "colorways.no.dots", Code.WRONG_KIND, None),
-    ({f"c{i}": {SHIFT: i} for i in range(13)}, "colorways", Code.OUT_OF_RANGE, None),
+    ({f"c{i}": {SHIFT: i} for i in range(25)}, "colorways", Code.OUT_OF_RANGE, None),
 ])
 def test_a_bad_colorway_is_refused_with_its_path(colorways, path, code, fix):
     doc = {**DOC, "colorways": colorways}

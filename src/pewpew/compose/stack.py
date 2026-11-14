@@ -58,7 +58,7 @@ MAX_NAME = 32  # characters in a look's, a trigger's or a colorway's name
 # Letters and digits first, then also space, "_" and "-": short enough for a
 # phone button, and nothing that reads as a path.
 _NAME = re.compile(rf"[A-Za-z0-9][A-Za-z0-9 _-]{{0,{MAX_NAME - 1}}}")
-MAX_COLORWAYS = 12
+MAX_COLORWAYS = 24
 MAX_COLORWAY_KNOBS = 32  # knobs one colorway sets
 
 # A look's colorways: each colorway's knob values by address, JSON form.

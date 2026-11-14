@@ -26,6 +26,26 @@ test("the look's colorways are chips above its knobs, the active one pressed, an
   await expect.element(red).toHaveAttribute("aria-pressed", "false");
 });
 
+test("24 colorways wrap onto lines inside a phone's column, every chip in reach", async () => {
+  const names = Array.from({ length: 24 }, (_, i) => (i % 3 ? `colorway ${i}` : `a long colorway name ${i}`));
+  const { screen, receive } = await renderWired(
+    <div style={{ width: "358px" }}>
+      <LookPanel />
+    </div>,
+  );
+  receive(stack({ colorways: names, colorway: names[5]! }));
+  const chips = screen.getByRole("group", { name: "colorways" });
+  await expect.element(chips.getByRole("button", { name: names[23]! })).toBeVisible();
+  const group = chips.element().getBoundingClientRect();
+  const boxes = [...chips.element().querySelectorAll("button")].map((b) => b.getBoundingClientRect());
+  expect(boxes).toHaveLength(24);
+  for (const box of boxes) {
+    expect(box.left).toBeGreaterThanOrEqual(group.left - 0.5);
+    expect(box.right).toBeLessThanOrEqual(group.right + 0.5);
+  }
+  expect(new Set(boxes.map((b) => Math.round(b.top))).size).toBeGreaterThan(3);
+});
+
 test("a look with no colorways shows no row", async () => {
   const { screen, receive } = await renderWired(<LookPanel />);
   receive(stack({ colorways: [], colorway: null }));

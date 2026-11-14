@@ -240,7 +240,7 @@ top:
 A look's `colorways` are named sets of knob values that recolour it in
 one press while its motion carries on: each maps a knob's address to a
 value, as a `set` takes it (a palette, a hue, a color, a layer's opacity
-or blend, a signal's knob). A look holds at most 12, each of 1 to 32
+or blend, a signal's knob). A look holds at most 24, each of 1 to 32
 knobs, and a name is 1 to 32 letters, digits, spaces, `_` or `-`:
 
 ```json
