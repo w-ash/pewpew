@@ -195,6 +195,6 @@ test("a label reads in lower case on the page, but an acronym keeps its capitals
 test("each modulator the engine has reads by its RA-27 §12.2 name, the engine's label", () => {
   const signals = catalog.ops.filter((op) => op.sig === "signal");
   expect(signals.map(({ op, label }) => signalKind({ id: op, op, label, in: [] })).sort()).toEqual(
-    ["LFO", "audio follower", "beat", "envelope", "macro", "random", "smooth"],
+    ["LFO", "audio follower", "beat", "envelope", "flare", "macro", "random", "smooth"],
   );
 });
