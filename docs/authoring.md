@@ -327,7 +327,7 @@ from pewpew.fx.expr import noise, osc
 program = osc(8, 0.1).id("waves").kaleid(5).modulate(noise(3, 0.1), 0.2).palette("ember").id("tint")
 ```
 
-A source (`osc`, `noise`, `voronoi`, `shape`, `pulse`, ...) is
+A source (`osc`, `noise`, `voronoi`, `shape`, `pulse`, `branches`, ...) is
 a function; every other op is a method of what it reads. A coord op
 (`kaleid`, `rotate`, `mirror`, `polar`, `spherical`, `tunnel`, ...) changes the
 coordinates its input reads, so it wraps what comes before it:
@@ -337,11 +337,12 @@ coordinates its input reads, so it wraps what comes before it:
 kaleid` one op's args and examples; docs/reference/catalog.md is the same
 list.
 
-Most ops pivot on the middle of the map. `polar`, `spherical`, `shape` and
-`pulse` work about a point you set instead: `cx`, `cy` and `cz` place it as
-a share of the map's extent along each axis, 0 at the low end, 1 at the
-high end and 0.5 (the default) in the middle, and the point may sit off
-the map (-0.5 to 1.5; `shape`'s and `pulse`'s stay on it, 0 to 1). `spherical` reads true 3D
+Most ops pivot on the middle of the map. `polar`, `spherical`, `shape`,
+`pulse` and `branches` work about a point you set instead: `cx`, `cy` and
+`cz` place it as a share of the map's extent along each axis, 0 at the low
+end, 1 at the high end and 0.5 (the default) in the middle, and the point
+may sit off the map (-0.5 to 1.5; `shape`'s, `pulse`'s and `branches`'
+stay on it, 0 to 1). `spherical` reads true 3D
 distance from the point, so `osc(6).spherical()` is shells round it;
 `pulse` sends soft shells out of it at a rate or on the beat, each holding
 its level until it eases out over the last `fade` of its `life`; and `polar`'s
@@ -361,6 +362,24 @@ always run, and a beat train, one frame in, as if the beat had been
 arriving at the tempo it moves at. For shells that bend as they travel,
 ripple the distance before `spherical` reads it:
 `osc(6, 0.1).modulate(noise(2, 0.05), 0.15).spherical()`.
+
+`branches` grows a tree of light out of the point: `trunks` leave it,
+each forks in two, and each level is `shrink` as long and as thin as the
+one before, for `depth` levels, so the channels grow more and finer away
+from the point. Beads `beads` apart run out along the channels at `flow`
+a second, down both arms at each fork, over a glow of `floor`. `jitter`
+forks some branches in three or not at all and stops some paths' beads
+for a while; `sway` lets the branches wander, so the tree re-forms over
+minutes; `grow` draws it from the point out, so a route on it grows the
+tree and lets it die back. A branch glows softly out to its width and
+never finer than the map's points. `turn` sets where the first trunk
+points, along the map's widest axis at 0, so `branches(2)` sends one
+trunk each way along it. In a volume, `flat` (1, the default) lays the
+tree into the map's main plane and lights the depth across it alike: on
+a rig spread mostly in one plane, a tree that spreads every way
+(`flat=0`) sends most of its branches past the lights. Ridged `noise`
+draws veins that never split off one another; these forks are true ones:
+`branches(2, flow=0.6, sway=0.6).palette("ember")`.
 
 `spherical` takes `distance="log"`, which reads the distance in
 doublings (log2 of it over the map's largest span, the point itself at

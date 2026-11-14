@@ -29,7 +29,8 @@ FRAMES, FPS = 10, 30.0
 
 # Each catalog example below, by name, and the map it renders on: a warp
 # and a palette, a simulation, a swarm, a trail, a signal of each kind on
-# a route, a layer that reads the one below, and two that need a plane.
+# a route, a layer that reads the one below, two that need a plane, and a
+# tree that sways.
 PROGRAMS = {
     "field": ('noise(4).mirror().palette("ocean")', "line:32"),
     "life": ('life(5, speed=4).palette("synthwave", cycle=0.02)', "line:32"),
@@ -39,6 +40,7 @@ PROGRAMS = {
     "lfo": (OPS["lfo"].examples[1], "line:32"),
     "reaction": ('reaction("maze", speed=90).contrast(1.6).palette("forest")', "grid:8x8"),
     "attractor": ('attractor("clifford", 2000, 0.05, 0, 0.04, 2).palette("ember")', "grid:8x8"),
+    "branches": ('branches(2, flow=0.6, sway=0.6).palette("ember")', "grid:8x8"),
 }
 
 

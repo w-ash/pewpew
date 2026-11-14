@@ -334,7 +334,7 @@ def test_a_layer_without_an_id_or_an_out_is_named_by_the_node_it_draws(tmp_path)
 def test_a_client_with_an_id_gets_each_layer_edit_acked_or_refused_with_it(tmp_path):
     rig = rig_of(tmp_path, solid_on("base", RED))
     with serving(rig.control, rig.calls) as (_, ws, greeting):
-        assert [card["name"] for card in greeting["catalog"]["cards"]][:3] == ["attractor", "below", "life"]
+        assert [card["name"] for card in greeting["catalog"]["cards"]][:3] == ["attractor", "below", "branches"]
         answers = []
         for message in (
             {"type": "add_layer", "id": 1, "layer": solid_layer(BLUE)},

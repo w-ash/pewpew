@@ -35,6 +35,35 @@ Reads none; gives rgb. Dimensions: 1, 2, 3.
 
     below().hue(90)
 
+### `branches` — Branches
+
+A tree of light that grows out of a point: `trunks` leave it, spread round it, each runs `reach` and forks, its arms turning `angle` apart, each `shrink` as long and as thin as the branch before, for `depth` levels, so the channels grow more and finer away from the point, like roots, lightning, a river delta or coral. Each branch bows gently and glows softly out to `width` from it at the trunk, never finer than the map's points. Beads of light, `beads` apart, run out from the point along the channels at `flow` a second (below 0, in), down both arms at a fork; between them the channels glow at `floor`. `jitter` makes the tree uneven: arms of their own angle and length, some forks in three, some not forking, beads that bunch, and paths whose beads stop for a while. `sway` lets the branches wander slowly, so the tree re-forms over minutes, and `grow` draws it from the point out to that share of its reach, with a soft tip. `turn` turns the trunks round the point, the first along the map's widest axis at 0. In a volume, `flat` at 1 (the default) lays the tree into the map's main plane and lights the depth across it alike, so a rig spread mostly in one plane shows its forks; below 1 the tree leaves the plane too, at 0 spreading every way. The look's seed grows the tree: the same seed, the same tree.
+
+Reads none; gives scalar. Dimensions: 2, 3. a strip crosses a tree at a few points only; use pulse
+
+- `trunks`: 4 1..12. How many trunks leave the point.
+- `depth`: 5 1..7. How many levels each trunk forks into, the trunk the first.
+- `angle`: 30.0 10.0..80.0 °. How far the arms of a fork turn apart.
+- `shrink`: 0.7 0.5..0.9. How long and thick each level is against the one before.
+- `reach`: 0.2 0.03..0.6. How long a trunk is, in units.
+- `width`: 0.06 0.01..0.3. How far a trunk's glow reaches; each level is thinner.
+- `jitter`: 0.4 0.0..1.0. How uneven the tree is: angles, lengths, forks in three or one, beads that bunch and stop.
+- `flow`: 0.3 -2.0..2.0 /s. Beads a second past each point, running out from the point; below 0 they run in.
+- `beads`: 0.1 0.02..0.5. How far apart the beads run along a channel, in units.
+- `floor`: 0.3 0.0..1.0. How bright the channels are between beads; 1 hides the beads.
+- `sway`: 0.0 0.0..1.0. How far the branches wander as the tree slowly re-forms.
+- `grow`: 1.0 0.0..1.0. How much of the tree is drawn, from the point out.
+- `turn`: 0.0 0.0..360.0 °. Turns the trunks round the point.
+- `flat`: 1.0 0.0..1.0. In a volume, lays the tree into the map's main plane and lights the depth across it.
+- `cx`: 0.5 0.0..1.0. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cy`: 0.5 0.0..1.0. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
+- `cz`: 0.5 0.0..1.0. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+
+    branches(4, 5, jitter=0.5, flow=0.4, flat=0.5)
+    branches(3, 6, angle=25, floor=1).palette("forest")
+    branches(2, flow=0.6, sway=0.6).palette("ember")
+    noise(1.5, 0.04).mult(branches(6, jitter=0.6, floor=0.5)).palette("ice")
+
 ### `life` — Chase
 
 Waves of color that chase round and round across the lights: a cyclic cellular automaton, each point counting round its steps and moving on a step when a neighbor is one step ahead. `states` sets how many steps. From noise, waves and turning spirals form. On a strip or a small map the waves die out and the points settle, so `sparks` move points on at random, and each starts a new wave. It shows each point's step as a share of the cycle, so give it a palette whose ends match. With `cell` above 0 it runs on a grid of square cells laid over the map instead, each light showing the cell it is in, so waves cross the gaps between strips a few apart.

@@ -11,7 +11,8 @@ registry by op name once they are in.
 - `state`: feedback, trails
 - `sims`: diffuse, ripple, reaction, life, on the map's own points
 - `swarm`: particles, attractor
-- `radiate`: pulse, soft shells that leave a point you set
+- `radiate`: pulse and branches, soft shells and a tree of light that
+  leave a point you set
 """
 
 from __future__ import annotations
