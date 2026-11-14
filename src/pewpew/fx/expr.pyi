@@ -105,6 +105,7 @@ def look(
     cycle: bool = False,
     front: Sequence[str] = (),
     colorways: Mapping[str, Mapping[str, Any]] | None = None,
+    colorway_drift: Mapping[str, Any] | None = None,
 ) -> Look: ...
 def attractor(
     kind: str = ...,

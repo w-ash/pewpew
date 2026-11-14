@@ -10,7 +10,8 @@ part of a look it refused or carries an arrangement's issues; a
 (pewpew.compose.controls), such as `layers.base.waves.freq`,
 `layers.base.opacity` or a signal's `signals.breath.rate`. A `colorway`
 sets every knob of one of the running look's colorways
-(pewpew.compose.stack) in one frame: an edit, as a `set` is. A `look`
+(pewpew.compose.stack) in one frame, gliding there: an edit, as a `set`
+is; a `drift` turns a look's colorway drift on or off. A `look`
 request runs a whole look sent by a client outside the package, only in a
 run that takes looks (`run --accept-looks`; ADR-020 amendment
 "capabilities"). A `surprise` fades to a look made from a seed, a `vary`
@@ -113,6 +114,7 @@ REQUESTS: dict[str, tuple[tuple[str, object], ...]] = {
     "delete": (("name", None),),
     "rename": (("name", None), ("to", None)),
     "cycle": (("name", None), ("on", None)),
+    "drift": (("name", None), ("on", None)),
     "favorite": (("name", None), ("on", None)),
     "fade": (("name", None), ("fade", None)),
     "idle_cycle": (("idle", KEEP), ("each", KEEP)),
@@ -347,23 +349,17 @@ class AuraControl:
         refuses them all; then they land together, before one frame, so the
         motion carries on, and glide there over the look's own fade
         (`Compositor.paint`, `Looks.glide`). An edit a save keeps, as a
-        `set` is."""
-        stack = self._deck.fader.current
-        colorways = stack.colorways
-        if not isinstance(name, str) or name not in colorways:
-            return unknown("colorway", name, colorways, suggest=True)
-        controls = stack.controls
-        sets: list[tuple[str, Knob, Any]] = []
-        for path, value in colorways[name].items():
-            found, reason = controls.parse(path, value)
-            if reason is not None:
-                return f"colorway {name!r}: {reason}"
-            assert found is not None
-            sets.append((path, *found))
+        `set` is, which holds the look's colorway drift off for a dwell."""
+        sets, reason = self._deck.fader.current.colorway_sets(name)
+        if reason is not None:
+            return reason
+        assert sets is not None
 
         def apply() -> None:
             looks = self._looks
             self._deck.fader.current.paint(sets, looks.glide() if looks is not None else DEFAULT_FADE)
+            if looks is not None:
+                looks.hold_drift()
 
         self._calls.call_soon(lambda: self._operator(apply))
         return None
@@ -517,6 +513,15 @@ class AuraControl:
             check_on_off("cycle", on),
         )
 
+    def drift(self, name: object, on: object) -> str | None:
+        """Set whether a look's colorway drift runs (`Looks.set_drift`),
+        stored in the looks file at once, as its cycle flag is."""
+        return self._look(
+            name, None, "is still changing",
+            lambda looks: looks.set_drift(name, on),  # type: ignore[arg-type]
+            check_on_off("drift", on),
+        )
+
     def favorite(self, name: object, on: object) -> str | None:
         """Set whether a look is one of the main row's favorites."""
         return self._look(
@@ -638,8 +643,13 @@ class AuraControl:
         return fn()
 
     def _set(self, path: str, knob: Knob, value: Any) -> None:
-        """Operator input: set `knob` at address `path` (`_put`)."""
+        """Operator input: set `knob` at address `path` (`_put`). A set of
+        a knob one of the look's colorways sets holds its drift off for a
+        dwell."""
         self._operator(lambda: self._put(path, knob, value))
+        looks = self._looks
+        if looks is not None and any(path in values for values in self._deck.fader.current.colorways.values()):
+            looks.hold_drift()
 
     def _put(self, path: str, knob: Knob, value: Any) -> None:
         """Set `knob` at address `path`, as it passed `parse` on another

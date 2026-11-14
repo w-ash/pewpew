@@ -51,3 +51,31 @@ test("a look with no colorways shows no row", async () => {
   receive(stack({ colorways: [], colorway: null }));
   await expect.element(screen.getByRole("group", { name: "colorways" })).not.toBeInTheDocument();
 });
+
+const looks = (patch: Partial<NonNullable<AuraState["looks"]>>) => ({ type: "aura" as const, ...AURA, looks: { ...AURA.looks!, ...patch } });
+
+test("drift, at the row's head, shows and switches the current look's colorway drift", async () => {
+  const { screen, sent, receive } = await renderWired(<LookPanel />);
+  const current = AURA.looks!.current!;
+  const drift = screen.getByRole("button", { name: "drift" });
+  await expect.element(drift).toHaveAttribute("aria-pressed", "false");
+  expect(drift.element().closest(".colorways > .param-head")).not.toBeNull();
+  await drift.click();
+  expect(sent).toEqual([{ type: "drift", name: current, on: true }]);
+  receive(looks({ items: AURA.looks!.items.map((item) => ({ ...item, drift: item.name === current })) }));
+  await expect.element(drift).toHaveAttribute("aria-pressed", "true");
+  await drift.click();
+  expect(sent.at(-1)).toEqual({ type: "drift", name: current, on: false });
+});
+
+test("drift is offered only for a saved look with 2 colorways or more", async () => {
+  const { screen, receive } = await renderWired(<LookPanel />);
+  const drift = screen.getByRole("button", { name: "drift" });
+  await expect.element(drift).toBeInTheDocument();
+  receive(stack({ colorways: ["green"], colorway: "green" }));
+  await expect.element(drift).not.toBeInTheDocument();
+  receive(stack({ colorways: ["green", "red"], colorway: "green" }));
+  await expect.element(drift).toBeInTheDocument();
+  receive(looks({ made: "surprise 7" }));
+  await expect.element(drift).not.toBeInTheDocument();
+});

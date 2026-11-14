@@ -165,7 +165,8 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(looks={"a": layered("solid_test", [1])}),
      "look 'a': layers.base.solid: 'args' is an object of name: value"),
     (looks_file(looks={"a": {"pattern": "solid"}}),
-     "look 'a': unknown key 'pattern'; expected colorways, cycle, fade, front, layers, master, routes, seed, signals"),
+     ("look 'a': unknown key 'pattern'; expected colorway_drift, colorways, cycle, fade, front, layers, master, "
+     "routes, seed, signals")),
     (looks_file(looks={"a": layered("solid_test", routes=[{"source": "breath", "path": "layers.base.opacity",
                                                       "depth": 0.2}])}),
      "look 'a': routes[0]: unknown signal 'breath'; signals: (none)"),
@@ -936,7 +937,7 @@ def served(tmp_path):
 def test_a_new_client_gets_the_looks(served):
     *_, greeting = served
     looks = greeting["aura"]["looks"]
-    assert looks["items"] == [{"name": "blue", "cycle": False, "fade": 2.0}]
+    assert looks["items"] == [{"name": "blue", "cycle": False, "fade": 2.0, "drift": False}]
     assert (looks["current"], looks["changed"], looks["fading"], looks["cycling"]) == (None, False, None, False)
 
 

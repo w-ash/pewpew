@@ -27,6 +27,16 @@ series (batch mode).
   stops each side has, a number on a line, a hue the short way round, a choice at
   once. A press mid-glide glides on from what shows; `fx render --colorway` shows
   the colours settled.
+- Colorway drift: a look's optional `colorway_drift`, such as
+  `{"every": [60, 180], "names": ["ember", "ice"]}`, changes its colorway by itself
+  while it is current, after a dwell drawn from `every`, never to the one showing,
+  gliding there; seeded by the look's seed and engine time, so a run replays the
+  same. It is the look playing: no unsaved edit, and the idle cycle's wait runs on;
+  an operator's colorway press or a set of one of its knobs holds it off a dwell.
+  The new `drift` request switches it (`"on"`), stored in the file at once; each of
+  the looks state's `items` carries `drift`; the Console's colorway row has a wind
+  sign at its head to switch it. `fx check` refuses a bad one by path, such as
+  `colorway_drift.names[1]`.
 - The `spherical` coord op: wraps a pattern round a point in 3D, its plane's first
   axis becoming the true distance from the point, its second the turn and the
   normal the elevation, so `osc(6).spherical()` is shells round the point. `cx`,

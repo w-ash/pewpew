@@ -95,6 +95,7 @@ from pewpew.fx.bound_program import BoundProgram
 from pewpew.fx.compile import label_of
 from pewpew.fx.graph import Graph
 from pewpew.mapping import dimensions
+from pewpew.params.kinds import Parsed
 from pewpew.render import Renderer, RenderFailure, error_frame
 
 logger = logging.getLogger(__name__)
@@ -264,6 +265,24 @@ class Compositor:
         """The look's colorways, each less the addresses that name no whole
         knob of the stack now (module docstring)."""
         return self._live_colorways
+
+    def colorway_sets(self, name: object) -> Parsed[list[tuple[str, Knob, Any]]]:
+        """Each knob colorway `name` sets, by address, with the value
+        parsed as `Controls.parse` parses one (`paint` takes them), or why
+        not: a name that is no colorway of the stack, with the closest, or
+        a value its knob refuses, named `colorway '<name>'`. Never raises;
+        any thread."""
+        colorways, controls = self._live_colorways, self._controls
+        if not isinstance(name, str) or name not in colorways:
+            return None, unknown("colorway", name, colorways, suggest=True)
+        sets: list[tuple[str, Knob, Any]] = []
+        for path, value in colorways[name].items():
+            found, reason = controls.parse(path, value)
+            if reason is not None:
+                return None, f"colorway {name!r}: {reason}"
+            assert found is not None
+            sets.append((path, *found))
+        return sets, None
 
     def colorway(self) -> str | None:
         """The active colorway, or None (module docstring)."""

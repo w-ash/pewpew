@@ -1096,6 +1096,20 @@ Status stays **Proposed**.
 - **The glide time is the look's `fade`.** It is the look's existing
   "how gently this look changes", already set per look from the Console;
   a look that cuts in cuts its colours too.
+- **Colorway drift, opt-in per look.** A look's optional
+  `colorway_drift` (`{"every": [60, 180], "names": [...], "on": true}`)
+  changes its colorway by itself while it is current: after a dwell drawn
+  from `every` it takes one of `names` (default all, at least 2) other
+  than the active one, gliding there. Each change draws from a
+  counter-based stream keyed by the look's seed and the count of changes
+  since its recall, at engine time, so a run with the same inputs changes
+  the same way; no wall clock. A change is the look playing, not an edit:
+  what "changed since saved" compares with moves by the same knobs, so
+  it marks no unsaved edit and is no operator input to the idle cycle. An
+  operator's colorway press, or a set of a knob a colorway sets, holds it
+  off one more dwell; a recall starts it again. Its `on` is switched like
+  the cycle flag, written to the file at once; a save keeps the key less
+  the colorways gone. Only a saved, current look drifts.
 
 ### Evidence
 
@@ -1107,6 +1121,15 @@ Status stays **Proposed**.
   part of the state moves there over seconds.
 - [S055] OKLab is built for blending and gradients, the space pewpew's
   palettes already blend their stops in (ADR-001).
+- [S1265] Chromatik's snapshots carry an auto-cycle flag, so a set of
+  partial states can step by itself, as a drift steps a look's colorways.
+- [S1266] LedFx's playlists play in sequence or shuffled, with a duration
+  variation per item, the shape of a drift's dwell drawn between two
+  bounds.
+- [S1507] MadMapper's scene columns play once, in a loop or at random.
+- [S1412] A counter-based generator gives the draw for a given key and
+  counter with no carried state, so a drift's change `n` of a look seeded
+  `s` is the same whatever ran before it.
 
 ### Rejected alternatives
 
@@ -1126,3 +1149,17 @@ Status stays **Proposed**.
 - **A key of its own for the glide time** (`colorway_glide`). One more
   key per look and one more control, where the look's fade already says
   how gently it changes.
+- **Leave a look's change to the idle cycle.** The cycle changes the
+  whole look and runs only when no one touches the aura for `idle`
+  seconds; a look an operator chose and left running would still loop
+  unchanged.
+- **Drive the palette from a signal.** A route moves a float, an int or a
+  color's part (ADR-006 modulation); a palette is none of them, and a
+  route on a palette's `shift` turns its hues but cannot reach another
+  colorway's stops.
+- **A drift that counts as an edit.** It would mark the look changed and
+  hold the idle cycle's wait, which exists for an operator's edits, and a
+  save would be offered for colours nobody chose.
+- **An unseeded or wall-clock draw.** The same file would play
+  differently on each run, against pewpew's determinism rule (T-1…T-5);
+  a stream per change number keeps each draw its own [S1412].

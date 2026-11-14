@@ -280,6 +280,34 @@ one, or null. A save keeps the colorways, less the knobs an edit took
 away (a colorway left with none goes), and the idle cycle and the
 triggers play a look as saved.
 
+A look may ask to change colorway by itself now and then, so a look left
+running keeps moving on, with `colorway_drift`:
+
+```json
+"colorway_drift": {"every": [60, 180], "names": ["ember", "ice", "dawn"]}
+```
+
+While the look is current, after a dwell drawn from `every` (seconds, 1
+to 86400, or a range `[min, max]`; default `[60, 180]`) it takes one of
+`names` (default every colorway; at least 2), never the one already
+showing, gliding there over its fade as a press does. `"on": false`
+keeps the key but stops it. The draws come from the look's `seed` and
+the engine time since its recall, so the same file changes the same way
+on every run. A change is the look playing, not an edit: it marks no
+unsaved changes and leaves the idle cycle's wait alone, and a revert of
+a knob returns it to the drifted colours. A press of a colorway, or a
+`set` of a knob one of them sets, holds the drift off for one more
+dwell; a recall starts it again. A save keeps the key, less a name that
+is gone (with fewer than 2 left it goes); a look made with `fx vary`
+keeps it the same way; a made or sent look never drifts. On the Console
+a square wind sign at the end of the colorways' head line switches it
+for the current look (a look with 2 colorways or more), written to the
+file at once as its shuffle switch is; a client sends `{"type": "drift",
+"name": "dusk", "on": true}`, and each of `looks.items` says whether its
+`drift` is on. `fx check` checks the key with a path for each problem
+(`colorway_drift.names[1]`); `verify looks` renders each colorway as it
+always does.
+
 Multiply, min, subtract and highlight over black stay black, so on the
 bottom layer they black the room. Each layer draws its own random stream
 from the look's `seed` and its own id, so adding a layer never changes

@@ -8,8 +8,10 @@ export interface LookItem {
   readonly name: string;
   /** Shuffle plays it (the idle cycle). */
   readonly cycle: boolean;
-  /** Its own fade, in seconds: what a press at "fade: as saved" and shuffle take. */
+  /** Its own fade, in seconds: what a press at "fade: as saved" and shuffle take, and what a colorway glides over. */
   readonly fade: number;
+  /** Its colorway drift runs: while it is current, it changes colorway by itself now and then. */
+  readonly drift: boolean;
 }
 
 export interface LooksState {

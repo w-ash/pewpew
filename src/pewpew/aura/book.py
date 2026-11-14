@@ -23,7 +23,9 @@ boards: writing a WLED preset freezes the board's lights for seconds
                  "signals": {"breath": {"op": "lfo", "args": {"rate": 0.05}}},
                  "routes": [{"source": "breath", "path": "layers.sparks.opacity", "depth": 0.3}],
                  "front": ["layers.base.waves.sync"],
-                 "colorways": {"ice": {"layers.base.tint.palette": "ice", "layers.sparks.opacity": 0.3}}},
+                 "colorways": {"ember": {"layers.base.tint.palette": "ember"},
+                               "ice": {"layers.base.tint.palette": "ice", "layers.sparks.opacity": 0.3}},
+                 "colorway_drift": {"every": [60, 180]}},
         "breathe": {"layers": [{"id": "base", "nodes": {"glow": {"op": "osc", "args": {"freq": 1.0}}}}]}
       },
       "cycle": {"idle": 300, "each": [40, 90], "rounds": 0, "end": null,
@@ -39,7 +41,7 @@ boards: writing a WLED preset freezes the board's lights for seconds
 
 `looks` keeps its order, which is the order the page shows. Each look's
 body (its layers and their programs, its signals, routes and front knobs,
-colorways, seed, master, fade and cycle) is the effect-program codec's
+colorways, colorway drift, seed, master, fade and cycle) is the effect-program codec's
 (pewpew.fx.codec), which reads and writes it; this module holds the file
 around it. A route's knob is judged at recall, and `route_reasons`
 lists at launch a route that no longer reaches one. A look's `colorways`
@@ -48,7 +50,10 @@ gliding there over the look's `fade` (pewpew.compose.stack,
 pewpew.compose.compositor; ADR-006 amendments "colorways" and "colorway
 glides, drift and the cycle's picks"): which colorway
 is active is never stored, so a save of the live values keeps it, and the
-idle cycle and the triggers play a look as saved. `current` is the look last recalled
+idle cycle and the triggers play a look as saved. A look's
+`colorway_drift` changes its colorway by itself now and then while it is
+current, from its seed and engine time (pewpew.aura.looks); its `on` is
+switched like `cycle`, at once in the file. `current` is the look last recalled
 or saved, so a restart comes back in it.
 
 `cycle` is the idle cycle, ADR-006's playlist under pewpew's own names,

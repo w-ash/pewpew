@@ -108,7 +108,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
           items: true, favorites: true, current: true, changed: true, fading: true, progress: true, pending: true, cycling: true, idle: true, dwell: true,
           idle_off: true, next: true, made: true, offered: true, saved: true,
         }),
-        fields: { items: { keys: keys<LookItem>({ name: true, cycle: true, fade: true }) } },
+        fields: { items: { keys: keys<LookItem>({ name: true, cycle: true, fade: true, drift: true }) } },
       },
       triggers: {
         keys: keys<TriggersState>({ armed: true, names: true, cues: true, held: true, last: true }),
@@ -209,6 +209,7 @@ const CONTROLS: { readonly [K in Control]: Fields<K> } = {
   delete: { name: true },
   rename: { name: true, to: true },
   cycle: { name: true, on: true },
+  drift: { name: true, on: true },
   favorite: { name: true, on: true },
   fade: { name: true, fade: true },
   idle_cycle: { idle: true, each: true },

@@ -152,7 +152,7 @@ test("the arm switch is absent with no trigger to arm", async () => {
 });
 
 test("the live look is scrolled into view in its row, and only the row moves", async () => {
-  const items = Array.from({ length: 12 }, (_, i) => ({ name: `look${i}`, fade: 1, cycle: false, master: false }));
+  const items = Array.from({ length: 12 }, (_, i) => ({ name: `look${i}`, fade: 1, cycle: false, master: false, drift: false }));
   const { screen, receive } = await renderWired(
     <div className="panel" style={{ width: 320, height: 60, overflowY: "auto" }}>
       <Played />
@@ -231,7 +231,7 @@ test("the saved looks are one tab stop: the arrows move between them", async () 
 
 test("the looks' legend names only the signs shown now, each with its icon", () => {
   const looks = AURA.looks!;
-  const item = (name: string, cycle: boolean) => ({ name, cycle, fade: 2 });
+  const item = (name: string, cycle: boolean) => ({ name, cycle, fade: 2, drift: false });
   const held = { ...AURA.triggers!, armed: true, held: { trigger: "door", look: "cool", until: 9 } };
   expect(looksAbout({ ...looks, items: [] }, null)).toEqual([]);
   expect(looksAbout({ ...looks, changed: true, items: [item("warm", true)] }, AURA.triggers)).toEqual([]); // nothing marked: "changed" is the header's
@@ -244,7 +244,7 @@ test("the looks' legend names only the signs shown now, each with its icon", () 
 
 test("arming cues and a cue's hold move no chip: ↩ lies in the current look's corner", async () => {
   await page.viewport(1440, 900);
-  const items = Array.from({ length: 9 }, (_, i) => ({ name: `look-${"x".repeat(i % 4)}${i}`, cycle: true, fade: 2 }));
+  const items = Array.from({ length: 9 }, (_, i) => ({ name: `look-${"x".repeat(i % 4)}${i}`, cycle: true, fade: 2, drift: false }));
   const { receive } = await renderWired(
     <div data-wide="" style={{ width: 460 }}>
       <Played />
@@ -272,7 +272,7 @@ test("arming cues and a cue's hold move no chip: ↩ lies in the current look's 
 
 test("↻ marks the fewer: the looks shuffle plays, or, slashed, those it leaves out", async () => {
   const { screen, receive } = await renderWired(<Played />);
-  const item = (name: string, cycle: boolean) => ({ name, cycle, fade: 2 });
+  const item = (name: string, cycle: boolean) => ({ name, cycle, fade: 2, drift: false });
   receive(aura({ looks: { ...AURA.looks!, items: [item("warm", true), item("cool", false), item("tide", true)], favorites: ["warm", "cool", "tide"] } }));
   await expect.element(screen.getByRole("button", { name: "cool, not in shuffle" })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "tide" })).toBeVisible();
@@ -379,7 +379,7 @@ test("a save and a delete are announced once the engine has made them, not when 
   const said = () => document.querySelector(".sr-only[role=status]:not(.variety *)")?.textContent;
   await screen.getByRole("button", { name: "save as new", exact: true }).click();
   expect(said()).toBe("");
-  const items = [...AURA.looks!.items, { name: "warm 2", cycle: true, fade: 2 }];
+  const items = [...AURA.looks!.items, { name: "warm 2", cycle: true, fade: 2, drift: false }];
   receive(aura({ looks: { ...AURA.looks!, items, current: "warm 2", changed: false } }));
   await expect.poll(said).toBe("warm 2 saved");
   await screen.getByRole("button", { name: "look settings" }).click();
@@ -411,7 +411,7 @@ test("save as new… closes once the engine has made its save, though the draft'
   await userEvent.keyboard("{Enter}");
   expect(sent.at(-1)).toEqual({ type: "save", name: "first", fade: null, master: true });
   await expect.element(box).toBeVisible(); // until the engine has made it
-  const items = [...AURA.looks!.items, { name: "first", cycle: true, fade: 2 }];
+  const items = [...AURA.looks!.items, { name: "first", cycle: true, fade: 2, drift: false }];
   receive(aura({ looks: { ...AURA.looks!, items, current: "first", changed: false, made: null, offered: "first 2" } }));
   await expect.element(caret).not.toBeInTheDocument();
   await expect.element(box).not.toBeInTheDocument(); // hidden
@@ -889,7 +889,7 @@ test("an armed button is red whatever its own style, and arming one moves nothin
 });
 
 /** Twelve looks, in file order. */
-const twelve = Array.from({ length: 12 }, (_, i) => ({ name: `look ${i + 1}`, cycle: true, fade: 2 }));
+const twelve = Array.from({ length: 12 }, (_, i) => ({ name: `look ${i + 1}`, cycle: true, fade: 2, drift: false }));
 
 test("the looks are tiles under a quiet caption, the first nine; the make actions are a row of their own, outside the tiles", async () => {
   await page.viewport(1280, 800);
@@ -954,7 +954,7 @@ test("past nine looks, all N › lists every look in the slot, the first nine wi
 
 /** The deck's looks with `names` as saved looks and `favorites` the favorites. */
 const withLooks = (names: readonly string[], favorites: readonly string[], current: string | null = null) =>
-  aura({ looks: { ...AURA.looks!, items: names.map((name) => ({ name, cycle: true, fade: 2 })), favorites, current } });
+  aura({ looks: { ...AURA.looks!, items: names.map((name) => ({ name, cycle: true, fade: 2, drift: false })), favorites, current } });
 
 const NAMES = ["surprise 10", "Tide", "surprise 2", "amber", "Zinc", "surprise 1"];
 

@@ -193,7 +193,7 @@ test("save, in the look's header while a made look plays, keeps it in one press 
   await expect.element(save).toHaveAttribute("data-busy");
   await userEvent.keyboard("k");
   expect(sent).toHaveLength(1); // busy: no second save
-  receive(looks({ items: [...AURA.looks!.items, { name: "surprise 7", cycle: false, fade: 2 }], favorites: ["warm", "cool", "surprise 7"], current: "surprise 7", made: null, offered: "surprise 8" }));
+  receive(looks({ items: [...AURA.looks!.items, { name: "surprise 7", cycle: false, fade: 2, drift: false }], favorites: ["warm", "cool", "surprise 7"], current: "surprise 7", made: null, offered: "surprise 8" }));
   await answer();
   await expect.element(screen.getByRole("button", { name: "surprise 7" })).toHaveAttribute("aria-pressed", "true");
   await expect.element(save).not.toBeInTheDocument(); // saved: nothing to save
@@ -242,7 +242,7 @@ test("a refused save of the header shows its reason under the header", async () 
 
 test("with 64 looks saved, a draft's save is off, in text-disabled, and a press or k says why, sending nothing", async () => {
   const { screen, sent, receive } = await renderWired(<Played />);
-  const items = Array.from({ length: MAX_LOOKS }, (_, i) => ({ name: `look ${i + 1}`, cycle: true, fade: 2 }));
+  const items = Array.from({ length: MAX_LOOKS }, (_, i) => ({ name: `look ${i + 1}`, cycle: true, fade: 2, drift: false }));
   receive(looks({ items, current: null, made: "surprise 7", offered: "surprise 7" }));
   const save = screen.getByRole("button", { name: "save", exact: true });
   await expect.element(save).toHaveAttribute(...OFF);

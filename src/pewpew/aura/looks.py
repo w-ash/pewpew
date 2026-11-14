@@ -16,6 +16,18 @@ master: the master stays the operator's. An operator recall, save, sent
 look or layer edit during a hold ends it, and the aura does not return: the
 operator wins.
 
+A saved look with a `colorway_drift` that is on changes colorway by
+itself while it is current (`before_frame`): after a dwell drawn from
+its `every`, it takes one of its `names` (default all) other than the
+active one, gliding there over its fade as a press does. The draws come
+from a counter-based stream keyed by the look's seed and the count of
+changes since its recall, by engine time, so the same run changes the
+same way. A change is the look playing, not an edit: it moves what the
+look is compared with (`changed`) by the same knobs, so it marks no
+unsaved edit and the idle cycle runs on. An operator's colorway press,
+or a set of a knob one of its colorways sets, holds it off for one more
+dwell (`hold_drift`); a recall starts it again.
+
 After a look a client sent no look is current: the room runs what the
 client sent, not a saved look, so the page marks no look. The file still names the look last
 recalled or saved, so a restart comes back in it. A made look plays the same way, unsaved (`play`),
@@ -47,9 +59,10 @@ from pewpew.aura.director import Director, Slot
 from pewpew.aura.master import Master
 from pewpew.aura.variety import Made, Submit, Variety, fade_to, in_background
 from pewpew.compose import DEFAULT_FADE, Layer, Look
-from pewpew.compose.stack import MAX_NAME, parse_fade
+from pewpew.compose.stack import MAX_NAME, Drift, kept_drift, parse_fade, with_colorway
 from pewpew.errors import describe_exception, unknown
 from pewpew.fx.graph import Graph
+from pewpew.fx.surprise import Draw
 from pewpew.jsonfile import write_atomic
 
 logger = logging.getLogger(__name__)
@@ -64,6 +77,16 @@ IDLE_OFF = "this run keeps shuffle off"
 
 def _edited(look: Look) -> Edited:
     return look.layers, look.signals, look.front
+
+
+@dataclass(slots=True)
+class _Drifting:
+    """The colorway drift of the current look `look`: the changes drawn
+    since its recall, and the engine time of the next. Loop thread only."""
+
+    look: str
+    count: int
+    next: float
 
 
 class _Saved(NamedTuple):
@@ -185,6 +208,8 @@ class Looks:
         # since saved" marker compares live state with this. Replaced whole,
         # read by sink workers.
         self._recalled: _Saved | None = None
+        # The current look's colorway drift, or None while no look is current.
+        self._drifting: _Drifting | None = None
         # The last failed recall that nobody was waiting on (a queued one,
         # the idle cycle); the runner shows it on the status line.
         self.error: str | None = None
@@ -223,7 +248,8 @@ class Looks:
         changed = self.changed()
         timing = self._director.timing
         return {
-            "items": [{"name": name, "cycle": look.cycle, "fade": look.fade} for name, look in book.looks.items()],
+            "items": [{"name": name, "cycle": look.cycle, "fade": look.fade,
+                       "drift": look.drift is not None and look.drift.on} for name, look in book.looks.items()],
             "favorites": book.favorite_names,
             "current": book.current,
             "changed": changed,
@@ -291,6 +317,7 @@ class Looks:
         current = self._book.current
         assert current is not None, "a run starts in the current look"
         self._recalled = self._saved(self._book.looks[current].master)
+        self._drift_from(current)
 
     def recall(self, name: str, fade: float | None = None) -> str | None:
         """Recall look `name` over `fade` seconds (None: its own fade).
@@ -342,12 +369,16 @@ class Looks:
             fade=fade if fade is not None else (old.fade if old else DEFAULT_FADE),
             cycle=old.cycle if old else bool(others) and all(other.cycle for other in others),
         )
+        look = replace(look, drift=kept_drift(old.drift if old else None, list(look.colorways)))
+        drifting = self._drifting
         reason = self._commit(self._book.with_look(name, look).with_current(name))
         if reason is None:
             self._recalled = self._saved(look.master)
             self._made = None
             self.error = None
             self.release()
+            if drifting is None or drifting.look != name:
+                self._drift_from(name)
         return reason
 
     def offered(self) -> str:
@@ -426,6 +457,8 @@ class Looks:
             self._director.rename(name, to)
             if self._fading == name:
                 self._fading = to
+            if self._drifting is not None and self._drifting.look == name:
+                self._drifting.look = to
         return reason
 
     def set_cycle(self, name: str, on: bool) -> str | None:
@@ -433,6 +466,32 @@ class Looks:
         if look is None:
             return self._unknown(name)
         return self._commit(self._book.with_look(name, replace(look, cycle=bool(on))))
+
+    def set_drift(self, name: str, on: bool) -> str | None:
+        """Set whether look `name`'s colorway drift runs, stored in the file
+        at once as its cycle flag is; a look with none takes the default
+        one (`Drift`). On for the current look, its first change comes a
+        dwell from now. Returns why not, or None."""
+        look = self._book.looks.get(name)
+        if look is None:
+            return self._unknown(name)
+        if look.drift is None and not on:
+            return None
+        try:
+            changed = replace(look, drift=replace(look.drift or Drift(), on=bool(on)))
+        except ValueError as exc:
+            return f"look {name!r} cannot drift: {exc}"
+        reason = self._commit(self._book.with_look(name, changed))
+        if reason is None and on and name == self._book.current and self._made is None:
+            self._drift_from(name)
+        return reason
+
+    def hold_drift(self) -> None:
+        """The operator chose the colours: the current look's drift waits a
+        whole dwell from now before its next change."""
+        drifting, look = self._drifting, self._drift_look()
+        if drifting is not None and look is not None and look.drift is not None:
+            drifting.next = self._fader.t + self._drift_draw(look, drifting).uniform(*look.drift.every)
 
     def set_favorite(self, name: str, on: bool) -> str | None:
         """Set whether look `name` is a favorite, one of the page's main row."""
@@ -542,6 +601,7 @@ class Looks:
         last recall's error, and make no look current or fading. The file
         keeps naming the last look (`_commit`)."""
         self._hold = self._pending = self._recalled = self._fading = self._made = self.error = None
+        self._drifting = None
         self._book = self._book.with_current(None)
 
     def _journal(self) -> _Recall:
@@ -600,6 +660,7 @@ class Looks:
                     self._fail(reason)
             if self._hold is not None:
                 return
+            self._drift(t)
             book = self._book
             # Unsaved edits are not idle: the wait starts again, so the cycle never drops them.
             cycle = self._cycle()
@@ -670,10 +731,63 @@ class Looks:
         self._recalled = self._saved(look.master)
         self._made = None
         self.error = None
+        self._drift_from(name)
         logger.info("recalled look %s", name)
         if self._commit(self._book.with_current(name)) is not None:
             logger.warning("look %r is running, but the looks file still names the last one", name)
         return None
+
+    def _drift_from(self, name: str) -> None:
+        """Start look `name`'s colorway drift afresh: its first change a
+        dwell from the engine time now."""
+        self._drifting = _Drifting(name, 0, self._fader.t)
+        look = self._drift_look()
+        if look is not None and look.drift is not None:
+            self._drifting.next += self._drift_draw(look, self._drifting).uniform(*look.drift.every)
+
+    def _drift_look(self) -> Look | None:
+        """The current look while its drift may run: no made look plays
+        and its drift is on."""
+        drifting = self._drifting
+        if drifting is None or self._made is not None or drifting.look != self._book.current:
+            return None
+        look = self._book.looks.get(drifting.look)
+        return look if look is not None and look.drift is not None and look.drift.on else None
+
+    @staticmethod
+    def _drift_draw(look: Look, drifting: _Drifting) -> Draw:
+        """The next draw of `look`'s drift: keyed by its seed, counted on."""
+        drifting.count += 1
+        return Draw("drift", look.seed, drifting.count)
+
+    def _drift(self, t: float) -> None:
+        """At engine time `t`, change the current look's colorway when its
+        drift's dwell is up (module docstring)."""
+        drifting, look = self._drifting, self._drift_look()
+        if drifting is None or look is None or look.drift is None or t < drifting.next:
+            return
+        stack = self._deck.fader.current
+        draw = self._drift_draw(look, drifting)
+        live, active = stack.colorways, stack.colorway()
+        names = [name for name in (look.drift.names or live) if name in live and name != active]
+        drifting.next = t + draw.uniform(*look.drift.every)
+        if not names:
+            return
+        name = draw.choice(names)
+        sets, reason = stack.colorway_sets(name)
+        if reason is not None:
+            logger.warning("the drift passed colorway %s over: %s", name, reason)
+            return
+        assert sets is not None
+        stack.paint(sets, self.glide())
+        recalled = self._recalled
+        if recalled is not None:
+            # The look playing, not an edit: what `changed` compares with moves by the same knobs.
+            values = live[name]
+            layers, signals, front = recalled.edited
+            painted = with_colorway(Look(layers, signals, front=front, colorways={name: values}), name)
+            self._recalled = recalled._replace(edited=_edited(painted), values={**recalled.values, **values})
+        logger.info("the drift took colorway %s", name)
 
     def _saved(self, master: float | None) -> _Saved:
         """What `changed` compares the live state with from now on: the

@@ -87,7 +87,7 @@ import numpy as np
 from pewpew.color import PRESETS
 from pewpew.compose.controls import LayerControls, layer_address, look_controls, signal_address, signal_of
 from pewpew.compose.modulation import route_problems
-from pewpew.compose.stack import Look, Route, is_seed
+from pewpew.compose.stack import Look, Route, is_seed, kept_drift
 from pewpew.errors import did_you_mean, typo_hint
 from pewpew.fx.compile import check
 from pewpew.fx.expr import Expr, Routed, layer, look, namespace
@@ -1129,7 +1129,8 @@ def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route]) -> Loo
     its knob any more (pewpew.compose.modulation.route_problems), each
     signal nothing reads, with the routes into its knobs, each front
     knob that is gone, and each colorway's knob that is gone or now refuses
-    its value, with a colorway left with none."""
+    its value, with a colorway left with none, and the colorway drift
+    less the colorways gone (pewpew.compose.stack.kept_drift)."""
     controls = look_controls(replace(made, signals=Graph(tuple(signals)) if signals else None, routes=(),
                                          front=()))
     kept = [route for route in routes if not route_problems([route], (), controls)]
@@ -1149,4 +1150,4 @@ def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route]) -> Loo
                for values in made.colorways.values())
     colorways = {name: values for name, values in zip(made.colorways, painted, strict=True) if values}
     return replace(made, signals=Graph(tuple(left)) if left else None, routes=tuple(kept), front=front,
-                   colorways=colorways)
+                   colorways=colorways, drift=kept_drift(made.drift, list(colorways)))
