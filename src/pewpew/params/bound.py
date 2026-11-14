@@ -38,7 +38,10 @@ class Bound:
     The target's attribute is the param's base value, or, while the param
     is driven, the base moved by an offset in plain units (ADR-006). The
     base stays in the set, so a control and a saved look see the
-    operator's value, never the modulated one.
+    operator's value, never the modulated one. While a param glides
+    (`glide`), the target reads, in place of its base, the value part of
+    the way from where the glide started to that base (`Param.mix`), and
+    any drive moves that.
 
     Made by `ParamSet.apply` and kept as `ParamSet.bound`; every write to
     the set reaches the target through `write`. A rebind to the same target
@@ -48,13 +51,15 @@ class Bound:
     a color's part (`color.h`). Loop thread only, as `ParamSet.set` is.
     """
 
-    __slots__ = ("_offsets", "params", "target")
+    __slots__ = ("_glides", "_offsets", "params", "target")
 
     def __init__(self, params: ParamSet, target: object) -> None:
         self.params = params
         self.target = target
         # The offset of each driven path: by param name, then by part, "" for the whole param.
         self._offsets: dict[str, dict[str, float]] = {}
+        # Each gliding param, by name: where its glide started, the base it glides to, and how far it is.
+        self._glides: dict[str, tuple[Any, Any, float]] = {}
 
     def set(self, name: str, value: object) -> bool:
         """Set the base value of `name`; returns whether it changed. Raises
@@ -92,6 +97,27 @@ class Bound:
         for name in driven:
             self.write(name)
 
+    def glide(self, name: str, start: object, w: float) -> None:
+        """Show `name` `w` of the way (0 to 1) from `start` to its base on
+        the target, until `unglide` or a set of another base, which then
+        shows at once. Raises KeyError for a name the set does not
+        declare."""
+        self._check_current()
+        self._glides[name] = (start, self.params[name], float(w))
+        self.write(name)
+
+    def unglide(self, name: str) -> None:
+        """End the glide of `name`: the target reads its base again."""
+        self._check_current()
+        if self._glides.pop(name, None) is not None:
+            self.write(name)
+
+    def shown(self, name: str) -> Any:
+        """What the target reads for `name` before any drive: its base, or
+        part of the way there while it glides."""
+        self._check_current()
+        return self._glided(name)
+
     def write(self, name: str) -> None:
         """Set the target's `name` to `value(name)`."""
         setattr(self.target, name, self.value(name))
@@ -111,8 +137,9 @@ class Bound:
             )
 
     def _moved(self, name: str, offsets: Mapping[str, float]) -> Any:
-        """The base value of `name` moved by `offsets`, by part."""
-        base = self.params[name]
+        """The base value of `name`, part of the way there while it glides,
+        moved by `offsets`, by part."""
+        base = self._glided(name)
         if not offsets:
             return base
         param = self.params.declarations[name]
@@ -121,6 +148,16 @@ class Bound:
             return replace(base, **moved)
         assert isinstance(param, Ranged)
         return param.modulate(base, offsets[""])
+
+    def _glided(self, name: str) -> Any:
+        """The base of `name`, or while it glides to that base, the value
+        the glide has reached."""
+        base = self.params[name]
+        glide = self._glides.get(name)
+        if glide is None or glide[1] is not base:
+            return base
+        start, _, w = glide
+        return self.params.declarations[name].mix(start, base, w)
 
     def _modulatable(self, path: str) -> tuple[str, str]:
         """`path` as (name, part), or why it cannot be driven: ValueError

@@ -21,6 +21,12 @@ series (batch mode).
   `compare` and `explain` take `--colorway NAME`, and the MCP `look_render` tool a
   `colorway`; `verify looks` renders each colorway through the render gates and
   fails two that show the same picture.
+- A colorway glides: a press sets each knob's own value at once (so the active
+  colorway, a snapshot and a save name the target), while the room moves there over
+  the look's own `fade`: a palette crossfades position by position in OKLab whatever
+  stops each side has, a number on a line, a hue the short way round, a choice at
+  once. A press mid-glide glides on from what shows; `fx render --colorway` shows
+  the colours settled.
 - The `spherical` coord op: wraps a pattern round a point in 3D, its plane's first
   axis becoming the true distance from the point, its second the turn and the
   normal the elevation, so `osc(6).spherical()` is shells round the point. `cx`,

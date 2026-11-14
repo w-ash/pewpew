@@ -254,6 +254,17 @@ class Looks:
             "saved": recalled.values if recalled is not None and self._compared() else None,
         }
 
+    def glide(self) -> float:
+        """The seconds a colorway glides over on the look that plays: its
+        own fade, the held look's while a trigger holds one, the made
+        look's, else the default. Any thread."""
+        book, held, made = self._book, self._hold, self._made
+        name = held.look if held is not None else book.current
+        if held is None and made is not None:
+            return made.look.fade
+        look = book.looks.get(name) if name is not None else None
+        return look.fade if look is not None else DEFAULT_FADE
+
     def changed(self) -> bool:
         """Whether the live state has moved off the look last recalled or
         saved, or the made look that plays as it started: another node,

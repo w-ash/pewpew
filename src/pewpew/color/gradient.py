@@ -3,6 +3,7 @@ reads it per pixel, and the named presets a `Palette` param can offer."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import lru_cache
 
 import numpy as np
@@ -35,7 +36,17 @@ def gradient_lut(gradient: Gradient, shift: float = 0.0) -> np.ndarray:
     color outside the gamut, a turned one too, keeps its lightness and hue
     and loses chroma until it fits: no channel is clamped on its own.
     Cached by value, and the cache shares each table, so it is read-only.
+
+    A gradient that glides (`Gradient.glide`) is the tables of its start
+    and of itself, each turned by `shift`, mixed entry by entry in OKLab,
+    so two gradients of any stops, hard edges too, blend exactly.
     """
+    if gradient.glide is not None:
+        start, w = gradient.glide
+        a, b = oklab(gradient_lut(start, shift)), oklab(gradient_lut(replace(gradient, glide=None), shift))
+        lut = _into_gamut(a + (b - a) * np.float32(w))
+        lut.setflags(write=False)
+        return lut
     stops = gradient.stops
     at = np.array([stop.at for stop in stops], dtype=np.float32)
     lab = oklab(hsv([s.color.turn for s in stops], [s.color.s for s in stops], [s.color.v for s in stops]))

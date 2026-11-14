@@ -50,6 +50,16 @@ left with none is gone. The active colorway (`colorway`) is not stored:
 it is the first whose every value equals its knob's own value, so a
 route on one of its knobs moves around that value and it stays active.
 
+A colorway lands by `paint`, which glides: each knob's own value is the
+new one at once, so the active colorway, a snapshot and a save name it
+from the press on, while what its op reads moves there from what it
+showed over the glide's seconds of engine time (`Bound.glide`, by the
+knob's `Param.mix`): a number on a straight line, a hue the short way
+round, a palette mixed per position in OKLab, a choice or a switch at
+once. Each frame steps every glide before the signals run, so a route
+moves around the gliding value. A paint during a glide glides on from
+what shows; a set of a gliding knob, or the end of its time, lands it.
+
 `now` (a clock, injected as `pewpew.pace.PacedLoop` takes it) times each
 layer's frame into `timings`. Timing never reaches a frame.
 
@@ -71,6 +81,7 @@ import numpy as np
 
 from pewpew.compose.controls import (
     Controls,
+    Knob,
     LayerControls,
     Section,
     layer_address,
@@ -100,6 +111,18 @@ class LayerError(Exception):
 
     def __reduce__(self) -> tuple[type[LayerError], tuple[str, str]]:
         return type(self), (self.layer, self.reason)
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class _Glide:
+    """One knob gliding (`Compositor.paint`): the knob, where it started,
+    the own value it glides to, and the engine time and seconds it takes."""
+
+    knob: Knob
+    start: Any
+    end: Any
+    t0: float
+    seconds: float
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -185,6 +208,7 @@ class Compositor:
         self._t = float(t)
         self._unbound: set[str] = set()
         self._timings: Mapping[str, float] = {}
+        self._glides: dict[str, _Glide] = {}
         self._bind(mapping)
         self._install(tuple(self._build(layer) for layer in layers), strict=True)
 
@@ -318,6 +342,34 @@ class Compositor:
         rest = tuple(live for live in self._layers if live is not moved)
         self._install(rest[:index] + (moved,) + rest[index:])
 
+    def paint(self, sets: Iterable[tuple[str, Knob, Any]], seconds: float) -> None:
+        """Set each knob of `sets`, `(address, knob, value)` as
+        `Controls.parse` gives them, gliding over `seconds` of engine time
+        (0: at once; module docstring). A knob that no longer runs here is
+        passed over, with the reason in the log. Loop thread only."""
+        for path, knob, value in sets:
+            found = self._controls.find(path)
+            if found is None or found.params is not knob.params:
+                logger.warning("dropped a colorway's set of %r: the node it was for no longer runs", path)
+                continue
+            bound, name = knob.params.bound, knob.name
+            start = bound.shown(name) if bound is not None else None
+            try:
+                knob.params.set(name, value)
+            except ValueError:
+                logger.warning("dropped a colorway's set of %r to %r: the param no longer accepts it", path, value)
+                continue
+            end = knob.params[name]
+            if bound is None or seconds <= 0 or start == end or not knob.params.declarations[name].glides:
+                self._glides.pop(path, None)  # the set landed it
+                continue
+            self._glides[path] = _Glide(knob, start, end, self._t, float(seconds))
+            bound.glide(name, start, 0.0)
+
+    def gliding(self) -> list[str]:
+        """The address of each knob that glides now. Loop thread only."""
+        return list(self._glides)
+
     def set_front(self, front: Sequence[str]) -> str | None:
         """Show the knobs `front` names first (`Modulation.set_front`).
         Returns why not, or None. Loop thread only."""
@@ -383,6 +435,8 @@ class Compositor:
         if t < prev:
             raise ValueError(f"time never goes backwards: advance_to({t!r}) is before the current t={prev!r}")
         self._t = t
+        if self._glides:
+            self._glide(t)
         self._modulation.advance(t, t - prev, self._features)
         on = [live for live in self._layers if live.mix.enabled]
         for live in on:
@@ -410,6 +464,21 @@ class Compositor:
         finally:
             if self._now is not None:
                 self._timings = timings
+
+    def _glide(self, t: float) -> None:
+        """Move each glide to engine time `t`; land one whose time is up,
+        whose knob was set since or no longer runs."""
+        for path, glide in list(self._glides.items()):
+            knob = glide.knob
+            bound, w = knob.params.bound, (t - glide.t0) / glide.seconds
+            found = self._controls.find(path)
+            if bound is not None and w < 1.0 and found is not None and found.params is knob.params \
+                    and knob.params[knob.name] is glide.end:
+                bound.glide(knob.name, glide.start, w)
+                continue
+            del self._glides[path]
+            if bound is not None:
+                bound.unglide(knob.name)
 
     def error_frame(self, t: float) -> np.ndarray:
         """The pulsing-red frame at engine time `t`, one row per pixel."""

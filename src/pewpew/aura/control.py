@@ -72,7 +72,7 @@ from pewpew.aura.master import Master
 from pewpew.aura.triggers import Triggers
 from pewpew.aura.variety import Made, Variety, fade_to, in_background
 from pewpew.compose import Knob, Look, layer_address
-from pewpew.compose.stack import check_fade, check_on_off, parse_fade
+from pewpew.compose.stack import DEFAULT_FADE, check_fade, check_on_off, parse_fade
 from pewpew.errors import Refusal, describe_exception, unknown
 from pewpew.fx import catalog as book
 from pewpew.fx.codec import MAX_LAYERS, out_id
@@ -345,7 +345,9 @@ class AuraControl:
         """Set every knob of the running look's colorway `name` at once:
         each value is parsed here, as `set` parses one, and one refused
         refuses them all; then they land together, before one frame, so the
-        motion carries on. An edit a save keeps, as a `set` is."""
+        motion carries on, and glide there over the look's own fade
+        (`Compositor.paint`, `Looks.glide`). An edit a save keeps, as a
+        `set` is."""
         stack = self._deck.fader.current
         colorways = stack.colorways
         if not isinstance(name, str) or name not in colorways:
@@ -360,8 +362,8 @@ class AuraControl:
             sets.append((path, *found))
 
         def apply() -> None:
-            for path, knob, parsed in sets:
-                self._put(path, knob, parsed)
+            looks = self._looks
+            self._deck.fader.current.paint(sets, looks.glide() if looks is not None else DEFAULT_FADE)
 
         self._calls.call_soon(lambda: self._operator(apply))
         return None

@@ -104,6 +104,14 @@ class Param(ABC, Generic[T]):
         """`value` in its JSON form."""
         return value
 
+    # Whether a change of this kind's value can glide (`mix`); a kind that cannot changes at once.
+    glides: ClassVar[bool] = False
+
+    def mix(self, a: T, b: T, w: float) -> T:
+        """The value `w` of the way (0 to 1) from `a` to `b`, which a glide
+        shows: `b`, since this kind changes at once."""
+        return b
+
     def spec(self) -> dict[str, Any]:
         """The JSON declaration record a control surface builds from.
         Built once: a declaration does not change after its class is made."""
@@ -253,6 +261,17 @@ class Ranged(Param[N]):
             return value  # untouched: the wrap below rounds a value far smaller than `lo`
         wrapped = self.lo + (value - self.lo) % span
         return wrapped if wrapped < self.hi else self.lo  # float noise can land on `hi`, the same point as `lo`
+
+    glides = True
+
+    def mix(self, a: N, b: N, w: float) -> N:
+        """The value `w` of the way (0 to 1) from `a` to `b` on a straight
+        line, the short way round when periodic; an `Int` rounds."""
+        offset = b - a
+        if self.periodic:
+            span = self.hi - self.lo
+            offset = (offset + span / 2) % span - span / 2
+        return self.modulate(a, offset * w)
 
     @abstractmethod
     def _nearest(self, value: float) -> N:
@@ -433,6 +452,13 @@ class Color(Param[HSV]):
     def to_json(self, value: HSV) -> dict[str, float]:
         return {name: getattr(value, name) for name in self.parts}
 
+    glides = True
+
+    def mix(self, a: HSV, b: HSV, w: float) -> HSV:
+        """Each part `w` of the way from `a`'s to `b`'s (`Ranged.mix`): the
+        hue the short way round."""
+        return HSV(**{name: part.mix(getattr(a, name), getattr(b, name), w) for name, part in self.parts.items()})
+
     def _extra(self) -> dict[str, Any]:
         return {"parts": _part_records(self.parts)}
 
@@ -533,6 +559,21 @@ class Palette(Param[Gradient]):
     def to_json(self, value: Gradient) -> dict[str, Any]:
         stops = [{"at": stop.at, **self._color.to_json(stop.color)} for stop in value.stops]
         return {"label": value.label, "stops": stops}
+
+    glides = True
+    # The steps a glide's weight takes, so a glide builds at most this many tables (pewpew.color.gradient_lut):
+    # a step moves a color by 1/128 of its change in OKLab, far below what an eye tells apart.
+    glide_steps: ClassVar[int] = 128
+
+    def mix(self, a: Gradient, b: Gradient, w: float) -> Gradient:
+        """`b` holding `a` as its glide's start (`Gradient.glide`): its
+        colors `w` of the way from `a`'s to `b`'s at each position, mixed
+        in OKLab, whatever stops each has. `a` may glide itself, so a
+        glide that starts mid-glide goes on from what shows."""
+        w = round(min(max(w, 0.0), 1.0) * self.glide_steps) / self.glide_steps
+        if a == b or w == 1.0:
+            return b
+        return Gradient(b.stops, b.label, (a, w))
 
     def _extra(self) -> dict[str, Any]:
         return {

@@ -259,9 +259,21 @@ JSON form (a palette's stops, a number as a float). On the Console the
 look panel shows a chip per colorway above the look's knobs; a press sets
 every knob of it in one frame, as one edit: nothing restarts, a route on
 one of its knobs moves around the new value, the look shows unsaved
-changes until a save, and reverting brings the saved colours back. The
-chip of the active colorway is lit: the first whose every value is its
-knob's own value now, so turning one of its knobs by hand leaves no chip
+changes until a save, and reverting brings the saved colours back.
+
+A press glides: each knob's own value is the new one at once, while what
+the room shows moves there over the look's own `fade` (0 changes at
+once). A palette crossfades position by position in OKLab, as its stops
+blend, whatever stops each side has; a number moves on a straight line,
+a hue the short way round; a blend, a choice or a switch changes at the
+start. A press during a glide glides on from the colours showing, a `set`
+of a gliding knob lands it at once, and a save during a glide stores
+where it is going. `fx render --colorway` renders the colours settled,
+with no glide, so its handles stay comparable.
+
+The chip of the active colorway is lit: the first whose every value is its
+knob's own value now, so it names where a glide is going from the press
+on, and turning one of its knobs by hand leaves no chip
 lit. A client sends `{"type": "colorway", "name": "ice"}`; the aura state's
 `stack.colorways` lists the names and `stack.colorway` names the active
 one, or null. A save keeps the colorways, less the knobs an edit took

@@ -1057,3 +1057,72 @@ That a recall restarts a look's state rests on pewpew's own code
 - **Storing the active colorway.** It would go stale the moment a knob is
   turned by hand and would need its own key in the file; deriving it from
   the values costs a comparison per state message.
+
+
+## Amendment (2026-11-13) — colorway glides, drift and the cycle's picks
+
+After watching looks on diffused lights, the maintainer asked for looks
+that change more by themselves, rather than play the same thing on a
+loop, and for more colour versions per look. A colorway press snapped
+every knob in one frame, so the room jumped in colour, and a look left
+running kept one colorway until someone pressed another. Code:
+`src/pewpew/params/kinds.py` (`Param.mix`), `src/pewpew/params/bound.py`
+(`Bound.glide`), `src/pewpew/color/gradient.py`,
+`src/pewpew/compose/compositor.py` (`paint`), `src/pewpew/aura/looks.py`,
+`src/pewpew/compose/stack.py`.
+
+Status stays **Proposed**.
+
+### Decision
+
+- **More colorways.** A look holds up to 24 colorways (was 12), each
+  still of at most 32 knobs; the Console's chip row wraps.
+- **A colorway glides.** A colorway that lands (a press, the `colorway`
+  request) sets each knob's own value at once, so the active colorway, a
+  snapshot and a save name the target from the press on, while what the
+  op reads moves there over the look's own `fade`, by engine time; a fade
+  of 0 changes at once. Each param kind says how it moves (`Param.mix`):
+  a number on a straight line, a periodic one (a hue) the short way
+  round, a color by its parts, a palette per position in OKLab; a choice
+  or a switch changes at the start. A palette mid-glide is its target's
+  stops holding the start gradient and a weight (`Gradient.glide`), and
+  its table is the two tables mixed entry by entry in OKLab, so two
+  gradients of any stop counts, hard edges too, blend exactly; the weight
+  steps in 1/128ths, so a glide builds at most 128 tables. A route moves
+  around the gliding value. A press mid-glide glides on from what shows;
+  a `set` of a gliding knob lands it. An offline render with
+  `--colorway` shows the colours settled, so its handles stay
+  comparable.
+- **The glide time is the look's `fade`.** It is the look's existing
+  "how gently this look changes", already set per look from the Console;
+  a look that cuts in cuts its colours too.
+
+### Evidence
+
+- [S645:wled00/FX_fcn.cpp#L1330-L1367] WLED hands a transition's
+  progress to `beginDraw(prog)`, which "will also blend colors and
+  palette if blend style is FADE": a firmware for LEDs moves a palette
+  change over a transition rather than in one frame.
+- [S1265] Chromatik's snapshots carry a transition time, so a recall of
+  part of the state moves there over seconds.
+- [S055] OKLab is built for blending and gradients, the space pewpew's
+  palettes already blend their stops in (ADR-001).
+
+### Rejected alternatives
+
+- **Snap, as before.** The room jumps in colour on every press, which is
+  what the maintainer saw and asked to lose.
+- **Recall a copy of the look per colorway, with its crossfade.** A
+  recall builds a fresh stack, so feedback, particles and signals restart
+  on every swap (MadMapper's scene model, [S1507]; the "colorways"
+  amendment above).
+- **Resample both gradients to shared stops and lerp the stops.** It needs
+  more stops than a palette holds (16) when the two sides' positions
+  differ, and a stop's color would go back to HSV, which an OKLab mix
+  leaves; mixing the two tables is exact and needs neither [S055].
+- **Finish the running glide on a second press**, as Chromatik finishes a
+  fade on a re-recall [S1265]: the room would jump to the first target
+  before the second glide starts.
+- **A key of its own for the glide time** (`colorway_glide`). One more
+  key per look and one more control, where the look's fade already says
+  how gently it changes.

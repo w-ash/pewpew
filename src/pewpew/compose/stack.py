@@ -14,7 +14,8 @@ moved, is checked against the stack's knobs
 A look's `colorways` are named sets of knob values, by address, each
 value in its knob's JSON form (ADR-006 amendment "colorways"): a press
 sets them all at once, so the look takes other colours while its motion
-carries on. `parse_colorways` checks them against a stack's knobs, and
+carries on, and the running stack glides there over the look's `fade`
+(pewpew.compose.compositor `paint`). `parse_colorways` checks them against a stack's knobs, and
 `with_colorway` gives the look with one of them set.
 
 A layer's program is an effect program (pewpew.fx): nodes of ops, the

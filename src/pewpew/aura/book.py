@@ -43,8 +43,10 @@ colorways, seed, master, fade and cycle) is the effect-program codec's
 (pewpew.fx.codec), which reads and writes it; this module holds the file
 around it. A route's knob is judged at recall, and `route_reasons`
 lists at launch a route that no longer reaches one. A look's `colorways`
-are named sets of knob values, by address, that a page sets in one press
-(pewpew.compose.stack; ADR-006 amendment "colorways"): which colorway
+are named sets of knob values, by address, that a page sets in one press,
+gliding there over the look's `fade` (pewpew.compose.stack,
+pewpew.compose.compositor; ADR-006 amendments "colorways" and "colorway
+glides, drift and the cycle's picks"): which colorway
 is active is never stored, so a save of the live values keeps it, and the
 idle cycle and the triggers play a look as saved. `current` is the look last recalled
 or saved, so a restart comes back in it.
