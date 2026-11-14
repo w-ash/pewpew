@@ -108,25 +108,14 @@ class AxisChoice(Choice):
     """A choice of where on the map an op works: an axis (x, y, z), `u`,
     `all`, or a plane (`auto`, xy, xz, yz). A choice to every surface;
     `Op.shows` reads its options as places (`reach`). Made by
-    `axis_choice` and `plane_choice`.
-
-    `alike` is true for a choice whose options can show alike for a
-    reason the op cannot see: `spherical` in xy and in xz puts the
-    input's x on the distance in both, so an input that reads only x
-    shows the same in each. Liveness then needs one option of the choice,
-    not each, to change the picture (pewpew.lab.liveness)."""
-
-    def __init__(self, default: str, options: Mapping[str, str], *, alike: bool = False, **meta: Any) -> None:
-        self.alike = alike
-        super().__init__(default, options, **meta)
+    `axis_choice` and `plane_choice`."""
 
 
 def plane_choice(**meta: Any) -> AxisChoice:
     """The `plane` arg of an op that works in a plane: `auto` (the two axes
-    the map spreads most along) or one of xy, xz, yz. Its options may read
-    the input alike (`AxisChoice.alike`)."""
+    the map spreads most along) or one of xy, xz, yz."""
     options = {AUTO: "Auto", **{plane: plane for plane in PLANES}}
-    return AxisChoice(AUTO, options, alike=True, help="Which two axes it works across; auto picks the room's", **meta)
+    return AxisChoice(AUTO, options, help="Which two axes it works across; auto picks the room's", **meta)
 
 
 def axis_choice(default: str = "x", *, also: Iterable[str] = (), **meta: Any) -> AxisChoice:

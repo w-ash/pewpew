@@ -35,13 +35,15 @@ z on a panel), at either end; and a choice of axis or plane whose two
 values read the map alike (`plane` from `auto` to the plane `auto` takes,
 `axis` from `u` to the one axis a strip spreads along).
 
-A choice whose options can show alike for a reason the op cannot see
-(`AxisChoice.alike`: a `plane`) is live when any one of its options
-changes the picture; an option that shows as the first does is then not
-a failure, but `alike`. `osc(6).spherical()` reads only the distance,
-which `plane` xy and xz both put on x, so xz shows as xy does while yz,
-which puts it on y, changes the picture. The rule is the knob's, not each
-option's: a choice none of whose options changes anything is still dead.
+A choice is one knob, live when any one of its options changes the
+picture; an option that shows as the first does is then not a failure,
+but `alike`, as a float is probed at its two ends and never asked to
+change the picture at every value between. Options coincide for reasons
+an op cannot see: `osc(6).spherical()` reads only the distance, which
+`plane` xy and xz both put on x; `blend`'s `stencil` is `normal` where
+the second input is never 0, as a noise never is; `min` is the first
+input where it is always the darker. A choice none of whose options
+changes anything is still dead.
 
 A layer's mix (opacity, blend, enabled) is not probed: what it does
 depends on the layers below, and the bottom layer's blend over nothing
@@ -62,13 +64,12 @@ import numpy as np
 from pewpew.compose import layer_address
 from pewpew.compose.controls import signal_address
 from pewpew.fx.graph import Graph, Node
-from pewpew.fx.op import AxisChoice
 from pewpew.fx.ops import OPS
 from pewpew.lab.check import Ready
 from pewpew.lab.geometry import Geometry
 from pewpew.lab.rendering import play
 from pewpew.metrics import LIVENESS_RMS, rms
-from pewpew.params import ParamSet, declared_params
+from pewpew.params import ParamSet
 from pewpew.params.probes import probes
 from pewpew.problems import Refused
 from pewpew.result import Result
@@ -98,7 +99,7 @@ class KnobProbe(Result):
     live: bool
     error: str | None = None
     # Shows as the first option does, where another option of the same
-    # `AxisChoice.alike` choice changes the picture: live, by the knob.
+    # choice changes the picture: live, by the knob (module docstring).
     alike: bool = False
     seconds: float = (LIVENESS_WARMUP + LIVENESS_FRAMES) / LIVENESS_FPS
 
@@ -146,20 +147,24 @@ def each_probe(staged: Ready, geometry: Geometry, seed: int, *, patient: bool = 
             shown = _renders(partial(moved, name), geometry, seed, LIVENESS_WARMUP, LIVENESS_FRAMES)
             ran = (_probe(shown, f"{owner}.{probe}", a, b)
                    for probe, a, b in pairs if op.shows(name, a, b, values, spans))
-            param = declared_params(op).get(name)
-            if isinstance(param, AxisChoice) and param.alike:
-                ran = iter(_alike(tuple(ran)))
-            if not patient:
-                yield from ran
-                continue
             frames = int(PATIENT_SECONDS * LIVENESS_FPS)
             longer = _renders(partial(moved, name), geometry, seed, frames - PATIENT_FRAMES, PATIENT_FRAMES)
-            yield from (_again(longer, probe) for probe in ran)
+            if record["kind"] == "choice":
+                # One live option makes the knob live, so the longer look
+                # is for a choice none of whose options shows at once.
+                options = tuple(ran)
+                if patient and not any(probe.live for probe in options):
+                    options = tuple(_again(longer, probe) for probe in options)
+                yield from _alike(options)
+            elif patient:
+                yield from (_again(longer, probe) for probe in ran)
+            else:
+                yield from ran
 
 
 def _alike(ran: tuple[KnobProbe, ...]) -> tuple[KnobProbe, ...]:
-    """The probes of one `AxisChoice.alike` choice: when any is live, each
-    that ran and did not change the picture is live and `alike`."""
+    """The probes of one choice knob: when any is live, each that ran and
+    did not change the picture is live and `alike`."""
     if not any(probe.live for probe in ran):
         return ran
     return tuple(replace(probe, live=True, alike=True) if not probe.live and probe.error is None else probe

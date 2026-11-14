@@ -553,6 +553,21 @@ def test_a_plane_that_reads_the_input_alike_passes_when_another_plane_shows() ->
     assert {"layers.base.spherical.plane=xz", "layers.base.spherical.plane=yz"} <= set(wired), wired
 
 
+def test_a_blend_mode_that_shows_as_normal_passes_when_another_mode_shows() -> None:
+    """A noise is never 0, so `stencil` shows as `normal` over it: `alike`,
+    not dead, since the other modes change the picture. At `amount` 0 no
+    mode shows, and `mode` is dead."""
+    def probed(amount: float) -> tuple[KnobProbe, ...]:
+        chain = f'noise(3).blend(noise(5, 0.2), "normal", {amount}).palette("ember")'
+        return probe_knobs(ready(look(layer("base", program_of(chain)), seed=7)), parse_geometry("lattice:6"), 0)
+
+    mixed = probed(0.5)
+    assert [p.path for p in mixed if p.alike] == ["layers.base.blend_.mode=stencil"] and not dead(mixed)
+    still = [path for path in dead(probed(0.0)) if ".mode=" in path]
+    modes = next(record for record in ParamSet(OPS["blend"]).describe() if record["name"] == "mode")["options"]
+    assert len(still) == len(modes) - 1, still
+
+
 @pytest.mark.parametrize("dims", sorted(MAPS))
 @pytest.mark.parametrize("name, a, b", [("gain", 0.3, 0.8), ("lacunarity", 1.75, 3.0), ("ridge", 0.0, 1.0)])
 def test_noise_gain_lacunarity_and_ridge_change_the_picture_on_each_map(

@@ -509,8 +509,9 @@ spread along, such as `lissajous`'s `b` on a strip along x, or `mirror`'s
 choices that read the map alike, such as `u` against the axis a strip runs
 along; and a knob another knob switches off, such as `shape`'s `plane` for
 a circle, `polar`'s center along the plane's normal while `spiral` is 0,
-and `pulse`'s `rate` on the beat. A `plane` needs one of its options, not
-each, to change the picture (§6).
+and `pulse`'s `rate` on the beat. A choice, such as a `plane` or a
+`blend` mode, needs one of its options, not each, to change the picture
+(§6).
 
 Each keeps to one color family, starts dark and keeps its bright colors
 saturated, so a diffuser blending neighbouring lights does not wash it to
@@ -628,12 +629,14 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   reads dead in that second is rendered again for 8 s, the last 4 s
   compared, and fails only if it is still dead there, so a slow knob (a
   `walk` at 0.02 Hz, a long `decay`, a `diffuse` bleed, a slow shell)
-  passes without a faster setting; the failure says "in 8 s". A choice of
-  `plane` passes when any of its options changes the picture: the op
-  cannot see what its input reads, and `osc(6).spherical()` reads only
-  the distance, which xy and xz both put on x, so xz shows as xy does
-  (`alike` in `--json`) while yz changes it. A `plane` none of whose
-  options changes anything still fails. A render under one second fails,
+  passes without a faster setting; the failure says "in 8 s". A choice
+  is one knob, which passes when any of its options changes the picture,
+  as a float passes on its two ends: an option that shows as the first is
+  `alike` in `--json`, not a failure. Options coincide on the inputs a
+  look gives them: `osc(6).spherical()` reads only the distance, which
+  `plane` xy and xz both put on x; `blend`'s `stencil` is `normal` where
+  the second input is never 0, as a noise never is. A choice none of
+  whose options changes anything still fails. A render under one second fails,
   since it is too short to count flashes per second. It renders fresh,
   never from the cache. Each colorway renders too and passes the same
   render gates (no layer raises, the flash rate, not all black), its knobs

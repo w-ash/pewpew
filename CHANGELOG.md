@@ -1558,10 +1558,11 @@ series (batch mode).
 
 ### Fixed
 
-- `verify looks` passed no look with `osc(...).spherical()` on a 3D map: `plane` xz
-  showed as xy, since both put the distance on x. A `plane` is now live when any of
-  its options changes the picture (`alike` marks one that shows as the first); one
-  none of whose options changes anything still fails.
+- `verify looks` passed no look with `osc(...).spherical()` on a 3D map, since `plane`
+  xz showed as xy, and no look with a `blend` of a noise, since `mode=stencil` showed
+  as `normal` where the second input is never 0. A choice is now live when any of its
+  options changes the picture (`alike` marks one that shows as the first); one none
+  of whose options changes anything still fails.
 - A beat `pulse` starts with the shells the beat would have sent in the last 20 s,
   at the tempo its phase moves at, so it no longer opens on an empty rig and its
   `fade`, `life` and center no longer read dead in `verify looks`.
