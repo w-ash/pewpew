@@ -18,7 +18,7 @@ One tick, in order, on the loop thread:
 4. Each `after` stage takes `(t, frame)` and returns the frame or a new
    array, never writing into it (blink, then the master). The loop copies
    the frame when no stage replaced it and makes the result read-only.
-5. The loop sleeps to the end of the frame's slot, then every `on_frame`
+5. The loop waits to the end of the frame's slot (`precise_sleep`), then every `on_frame`
    callable gets that one shared copy. Frames go out on the slot schedule,
    one period after their slot starts, whatever each render costs, so a
    sink sees them evenly spaced (a board that drops frames closer than
@@ -58,11 +58,28 @@ logger = logging.getLogger(__name__)
 
 ASK_TIMEOUT_S = 5.0
 STOPPING = "the aura is stopping"
+# `precise_sleep` spins this last part of a wait. macOS wakes a plain sleep
+# up to about 4 ms late, so a 60 fps stream went out at 13-21 ms intervals;
+# with the spin, at 15-18.5 ms, which is as even as the probe could measure.
+SPIN_S = 0.002
 
 R = TypeVar("R")  # what an `ask` closure refuses with
 
 # A stage after the render: `(t, frame) -> frame`, never writing into `frame`.
 Stage = Callable[[float, np.ndarray], np.ndarray]
+
+
+def precise_sleep(seconds: float) -> None:
+    """Wait `seconds`: sleep until `SPIN_S` before the end, then spin.
+
+    The spin holds the GIL, so other threads wait for at most `SPIN_S`
+    a frame.
+    """
+    end = time.perf_counter() + seconds
+    if seconds > SPIN_S:
+        time.sleep(seconds - SPIN_S)
+    while time.perf_counter() < end:
+        pass
 
 
 @dataclass
@@ -183,7 +200,7 @@ class PacedLoop:
         calls: Calls | None = None,
         stats: PaceStats | None = None,
         now: Callable[[], float] = time.perf_counter,
-        sleep: Callable[[float], None] = time.sleep,
+        sleep: Callable[[float], None] = precise_sleep,
     ) -> None:
         if fps <= 0.0:
             raise ValueError(f"fps must be positive, got {fps!r}")
