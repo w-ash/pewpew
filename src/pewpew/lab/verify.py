@@ -24,7 +24,7 @@ import numpy as np
 
 from pewpew.lab.check import Ready, painted, ready_looks
 from pewpew.lab.geometry import Geometry, parse_geometry
-from pewpew.lab.liveness import dead, probe_knobs, unprobed
+from pewpew.lab.liveness import PATIENT_SECONDS, dead, probe_knobs, unprobed
 from pewpew.lab.rendering import DEFAULT_FPS, DEFAULT_SECONDS, frame_count, limits, play
 from pewpew.mapping import DEFAULT_MAP
 from pewpew.metrics import LIVENESS_RMS, Metrics, measure, rms
@@ -117,7 +117,7 @@ def _judge(name: str, staged: Ready, geometry: Geometry, frames: int, fps: float
     still = dead(probed)
     failures = (*errors, *limits(metrics), *unprobed(probed))
     if still:
-        failures += (f"knobs that do not change the picture: {', '.join(still)}",)
+        failures += (f"knobs that do not change the picture in {PATIENT_SECONDS:g} s: {', '.join(still)}",)
     failures += _colorways(staged, geometry, frames, fps, seed)
     return LookVerdict(name, not failures, failures, metrics, still)
 

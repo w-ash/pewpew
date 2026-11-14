@@ -9,6 +9,20 @@ series (batch mode).
 
 ### Added
 
+- `pulse` takes `jitter` and `wander`. `jitter` (0 to 1) makes each shell its own:
+  its start moves by up to 40% of the spacing, its speed and width by up to 30%, its
+  peak falls to as little as 40%, and up to a quarter of the shells are left out.
+  `wander` (0 to 0.5) starts each shell from its own point near the center. The
+  look's seed chooses them and a shell keeps them for its life. At 0 both render as
+  before, byte for byte.
+- The `flare` signal: random firings, `rate` a second on average, each rising over
+  `attack` to a peak drawn between `floor` and 1 and falling over `release`; the
+  larger of overlapping firings shows, and the look opens on one. The look's seed
+  and the signal's id choose the moments, so it flares the same way on every run.
+- `verify looks` renders a knob that reads dead in its first second again for 8 s
+  and fails it only if it is still dead there, so a slow `walk`, a long `decay` or a
+  slow shell passes; the failure says "in 8 s". `fx vary` keeps the quick look.
+
 - Colorways: a look's `colorways` are named sets of knob values that recolour it in
   one press while its motion carries on, such as
   `{"ice": {"layers.base.tint.palette": "ice", "layers.sparks.glint.palette": "ice"}}`
@@ -1515,6 +1529,14 @@ series (batch mode).
   `bench/authoring/`); its report stays in `bench/results/`.
 
 ### Fixed
+
+- `verify looks` passed no look with `osc(...).spherical()` on a 3D map: `plane` xz
+  showed as xy, since both put the distance on x. A `plane` is now live when any of
+  its options changes the picture (`alike` marks one that shows as the first); one
+  none of whose options changes anything still fails.
+- A beat `pulse` starts with the shells the beat would have sent in the last 20 s,
+  at the tempo its phase moves at, so it no longer opens on an empty rig and its
+  `fade`, `life` and center no longer read dead in `verify looks`.
 
 - On macOS, the board health check, `boards` and `wifi` no longer report a board
   that streams fine as unreachable ("no answer: timed out") while the Mac's

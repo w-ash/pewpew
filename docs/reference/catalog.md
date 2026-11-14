@@ -139,7 +139,7 @@ Reads none; gives rgb. Dimensions: 1, 2, 3.
 
 ### `pulse` — Pulse
 
-Soft shells of light that swell out of a point and fade at the end of their travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`. It fades in as it swells off the point, holds its full level, and eases out over the last `fade` of its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point.
+Soft shells of light that swell out of a point and fade at the end of their travel: one `rate` times a second, or one on each beat. Each shell is a soft band `width` wide that grows at `speed`. It fades in as it swells off the point, holds its full level, and eases out over the last `fade` of its `life`; where shells overlap they add as light does, never past full. `cx`, `cy` and `cz` set the point. `jitter` makes each shell its own: its start, speed, width and strength, and some shells left out, so the train is uneven; `wander` starts each from a point of its own, up to that share of the room from the center. A shell keeps its own for its whole life, and the look's seed chooses them. Shells are on their way from the first frame: a steady train as if it had always run, a beat train as if the beat had (one frame in, once the tempo is known).
 
 Reads none; gives scalar. Dimensions: 1, 2, 3.
 
@@ -152,10 +152,13 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `cx`: 0.5 0.0..1.0. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
 - `cy`: 0.5 0.0..1.0. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
 - `cz`: 0.5 0.0..1.0. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+- `jitter`: 0.0 0.0..1.0. How uneven the shells are: each its own start, speed, width and strength, some left out.
+- `wander`: 0.0 0.0..0.5. How far each shell's own point strays from the center, as a share of the room.
 
     pulse(1.0, life=4)
     pulse(0.4, speed=0.15, width=0.3, life=6).palette("ice")
     pulse(sync="beat", speed=0.6, life=2).palette("ember")
+    pulse(0.5, speed=0.12, life=6, jitter=0.8, wander=0.2).palette("ocean")
 
 ### `quasicrystal` — Quasicrystal
 
@@ -549,6 +552,19 @@ Reads `gate` (signal); gives signal. Dimensions: 1, 2, 3.
 - `release`: 0.3 0.0..10.0 s. Seconds to fall to nothing after the pulse ends.
 
     look(layer("base", shape(0, 0.3).palette("ember")), routes=[beat().env(0.01, 0.3).to("layers.base.shape.radius", depth=0.2)])
+
+### `flare` — Flare
+
+Now and then something happens, 0 to 1: firings at random moments, on average `rate` a second, each rising over `attack` to its own peak, drawn between `floor` and full, and falling over `release` back to 0; where firings overlap, the larger shows. The look opens on a firing. The look's seed and the signal's id choose the moments and the peaks, so a look flares the same way on every run. Route it to a brightness, a speed or a size.
+
+Reads none; gives signal. Dimensions: 1, 2, 3.
+
+- `rate`: 0.1 0.01..2.0 /s. Firings a second, on average: 0.1 is one every ten seconds.
+- `attack`: 0.5 0.0..5.0 s. Seconds each firing takes to rise; under about 0.2 it steps.
+- `release`: 3.0 0.0..20.0 s. Seconds each firing takes to fall back to nothing.
+- `floor`: 0.4 0.0..1.0. The least a firing peaks at; each draws its peak between this and full.
+
+    look(layer("base", shape(0, 0.2).palette("ember")), routes=[flare(0.2, 0.5, 4).to("layers.base.shape.radius", depth=0.3)])
 
 ### `knob` — Macro
 

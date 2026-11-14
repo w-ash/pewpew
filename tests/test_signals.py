@@ -20,7 +20,7 @@ from pewpew.fx.catalog import example
 from pewpew.fx.compile import signal_ops
 from pewpew.fx.op import FrameCtx
 from pewpew.fx.ops import OPS
-from pewpew.fx.ops.signal import LEVEL, SWING, WALK_PERIOD, Band, SignalOp
+from pewpew.fx.ops.signal import LEVEL, SWING, WALK_PERIOD, Band, Flare, SignalOp
 from pewpew.lab import check_look
 from pewpew.lab.check import ready
 from pewpew.lab.geometry import parse_geometry
@@ -89,7 +89,8 @@ def test_a_signal_is_not_a_field_and_says_where_it_goes() -> None:
     with pytest.raises(TypeError, match="lfo gives a signal, one number a frame, not a field; route it to a knob"):
         signal.build([])
     assert {op: cls.range for op, cls in SIGNALS.items()} == {
-        "band": LEVEL, "beat": LEVEL, "env": LEVEL, "knob": LEVEL, "lfo": SWING, "smooth": SWING, "walk": SWING,
+        "band": LEVEL, "beat": LEVEL, "env": LEVEL, "flare": LEVEL, "knob": LEVEL, "lfo": SWING, "smooth": SWING,
+        "walk": SWING,
     }
 
 
@@ -158,6 +159,33 @@ def test_a_walk_crosses_the_wrap_of_its_phase_without_a_jump() -> None:
     signal.phases["rate"] = WALK_PERIOD / 2 - 0.5  # the wrap comes about 8 frames in
     values = run(signal, 30)
     assert np.abs(np.diff(values)).max() < 0.25
+
+
+def test_a_flare_fires_at_random_about_rate_times_a_second_each_peak_its_own() -> None:
+    """Over ten minutes a flare at 0.5 fires about 300 times, each a rise
+    and a fall whose peak lies between `floor` and full; it opens on a
+    firing, a key gives the same firings in every run, another key others."""
+    signal, _ = made("flare", rate=0.5, attack=0.2, release=0.3, floor=0.6)
+    values = np.array(run(signal, int(600 * FPS)))
+    assert isinstance(signal, Flare) and 250 < signal.next < 350  # the firings it started
+    starts = np.flatnonzero((values[1:] > 0.0) & (values[:-1] == 0.0))  # each after a quiet spell
+    assert values[:12].max() > 0.6 * 0.9, "it opens on a firing"
+    peaks = [values[a:a + int(0.2 * FPS) + 2].max() for a in starts]
+    assert min(peaks) >= 0.6 - 1e-3 and max(peaks) <= 1.0 and np.ptp(peaks) > 0.2
+    assert np.abs(np.diff(values)).max() < 1.5 / (0.2 * FPS) + 1e-9, "a smoothstep over 0.2 s never steps"
+    again = np.array(run(made("flare", rate=0.5, attack=0.2, release=0.3, floor=0.6)[0], int(60 * FPS)))
+    assert again.tobytes() == values[: len(again)].tobytes()
+    other = run(made("flare", rate=0.5, attack=0.2, release=0.3, floor=0.6)[0], int(60 * FPS), key=8)
+    assert not np.array_equal(other, again)
+
+
+def test_overlapping_flares_show_the_larger_and_a_rate_change_never_jumps() -> None:
+    signal, params = made("flare", rate=2.0, attack=0.5, release=5.0)
+    before = run(signal, int(10 * FPS))
+    assert max(before) <= 1.0 and min(before[int(FPS):]) > 0.0, "long firings overlap: never back to 0"
+    params.set("rate", 0.01)
+    after = run(signal, int(5 * FPS), start=10.0)
+    assert abs(after[0] - before[-1]) < 0.02
 
 
 # ---- levels ---------------------------------------------------------------------------

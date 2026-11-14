@@ -918,10 +918,14 @@ def dead_knob(staged: Ready, space: Space) -> str | None:
     """The first knob of `staged` that does not change its preview by
     `LIVE_MARGIN` times the liveness threshold, or cannot be probed, as
     "<path>" or "<path>: <why>"; None when every knob does. Stops at the
-    first, as each probe renders the look twice."""
+    first, as each probe renders the look twice. An option that shows as
+    the first of a choice another option shows (`KnobProbe.alike`) counts
+    for its knob, which another probe measures."""
     for probe in each_probe(staged, space.preview, 0):
         if probe.error is not None:
             return f"{probe.path}: {probe.error}"
+        if probe.alike:
+            continue
         if probe.rms is None or probe.rms <= LIVE_MARGIN * LIVENESS_RMS:
             return probe.path
     return None

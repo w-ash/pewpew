@@ -49,7 +49,7 @@ def test_a_search_narrows_by_kind_and_words() -> None:
     book = catalog()
     assert [r["op"] for r in items(book, "coord", "fold")] == ["kaleid", "mirror"]
     assert [r["op"] for r in items(book, "coord", "mirrored FOLD")] == ["kaleid"]  # every word, in any order
-    assert [r["op"] for r in items(book, "signal")] == ["band", "beat", "env", "knob", "lfo", "smooth", "walk"]
+    assert [r["op"] for r in items(book, "signal")] == ["band", "beat", "env", "flare", "knob", "lfo", "smooth", "walk"]
     assert [r["name"] for r in items(book, "palette", "ember")] == ["ember"]
 
 

@@ -5,7 +5,7 @@ A look's signals are a graph of these ops, apart from its layers, run
 once a frame before any layer (pewpew.compose.modulation). A signal op
 gives a Python float in its `range`: -1 to 1 for one that swings both
 ways (`lfo`, `walk`), 0 to 1 for a level (`env`, `band`, `beat`, `knob`);
-`smooth` gives its input's range. A route moves its knob by `depth` times
+`flare` too; `smooth` gives its input's range. A route moves its knob by `depth` times
 the signal, in the knob's own units, so a swing of -1 to 1 moves it
 either way and a level only one way. A signal may read other signals
 (`smooth`, `env`), and a route may drive another signal's knob.
@@ -19,7 +19,8 @@ it reads. Phases, levels and envelopes are Python floats kept from frame
 to frame, so a rate changed by hand or by a route moves the signal on from
 where it is and never jumps (the float rule). `walk` draws its levels from
 a counter-based stream keyed by the signal's key and the step, so a seed
-gives the same wander in every process.
+gives the same wander in every process; `flare` draws each firing's peak
+and the wait to the next the same way, keyed by the firing's number.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from typing import Any, ClassVar
 
 from pewpew.fx.graph import Node
 from pewpew.fx.op import REGISTRY, Cost, FrameCtx, Op, Rate, stream
-from pewpew.fx.prims.vec import TWO_PI
+from pewpew.fx.prims.vec import TWO_PI, ease
 from pewpew.fx.types import Fn, Port, Sig, Ty
 from pewpew.params import Choice, Float
 
@@ -261,6 +262,80 @@ class Walk(SignalOp, op="walk"):
         f = at - step
         a, b = (_level(ctx.key, (step + k) % WALK_PERIOD) for k in (0, 1))
         return a + (b - a) * f * f * (3.0 - 2.0 * f)
+
+
+# The most firings a flare starts in one frame, however long the frame.
+FIRINGS = 64
+# The longest a firing lasts: the longest attack and release.
+LONGEST = 25.0
+
+
+@lru_cache(maxsize=256)
+def _firing(key: int, n: int) -> tuple[float, float]:
+    """Firing `n` of a flare keyed `key`: its peak's draw, 0 to 1, and the
+    wait from it to the next, in phase (an exponential of mean 1), from the
+    stream of both (pewpew.fx.op.stream)."""
+    draw = stream(key, n)
+    return float(draw.random()), float(draw.exponential())
+
+
+class Flare(SignalOp, op="flare"):
+    """Now and then something happens, 0 to 1: firings at random moments,
+    on average `rate` a second, each rising over `attack` to its own peak,
+    drawn between `floor` and full, and falling over `release` back to 0;
+    where firings overlap, the larger shows. The look opens on a firing.
+    The look's seed and the signal's id choose the moments and the peaks,
+    so a look flares the same way on every run. Route it to a brightness,
+    a speed or a size."""
+
+    rate = Rate(0.1, 0.01, 2.0, "/s", period=WALK_PERIOD, sweet=(0.02, 0.5), flash_sensitive=True,
+                help="Firings a second, on average: 0.1 is one every ten seconds")
+    attack = Float(0.5, 0.0, 5.0, "s", sweet=(0.2, 2.0), label="Rise",
+                   help="Seconds each firing takes to rise; under about 0.2 it steps")
+    release = Float(3.0, 0.0, 20.0, "s", sweet=(0.5, 8.0), help="Seconds each firing takes to fall back to nothing")
+    floor = Float(0.4, 0.0, 1.0, help="The least a firing peaks at; each draws its peak between this and full")
+    examples = (
+        ('look(layer("base", shape(0, 0.2).palette("ember")), routes=[flare(0.2, 0.5, 4).to('
+         '"layers.base.shape.radius", depth=0.3)])'),
+    )
+    cost = Cost(0.0, 2.0)
+
+    def __init__(self) -> None:
+        super().__init__()
+        # The rate's phase last frame and unwrapped, the next firing's
+        # number and its place in that phase, and each live firing's age
+        # in seconds and number.
+        self.last = 0.0
+        self.at = 0.0
+        self.next = 0
+        self.due = 0.0
+        self.firings: list[tuple[float, int]] = []
+
+    def sample(self, ctx: FrameCtx, inputs: Sequence[float]) -> float:
+        phase = self.phase("rate")
+        moved = (phase - self.last) % WALK_PERIOD
+        self.last = phase
+        self.at += moved
+        span = self.attack + self.release
+        self.firings = [(age + ctx.dt, n) for age, n in self.firings if age + ctx.dt < min(span, LONGEST)]
+        for _ in range(FIRINGS):
+            if self.due > self.at:
+                break
+            age = ctx.dt * (self.at - self.due) / moved if moved > 0.0 else 0.0
+            self.firings.append((age, self.next))
+            self.due += _firing(ctx.key, self.next)[1]
+            self.next += 1
+        return max((self.level(ctx.key, age, n) for age, n in self.firings), default=0.0)
+
+    def level(self, key: int, age: float, n: int) -> float:
+        """Firing `n`'s level at `age` seconds: a smoothstep up to its peak
+        over `attack`, then down over `release`; each is a step at 0 s."""
+        peak = self.floor + (1.0 - self.floor) * _firing(key, n)[0]
+        if age < self.attack:
+            return peak * ease(age / self.attack)
+        if age >= self.attack + self.release:
+            return 0.0
+        return peak * (1.0 - ease((age - self.attack) / self.release))
 
 
 class KnobOp(SignalOp, op="knob"):
