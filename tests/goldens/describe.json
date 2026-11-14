@@ -363,6 +363,365 @@
         "flash_sensitive": false
       }
     ],
+    "branches": [
+      {
+        "name": "trunks",
+        "kind": "int",
+        "label": "Trunks",
+        "help": "How many trunks leave the point",
+        "group": "",
+        "widget": "",
+        "default": 4,
+        "unit": "",
+        "lo": 1,
+        "hi": 12,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          2,
+          8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "depth",
+        "kind": "int",
+        "label": "Depth",
+        "help": "How many levels each trunk forks into, the trunk the first",
+        "group": "",
+        "widget": "",
+        "default": 5,
+        "unit": "",
+        "lo": 1,
+        "hi": 7,
+        "step": 1,
+        "decimals": 0,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          3,
+          6
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "angle",
+        "kind": "float",
+        "label": "Angle",
+        "help": "How far the arms of a fork turn apart",
+        "group": "",
+        "widget": "",
+        "default": 30.0,
+        "unit": "°",
+        "lo": 10.0,
+        "hi": 80.0,
+        "step": 0.5,
+        "decimals": 1,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          20.0,
+          50.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "shrink",
+        "kind": "float",
+        "label": "Shrink",
+        "help": "How long and thick each level is against the one before",
+        "group": "",
+        "widget": "",
+        "default": 0.7,
+        "unit": "",
+        "lo": 0.5,
+        "hi": 0.9,
+        "step": 0.002,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.6,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "reach",
+        "kind": "float",
+        "label": "Reach",
+        "help": "How long a trunk is, in units",
+        "group": "",
+        "widget": "",
+        "default": 0.2,
+        "unit": "",
+        "lo": 0.03,
+        "hi": 0.6,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.08,
+          0.3
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "width",
+        "kind": "float",
+        "label": "Width",
+        "help": "How far a trunk's glow reaches; each level is thinner",
+        "group": "",
+        "widget": "",
+        "default": 0.06,
+        "unit": "",
+        "lo": 0.01,
+        "hi": 0.3,
+        "step": 0.002,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.03,
+          0.15
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "jitter",
+        "kind": "float",
+        "label": "Jitter",
+        "help": "How uneven the tree is: angles, lengths, forks in three or one, beads that bunch and stop",
+        "group": "",
+        "widget": "",
+        "default": 0.4,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.7
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "flow",
+        "kind": "float",
+        "label": "Flow",
+        "help": "Beads a second past each point, running out from the point; below 0 they run in",
+        "group": "",
+        "widget": "",
+        "default": 0.3,
+        "unit": "/s",
+        "lo": -2.0,
+        "hi": 2.0,
+        "step": 0.02,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.1,
+          0.8
+        ],
+        "flash_sensitive": true
+      },
+      {
+        "name": "beads",
+        "kind": "float",
+        "label": "Beads",
+        "help": "How far apart the beads run along a channel, in units",
+        "group": "",
+        "widget": "",
+        "default": 0.1,
+        "unit": "",
+        "lo": 0.02,
+        "hi": 0.5,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.05,
+          0.25
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "floor",
+        "kind": "float",
+        "label": "Floor",
+        "help": "How bright the channels are between beads; 1 hides the beads",
+        "group": "",
+        "widget": "",
+        "default": 0.3,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.1,
+          0.6
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "sway",
+        "kind": "float",
+        "label": "Sway",
+        "help": "How far the branches wander as the tree slowly re-forms",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "grow",
+        "kind": "float",
+        "label": "Grow",
+        "help": "How much of the tree is drawn, from the point out",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.3,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "turn",
+        "kind": "float",
+        "label": "Turn",
+        "help": "Turns the trunks round the point",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "°",
+        "lo": 0.0,
+        "hi": 360.0,
+        "step": 2.0,
+        "decimals": 0,
+        "periodic": true,
+        "text": [],
+        "sweet": [
+          0.0,
+          360.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "flat",
+        "kind": "float",
+        "label": "Flat",
+        "help": "In a volume, lays the tree into the map's main plane and lights the depth across it",
+        "group": "",
+        "widget": "",
+        "default": 1.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.6,
+          1.0
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cx",
+        "kind": "float",
+        "label": "Center x",
+        "help": "Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cy",
+        "kind": "float",
+        "label": "Center y",
+        "help": "Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "cz",
+        "kind": "float",
+        "label": "Center z",
+        "help": "Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.2,
+          0.8
+        ],
+        "flash_sensitive": false
+      }
+    ],
     "contrast": [
       {
         "name": "amount",

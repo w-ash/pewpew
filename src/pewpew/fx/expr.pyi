@@ -117,6 +117,25 @@ def attractor(
     trail: float | Expr = ...,
 ) -> Expr: ...
 def below() -> Expr: ...
+def branches(
+    trunks: int | Expr = ...,
+    depth: int | Expr = ...,
+    angle: float | Expr = ...,
+    shrink: float | Expr = ...,
+    reach: float | Expr = ...,
+    width: float | Expr = ...,
+    jitter: float | Expr = ...,
+    flow: float | Expr = ...,
+    beads: float | Expr = ...,
+    floor: float | Expr = ...,
+    sway: float | Expr = ...,
+    grow: float | Expr = ...,
+    turn: float | Expr = ...,
+    flat: float | Expr = ...,
+    cx: float | Expr = ...,
+    cy: float | Expr = ...,
+    cz: float | Expr = ...,
+) -> Expr: ...
 def life(
     states: int | Expr = ...,
     speed: float | Expr = ...,

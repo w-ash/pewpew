@@ -127,6 +127,27 @@ def test_every_op_arg_set_while_running_changes_the_picture(
     )
 
 
+def every_map_cases(op: str) -> Iterator[Any]:
+    """`liveness_cases` for op `op` on each map it takes, not only the richest."""
+    cls = OPS[op]
+    program = program_of(cls.examples[0])
+    node = next(node for node in program.graph if node.op == op)
+    for dims in sorted(cls.dims):
+        mapping = LIVE_MAPS[dims]
+        args, extent = ParamSet(cls, node.args).snapshot(), spans(mapping)
+        for record in ParamSet(cls).describe():
+            for probe_id, a, b in probes(record):
+                if cls.shows(record["name"], a, b, args, extent):
+                    yield pytest.param(program, mapping, node.id, record["name"], a, b, id=f"{dims}d-{probe_id}")
+
+
+@pytest.mark.parametrize("program, mapping, nid, name, a, b", list(every_map_cases("branches")))
+def test_every_branches_arg_changes_the_picture_on_each_map_it_takes(
+    program: Program, mapping: np.ndarray, nid: str, name: str, a: object, b: object
+) -> None:
+    test_every_op_arg_set_while_running_changes_the_picture(program, mapping, nid, name, a, b)
+
+
 @pytest.mark.parametrize("place, mapping, reached", [
     ("u", line(8), {"x"}), ("all", line(8), {"x"}), ("x", line(8), {"x"}), ("y", line(8), set()),
     ("u", grid(4, 4), {"u"}), ("all", grid(4, 4), {"u", "x", "y"}), ("z", grid(4, 4), set()),

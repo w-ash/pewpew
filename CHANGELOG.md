@@ -9,6 +9,15 @@ series (batch mode).
 
 ### Added
 
+- The `branches` source: a tree of light grown out of a point you set. `trunks`
+  (1 to 12) leave it and fork level by level for `depth` (1 to 7), each level
+  `shrink` as long and as thin, so the channels grow more and finer away from the
+  point; beads run out along them at `flow` (-2 to 2 a second), down both arms at a
+  fork. `jitter` forks some branches in three or not at all and stops some paths'
+  beads for a while, `sway` lets the tree re-form over minutes, and `grow` draws it
+  from the point out. In a volume, `flat` (1 by default) lays it into the map's main
+  plane, so a rig spread mostly in one plane shows its forks. On a panel or a
+  volume; a strip is refused with `pulse` as the fix.
 - `pulse` takes `jitter` and `wander`. `jitter` (0 to 1) makes each shell its own:
   its start moves by up to 40% of the spacing, its speed and width by up to 30%, its
   peak falls to as little as 40%, and up to a quarter of the shells are left out.
