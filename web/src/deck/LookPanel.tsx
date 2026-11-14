@@ -241,7 +241,7 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
             </div>
           )}
         </div>
-        <Colorways stack={aura.stack} />
+        <Colorways stack={aura.stack} looks={looks} />
         <LookKnobs />
       </div>
       <p className="sr-only" role="status">

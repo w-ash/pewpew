@@ -9,10 +9,32 @@ series (batch mode).
 
 ### Added
 
+- `pulse` takes `jitter` and `wander`. `jitter` (0 to 1) makes each shell its own:
+  its start moves by up to 40% of the spacing, its speed and width by up to 30%, its
+  peak falls to as little as 40%, and up to a quarter of the shells are left out.
+  `wander` (0 to 0.5) starts each shell from its own point near the center. The
+  look's seed chooses them and a shell keeps them for its life. At 0 both render as
+  before, byte for byte.
+- `noise` takes `gain` (0.3 to 0.8), `lacunarity` (1.75 to 3, in quarters, so its
+  drift still wraps with no jump) and `ridge` (0 to 1), which folds each octave into
+  a soft crest and grows finer crests only along coarser ones: with octaves, veins
+  that branch (a ridged multifractal). At their defaults it renders as before, byte
+  for byte.
+- `spherical` takes `distance="log"`: the distance in doublings over the
+  map's largest span, so what travels out along it grows as it goes and new ones
+  start small at the point, an endless zoom.
+- The `flare` signal: random firings, `rate` a second on average, each rising over
+  `attack` to a peak drawn between `floor` and 1 and falling over `release`; the
+  larger of overlapping firings shows, and the look opens on one. The look's seed
+  and the signal's id choose the moments, so it flares the same way on every run.
+- `verify looks` renders a knob that reads dead in its first second again for 8 s
+  and fails it only if it is still dead there, so a slow `walk`, a long `decay` or a
+  slow shell passes; the failure says "in 8 s". `fx vary` keeps the quick look.
+
 - Colorways: a look's `colorways` are named sets of knob values that recolour it in
   one press while its motion carries on, such as
   `{"ice": {"layers.base.tint.palette": "ice", "layers.sparks.glint.palette": "ice"}}`
-  (at most 12 a look, each of 1 to 32 knobs a `set` takes). The new `colorway`
+  (at most 24 a look, each of 1 to 32 knobs a `set` takes). The new `colorway`
   request sets every knob of one in a single frame as an edit, which a save keeps;
   the aura state's `stack.colorways` lists them and `stack.colorway` names the
   active one, the first whose values every knob holds now. The Console shows them as
@@ -21,6 +43,26 @@ series (batch mode).
   `compare` and `explain` take `--colorway NAME`, and the MCP `look_render` tool a
   `colorway`; `verify looks` renders each colorway through the render gates and
   fails two that show the same picture.
+- A colorway glides: a press sets each knob's own value at once (so the active
+  colorway, a snapshot and a save name the target), while the room moves there over
+  the look's own `fade`: a palette crossfades position by position in OKLab whatever
+  stops each side has, a number on a line, a hue the short way round, a choice at
+  once. A press mid-glide glides on from what shows; `fx render --colorway` shows
+  the colours settled.
+- Colorway drift: a look's optional `colorway_drift`, such as
+  `{"every": [60, 180], "names": ["ember", "ice"]}`, changes its colorway by itself
+  while it is current, after a dwell drawn from `every`, never to the one showing,
+  gliding there; seeded by the look's seed and engine time, so a run replays the
+  same. It is the look playing: no unsaved edit, and the idle cycle's wait runs on;
+  an operator's colorway press or a set of one of its knobs holds it off a dwell.
+  The new `drift` request switches it (`"on"`), stored in the file at once; each of
+  the looks state's `items` carries `drift`; the Console's colorway row has a wind
+  sign at its head to switch it. `fx check` refuses a bad one by path, such as
+  `colorway_drift.names[1]`.
+- The idle cycle's optional `"colorways": true` starts each look it plays that has
+  colorways and no drift of its own in one of them, drawn from the cycle's seed and
+  the slot, so the same file plays the same looks in the same colours; left out
+  (false), a file replays as before.
 - The `spherical` coord op: wraps a pattern round a point in 3D, its plane's first
   axis becoming the true distance from the point, its second the turn and the
   normal the elevation, so `osc(6).spherical()` is shells round the point. `cx`,
@@ -1515,6 +1557,15 @@ series (batch mode).
   `bench/authoring/`); its report stays in `bench/results/`.
 
 ### Fixed
+
+- `verify looks` passed no look with `osc(...).spherical()` on a 3D map, since `plane`
+  xz showed as xy, and no look with a `blend` of a noise, since `mode=stencil` showed
+  as `normal` where the second input is never 0. A choice is now live when any of its
+  options changes the picture (`alike` marks one that shows as the first); one none
+  of whose options changes anything still fails.
+- A beat `pulse` starts with the shells the beat would have sent in the last 20 s,
+  at the tempo its phase moves at, so it no longer opens on an empty rig and its
+  `fade`, `life` and center no longer read dead in `verify looks`.
 
 - On macOS, the board health check, `boards` and `wifi` no longer report a board
   that streams fine as unreachable ("no answer: timed out") while the Mac's

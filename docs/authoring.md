@@ -240,7 +240,7 @@ top:
 A look's `colorways` are named sets of knob values that recolour it in
 one press while its motion carries on: each maps a knob's address to a
 value, as a `set` takes it (a palette, a hue, a color, a layer's opacity
-or blend, a signal's knob). A look holds at most 12, each of 1 to 32
+or blend, a signal's knob). A look holds at most 24, each of 1 to 32
 knobs, and a name is 1 to 32 letters, digits, spaces, `_` or `-`:
 
 ```json
@@ -259,14 +259,54 @@ JSON form (a palette's stops, a number as a float). On the Console the
 look panel shows a chip per colorway above the look's knobs; a press sets
 every knob of it in one frame, as one edit: nothing restarts, a route on
 one of its knobs moves around the new value, the look shows unsaved
-changes until a save, and reverting brings the saved colours back. The
-chip of the active colorway is lit: the first whose every value is its
-knob's own value now, so turning one of its knobs by hand leaves no chip
+changes until a save, and reverting brings the saved colours back.
+
+A press glides: each knob's own value is the new one at once, while what
+the room shows moves there over the look's own `fade` (0 changes at
+once). A palette crossfades position by position in OKLab, as its stops
+blend, whatever stops each side has; a number moves on a straight line,
+a hue the short way round; a blend, a choice or a switch changes at the
+start. A press during a glide glides on from the colours showing, a `set`
+of a gliding knob lands it at once, and a save during a glide stores
+where it is going. `fx render --colorway` renders the colours settled,
+with no glide, so its handles stay comparable.
+
+The chip of the active colorway is lit: the first whose every value is its
+knob's own value now, so it names where a glide is going from the press
+on, and turning one of its knobs by hand leaves no chip
 lit. A client sends `{"type": "colorway", "name": "ice"}`; the aura state's
 `stack.colorways` lists the names and `stack.colorway` names the active
 one, or null. A save keeps the colorways, less the knobs an edit took
-away (a colorway left with none goes), and the idle cycle and the
-triggers play a look as saved.
+away (a colorway left with none goes). The triggers play a look as
+saved, and so does the idle cycle unless its `colorways` is on (§6).
+
+A look may ask to change colorway by itself now and then, so a look left
+running keeps moving on, with `colorway_drift`:
+
+```json
+"colorway_drift": {"every": [60, 180], "names": ["ember", "ice", "dawn"]}
+```
+
+While the look is current, after a dwell drawn from `every` (seconds, 1
+to 86400, or a range `[min, max]`; default `[60, 180]`) it takes one of
+`names` (default every colorway; at least 2), never the one already
+showing, gliding there over its fade as a press does. `"on": false`
+keeps the key but stops it. The draws come from the look's `seed` and
+the engine time since its recall, so the same file changes the same way
+on every run. A change is the look playing, not an edit: it marks no
+unsaved changes and leaves the idle cycle's wait alone, and a revert of
+a knob returns it to the drifted colours. A press of a colorway, or a
+`set` of a knob one of them sets, holds the drift off for one more
+dwell; a recall starts it again. A save keeps the key, less a name that
+is gone (with fewer than 2 left it goes); a look made with `fx vary`
+keeps it the same way; a made or sent look never drifts. On the Console
+a square wind sign at the end of the colorways' head line switches it
+for the current look (a look with 2 colorways or more), written to the
+file at once as its shuffle switch is; a client sends `{"type": "drift",
+"name": "dusk", "on": true}`, and each of `looks.items` says whether its
+`drift` is on. `fx check` checks the key with a path for each problem
+(`colorway_drift.names[1]`); `verify looks` renders each colorway as it
+always does.
 
 Multiply, min, subtract and highlight over black stay black, so on the
 bottom layer they black the room. Each layer draws its own random stream
@@ -307,6 +347,36 @@ distance from the point, so `osc(6).spherical()` is shells round it;
 its level until it eases out over the last `fade` of its `life`; and `polar`'s
 `spiral` winds its spokes along the plane's normal, so on bars standing
 across the plane they turn as a helix.
+
+A `pulse` at its defaults is an even train. `jitter` (0 to 1) makes each
+shell its own: its start moves by up to 40% of the spacing, its speed and
+width by up to 30% either way, its peak falls to as little as 40%, and up
+to a quarter of the shells are left out, so the train has gaps. `wander`
+(0 to 0.5) starts each shell from its own point, up to that share of the
+room from the center, so shells reach the lights at different places and
+moments. A shell keeps its own for its whole life, and the look's seed
+chooses them: `pulse(0.5, speed=0.12, life=6, jitter=0.8, wander=0.2)`.
+The train is on its way from the first frame: a steady train as if it had
+always run, and a beat train, one frame in, as if the beat had been
+arriving at the tempo it moves at. For shells that bend as they travel,
+ripple the distance before `spherical` reads it:
+`osc(6, 0.1).modulate(noise(2, 0.05), 0.15).spherical()`.
+
+`spherical` takes `distance="log"`, which reads the distance in
+doublings (log2 of it over the map's largest span, the point itself at
+-10): stripes travelling out along it each grow as they go while new ones
+start small at the point, an endless zoom out of it, as `tunnel` does in
+a plane: `osc(3, 0.1).spherical(distance="log")`.
+
+`noise` is fractal: `octaves` finer layers, each `lacunarity` times finer
+than the one before (1.75 to 3, in quarters) and counting `gain` as much
+(0.3 to 0.8; more is rougher). `ridge` (0 to 1) folds each layer into a
+soft crest where it crosses its middle and lets finer crests grow only
+along coarser ones, so with octaves the hills become veins that branch,
+like rivers or lightning, mostly dark between them (a ridged
+multifractal). Stretched along the distance and read through
+`spherical`, the veins branch out of the point:
+`noise(6, 0.05, octaves=5, ridge=1).scale(3, "x").spherical()`.
 
 Each node's args are params with ranges, so a bad value fails where it is
 written (`kaleid.sides must be within 1..24, got 40`), and each is a knob
@@ -364,8 +434,14 @@ time.
 
 A knob can move by itself. A look's `signals` are signal ops, each one
 number a frame: `lfo` and `walk` swing from -1 to 1; `env`, `band`,
-`beat` and `knob` give a level from 0 to 1; `smooth` follows another
-signal. A route adds `depth` times a signal to a knob, in the knob's own
+`beat`, `flare` and `knob` give a level from 0 to 1; `smooth` follows
+another signal. `flare` is the "now and then something happens"
+modulator: at random moments, `rate` a second on average, it rises over
+`attack` to a peak drawn between `floor` and 1 and falls over `release`;
+the look opens on one, and the look's seed and the signal's id choose
+the moments. Keep `attack` at 0.2 s or more, or a firing steps. Route it
+to a brightness, a speed or a size:
+`flare(0.2, 0.5, 4).to("layers.base.shape.radius", depth=0.3)`. A route adds `depth` times a signal to a knob, in the knob's own
 units: a hue wraps round, anything else stops at its range. The knob's
 own value stays what the page shows and a save stores; the page marks
 where the route moves it now. Signals and routes belong to a look, so
@@ -433,7 +509,9 @@ spread along, such as `lissajous`'s `b` on a strip along x, or `mirror`'s
 choices that read the map alike, such as `u` against the axis a strip runs
 along; and a knob another knob switches off, such as `shape`'s `plane` for
 a circle, `polar`'s center along the plane's normal while `spiral` is 0,
-and `pulse`'s `rate` on the beat.
+and `pulse`'s `rate` on the beat. A choice, such as a `plane` or a
+`blend` mode, needs one of its options, not each, to change the picture
+(§6).
 
 Each keeps to one color family, starts dark and keeps its bright colors
 saturated, so a diffuser blending neighbouring lights does not wash it to
@@ -547,7 +625,18 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   builds up (a trail, a feedback field, a simulation) has filled. A knob it
   cannot probe fails too: a palette with no preset to move to, or a knob
   at one end of its range that stops the look from running. A probe the
-  map's shape cannot show is not run (pewpew.lab.liveness). A render under one second fails,
+  map's shape cannot show is not run (pewpew.lab.liveness). A probe that
+  reads dead in that second is rendered again for 8 s, the last 4 s
+  compared, and fails only if it is still dead there, so a slow knob (a
+  `walk` at 0.02 Hz, a long `decay`, a `diffuse` bleed, a slow shell)
+  passes without a faster setting; the failure says "in 8 s". A choice
+  is one knob, which passes when any of its options changes the picture,
+  as a float passes on its two ends: an option that shows as the first is
+  `alike` in `--json`, not a failure. Options coincide on the inputs a
+  look gives them: `osc(6).spherical()` reads only the distance, which
+  `plane` xy and xz both put on x; `blend`'s `stencil` is `normal` where
+  the second input is never 0, as a noise never is. A choice none of
+  whose options changes anything still fails. A render under one second fails,
   since it is too short to count flashes per second. It renders fresh,
   never from the cache. Each colorway renders too and passes the same
   render gates (no layer raises, the flash rate, not all black), its knobs
@@ -565,7 +654,7 @@ python -m pewpew verify looks looks/                # the gate before an unatten
   each speed near its default. A look made from nothing has no colorways;
   one made like FILE keeps FILE's, less the knobs it no longer has. Each is judged on the map before it is
   given: it passes `verify looks` (with room to spare on each knob's
-  probe). Taste is a preference: a made look is not too dark, washed
+  probe, in the first second: it never looks again for 8 s). Taste is a preference: a made look is not too dark, washed
   out, dying out, frozen, noise or grey when one of its tries manages
   that, else it fails the fewest of those, and `--json` lists each
   candidate's failures as `taste`. A seed whose changes of FILE all fail
@@ -617,8 +706,8 @@ the favorites, and filters as you type: ↑ and ↓ move, Enter plays, Esc clear
 and then closes.
 
 The page calls a look's signals **modulators**, each by its kind: LFO,
-random (`walk`), beat, envelope (`env`), audio follower (`band`), macro
-(`knob`) and smooth. A knob a route moves reads `modulated by ‘breath’
+random (`walk`), flare, beat, envelope (`env`), audio follower (`band`),
+macro (`knob`) and smooth. A knob a route moves reads `modulated by ‘breath’
 ±0.2 Hz`: ± for a modulator that swings both ways (`lfo`, `walk`, a
 `smooth` of either), and the route's own sign, + or −, for one that gives a
 level. The master is the page's **brightness**, its cap its **max**; the
@@ -641,8 +730,16 @@ skips, are up to the wall clock:
 
 ```json
 "cycle": {"idle": 300, "each": [40, 90], "rounds": 0, "end": null,
-          "seed": 0, "window": 2, "fresh": 5, "weights": {"dusk": 2}}
+          "seed": 0, "window": 2, "fresh": 5, "weights": {"dusk": 2},
+          "colorways": true}
 ```
+
+With `colorways` true, each look the cycle plays that has colorways (§4)
+and no colorway drift of its own that is on starts in one of them, drawn
+from the cycle's `seed` and the slot, settled rather than gliding, since
+the look fades in. It is the look playing, not an unsaved edit, so the
+cycle runs on. A look that drifts keeps its own drift. Left out, it is
+false, and a file written before it replays to the same frames.
 
 Any operator input stops the cycle, and it starts again after `idle` more
 seconds untouched; an `idle` no longer than the shortest dwell keeps it

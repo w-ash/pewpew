@@ -22,7 +22,7 @@ const looksOf = (patch: Partial<LooksState>): LooksState => ({
 const HELD = { armed: true, names: ["door"], cues: {}, held: { trigger: "door", look: "cool", until: 9 }, last: null };
 
 test("look status", () => {
-  const looks = looksOf({ items: [{ name: "warm", cycle: true, fade: 2 }], current: "warm", changed: true, fading: "cool", progress: 0.4, pending: "deep" });
+  const looks = looksOf({ items: [{ name: "warm", cycle: true, fade: 2, drift: false }], current: "warm", changed: true, fading: "cool", progress: 0.4, pending: "deep" });
   const held = { armed: true, names: ["door"], cues: {}, held: { trigger: "door", look: "warm", until: 12 }, last: null };
   expect(lookStatus(looks, held, "warm")).toEqual({ live: true, returnsTo: false, changed: false, fading: null, pending: false, held: true });
   expect(lookStatus(looks, null, "cool")).toMatchObject({ live: false, changed: false, fading: 0.4 });
@@ -90,13 +90,13 @@ test("the look's header names what plays: the live look, else a draft, else noth
 });
 
 test("the one save: into the changed look, a draft kept under its name, or nothing and why", () => {
-  const looks = looksOf({ items: [{ name: "warm", cycle: true, fade: 2 }], current: "warm", offered: "warm 2" });
+  const looks = looksOf({ items: [{ name: "warm", cycle: true, fade: 2, drift: false }], current: "warm", offered: "warm 2" });
   expect(saveOf(looks, null)).toEqual({ kind: "none", why: "warm is saved" });
   expect(saveOf({ ...looks, changed: true }, null)).toEqual({ kind: "over", name: "warm" });
   expect(saveOf({ ...looks, current: null, made: "surprise 7", offered: "surprise 7" }, null)).toEqual({ kind: "draft", name: "surprise 7", full: null });
   expect(saveOf({ ...looks, current: null, offered: "kept" }, null)).toEqual({ kind: "draft", name: "kept", full: null });
   // A full looks file takes no new look: a draft's save is off and says why; a changed look still saves into itself.
-  const items = Array.from({ length: MAX_LOOKS }, (_, i) => ({ name: `look ${i + 1}`, cycle: true, fade: 2 }));
+  const items = Array.from({ length: MAX_LOOKS }, (_, i) => ({ name: `look ${i + 1}`, cycle: true, fade: 2, drift: false }));
   const full = "there are already 64 looks; delete one first";
   expect(saveOf({ ...looks, items, current: null, offered: "kept" }, null)).toEqual({ kind: "draft", name: "kept", full });
   expect(saveOf({ ...looks, items: items.slice(1), current: null, offered: "kept" }, null)).toEqual({ kind: "draft", name: "kept", full: null });
@@ -111,7 +111,7 @@ test("shuffle's words: the turn, a range, and one short line on what ↻ means",
   expect(eachText(looksOf({ dwell: [40, 90] }))).toBe("40–90 s");
   expect(eachText(looksOf({ dwell: [60, 180] }))).toBe("1–3 min");
   expect(SHUFFLE_ABOUT.split(" ").length).toBeLessThanOrEqual(12);
-  const items = [{ name: "warm", cycle: true, fade: 2 }];
+  const items = [{ name: "warm", cycle: true, fade: 2, drift: false }];
   expect(shuffleNote(looksOf({ items, idle: 60 }))).toBe("after a touch, the look plays a full turn");
   expect(shuffleNote(looksOf({ items }))).toBe("after a touch, shuffle waits 5 min");
   expect(shuffleNote(looksOf({}))).toBe("a look's ⋯ puts it in shuffle");
@@ -146,7 +146,7 @@ test("the turns and starts offered hold the file's own when it is none of them",
 });
 
 test("shuffle's line counts down to the next look, or says why it waits", () => {
-  const items = [{ name: "warm", cycle: true, fade: 2 }];
+  const items = [{ name: "warm", cycle: true, fade: 2, drift: false }];
   const waiting = looksOf({ items, current: "warm", next: 300 });
   const says = (words: string, time: string | null = null) => ({ words, time });
   expect(shuffleStatus(waiting, null, 36)).toEqual(says("starts in", "4:24"));
@@ -161,7 +161,7 @@ test("shuffle's line counts down to the next look, or says why it waits", () => 
 });
 
 test("vary this needs a look playing and says what to press first; a save waits while a cue holds a look", () => {
-  const looks = looksOf({ items: [{ name: "warm", cycle: false, fade: 2 }] });
+  const looks = looksOf({ items: [{ name: "warm", cycle: false, fade: 2, drift: false }] });
   expect(varyReason(looks)).toBe("vary this needs a look playing: press one, or surprise me, first");
   expect(varyReason({ ...looks, items: [] })).toBe("vary this needs a look playing: press surprise me first");
   expect(varyReason({ ...looks, made: "surprise 7" })).toBeNull();

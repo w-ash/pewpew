@@ -21,7 +21,9 @@ A look (ADR-006 amendment "layered paths"):
      "signals": {"breath": {"op": "lfo", "args": {"rate": 0.1}}},
      "routes": [{"source": "breath", "path": "layers.base.tint.shift", "depth": 40.0}],
      "front": ["layers.base.waves.freq"],
-     "colorways": {"ice": {"layers.base.tint.palette": "ice", "layers.base.tint.shift": 0.0}}}
+     "colorways": {"ember": {"layers.base.tint.palette": "ember"},
+                   "ice": {"layers.base.tint.palette": "ice", "layers.base.tint.shift": 0.0}},
+     "colorway_drift": {"every": [60, 180], "names": ["ember", "ice"]}}
 
 Every key of a layer but `id` and `nodes` has a default: the mix's
 (`LayerControls`), `out` the last node, `alpha` none. A node's `in` lists
@@ -34,8 +36,11 @@ whose routes drive it; each of its `routes` moves the knob at `path` by
 `depth` times its `source` signal, in the knob's units; `front` lists the
 knobs a page shows first; `colorways` maps a colorway's name to the
 knob values it sets, by address (pewpew.compose.stack.parse_colorways),
-each a whole knob a `set` takes, read back in its JSON form. Each may be
-left out or null, and is written only when it holds something. Which
+each a whole knob a `set` takes, read back in its JSON form;
+`colorway_drift` asks for the look to change colorway by itself every
+`every` seconds, among `names` (default all), while `on` (default true;
+pewpew.compose.stack.parse_drift). Each may be left out or null, and is
+written only when it holds something. Which
 knob a route's path names is checked against the stack's knobs
 (pewpew.compose.modulation.route_problems, through
 pewpew.aura.book.route_reasons); a colorway's addresses and values are
@@ -61,6 +66,7 @@ from pewpew.compose.stack import (
     is_seed,
     order_signals,
     parse_colorways,
+    parse_drift,
     parse_fade,
     parse_master,
     source_problems,
@@ -79,7 +85,7 @@ MAX_LAYERS = 16
 MAX_NODES = 32
 MAX_ROUTES = 64
 
-LOOK_KEYS = ("seed", "master", "fade", "cycle", "layers", "signals", "routes", "front", "colorways")
+LOOK_KEYS = ("seed", "master", "fade", "cycle", "layers", "signals", "routes", "front", "colorways", "colorway_drift")
 LAYER_KEYS = ("id", *MIX, "out", "alpha", "nodes")
 NODE_KEYS = ("op", "in", "args")
 ROUTE_KEYS = ("source", "path", "depth")
@@ -106,6 +112,8 @@ def encode_look(look: Look) -> dict[str, Any]:
         out["front"] = list(look.front)
     if look.colorways:
         out["colorways"] = {name: dict(values) for name, values in look.colorways.items()}
+    if look.drift is not None:
+        out["colorway_drift"] = look.drift.to_json()
     return out
 
 
@@ -169,7 +177,11 @@ def decode_look(raw: Any, *, where: str = "look", cap: float = 1.0) -> tuple[Loo
     colorways, found = parse_colorways(_given(raw, "colorways", {}), look_controls(look))
     if found:
         return None, [f"{where}: {reason}" for reason in found]
-    return replace(look, colorways=colorways), []
+    drifts = _given(raw, "colorway_drift", None)
+    drift, found = (None, []) if drifts is None else parse_drift(drifts, list(colorways))
+    if found:
+        return None, [f"{where}: {reason}" for reason in found]
+    return replace(look, colorways=colorways, drift=drift), []
 
 
 def _layers(where: str, raw: Any, problems: Problems) -> tuple[Layer, ...]:
@@ -417,7 +429,8 @@ def _look_python(look: Look) -> str:
         args.append(f"routes=[\n{''.join(lines)}    ]")
     fields = (("seed", look.seed, 0), ("master", look.master, None), ("fade", look.fade, DEFAULT_FADE),
               ("cycle", look.cycle, False), ("front", list(look.front), []),
-              ("colorways", {name: dict(values) for name, values in look.colorways.items()}, {}))
+              ("colorways", {name: dict(values) for name, values in look.colorways.items()}, {}),
+              ("colorway_drift", None if look.drift is None else look.drift.to_json(), None))
     args += (f"{name}={_py(value)}" for name, value, default in fields if value != default)
     return "look(\n" + "".join(f"    {arg},\n" for arg in args) + ")"
 

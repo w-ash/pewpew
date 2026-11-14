@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -53,10 +53,16 @@ class Gradient:
     "". The `Palette` kind checks these rules, and
     `pewpew.color.gradient_lut` samples a gradient that passed it. `rgb`
     is the gradient as a frame, as `HSV.rgb` is a color's.
+
+    `glide` is `(start, w)` only in what an op reads while its palette
+    knob glides (`Palette.mix`): the colors `w` of the way, 0 to 1, from
+    gradient `start` to this one, mixed per position in OKLab. A knob's
+    own value never holds one, so a save or a snapshot never stores it.
     """
 
     stops: tuple[Stop, ...]
     label: str = ""
+    glide: tuple[Gradient, float] | None = field(default=None, repr=False)
 
     def rgb(self, t: ArrayLike) -> np.ndarray:
         """This gradient as linear RGB at positions `t`, from 0 (the first

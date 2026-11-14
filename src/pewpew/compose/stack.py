@@ -14,7 +14,11 @@ moved, is checked against the stack's knobs
 A look's `colorways` are named sets of knob values, by address, each
 value in its knob's JSON form (ADR-006 amendment "colorways"): a press
 sets them all at once, so the look takes other colours while its motion
-carries on. `parse_colorways` checks them against a stack's knobs, and
+carries on, and the running stack glides there over the look's `fade`
+(pewpew.compose.compositor `paint`). A look's `drift` (`Drift`, the
+file's `colorway_drift`) asks for its colorway to change by itself now
+and then (pewpew.aura.looks); `parse_drift` checks it against the
+look's colorways. `parse_colorways` checks them against a stack's knobs, and
 `with_colorway` gives the look with one of them set.
 
 A layer's program is an effect program (pewpew.fx): nodes of ops, the
@@ -45,6 +49,7 @@ import numpy as np
 from pewpew.compose.controls import MIX, LayerControls, layer_address, mix_problems, signal_address, signal_of
 from pewpew.errors import typo_hint, unknown
 from pewpew.fx.graph import Graph, Node, Program, order, require_id
+from pewpew.jsonfile import is_number
 from pewpew.params import Bool, Float
 from pewpew.params.kinds import Parsed
 from pewpew.result import Result
@@ -58,8 +63,13 @@ MAX_NAME = 32  # characters in a look's, a trigger's or a colorway's name
 # Letters and digits first, then also space, "_" and "-": short enough for a
 # phone button, and nothing that reads as a path.
 _NAME = re.compile(rf"[A-Za-z0-9][A-Za-z0-9 _-]{{0,{MAX_NAME - 1}}}")
-MAX_COLORWAYS = 12
+MAX_COLORWAYS = 24
 MAX_COLORWAY_KNOBS = 32  # knobs one colorway sets
+# A drift's dwell, in seconds: the shortest and longest it may draw, and what it draws from by default.
+MIN_DRIFT = 1.0
+MAX_DRIFT = 86400.0
+DEFAULT_DRIFT = (60.0, 180.0)
+DRIFT_KEYS = ("every", "names", "on")
 
 # A look's colorways: each colorway's knob values by address, JSON form.
 Colorways = Mapping[str, Mapping[str, Any]]
@@ -202,17 +212,39 @@ def source_problems(signals: Graph | None, routes: Sequence[Route]) -> list[str]
 
 
 @dataclass(frozen=True, slots=True)
+class Drift(Result):
+    """A look's colorway drift: every so often, a dwell drawn from `every`
+    (the shortest and longest, in seconds), the look takes one of the
+    colorways `names` (None: each of its own) by itself, while `on`
+    (pewpew.aura.looks). `to_json` is its form in a look."""
+
+    every: tuple[float, float] = DEFAULT_DRIFT
+    names: tuple[str, ...] | None = None
+    on: bool = True
+
+    def to_json(self) -> dict[str, Any]:
+        lo, hi = self.every
+        out: dict[str, Any] = {"every": lo if lo == hi else [lo, hi]}
+        if self.names is not None:
+            out["names"] = list(self.names)
+        if not self.on:
+            out["on"] = False
+        return out
+
+
+@dataclass(frozen=True, slots=True)
 class Look:
     """A saved state of the aura: its layers bottom to top, the signals and
     routes that drive their knobs, the look's seed, and how it is recalled:
     the master it sets (None: the master stays), its fade in seconds,
     whether the idle cycle plays it, the knobs a page shows first, by
-    address, and its colorways (module docstring). Raises ValueError for no
+    address, its colorways and its colorway drift (module docstring). Raises ValueError for no
     layers or a repeated layer id (`stack_problems`), a seed that is not a
     whole number of at least 0, a fade, master or cycle its param refuses
     (`parse_fade`, `parse_master`, `check_on_off`), a route
     `source_problems` refuses, a knob listed twice in `front`, or colorways
-    of the wrong shape (`colorway_shape`), and TypeError for a layer that is
+    of the wrong shape (`colorway_shape`) or a drift they do not fit
+    (`parse_drift`), and TypeError for a layer that is
     not a `Layer` or a route that is not a `Route`. Which knobs a
     colorway's addresses name is `parse_colorways`'s to say."""
 
@@ -225,6 +257,7 @@ class Look:
     cycle: bool = False
     front: tuple[str, ...] = ()
     colorways: Colorways = field(default_factory=dict)
+    drift: Drift | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "layers", tuple(self.layers))
@@ -253,6 +286,8 @@ class Look:
         if problems := colorway_shape(self.colorways):
             raise ValueError("; ".join(problems))
         object.__setattr__(self, "colorways", {name: dict(values) for name, values in self.colorways.items()})
+        if self.drift is not None and (problems := parse_drift(self.drift.to_json(), list(self.colorways))[1]):
+            raise ValueError("; ".join(problems))
 
 
 # ---- colorways ---------------------------------------------------------------------
@@ -301,6 +336,57 @@ def parse_colorways(raw: object, controls: Controls) -> tuple[dict[str, dict[str
             parsed[path] = knob.params.declarations[knob.name].to_json(native)
         out[name] = parsed
     return (out, []) if not problems else ({}, problems)
+
+
+def parse_drift(raw: object, colorways: Sequence[str]) -> tuple[Drift | None, list[str]]:
+    """`raw`, a look's `colorway_drift`, as a `Drift` over the look's
+    colorways named `colorways`, or why not, each problem led by
+    `colorway_drift: `: a dwell outside `MIN_DRIFT` to `MAX_DRIFT`
+    seconds, a name that is no colorway or is listed twice, or fewer than
+    2 colorways to move between. Never raises."""
+    where = "colorway_drift: "
+    if not isinstance(raw, Mapping):
+        return None, [(f"'colorway_drift' is an object such as {{\"every\": [60, 180]}}, with an optional "
+                       f"'names' and 'on'; got {raw!r}")]
+    problems = [f"{where}unknown key {key!r}{typo_hint(str(key), DRIFT_KEYS)}; expected {', '.join(DRIFT_KEYS)}"
+                for key in raw if key not in DRIFT_KEYS]
+    every = raw.get("every", list(DEFAULT_DRIFT))
+    pair: list[object] = list(every) if isinstance(every, list | tuple) and len(every) == 2 else [every, every]
+    ends = [float(end) for end in pair if is_number(end) and MIN_DRIFT <= end <= MAX_DRIFT]
+    if len(ends) != 2 or ends[0] > ends[1]:
+        problems.append(f"{where}'every' is seconds from {MIN_DRIFT:g} to {MAX_DRIFT:g}, or a range [min, max] of "
+                        f"them; got {every!r}")
+    names = raw.get("names")
+    if names is not None and not (isinstance(names, list | tuple) and all(isinstance(n, str) for n in names)):
+        problems.append(f"{where}'names' is a list of the look's colorway names; got {names!r}")
+        names = None
+    elif names is not None:
+        for i, name in enumerate(names):
+            if name not in colorways:
+                problems.append(f"{where}names[{i}]: {unknown('colorway', name, colorways, suggest=True)}")
+            elif name in names[:i]:
+                problems.append(f"{where}names[{i}]: repeats names[{list(names).index(name)}]; list each colorway once")
+        if len(set(names)) < 2:
+            problems.append(f"{where}'names' holds at least 2 colorways to move between; got {len(set(names))}")
+    elif len(colorways) < 2:
+        problems.append(f"{where}a drift moves between at least 2 colorways, and the look has {len(colorways)}")
+    on = raw.get("on", True)
+    if (reason := check_on_off("on", on)) is not None:
+        problems.append(f"{where}{reason}")
+    if problems:
+        return None, problems
+    return Drift((ends[0], ends[1]), None if names is None else tuple(names), bool(on)), []
+
+
+def kept_drift(drift: Drift | None, colorways: Sequence[str]) -> Drift | None:
+    """`drift` over colorways named `colorways` now: less each name that
+    is gone, or None once fewer than 2 colorways are left to move between."""
+    if drift is None:
+        return None
+    names = None if drift.names is None else tuple(name for name in drift.names if name in colorways)
+    if len(colorways if names is None else names) < 2:
+        return None
+    return replace(drift, names=names)
 
 
 def with_colorway(look: Look, name: str) -> Look:

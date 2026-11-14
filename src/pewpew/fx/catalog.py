@@ -300,7 +300,8 @@ def stub(book: Mapping[str, list[dict[str, Any]]]) -> str:
         "def layer(lid: str, source: Expr | Program, *, alpha: Expr | None = None, **mix: Any) -> LayerExpr: ...",
         _def("look", ["*layers: LayerExpr", "routes: Iterable[Routed] = ()", "seed: int = 0",
                       "master: float | None = None", "fade: float | None = None", "cycle: bool = False",
-                      "front: Sequence[str] = ()", "colorways: Mapping[str, Mapping[str, Any]] | None = None"],
+                      "front: Sequence[str] = ()", "colorways: Mapping[str, Mapping[str, Any]] | None = None",
+                      "colorway_drift: Mapping[str, Any] | None = None"],
              "", "Look"),
     ]
     lines += [_def(r["op"], _args(r), "") for r in sources]

@@ -264,18 +264,20 @@ def look(
     cycle: bool = False,
     front: Sequence[str] = (),
     colorways: Mapping[str, Mapping[str, Any]] | None = None,
+    colorway_drift: Mapping[str, Any] | None = None,
 ) -> Look:
     """The look of `layers`, bottom first, with `routes` and the routes of
     signals given as args, and the look's own fields (pewpew.compose.stack
     .Look; `fade` None is its default), its `colorways` each value in its
-    knob's JSON form. Its signals are the ones its routes take, and the
+    knob's JSON form and its `colorway_drift` in its JSON form
+    (pewpew.compose.stack.parse_drift). Its signals are the ones its routes take, and the
     ones they read. Raises ValueError for a look that its programs, its
     signals, its routes, its colorways or its own fields refuse, each
     problem by its path."""
     # The compose package imports this module, so it is imported here.
     from pewpew.compose.controls import layer_address, look_controls, signal_address
     from pewpew.compose.modulation import route_problems, signal_problems
-    from pewpew.compose.stack import DEFAULT_FADE, Layer, Look, Route, order_signals, parse_colorways
+    from pewpew.compose.stack import DEFAULT_FADE, Layer, Look, Route, order_signals, parse_colorways, parse_drift
 
     built: list[Layer] = []
     wires: list[Routed] = []
@@ -304,7 +306,10 @@ def look(
     painted, problems = parse_colorways(colorways or {}, knobs)
     if problems:
         raise ValueError("; ".join(problems))
-    return replace(result, colorways=painted)
+    drift, problems = (None, []) if colorway_drift is None else parse_drift(colorway_drift, list(painted))
+    if problems:
+        raise ValueError("; ".join(problems))
+    return replace(result, colorways=painted, drift=drift)
 
 
 def __getattr__(name: str) -> Callable[..., Expr]:

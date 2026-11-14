@@ -16,7 +16,8 @@ address (ADR-006: `layers.<layer>.<node>.<arg>`, `layers.<layer>.opacity`,
 (`layers.<layer>.<node>.op`, `.in`), a route's or front
 knob's place and key (`routes[<index>].path`, `front[<index>]`), a
 colorway's knob by its address after `colorways.<name>`
-(`looks.dusk.colorways.ice.layers.base.tint.palette`), or the
+(`looks.dusk.colorways.ice.layers.base.tint.palette`), a colorway
+drift's key (`colorway_drift.names[1]`), or the
 key refused, such as `looks.dusk.master` or `cycle.end`. A layer
 that has no usable id yet is `layers[<index>]`. The path of a problem with
 a single look starts at the look, with no `looks.<name>`.
@@ -139,8 +140,9 @@ _COLORWAY = re.compile(rf"colorway ({_REPR}){_END}")
 # A path into a colorway: its knob's address is the key there.
 _COLORWAY_KEY = re.compile(r"(?:^|\.)colorways\.[^.]+\.(.+)$")
 _CYCLE = re.compile(r"cycle: ")
+_DRIFT = re.compile(r"colorway_drift: ")
 _INDEX = re.compile(rf"layers\[(\d+)\]{_END}")
-_ITEM = re.compile(rf"(routes|front)\[(\d+)\]{_END}")
+_ITEM = re.compile(rf"(routes|front|names)\[(\d+)\]{_END}")
 _PLACE = re.compile(rf"(layers(?:\.{_ID})+|signals(?:\.{_ID})*){_END}")  # a layer, node or signal, or a knob
 _ADDRESSES = ("layers", "signals")  # the heads of a knob's address
 # A knob or a part of its value: `layers.base.t.palette.stops[0].s`.
@@ -191,6 +193,8 @@ def _locate(text: str, doc: Any) -> tuple[list[str], Any, list[str] | None, str]
             look = list(path)  # an address names the colorway's knob
         elif m := _CYCLE.match(rest):
             path, node = ["cycle"], member(doc, "cycle")
+        elif m := _DRIFT.match(rest):
+            path, node = [*path, "colorway_drift"], member(node, "colorway_drift")
         elif m := _INDEX.match(rest):
             i = int(m[1])
             layers = member(node, "layers")
@@ -230,7 +234,7 @@ def _classify(rest: str, node: Any) -> tuple[Code, list[str], tuple[str, ...], s
         return Code.WRONG_KIND, ["path"], (), None, None
     if re.match(r"\S+ is a part of \S+; list ", rest):  # a front knob
         return Code.WRONG_KIND, [], (), None, None
-    if re.match(r"repeats (?:routes|front)\[\d+\]", rest):  # one route or front knob listed twice
+    if re.match(r"repeats (?:routes|front|names)\[\d+\]", rest):  # one route, front knob or drift name listed twice
         return Code.BAD_REF, [], (), None, None
     if re.match(r"\w+ is (?:not a signal op|a signal, one number a frame)", rest):  # one in the wrong graph
         return Code.WRONG_KIND, ["op"], (), None, None
@@ -283,6 +287,8 @@ def _classify(rest: str, node: Any) -> tuple[Code, list[str], tuple[str, ...], s
         return Code.WRONG_KIND, [key], (), None, None
     if m := re.match(rf"({_REPR}) is a (?:whole )?number (?:of at least|above) \S+?,? got -?[\d.]", rest):
         return Code.OUT_OF_RANGE, [_unrepr(m[1])], (), None, None  # a number, past its bound
+    if m := re.match(rf"({_REPR}) is seconds from (\S+) to (\S+?),", rest):  # a colorway drift's dwell
+        return Code.OUT_OF_RANGE, [_unrepr(m[1])], (f"{m[2]}..{m[3]}",), None, None
     if m := re.match(rf"({_REPR}) takes ", rest):  # a layer's key that names a node of the wrong kind
         return Code.WRONG_KIND, [_unrepr(m[1])], (), None, None
     if m := re.match(rf"({_REPR}) is one of (.*); got (.*)$", rest, re.DOTALL):

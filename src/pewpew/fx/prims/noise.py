@@ -201,15 +201,14 @@ def _octaves(
     if octaves < 1:
         raise ValueError(f"octaves must be 1 or more, got {octaves}")
     lacunarity, gain = float(lacunarity), float(gain)
-    if period is not None and octaves > 1 and not lacunarity.is_integer():
-        raise ValueError(f"a periodic octave sum takes a whole lacunarity, got {lacunarity}")
+    _whole(period, lacunarity, octaves)
     q = vec(p)
     total = shape(fn(q, seed=_derive(seed, 0), period=period))
     amp, freq, norm = 1.0, 1.0, 1.0
     for octave in range(1, octaves):
         amp, freq = amp * gain, freq * lacunarity
         norm += abs(amp)
-        reps = None if period is None else [None if r is None else r * int(freq) for r in period]
+        reps = None if period is None else [None if r is None else int(r * freq) for r in period]
         total = total + amp * shape(fn(tuple(c * freq for c in q), seed=_derive(seed, octave), period=reps))
     return total / norm
 
@@ -219,8 +218,67 @@ def fbm(
     period: Period = None,
 ) -> F32:
     """Fractal Brownian motion: sum of a^k fn(L^k p) for gain a and
-    lacunarity L, normalized to the range of `fn`."""
+    lacunarity L, normalized to the range of `fn`. With a `period`, each
+    power of L times it is whole: an L in quarters keeps DRIFT's 4096
+    whole to the sixth octave."""
     return _octaves(fn, p, octaves, lacunarity, gain, seed, lambda n: n, period)
+
+
+# A ridge's crest: |n| is sqrt(n^2 + RIDGE_SOFT^2) - RIDGE_SOFT, so the
+# crest is a rounded hump, not a kink; it falls to nothing, with no kink
+# either, where |n| reaches RIDGE_WIDTH, about the p75 of gradient noise,
+# so most of the room is dark between the crests.
+RIDGE_SOFT = 0.05
+RIDGE_WIDTH = 0.25
+
+
+def _crest(n: F32) -> F32:
+    """1 where `n` crosses 0, falling smoothly to 0 at |n| = RIDGE_WIDTH."""
+    soft = np.float32(RIDGE_SOFT)
+    away = np.maximum(np.float32(1.0) - (np.sqrt(n * n + soft * soft) - soft) / np.float32(RIDGE_WIDTH),
+                      np.float32(0.0))
+    return away * away
+
+
+def _whole(period: Period, lacunarity: float, octaves: int) -> None:
+    """Raise ValueError unless each power of `lacunarity` below `octaves`
+    keeps each entry of `period` whole."""
+    if period is not None and octaves > 1 and not all(
+        (r * lacunarity**k).is_integer() for r in period if r is not None for k in range(1, octaves)
+    ):
+        raise ValueError(f"a periodic octave sum takes a lacunarity whose powers keep the period whole, "
+                         f"got {lacunarity}")
+
+
+def ridged_fbm(
+    fn: Noise, p: VecLike, octaves: int, lacunarity: float, gain: float, amount: float, *, seed: int = 0,
+    period: Period = None,
+) -> F32:
+    """`fbm` of the same octaves, `amount` (0 to 1) of the way to a ridged
+    multifractal (after Musgrave): each octave folded to a soft crest where
+    it crosses zero (`_crest`) and weighted by the crests of the octaves
+    before it, so fine crests grow only along coarse ones and branch from
+    them as veins. -1 to 1, as `fbm` of a noise is."""
+    if not 0.0 <= amount <= 1.0:
+        raise ValueError(f"amount is within 0..1, got {amount}")
+    lacunarity, gain = float(lacunarity), float(gain)
+    _whole(period, lacunarity, octaves)
+    q = vec(p)
+    plain = crests = np.zeros_like(q[0])
+    weight: F32 = np.ones_like(q[0])
+    amp, freq, norm = 1.0, 1.0, 0.0
+    for octave in range(octaves):
+        reps = None if period is None else [None if r is None else int(r * freq) for r in period]
+        n = fn(tuple(c * freq for c in q) if octave else q, seed=_derive(seed, octave), period=reps)
+        crest = _crest(n) * weight
+        weight = np.minimum(crest * np.float32(2.0), np.float32(1.0))
+        plain = plain + np.float32(amp) * n
+        crests = crests + np.float32(amp) * crest
+        norm += amp
+        amp, freq = amp * gain, freq * lacunarity
+    smooth = plain * np.float32(1.0 / norm)
+    ridged = crests * np.float32(2.0 / norm) - np.float32(1.0)
+    return smooth + np.float32(amount) * (ridged - smooth)
 
 
 def turbulence(

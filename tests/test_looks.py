@@ -165,15 +165,16 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(looks={"a": layered("solid_test", [1])}),
      "look 'a': layers.base.solid: 'args' is an object of name: value"),
     (looks_file(looks={"a": {"pattern": "solid"}}),
-     "look 'a': unknown key 'pattern'; expected colorways, cycle, fade, front, layers, master, routes, seed, signals"),
+     ("look 'a': unknown key 'pattern'; expected colorway_drift, colorways, cycle, fade, front, layers, master, "
+     "routes, seed, signals")),
     (looks_file(looks={"a": layered("solid_test", routes=[{"source": "breath", "path": "layers.base.opacity",
                                                       "depth": 0.2}])}),
      "look 'a': routes[0]: unknown signal 'breath'; signals: (none)"),
     (looks_file(looks={"a": layered("solid_test", signals={"breath": {"op": "lfo"}})}),
      "look 'a': signals.breath: nothing reads signal 'breath'; route it to a knob, or remove it"),
     (looks_file(looks={"a": layered("solid_test", signals={"w": {"op": "osc"}})}),
-     ("look 'a': signals.w: osc is not a signal op; a look's signals run band, beat, env, knob, lfo, smooth, walk, "
-     "and osc goes in a layer's program")),
+     ("look 'a': signals.w: osc is not a signal op; a look's signals run band, beat, env, flare, knob, lfo, smooth, "
+     "walk, and osc goes in a layer's program")),
     (looks_file(looks={"a": layered("solid_test", **{**BREATH, "routes": [{"source": "breath", "depth": "deep"}]})}),
      "look 'a': routes[0]: 'path' is missing"),
     (looks_file(looks={"a": layered("solid_test", front=0)}),
@@ -209,9 +210,10 @@ def test_a_failed_write_refuses_the_save_and_changes_nothing(tmp_path, monkeypat
     (looks_file(cycle={"end": {"a": 1}}), "'end' names {'a': 1}, which is not a look"),
     (looks_file(cycle={"idle": 0}), "'idle' is a number of seconds above 0"),
     (looks_file(cycle={"rounds": 1.5}), "'rounds' is a whole number"),
-    (looks_file(cycle={"dur": 60}), "cycle: unknown key 'dur'; expected each, end, fresh, idle, rounds, seed"),
+    (looks_file(cycle={"dur": 60}),
+     "cycle: unknown key 'dur'; expected colorways, each, end, fresh, idle, rounds, seed"),
     (looks_file(cycle=[1]),  # every key it takes
-     "'cycle' is an object with 'each', 'end', 'fresh', 'idle', 'rounds', 'seed', 'weights', 'window'"),
+     "'cycle' is an object with 'colorways', 'each', 'end', 'fresh', 'idle', 'rounds', 'seed', 'weights', 'window'"),
 ])
 def test_a_bad_file_is_refused_naming_the_problem(text, message):
     with pytest.raises(LookError) as err:
@@ -936,7 +938,7 @@ def served(tmp_path):
 def test_a_new_client_gets_the_looks(served):
     *_, greeting = served
     looks = greeting["aura"]["looks"]
-    assert looks["items"] == [{"name": "blue", "cycle": False, "fade": 2.0}]
+    assert looks["items"] == [{"name": "blue", "cycle": False, "fade": 2.0, "drift": False}]
     assert (looks["current"], looks["changed"], looks["fading"], looks["cycling"]) == (None, False, None, False)
 
 

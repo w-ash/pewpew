@@ -78,7 +78,11 @@ class Osc(Op, op="osc"):
 
 class Noise(Op, op="noise"):
     """Smooth random hills that slowly change, finer ones on top. `octaves`
-    sets how many finer layers, and `speed` how fast they change."""
+    sets how many finer layers, and `speed` how fast they change. Each
+    finer layer is `lacunarity` times finer than the one before and counts
+    `gain` as much. `ridge` folds each layer about its middle, so the hills
+    become soft-crested ridges and, with octaves, veins that branch from
+    them, like rivers or lightning (a ridged multifractal)."""
 
     sig = Sig.SOURCE
     out = Ty.SCALAR
@@ -87,13 +91,36 @@ class Noise(Op, op="noise"):
     octaves = Int(1, 1, 6, help="Finer detail on top of the hills")
     kind = Choice("gradient", {"gradient": "Gradient", "value": "Value"},
                   help="Gradient noise is smoother; value noise is blockier")
-    examples = ("noise(3, 0.1)", 'noise(2, 0.07, octaves=3).palette("aurora")')
+    gain = Float(0.5, 0.3, 0.8, sweet=(0.4, 0.65), label="Roughness",
+                 help="How much each finer layer counts against the one before: more is rougher")
+    lacunarity = Float(2.0, 1.75, 3.0, sweet=(1.75, 2.5), label="Layer step",
+                       help="How much finer each layer is than the one before, in quarter steps")
+    ridge = Float(0.0, 0.0, 1.0, sweet=(0.5, 1.0),
+                  help="Folds the hills into soft-crested ridges; with octaves, branching veins")
+    examples = ("noise(3, 0.1)", 'noise(2, 0.07, octaves=3).palette("aurora")',
+                'noise(3, 0.05, octaves=4, ridge=1).palette("ice")')
     cost = Cost(37.0, 59.0)
+
+    @classmethod
+    def shows(cls, name: str, a: Any, b: Any, args: Mapping[str, Any], spans: Sequence[float]) -> bool:
+        """As `Op.shows`, but `gain` and `lacunarity` only with finer
+        layers to weigh and space: more than one octave."""
+        if name in ("gain", "lacunarity") and args["octaves"] < 2:
+            return False
+        return super().shows(name, a, b, args, spans)
 
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def noise(c: Coords) -> np.ndarray:
             p = _drifting(c, self.ctx, self.scale, self.phase("speed"))
-            v = prim.fbm(_NOISES[self.kind], p, octaves=self.octaves, seed=self.ctx.seed, period=_looped(self.ctx))
+            # Quarters keep each octave's lattice period whole (prim.fbm).
+            lacunarity = round(self.lacunarity * 4.0) / 4.0
+            fn, period = _NOISES[self.kind], _looped(self.ctx)
+            if self.ridge:
+                v = prim.ridged_fbm(fn, p, self.octaves, lacunarity, self.gain, self.ridge, seed=self.ctx.seed,
+                                    period=period)
+            else:
+                v = prim.fbm(fn, p, octaves=self.octaves, lacunarity=lacunarity, gain=self.gain, seed=self.ctx.seed,
+                             period=period)
             return 0.5 + 0.5 * v
 
         return noise

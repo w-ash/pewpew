@@ -232,8 +232,8 @@ export type ClientMessage =
   | { readonly type: "move_layer"; readonly lid: string; readonly to: number }
   /** Show the knobs at addresses `paths` first, in that order: the look's front, an edit a save keeps. */
   | { readonly type: "front"; readonly paths: readonly string[] }
-  /** Set every knob of the running look's colorway `name` at once, in one frame: an edit, as a `set` is. One
-   * value refused refuses them all. */
+  /** Set every knob of the running look's colorway `name` at once, in one frame: an edit, as a `set` is, while
+   * the room glides there over the look's fade. One value refused refuses them all. */
   | { readonly type: "colorway"; readonly name: string }
   /** At most the cap. */
   | { readonly type: "master"; readonly value: number }
@@ -265,6 +265,9 @@ export type ClientMessage =
   | { readonly type: "rename"; readonly name: string; readonly to: string }
   /** Whether the idle cycle plays the look. */
   | { readonly type: "cycle"; readonly name: string; readonly on: boolean }
+  /** Whether the look's colorway drift runs, stored in the looks file at once: on, the look changes colorway by
+   * itself now and then while it is current; refused for a look with fewer than 2 colorways. */
+  | { readonly type: "drift"; readonly name: string; readonly on: boolean }
   /** Whether the look is one of the favorites, the deck's row; refused for a 21st. */
   | { readonly type: "favorite"; readonly name: string; readonly on: boolean }
   /** The look's own fade, stored alone: unsaved edits stay unsaved. This and the six above need a looks file. */

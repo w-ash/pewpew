@@ -40,6 +40,7 @@ class Expr:
         cx: float | Expr = ...,
         cy: float | Expr = ...,
         cz: float | Expr = ...,
+        distance: str = ...,
     ) -> Expr: ...
     def tunnel(
         self,
@@ -105,6 +106,7 @@ def look(
     cycle: bool = False,
     front: Sequence[str] = (),
     colorways: Mapping[str, Mapping[str, Any]] | None = None,
+    colorway_drift: Mapping[str, Any] | None = None,
 ) -> Look: ...
 def attractor(
     kind: str = ...,
@@ -136,7 +138,15 @@ def metaballs(
     speed: float | Expr = ...,
     glow: float | Expr = ...,
 ) -> Expr: ...
-def noise(scale: float | Expr = ..., speed: float | Expr = ..., octaves: int | Expr = ..., kind: str = ...) -> Expr: ...
+def noise(
+    scale: float | Expr = ...,
+    speed: float | Expr = ...,
+    octaves: int | Expr = ...,
+    kind: str = ...,
+    gain: float | Expr = ...,
+    lacunarity: float | Expr = ...,
+    ridge: float | Expr = ...,
+) -> Expr: ...
 def osc(
     freq: float | Expr = ...,
     sync: float | Expr = ...,
@@ -164,6 +174,8 @@ def pulse(
     cx: float | Expr = ...,
     cy: float | Expr = ...,
     cz: float | Expr = ...,
+    jitter: float | Expr = ...,
+    wander: float | Expr = ...,
 ) -> Expr: ...
 def quasicrystal(
     waves: int | Expr = ...,
@@ -200,6 +212,12 @@ def band(
     release: float | Expr = ...,
 ) -> Expr: ...
 def beat(shape: str = ..., width: float | Expr = ...) -> Expr: ...
+def flare(
+    rate: float | Expr = ...,
+    attack: float | Expr = ...,
+    release: float | Expr = ...,
+    floor: float | Expr = ...,
+) -> Expr: ...
 def knob(value: float | Expr = ...) -> Expr: ...
 def lfo(rate: float | Expr = ..., shape: str = ..., offset: float | Expr = ...) -> Expr: ...
 def walk(rate: float | Expr = ...) -> Expr: ...

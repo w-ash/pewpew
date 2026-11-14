@@ -252,6 +252,7 @@ def test_the_knobs_are_named_by_address_in_display_order():
     names = [record["name"] for record in controls.describe()]
     assert names == [
         "layers.base.noise.scale", "layers.base.noise.speed", "layers.base.noise.octaves", "layers.base.noise.kind",
+        "layers.base.noise.gain", "layers.base.noise.lacunarity", "layers.base.noise.ridge",
         "layers.base.opacity", "layers.base.blend", "layers.base.enabled",
         "layers.top.solid.red", "layers.top.solid.green", "layers.top.solid.blue",
         "layers.top.opacity", "layers.top.blend", "layers.top.enabled",
