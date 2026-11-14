@@ -1558,6 +1558,10 @@ series (batch mode).
 
 ### Fixed
 
+- The run sends DDP frames evenly at 60 fps on macOS. A plain sleep woke up to about
+  4 ms late, so frames went out 13–21 ms apart and bunched at WLED's 15 ms show
+  gate, which drops a frame when the next one arrives before it is shown. The frame loop now sleeps until 2 ms
+  before each frame is due and spins the rest, so frames go out 15–18.5 ms apart.
 - `verify looks` passed no look with `osc(...).spherical()` on a 3D map, since `plane`
   xz showed as xy, and no look with a `blend` of a noise, since `mode=stencil` showed
   as `normal` where the second input is never 0. A choice is now live when any of its

@@ -11,6 +11,7 @@ bit-exactly on `next_due`.
 from __future__ import annotations
 
 import threading
+import time
 
 import numpy as np
 import pytest
@@ -18,7 +19,7 @@ import pytest
 from fakes import FLOW, FakeTime, Oversleeper, costed, hosted, source_op, wait_until
 from fakes import frames as render_frames
 from pewpew.mapping import line
-from pewpew.pace import STOPPING, Calls, PacedLoop, PaceStats
+from pewpew.pace import SPIN_S, STOPPING, Calls, PacedLoop, PaceStats, precise_sleep
 
 PERIOD = 1.0 / 60.0
 SEED = 42
@@ -270,6 +271,14 @@ def test_real_time_smoke():
     assert stats.missed_frames >= 0
     assert len(delivered) == 3
     assert delivered == sorted(delivered)
+
+
+@pytest.mark.parametrize("seconds", [0.0, SPIN_S / 2, SPIN_S * 3])
+def test_precise_sleep_never_wakes_early(seconds):
+    """A lower bound only: how late it wakes is a bench distribution (T-5)."""
+    start = time.perf_counter()
+    precise_sleep(seconds)
+    assert time.perf_counter() - start >= seconds
 
 
 # ---- the frame stages and the call queue -------------------------------------
