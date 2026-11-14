@@ -83,7 +83,7 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 
 ### `noise` — Noise
 
-Smooth random hills that slowly change, finer ones on top. `octaves` sets how many finer layers, and `speed` how fast they change.
+Smooth random hills that slowly change, finer ones on top. `octaves` sets how many finer layers, and `speed` how fast they change. Each finer layer is `lacunarity` times finer than the one before and counts `gain` as much. `ridge` folds each layer about its middle, so the hills become soft-crested ridges and, with octaves, veins that branch from them, like rivers or lightning (a ridged multifractal).
 
 Reads none; gives scalar. Dimensions: 1, 2, 3.
 
@@ -91,9 +91,13 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `speed`: 0.1 0.0..2.0 /s. How fast the hills change.
 - `octaves`: 1 1..6. Finer detail on top of the hills.
 - `kind`: 'gradient' of gradient, value. Gradient noise is smoother; value noise is blockier.
+- `gain`: 0.5 0.3..0.8. How much each finer layer counts against the one before: more is rougher.
+- `lacunarity`: 2.0 1.75..3.0. How much finer each layer is than the one before, in quarter steps.
+- `ridge`: 0.0 0.0..1.0. Folds the hills into soft-crested ridges; with octaves, branching veins.
 
     noise(3, 0.1)
     noise(2, 0.07, octaves=3).palette("aurora")
+    noise(3, 0.05, octaves=4, ridge=1).palette("ice")
 
 ### `osc` — Oscillator
 
@@ -326,7 +330,7 @@ Reads `in` (same); gives same. Dimensions: 1, 2, 3.
 
 ### `spherical` — Spherical
 
-Wraps a pattern round a point in 3D: stripes along x become shells round the point, stripes along y wedges round it, and stripes along z cones that open from its low pole to its high pole. In spherical coordinates, the plane's first axis becomes the distance from the point, its second the turn round the plane's normal, and the normal the elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz` set the point.
+Wraps a pattern round a point in 3D: stripes along x become shells round the point, stripes along y wedges round it, and stripes along z cones that open from its low pole to its high pole. In spherical coordinates, the plane's first axis becomes the distance from the point, its second the turn round the plane's normal, and the normal the elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz` set the point. `distance="log"` reads the distance in doublings, log2 of it over the map's largest span: stripes travelling out along it each grow as they go while new ones start small at the point, an endless zoom out of it, and each doubling of the distance holds as many as the one before.
 
 Reads `in` (same); gives same. Dimensions: 2, 3. a strip has no space to wrap round; use mirror at the point, or pulse
 
@@ -334,9 +338,12 @@ Reads `in` (same); gives same. Dimensions: 2, 3. a strip has no space to wrap ro
 - `cx`: 0.5 -0.5..1.5. Where the center sits along x: 0 is the low end, 1 the high end, 0.5 the middle.
 - `cy`: 0.5 -0.5..1.5. Where the center sits along y: 0 is the low end, 1 the high end, 0.5 the middle.
 - `cz`: 0.5 -0.5..1.5. Where the center sits along z: 0 is the low end, 1 the high end, 0.5 the middle.
+- `distance`: 'linear' of linear, log. Log reads the distance in doublings: what travels along it grows as it moves out and new ones start small at the center, an endless zoom.
 
     noise(3).spherical()
     osc(6).spherical().palette("ice")
+    osc(3, 0.1).spherical(distance="log").palette("ember")
+    noise(6, 0.05, octaves=5, ridge=1).scale(3, "x").spherical().palette("ocean")
 
 ### `tunnel` — Tunnel
 

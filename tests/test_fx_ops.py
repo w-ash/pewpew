@@ -553,6 +553,70 @@ def test_a_plane_that_reads_the_input_alike_passes_when_another_plane_shows() ->
     assert {"layers.base.spherical.plane=xz", "layers.base.spherical.plane=yz"} <= set(wired), wired
 
 
+@pytest.mark.parametrize("dims", sorted(MAPS))
+@pytest.mark.parametrize("name, a, b", [("gain", 0.3, 0.8), ("lacunarity", 1.75, 3.0), ("ridge", 0.0, 1.0)])
+def test_noise_gain_lacunarity_and_ridge_change_the_picture_on_each_map(
+    dims: int, name: str, a: float, b: float,
+) -> None:
+    def shown(value: float) -> np.ndarray:
+        return run(program_of(f"noise(3, 0.1, octaves=4, {name}={value})"), MAPS[dims], 20)
+
+    assert rms(shown(a), shown(b)) > LIVENESS_RMS
+
+
+def test_noise_weighs_and_spaces_finer_layers_only_when_it_has_them() -> None:
+    noise, args = OPS["noise"], ParamSet(OPS["noise"]).snapshot()
+    cube = spans(lattice(6))
+    assert not noise.shows("gain", 0.3, 0.8, args, cube) and not noise.shows("lacunarity", 1.75, 3.0, args, cube)
+    assert noise.shows("gain", 0.3, 0.8, {**args, "octaves": 3}, cube) and noise.shows("ridge", 0.0, 1.0, args, cube)
+
+
+def test_a_ridged_noise_is_dark_with_soft_bright_crests_within_zero_to_one() -> None:
+    """Folded, the hills become crests: most of the room dark, the crests
+    bright, and no crest a hard line or a kink: with lights twice as dense
+    the steepest step between neighbours halves, and the sharpest bend
+    falls to a quarter, as for any smooth curve."""
+    room = run(program_of("noise(8, 0.1, octaves=4, ridge=1)"), grid(48, 48), 1)[0, :, 0]
+    assert 0.0 <= room.min() and room.max() <= 1.0
+    assert np.median(room) < 0.4 < np.percentile(room, 95)
+    coarse, fine = (run(program_of("noise(8, 0.1, octaves=4, ridge=1)"), line(n), 1)[0, :, 0].astype(np.float64)
+                    for n in (2000, 4000))
+    assert np.abs(np.diff(fine)).max() < 0.6 * np.abs(np.diff(coarse)).max()
+    assert np.abs(np.diff(fine, 2)).max() < 0.35 * np.abs(np.diff(coarse, 2)).max()
+
+
+def test_a_noise_of_a_quarter_lacunarity_drifts_across_its_wrap_without_a_jump() -> None:
+    """A lacunarity in quarters keeps each octave's lattice period whole,
+    so the drift wraps with no jump; between quarters it reads the nearest."""
+    program = program_of("noise(3, 2.0, octaves=4, lacunarity=2.25)")
+    calm = steps(program, 30)
+    across = steps(program, 30, ("noise", DRIFT / 2 - 0.4))
+    assert across.max() < 1.5 * calm.max()
+    np.testing.assert_array_equal(run(program_of("noise(3, 0.1, octaves=3, lacunarity=2.3)"), grid(6, 6), 2),
+                                  run(program_of("noise(3, 0.1, octaves=3, lacunarity=2.25)"), grid(6, 6), 2))
+
+
+def test_a_log_distance_reads_doublings_of_the_distance_over_the_maps_span() -> None:
+    """`distance="log"` puts log2(distance / the map's largest span) on the
+    distance axis, at least 2^-10 of the span from the point, so each
+    doubling of the distance holds as many stripes as the one before."""
+    renderer = hosted(program_of('osc(1, 0).spherical(cx=0.2, distance="log")'), lattice(5))
+    shown = renderer.advance_to(1.0)[:, 0].astype(np.float64)
+    ctx = op_of(renderer, "spherical").ctx
+    point = ctx.at((0.2, 0.5, 0.5))
+    d = np.sqrt(sum((axis.astype(np.float64) - m) ** 2 for axis, m in zip(ctx.coords.xyz, point, strict=True)))
+    logged = np.log2(np.maximum(d / max(ctx.spans), 2.0**-10))
+    np.testing.assert_allclose(shown, 0.5 + 0.5 * np.sin(2.0 * np.pi * logged), atol=2e-4)
+
+
+@pytest.mark.parametrize("mapping", [grid(8, 8), lattice(6)])
+def test_a_log_distance_changes_the_picture(mapping: np.ndarray) -> None:
+    def shown(distance: str) -> np.ndarray:
+        return run(program_of(f'noise(3).spherical(distance="{distance}")'), mapping, 10)
+
+    assert rms(shown("linear"), shown("log")) > LIVENESS_RMS
+
+
 def test_a_beats_width_shows_only_for_its_pulse() -> None:
     """The phase and the fall do not read `width`, so the gate does not
     probe it there."""

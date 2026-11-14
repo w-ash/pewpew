@@ -1467,6 +1467,69 @@
             "label": "Value"
           }
         ]
+      },
+      {
+        "name": "gain",
+        "kind": "float",
+        "label": "Roughness",
+        "help": "How much each finer layer counts against the one before: more is rougher",
+        "group": "",
+        "widget": "",
+        "default": 0.5,
+        "unit": "",
+        "lo": 0.3,
+        "hi": 0.8,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.4,
+          0.65
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "lacunarity",
+        "kind": "float",
+        "label": "Layer step",
+        "help": "How much finer each layer is than the one before, in quarter steps",
+        "group": "",
+        "widget": "",
+        "default": 2.0,
+        "unit": "",
+        "lo": 1.75,
+        "hi": 3.0,
+        "step": 0.01,
+        "decimals": 2,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          1.75,
+          2.5
+        ],
+        "flash_sensitive": false
+      },
+      {
+        "name": "ridge",
+        "kind": "float",
+        "label": "Ridge",
+        "help": "Folds the hills into soft-crested ridges; with octaves, branching veins",
+        "group": "",
+        "widget": "",
+        "default": 0.0,
+        "unit": "",
+        "lo": 0.0,
+        "hi": 1.0,
+        "step": 0.005,
+        "decimals": 3,
+        "periodic": false,
+        "text": [],
+        "sweet": [
+          0.5,
+          1.0
+        ],
+        "flash_sensitive": false
       }
     ],
     "osc": [
@@ -3171,6 +3234,25 @@
           0.8
         ],
         "flash_sensitive": false
+      },
+      {
+        "name": "distance",
+        "kind": "choice",
+        "label": "Distance",
+        "help": "Log reads the distance in doublings: what travels along it grows as it moves out and new ones start small at the center, an endless zoom",
+        "group": "",
+        "widget": "",
+        "default": "linear",
+        "options": [
+          {
+            "value": "linear",
+            "label": "Linear"
+          },
+          {
+            "value": "log",
+            "label": "Log"
+          }
+        ]
       }
     ],
     "trails": [

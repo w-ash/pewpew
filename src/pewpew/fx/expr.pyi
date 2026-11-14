@@ -40,6 +40,7 @@ class Expr:
         cx: float | Expr = ...,
         cy: float | Expr = ...,
         cz: float | Expr = ...,
+        distance: str = ...,
     ) -> Expr: ...
     def tunnel(
         self,
@@ -136,7 +137,15 @@ def metaballs(
     speed: float | Expr = ...,
     glow: float | Expr = ...,
 ) -> Expr: ...
-def noise(scale: float | Expr = ..., speed: float | Expr = ..., octaves: int | Expr = ..., kind: str = ...) -> Expr: ...
+def noise(
+    scale: float | Expr = ...,
+    speed: float | Expr = ...,
+    octaves: int | Expr = ...,
+    kind: str = ...,
+    gain: float | Expr = ...,
+    lacunarity: float | Expr = ...,
+    ridge: float | Expr = ...,
+) -> Expr: ...
 def osc(
     freq: float | Expr = ...,
     sync: float | Expr = ...,

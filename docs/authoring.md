@@ -322,6 +322,22 @@ arriving at the tempo it moves at. For shells that bend as they travel,
 ripple the distance before `spherical` reads it:
 `osc(6, 0.1).modulate(noise(2, 0.05), 0.15).spherical()`.
 
+`spherical` takes `distance="log"`, which reads the distance in
+doublings (log2 of it over the map's largest span, the point itself at
+-10): stripes travelling out along it each grow as they go while new ones
+start small at the point, an endless zoom out of it, as `tunnel` does in
+a plane: `osc(3, 0.1).spherical(distance="log")`.
+
+`noise` is fractal: `octaves` finer layers, each `lacunarity` times finer
+than the one before (1.75 to 3, in quarters) and counting `gain` as much
+(0.3 to 0.8; more is rougher). `ridge` (0 to 1) folds each layer into a
+soft crest where it crosses its middle and lets finer crests grow only
+along coarser ones, so with octaves the hills become veins that branch,
+like rivers or lightning, mostly dark between them (a ridged
+multifractal). Stretched along the distance and read through
+`spherical`, the veins branch out of the point:
+`noise(6, 0.05, octaves=5, ridge=1).scale(3, "x").spherical()`.
+
 Each node's args are params with ranges, so a bad value fails where it is
 written (`kaleid.sides must be within 1..24, got 40`), and each is a knob
 with an address, `layers.<layer>.<node>.<arg>` (`layers.base.waves.freq`).

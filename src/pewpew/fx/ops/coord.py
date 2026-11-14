@@ -34,12 +34,25 @@ from pewpew.fx.op import (
 )
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import space
-from pewpew.fx.prims.vec import AXES, Axis, plane_axes
+from pewpew.fx.prims.vec import AXES, F32, Axis, plane_axes
 from pewpew.fx.types import SAME, Coords, Fn, Port, Sig
 from pewpew.mapping import spanned
 from pewpew.params import Choice, Float, Int
 
 _AXES: dict[str, Axis] = {"x": "x", "y": "y", "z": "z"}
+
+# A log distance is log2 of the distance over the map's largest span, the
+# distance at least this share of that span, so the point itself reads -10
+# and the far end of the map about -1 to 0.
+LOG_FLOOR = 2.0**-10
+
+
+def logged(q: tuple[F32, ...], i: int, ctx: BindCtx) -> tuple[F32, ...]:
+    """`q` with axis `i`, a distance, as log2 of it over the map's largest
+    span, at least LOG_FLOOR of that span from the point (`LOG_FLOOR`)."""
+    span = max(ctx.spans) or 1.0
+    d = np.maximum(q[i] * np.float32(1.0 / span), np.float32(LOG_FLOOR))
+    return tuple(np.log2(d) if a == i else axis for a, axis in enumerate(q))
 
 
 class _Coord(Op):
@@ -161,19 +174,32 @@ class Spherical(_Coord, op="spherical"):
     coordinates, the plane's first axis becomes the distance from the point,
     its second the turn round the plane's normal, and the normal the
     elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz`
-    set the point."""
+    set the point. `distance="log"` reads the distance in doublings, log2
+    of it over the map's largest span: stripes travelling out along it
+    each grow as they go while new ones start small at the point, an
+    endless zoom out of it, and each doubling of the distance holds as
+    many as the one before."""
 
     dims = frozenset({2, 3})
     fix = "a strip has no space to wrap round; use mirror at the point, or pulse"
     plane = plane_choice()
     cx, cy, cz = centre_args()
+    distance = Choice("linear", {"linear": "Linear", "log": "Log"},
+                      help="Log reads the distance in doublings: what travels along it grows as it moves out "
+                           "and new ones start small at the center, an endless zoom")
     along = CENTRE_ALONG
-    examples = ("noise(3).spherical()", 'osc(6).spherical().palette("ice")')
+    examples = ("noise(3).spherical()", 'osc(6).spherical().palette("ice")',
+                'osc(3, 0.1).spherical(distance="log").palette("ember")',
+                'noise(6, 0.05, octaves=5, ridge=1).scale(3, "x").spherical().palette("ocean")')
     cost = Cost(6.1, 14.0)
 
     def warp(self, c: Coords) -> Coords:
         centre = self.ctx.at((self.cx, self.cy, self.cz))
-        return c.moved(space.spherical(c.xyz, self.ctx.plane(self.plane), centre))
+        plane = self.ctx.plane(self.plane)
+        q = space.spherical(c.xyz, plane, centre)
+        if self.distance == "log":
+            q = logged(q, plane_axes(plane, q)[0], self.ctx)
+        return c.moved(q)
 
 
 class Mirror(_Coord, op="mirror"):

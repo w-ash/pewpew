@@ -15,6 +15,14 @@ series (batch mode).
   `wander` (0 to 0.5) starts each shell from its own point near the center. The
   look's seed chooses them and a shell keeps them for its life. At 0 both render as
   before, byte for byte.
+- `noise` takes `gain` (0.3 to 0.8), `lacunarity` (1.75 to 3, in quarters, so its
+  drift still wraps with no jump) and `ridge` (0 to 1), which folds each octave into
+  a soft crest and grows finer crests only along coarser ones: with octaves, veins
+  that branch (a ridged multifractal). At their defaults it renders as before, byte
+  for byte.
+- `spherical` takes `distance="log"`: the distance in doublings over the
+  map's largest span, so what travels out along it grows as it goes and new ones
+  start small at the point, an endless zoom.
 - The `flare` signal: random firings, `rate` a second on average, each rising over
   `attack` to a peak drawn between `floor` and 1 and falling over `release`; the
   larger of overlapping firings shows, and the look opens on one. The look's seed

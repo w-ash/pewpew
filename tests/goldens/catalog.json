@@ -861,7 +861,7 @@
       "op": "noise",
       "sig": "source",
       "label": "Noise",
-      "doc": "Smooth random hills that slowly change, finer ones on top. `octaves` sets how many finer layers, and `speed` how fast they change.",
+      "doc": "Smooth random hills that slowly change, finer ones on top. `octaves` sets how many finer layers, and `speed` how fast they change. Each finer layer is `lacunarity` times finer than the one before and counts `gain` as much. `ridge` folds each layer about its middle, so the hills become soft-crested ridges and, with octaves, veins that branch from them, like rivers or lightning (a ridged multifractal).",
       "inputs": [],
       "out": "scalar",
       "dims": [
@@ -954,6 +954,69 @@
               "label": "Value"
             }
           ]
+        },
+        {
+          "name": "gain",
+          "kind": "float",
+          "label": "Roughness",
+          "help": "How much each finer layer counts against the one before: more is rougher",
+          "group": "",
+          "widget": "",
+          "default": 0.5,
+          "unit": "",
+          "lo": 0.3,
+          "hi": 0.8,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.4,
+            0.65
+          ],
+          "flash_sensitive": false
+        },
+        {
+          "name": "lacunarity",
+          "kind": "float",
+          "label": "Layer step",
+          "help": "How much finer each layer is than the one before, in quarter steps",
+          "group": "",
+          "widget": "",
+          "default": 2.0,
+          "unit": "",
+          "lo": 1.75,
+          "hi": 3.0,
+          "step": 0.01,
+          "decimals": 2,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            1.75,
+            2.5
+          ],
+          "flash_sensitive": false
+        },
+        {
+          "name": "ridge",
+          "kind": "float",
+          "label": "Ridge",
+          "help": "Folds the hills into soft-crested ridges; with octaves, branching veins",
+          "group": "",
+          "widget": "",
+          "default": 0.0,
+          "unit": "",
+          "lo": 0.0,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.5,
+            1.0
+          ],
+          "flash_sensitive": false
         }
       ],
       "cost": {
@@ -1021,6 +1084,54 @@
                         "h": 285.0,
                         "s": 0.65,
                         "v": 0.7
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "py": "noise(3, 0.05, octaves=4, ridge=1).palette(\"ice\")",
+          "json": {
+            "out": "palette",
+            "nodes": {
+              "noise": {
+                "op": "noise",
+                "args": {
+                  "scale": 3.0,
+                  "speed": 0.05,
+                  "octaves": 4,
+                  "ridge": 1.0
+                }
+              },
+              "palette": {
+                "op": "palette",
+                "in": [
+                  "noise"
+                ],
+                "args": {
+                  "palette": {
+                    "label": "ice",
+                    "stops": [
+                      {
+                        "at": 0.0,
+                        "h": 220.0,
+                        "s": 1.0,
+                        "v": 0.25
+                      },
+                      {
+                        "at": 0.6,
+                        "h": 200.0,
+                        "s": 0.55,
+                        "v": 0.75
+                      },
+                      {
+                        "at": 1.0,
+                        "h": 195.0,
+                        "s": 0.08,
+                        "v": 1.0
                       }
                     ]
                   }
@@ -4272,7 +4383,7 @@
       "op": "spherical",
       "sig": "coord",
       "label": "Spherical",
-      "doc": "Wraps a pattern round a point in 3D: stripes along x become shells round the point, stripes along y wedges round it, and stripes along z cones that open from its low pole to its high pole. In spherical coordinates, the plane's first axis becomes the distance from the point, its second the turn round the plane's normal, and the normal the elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz` set the point.",
+      "doc": "Wraps a pattern round a point in 3D: stripes along x become shells round the point, stripes along y wedges round it, and stripes along z cones that open from its low pole to its high pole. In spherical coordinates, the plane's first axis becomes the distance from the point, its second the turn round the plane's normal, and the normal the elevation from the low pole (0) to the high (1). `cx`, `cy` and `cz` set the point. `distance=\"log\"` reads the distance in doublings, log2 of it over the map's largest span: stripes travelling out along it each grow as they go while new ones start small at the point, an endless zoom out of it, and each doubling of the distance holds as many as the one before.",
       "inputs": [
         {
           "name": "in",
@@ -4377,6 +4488,25 @@
             0.8
           ],
           "flash_sensitive": false
+        },
+        {
+          "name": "distance",
+          "kind": "choice",
+          "label": "Distance",
+          "help": "Log reads the distance in doublings: what travels along it grows as it moves out and new ones start small at the center, an endless zoom",
+          "group": "",
+          "widget": "",
+          "default": "linear",
+          "options": [
+            {
+              "value": "linear",
+              "label": "Linear"
+            },
+            {
+              "value": "log",
+              "label": "Log"
+            }
+          ]
         }
       ],
       "cost": {
@@ -4448,6 +4578,138 @@
                         "at": 1.0,
                         "h": 195.0,
                         "s": 0.08,
+                        "v": 1.0
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "py": "osc(3, 0.1).spherical(distance=\"log\").palette(\"ember\")",
+          "json": {
+            "out": "palette",
+            "nodes": {
+              "osc": {
+                "op": "osc",
+                "args": {
+                  "freq": 3.0,
+                  "sync": 0.1
+                }
+              },
+              "spherical": {
+                "op": "spherical",
+                "in": [
+                  "osc"
+                ],
+                "args": {
+                  "distance": "log"
+                }
+              },
+              "palette": {
+                "op": "palette",
+                "in": [
+                  "spherical"
+                ],
+                "args": {
+                  "palette": {
+                    "label": "ember",
+                    "stops": [
+                      {
+                        "at": 0.0,
+                        "h": 0.0,
+                        "s": 1.0,
+                        "v": 0.0
+                      },
+                      {
+                        "at": 0.35,
+                        "h": 5.0,
+                        "s": 1.0,
+                        "v": 0.35
+                      },
+                      {
+                        "at": 0.7,
+                        "h": 22.0,
+                        "s": 1.0,
+                        "v": 0.9
+                      },
+                      {
+                        "at": 1.0,
+                        "h": 42.0,
+                        "s": 0.7,
+                        "v": 1.0
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "py": "noise(6, 0.05, octaves=5, ridge=1).scale(3, \"x\").spherical().palette(\"ocean\")",
+          "json": {
+            "out": "palette",
+            "nodes": {
+              "noise": {
+                "op": "noise",
+                "args": {
+                  "scale": 6.0,
+                  "speed": 0.05,
+                  "octaves": 5,
+                  "ridge": 1.0
+                }
+              },
+              "scale": {
+                "op": "scale",
+                "in": [
+                  "noise"
+                ],
+                "args": {
+                  "amount": 3.0,
+                  "axis": "x"
+                }
+              },
+              "spherical": {
+                "op": "spherical",
+                "in": [
+                  "scale"
+                ],
+                "args": {}
+              },
+              "palette": {
+                "op": "palette",
+                "in": [
+                  "spherical"
+                ],
+                "args": {
+                  "palette": {
+                    "label": "ocean",
+                    "stops": [
+                      {
+                        "at": 0.0,
+                        "h": 225.0,
+                        "s": 1.0,
+                        "v": 0.05
+                      },
+                      {
+                        "at": 0.45,
+                        "h": 210.0,
+                        "s": 0.95,
+                        "v": 0.4
+                      },
+                      {
+                        "at": 0.8,
+                        "h": 190.0,
+                        "s": 0.8,
+                        "v": 0.85
+                      },
+                      {
+                        "at": 1.0,
+                        "h": 175.0,
+                        "s": 0.35,
                         "v": 1.0
                       }
                     ]
