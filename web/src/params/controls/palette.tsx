@@ -38,9 +38,10 @@ interface Drag {
  * stops at one place make a hard edge; the ends stay at 0 and 1. A press takes the nearest dot, the picked
  * one first in a pile; when it moves, the last of a pile goes if it moves right and the first if it moves left.
  * A dot is a slider: the arrow keys step it (ten steps with Shift or a Page key), Home and End take it to its
- * neighbours, Enter or Space opens its editor, Delete or Backspace removes it (an end stop or one of two says
- * why not) and focus goes to the dot before. A press on the gradient adds a stop there, in the color the gradient has there, so the room keeps its colors until the stop is moved or
- * colored. The editor says which stop of how many (said as it changes), steps to the stop before or after
+ * neighbours, Enter or Space opens its editor, Delete or Backspace removes it, as the editor's remove does
+ * (one of two says why not), and focus goes to the dot before. A press on the gradient adds a stop there, in
+ * the color the gradient has there, so the room keeps its colors until the stop is moved or colored. The
+ * editor says which stop of how many (said as it changes), steps to the stop before or after
  * (the way to one of several in a pile), adds a stop halfway to the next and removes one (in two presses),
  * and holds the stop's parts as strips: its position, on a strip that runs from the stop before to the stop
  * after and shows the two fades it sits between, so stops a few thousandths apart still have the strip's
@@ -163,12 +164,12 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
       // Not the field's reset, which this key would otherwise reach.
       e.preventDefault();
       e.stopPropagation();
-      if (isEnd(k)) return why.show(`the ${k === 0 ? "first" : "last"} stop stays: it holds ${k === 0 ? "0" : "1"}`);
       if (few) return why.show(fewWhy);
       why.close();
       send(stops.toSpliced(k, 1), true);
-      if (open) pick(k - 1);
-      (strip.current!.children[k - 1] as HTMLElement).focus();
+      const to = Math.max(k - 1, 0);
+      if (open) pick(to);
+      (strip.current!.children[to] as HTMLElement).focus();
       return sayStep(`stop ${k + 1} removed`);
     }
     const to = (at: number) => {
@@ -236,7 +237,7 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
             aria-valuetext={formatNumber(p.stop.at, s.at)}
             aria-readonly={isEnd(k) || undefined}
             aria-current={open && k === i ? "true" : undefined}
-            title={isEnd(k) ? "press to edit this stop" : "drag to move this stop; press to edit it; Delete removes it"}
+            title={isEnd(k) ? "press to edit this stop; Delete removes it" : "drag to move this stop; press to edit it; Delete removes it"}
             style={{ left: `${s.at * 100}%`, color: cssRgb(displayRgb(s, gamma)) }}
             onPointerDown={press}
             onPointerMove={pull}

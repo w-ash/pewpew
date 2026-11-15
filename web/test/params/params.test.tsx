@@ -522,16 +522,18 @@ test("a hard edge pulls apart both ways: right moves the last stop of the pile, 
   expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.6, 0.8, 1]);
 });
 
-test("Delete or Backspace on a stop dot removes that stop, not the field's value; an end stop says why not", async () => {
+test("Delete or Backspace on a stop dot removes that stop, not the field's value; one of two says why not", async () => {
   const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
   dot(screen, 2).focus();
   await userEvent.keyboard("{Delete}");
   expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 1]);
   expect(document.activeElement?.getAttribute("aria-label")).toBe("stop 1 of 3");
+  await userEvent.keyboard("{Backspace}"); // an end goes as any stop does: the next one takes its place
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 1]);
   const before = palettes(sent).length;
   await userEvent.keyboard("{Backspace}");
   expect(palettes(sent)).toHaveLength(before);
-  await expect.element(screen.getByText(/the first stop stays/)).toBeVisible();
+  await expect.element(screen.getByText("a palette needs two stops")).toBeVisible();
 });
 
 test("a drag of an end dot moves nothing and says why", async () => {
