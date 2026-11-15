@@ -69,3 +69,30 @@ test("a key on a focused param is the param's, and the list turns single keys of
   await userEvent.keyboard("2");
   expect(press).toHaveBeenCalledTimes(1);
 });
+
+test("a chord is the page's in a number entry that holds no typed text; in typed text, and in a text box, it is the text's", async () => {
+  const chord = vi.fn();
+  function Page() {
+    useShortcuts([{ hotkey: "mod+z", label: "undo", action: chord }]);
+    return (
+      <>
+        <ParamField p={param("zoo_test", "level")} />
+        <input aria-label="name" />
+      </>
+    );
+  }
+  const { screen } = await renderWired(<Page />);
+  const undo = "{ControlOrMeta>}z{/ControlOrMeta}";
+  await screen.getByRole("spinbutton", { name: "level" }).click();
+  await userEvent.keyboard(undo);
+  expect(chord).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("7");
+  await userEvent.keyboard(undo);
+  expect(chord).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("{Enter}");
+  await userEvent.keyboard(undo);
+  expect(chord).toHaveBeenCalledTimes(2);
+  await screen.getByRole("textbox", { name: "name" }).click();
+  await userEvent.keyboard(undo);
+  expect(chord).toHaveBeenCalledTimes(2);
+});

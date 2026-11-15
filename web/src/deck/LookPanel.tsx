@@ -25,6 +25,8 @@ export type Awaited = (looks: LooksState) => string | null;
 
 /** Why a run without a looks file cannot save. */
 const NO_LOOKS = "this run can't keep looks";
+/** How long what an undo or a redo did shows under the header. */
+const TOLD_MS = 4000;
 
 /** The look in the room, first in the editor. Its header stays at the slot's top at every depth, its height
  * measured for what pins under it: its name, the only display text, whole, which gives way first on a narrow
@@ -39,9 +41,9 @@ const NO_LOOKS = "this run can't keep looks";
  * opener; "save as new…" and "rename…" take focus to the name box, its text selected, and while it is open, keys on it or
  * its opener are typing, never shortcuts. `k` presses save, or, with nothing to save, says why under the
  * header. Once the engine has made a save, a rename, a revert or a delete, it is announced and the open form closes.
- * Before save, undo and redo (⌘Z and ⇧⌘Z, Ctrl on other systems) take back and do again this page's look edits
- * (params/history.ts), each saying what it did; with none, or while the look waits, a press says why under the
- * header. In layout mode the keys are the layout editor's.
+ * Before save, undo and redo (⌘Z, and ⇧⌘Z or ⌘Y; Ctrl on other systems) take back and do again this page's look
+ * edits (params/history.ts), each saying under the header for a few seconds what it did; with none, or while the
+ * look waits, a press says why there. In layout mode the keys are the layout editor's.
  * While a cue holds a look, or a recall waits for the running fade, the header says so and there is no save,
  * and what is under it waits, inert: edits there would be lost when the hold ends or the recall lands.
  * Without a looks file the header says the look cannot be saved, and on the laptop how to start a run that
@@ -61,6 +63,8 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   const naming = useRef(false);
   const opener = useRef<HTMLElement | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
+  const redoButton = useRef<HTMLButtonElement>(null);
+  const toldTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const forms = useRef<HTMLDivElement>(null);
   const head = useHeightVar("--head-h");
   const ownTitle = useId();
@@ -100,7 +104,11 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
       label: "save the look playing",
       action: () => (save.kind !== "none" && pressable(saveButton.current) ? saveButton.current!.click() : why.toggle(save.kind === "none" ? save.why : "")),
     },
+    ...(keys
+      ? [{ hotkey: "mod+y", label: "redo a look edit", action: () => redoButton.current?.click(), enabled: () => pressable(redoButton.current) }]
+      : []),
   ]);
+  useEffect(() => () => clearTimeout(toldTimer.current), []);
   useEffect(() => {
     if (!open) return;
     // Only the slot scrolls, never the page around it: the form starts under the pinned header.
@@ -155,8 +163,12 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   };
   const typing = open === "save" || open === "rename" || undefined;
   const take = (undo: boolean) => () => {
-    const step = undo ? edits.undo() : edits.redo();
-    if (step) sayStep(edits.told(step, undo));
+    const told = undo ? edits.undo() : edits.redo();
+    if (!told) return;
+    sayStep(told);
+    why.show(told);
+    clearTimeout(toldTimer.current);
+    toldTimer.current = setTimeout(() => why.close(told), TOLD_MS);
   };
   const history = (
     <>
@@ -172,7 +184,8 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
       <IconButton
         icon="redo"
         label="redo"
-        title="redo the look edit undone last (⇧⌘Z)"
+        ref={redoButton}
+        title="redo the look edit undone last (⇧⌘Z or ⌘Y)"
         reason={held ?? (canRedo ? null : "no look edit to redo")}
         note={why}
         shortcut={keys ? { hotkey: "mod+shift+z", label: "redo a look edit" } : undefined}

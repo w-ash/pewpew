@@ -4,7 +4,9 @@
 // it is open) belongs to it, not to the page, and the single-key shortcuts can
 // be turned off (WCAG 2.1.4). Esc is not a character key: it stays on. Nor is
 // a chord with Ctrl, Cmd or Alt (undo): it stays on, and works on a param or a
-// list too, as no control takes one. In typed text every key is the text's.
+// list too, as no control takes one. In typed text every key is the text's; a
+// chord is the page's again once an entry that commits its text (`data-typed`)
+// holds none uncommitted.
 import { useHotkeys, useHotkeyRegistrations } from "@ark-ui/react/hotkeys";
 import { useSyncExternalStore } from "react";
 import { loadLocal, saveLocal } from "./deviceStorage";
@@ -48,9 +50,10 @@ export function useKeysOn(): [boolean, (on: boolean) => void] {
 
 function active(hotkey: string): boolean {
   const el = document.activeElement;
-  if (isTextEntry(el)) return false;
+  const chord = CHORD.test(hotkey);
+  if (isTextEntry(el) && !(chord && el?.getAttribute("data-typed") === "false")) return false;
   if (ESCAPE.test(hotkey)) return true;
-  if (CHORD.test(hotkey)) return !el?.closest("[role=dialog], [data-own-keys]");
+  if (chord) return !el?.closest("[role=dialog], [data-own-keys]");
   return keysOn && !el?.closest(".param, select, [role=dialog], [data-own-keys]");
 }
 
