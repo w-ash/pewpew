@@ -690,16 +690,20 @@ class Looks:
         """Play the director's `slot`: recall a saved look, unless it is the
         current one as saved and no fade runs, or play a fresh one. With the
         cycle's `colorways`, a look with colorways and no drift of its own
-        starts in one drawn for the slot."""
+        starts in one drawn for the slot; the current look as saved glides
+        to it, as a drift does, and its motion carries on."""
         book = self._book
         if slot.name is None:
             self._play_fresh(slot.seed)
-        elif (
-            slot.name in book.looks
-            and (slot.name != book.current or self.changed() or self._fader.fading)
-            and (reason := self.recall(slot.name, colorway=self._slot_colorway(slot))) is not None
-        ):
-            self._fail(reason)
+            return
+        if slot.name not in book.looks:
+            return
+        colorway = self._slot_colorway(slot)
+        if slot.name != book.current or self.changed() or self._fader.fading:
+            if (reason := self.recall(slot.name, colorway=colorway)) is not None:
+                self._fail(reason)
+        elif colorway is not None and colorway != self._deck.fader.current.colorway():
+            self._take_colorway(colorway, "the cycle")
 
     def _slot_colorway(self, slot: Slot) -> str | None:
         """The colorway the idle cycle starts slot `slot`'s look in, or None
@@ -789,21 +793,26 @@ class Looks:
         drifting.next = t + draw.uniform(*look.drift.every)
         if not names:
             return
-        name = draw.choice(names)
+        self._take_colorway(draw.choice(names), "the drift")
+
+    def _take_colorway(self, name: str, by: str) -> None:
+        """Glide the running look to its colorway `name` as the look
+        playing, not an edit: what `changed` compares with moves by the
+        same knobs. `by` names what took it, for the log."""
+        stack = self._deck.fader.current
         sets, reason = stack.colorway_sets(name)
         if reason is not None:
-            logger.warning("the drift passed colorway %s over: %s", name, reason)
+            logger.warning("%s passed colorway %s over: %s", by, name, reason)
             return
         assert sets is not None
         stack.paint(sets, self.glide())
         recalled = self._recalled
         if recalled is not None:
-            # The look playing, not an edit: what `changed` compares with moves by the same knobs.
-            values = live[name]
+            values = stack.colorways[name]
             layers, signals, front = recalled.edited
             painted = with_colorway(Look(layers, signals, front=front, colorways={name: values}), name)
             self._recalled = recalled._replace(edited=_edited(painted), values={**recalled.values, **values})
-        logger.info("the drift took colorway %s", name)
+        logger.info("%s took colorway %s", by, name)
 
     def _saved(self, master: float | None) -> _Saved:
         """What `changed` compares the live state with from now on: the

@@ -1119,7 +1119,9 @@ Status stays **Proposed**.
   `"colorways": true`, a look it plays that has colorways and no drift of
   its own that is on starts in one of them, drawn from the cycle's seed
   and the slot's number, settled (the look fades in anyway), as the look
-  playing rather than an edit. Off by default, so a file written
+  playing rather than an edit. A slot of the look already current, as
+  saved, recalls nothing: it glides to the drawn colorway as a drift
+  does, and the motion carries on. Off by default, so a file written
   before it replays to the same frames.
 
 ### Consequences

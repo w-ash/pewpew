@@ -509,6 +509,34 @@ def test_the_cycle_starts_each_look_in_a_seeded_colorway_the_same_way_every_run(
     assert [name for name, _, _ in saved] == [name for name, _, _ in runs[0]], "the order is the cycle's own"
 
 
+def one_look_cycle() -> tuple[list[tuple[float, str | None]], bool, bool]:
+    """A cycle of one look, `a`, with its colorways on, over 90 s: each change of the active colorway (its
+    time and name), whether one renderer ran throughout, and whether the look ever read changed."""
+    look = replace(decoded({**DOC, "colorways": THREE}), cycle=True)
+    cycle = CycleConfig(idle=1.0, each=6.0, seed=3, window=0, colorways=True)
+    rig = aura_rig(look, looks={"a": look}, current="a", cycle=cycle)
+    assert restore(rig) is None
+    rig.frame(rig.clock.advance())
+    renderer, seen, out, changed = rig.renderer(), stack_state(rig)["colorway"], [], False
+    end = rig.clock.t + 90.0
+    while rig.clock.t < end:
+        rig.frame(rig.clock.advance(6))
+        changed = changed or rig.looks.changed()
+        if (now := stack_state(rig)["colorway"]) != seen:
+            out.append((round(rig.clock.t, 4), now))
+            seen = now
+    return out, rig.renderer() is renderer, changed
+
+
+def test_the_cycle_glides_a_look_that_is_already_current_to_the_colorway_it_draws():
+    runs = [one_look_cycle() for _ in range(2)]
+    assert runs[0] == runs[1], "same seed, same engine times: the same picks"
+    picks, same_renderer, changed = runs[0]
+    assert len(picks) >= 5 and {name for _, name in picks} == set(THREE), "each slot draws a colorway"
+    assert same_renderer, "no recall: its motion carries on"
+    assert not changed, "a pick is the look playing, not an unsaved edit"
+
+
 def test_the_cycle_leaves_a_look_that_drifts_to_its_drift():
     drifting = replace(decoded({**DRIFTING, "colorway_drift": {"every": 600}}), cycle=True)
     looks = {name: drifting for name in ("a", "b")}
