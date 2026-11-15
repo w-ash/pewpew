@@ -7,9 +7,9 @@ fps, with its seed. Two looks both render with the arguments given. So a
 render's spec always gives its handle again, and two renders whose maps
 differ do not compare. The look diff names each knob by its address (ADR-006), a
 layer's or signal's node by its own (its op and what it reads), plus the
-look's own fields, its layer order, its front knobs, each route by
-`routes[<source> -> <path>]`, its value the route's depth, and each
-colorway's knob by `colorways.<name>.<address>`.
+look's own fields (`colorway_drift` among them), its layer order, its
+front knobs, each route by `routes[<source> -> <path>]`, its value the
+route's depth, and each colorway's knob by `colorways.<name>.<address>`.
 
 The frame numbers are diagnostics, never gates, taken from the frames as
 a sink shows them (NaN to 0, +inf to 1, clipped to [0, 1]), as the
@@ -141,7 +141,7 @@ def _knobs(look: Mapping[str, Any]) -> dict[str, Any]:
     layer's mix, each node's and signal's op and args by address, each
     route's depth, and its front knobs (module docstring)."""
     layers = look["layers"]
-    out: dict[str, Any] = {key: look.get(key) for key in ("seed", "master", "fade", "cycle", "front")}
+    out: dict[str, Any] = {key: look.get(key) for key in ("seed", "master", "fade", "cycle", "front", "colorway_drift")}
     out["layers"] = [layer["id"] for layer in layers]
     for layer in layers:
         out |= {layer_address(layer["id"], key): layer.get(key) for key in (*MIX, "out", "alpha")}
