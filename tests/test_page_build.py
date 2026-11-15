@@ -26,12 +26,12 @@ SRC = WEB / "src"
 # editor's styles); 230,455 before and 232,041 after shuffle's control (2026-11-08), which
 # raised the budget by 2,000 bytes; 232,427 before and 232,739 after the colorway row's
 # drift switch (2026-11-13), which raised it by 1,000 more; 235,405 after the palette editor's
-# drag and position strip, and 239,020 after look-edit undo, layer drag, the add-layer search and
-# the sliders' swipe guard (2026-11-15), which raised it by 6,500 in all. The one-file page as built on 2026-11-06
+# drag and position strip, and 240,243 after look-edit undo, layer drag, the add-layer search and
+# the sliders' swipe guard (2026-11-15), which raised it by 8,000 in all. The one-file page as built on 2026-11-06
 # with the Martian fonts, their notice and the icon set was 224,888 bytes; the
 # budget is that plus about 2.5%. The page before the fonts was 199,921 bytes against a
 # budget of 217,855 (189,439 + 15%).
-GZIP_BUDGET = 240_000
+GZIP_BUDGET = 241_500
 # What the 3D view loads on demand beyond the layout editor's files (three.js,
 # @react-three, web/src/rig3d), gzipped file by file: THREE_D_MEASURED bytes as
 # built on 2026-11-08 with the gizmo that edits a pose (drei's TransformControls),

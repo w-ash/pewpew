@@ -1590,6 +1590,15 @@ series (batch mode).
 
 ### Fixed
 
+- While a cue holds a look, a tap on another look over unsaved edits takes two
+  presses, as it does otherwise: the edits were dropped on one. The engine's looks
+  state says so with `held_changed`.
+- In the 3D view a click or tap within 8 px of a fixture selects it; only its 1 cm
+  body did. Add › Bar on a flat rig lays the new bar in the rig's plane, so the 2D
+  view and its tools stay, and the 2D tools say why they are off when a rig is not
+  flat. Picking a fixture in the layout list brings its form into view.
+- Turning layout on closes the health panel, the all-looks list or the report, which
+  hid its tools.
 - On a phone, a scroll swipe that starts on a slider's thumb no longer changes the
   value: only a sideways drag moves it, and a scroll that takes over puts the value
   back. The pin shows at rest on knobs in an open layer, a portrait phone gives the
