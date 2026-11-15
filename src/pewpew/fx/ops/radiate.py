@@ -268,16 +268,18 @@ class Pulse(Op, op="pulse"):
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def pulse(c: Coords) -> np.ndarray:
             fractions = (self.cx, self.cy, self.cz)
-            centre = self.ctx.at(fractions)
-            d = length([axis - m for axis, m in zip(c.xyz, centre, strict=True)])
-            dark: F32 = np.ones_like(d)
+            dark: F32 = np.ones(np.broadcast_shapes(*(axis.shape for axis in c.xyz)), np.result_type(*c.xyz))
+            d = None  # the distance from the center, found once a shell starts there
             for shell in self.shells():
-                away = d
                 if shell.offset != HOME:
                     point = self.ctx.at([f + o for f, o in zip(fractions, shell.offset, strict=True)])
                     away = length([axis - m for axis, m in zip(c.xyz, point, strict=True)])
+                else:
+                    if d is None:
+                        d = length([axis - m for axis, m in zip(c.xyz, self.ctx.at(fractions), strict=True)])
+                    away = d
                 band = (away - shell.speed * shell.age) * (1.0 / shell.width)
-                dark = dark * (1.0 - shell.level * np.exp(-(band * band)))
+                dark *= 1.0 - shell.level * np.exp(-(band * band))
             return 1.0 - dark
 
         return pulse
@@ -382,6 +384,36 @@ class Tree:
     def tips(self) -> float:
         """The longest path from the origin to a tip."""
         return float((self.s0 + self.length).max(initial=0.0))
+
+
+@dataclass(frozen=True, slots=True)
+class _Still:
+    """The parts of a tree that do not move as it sways, read-only
+    (`Branches.grow_at`): each branch's length, the path length `s0` to its
+    start, its turn off its parent, its fork's split, its bow's size and
+    its glow's radius; each trunk's turn and rise; and the axes of the
+    map's plane, the wider first."""
+
+    length: np.ndarray
+    s0: np.ndarray
+    turns: np.ndarray
+    split: np.ndarray
+    size: np.ndarray
+    width: np.ndarray
+    turn: np.ndarray
+    rise: np.ndarray
+    axes: tuple[int, ...]
+
+
+@dataclass(slots=True)
+class _Points:
+    """The points a tree last lit (`Branches.points`): a copy of them,
+    their distance from the origin, and the beads' still field at them,
+    made when first read."""
+
+    p: np.ndarray
+    distance: np.ndarray
+    field: np.ndarray | None = None
 
 
 @lru_cache(maxsize=16)
@@ -546,8 +578,13 @@ class Branches(Op, op="branches"):
         # Seconds the node has run: the clock its slow sines read.
         self.clock = 0.0
         self._planned: tuple[tuple[Any, ...], Plan] | None = None
+        self._still: tuple[tuple[Any, ...], _Still] | None = None
         self._grown: tuple[tuple[Any, ...], Tree] | None = None
-        self._pairs: tuple[tuple[Any, ...], tuple[np.ndarray, ...], np.ndarray, np.ndarray] | None = None
+        # The tree a swaying search grew for the next refresh, by its shape and epoch.
+        self._next: tuple[tuple[Any, ...], Tree] | None = None
+        # The points last lit, and the parts of their beads that do not move.
+        self._points: _Points | None = None
+        self._pairs: tuple[tuple[Any, ...], np.ndarray, np.ndarray] | None = None
 
     def step(self, dt: float) -> None:
         """As `Op.step`, and move the clock on."""
@@ -556,7 +593,7 @@ class Branches(Op, op="branches"):
 
     def setup(self, ctx: BindCtx) -> None:
         super().setup(ctx)
-        self._planned = self._grown = self._pairs = None
+        self._planned = self._still = self._grown = self._next = self._points = self._pairs = None
 
     def spacing(self) -> float:
         """About how far apart the map's points are as the tree's distance
@@ -623,14 +660,21 @@ class Branches(Op, op="branches"):
             self._grown = (key, self.grow_at(self.clock))
         return self._grown[1]
 
-    def grow_at(self, clock: float) -> Tree:
-        """The tree at `clock` seconds."""
-        plan, jitter, sway, squash, normal = self.plan(), self.jitter, self.sway, self.squash, self.normal
+    def still(self) -> _Still:
+        """The parts of the tree that do not move as it sways, made again
+        when an arg its shape reads moves."""
+        key = self._shape()
+        if self._still is None or self._still[0] != key:
+            self._still = (key, self._make_still())
+        return self._still[1]
+
+    def _make_still(self) -> _Still:
+        plan, jitter = self.plan(), self.jitter
         draws, parent, slot, levels = plan.draws, plan.parent, plan.slot, plan.levels
-        count, (lo, n) = len(parent), levels[0]
+        n = levels[0][1]
         # How long each branch is, and how far along the paths it starts.
         lengthen = 1.0 + LENGTHEN * jitter * (2.0 * draws[:, LONG] - 1.0)
-        length, s0 = self.reach * lengthen, np.zeros(count)
+        length, s0 = self.reach * lengthen, np.zeros(len(parent))
         for lo, hi in levels[1:]:
             up = parent[lo:hi]
             length[lo:hi] = length[up] * self.shrink * plan.arm[lo:hi] * lengthen[lo:hi]
@@ -638,27 +682,43 @@ class Branches(Op, op="branches"):
         # Which way the trunks leave: evenly round the plane from `turn`
         # along the plane's wider axis, and in a volume each at its own
         # rise out of it, spread evenly from below to above.
-        eye = np.eye(3)
         axes = sorted((AXES.index(axis) for axis in self.ctx.plane(AUTO)), key=lambda a: -self.ctx.spans[a])
         rows = draws[:n]
         turn = math.radians(self.turn) + TWO_PI * (np.arange(n) + 0.5 * jitter * (rows[:, TURN] - 0.5)) / n
         rise = (2.0 * np.argsort(np.argsort(rows[:, RISE], kind="stable"), kind="stable") + 1.0) / n - 1.0
-        if sway:
-            turn = turn + sway * SWAY * _wobble(rows, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE)
-            rise = np.clip(rise + sway * SWAY * _wobble(rows, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE, math.pi / 2),
-                           -0.95, 0.95)
-        level = np.sqrt(1.0 - rise * rise)
-        d = np.empty((count, 3))
-        d[:n] = _unit((level * np.cos(turn))[:, None] * eye[axes[0]] + (level * np.sin(turn))[:, None] * eye[axes[1]]
-                      + (squash * rise)[:, None] * eye[normal])
         # How far each arm turns off its parent: two part either way, a
         # third goes on ahead out of the fork's plane.
         lean = LEAN_BY * jitter * (2.0 * draws[parent, LEAN] - 1.0)
         share = np.select([slot == 0, slot == 1], [(1.0 - lean) * plan.alone, 1.0 + lean], AHEAD)
         turns = math.radians(self.angle) * share * (1.0 + SPREAD * jitter * (2.0 * draws[:, TURN] - 1.0))
-        if sway:
-            turns = turns + sway * SWAY * _wobble(draws, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE)
         split = TWO_PI * draws[:, SPLIT]
+        size = BOW * (2.0 * draws[:, BOW_SIZE] - 1.0)
+        width = np.maximum(self.width * self.shrink**plan.level, self.spacing())
+        parts = (length, s0, turns, split, size, width, turn, rise)
+        for part in parts:
+            part.setflags(write=False)
+        return _Still(*parts, tuple(axes))
+
+    def grow_at(self, clock: float) -> Tree:
+        """The tree at `clock` seconds: its still parts (`still`), moved
+        while it sways."""
+        plan, still, sway, squash, normal = self.plan(), self.still(), self.sway, self.squash, self.normal
+        draws, parent, slot, levels = plan.draws, plan.parent, plan.slot, plan.levels
+        n, axes, length = levels[0][1], still.axes, still.length
+        turn, rise, turns, size = still.turn, still.rise, still.turns, still.size
+        if sway:
+            rows = draws[:n]
+            turn = turn + sway * SWAY * _wobble(rows, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE)
+            rise = np.clip(rise + sway * SWAY * _wobble(rows, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE, math.pi / 2),
+                           -0.95, 0.95)
+            turns = turns + sway * SWAY * _wobble(draws, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE)
+            size = size + sway * SWAY_BOW * _wobble(draws, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE, math.pi)
+        eye = np.eye(3)
+        level = np.sqrt(1.0 - rise * rise)
+        d = np.empty((len(parent), 3))
+        d[:n] = _unit((level * np.cos(turn))[:, None] * eye[axes[0]] + (level * np.sin(turn))[:, None] * eye[axes[1]]
+                      + (squash * rise)[:, None] * eye[normal])
+        split = still.split
         for (lo, hi), (up_lo, up_hi) in zip(levels[1:], levels, strict=False):
             across = _across(d[up_lo:up_hi], normal, squash, split[up_lo:up_hi])
             up = parent[lo:hi] - up_lo
@@ -667,16 +727,12 @@ class Branches(Op, op="branches"):
                 side += (squash * (slot[lo:hi] == 2))[:, None] * np.cross(way, across[up])
             d[lo:hi] = _unit(np.cos(turns[lo:hi])[:, None] * way + np.sin(turns[lo:hi])[:, None] * side)
         chord = d * length[:, None]
-        start = np.zeros((count, 3))
+        start = np.zeros((len(parent), 3))
         for lo, hi in levels[1:]:
             up = parent[lo:hi]
             start[lo:hi] = start[up] + chord[up]
-        size = BOW * (2.0 * draws[:, BOW_SIZE] - 1.0)
-        if sway:
-            size = size + sway * SWAY_BOW * _wobble(draws, clock, SWAY_PERIOD, SWAY_PHASE, SWAY_RATE, math.pi)
         bow = (size * length)[:, None] * _across(d, normal, squash, TWO_PI * draws[:, BOW_TURN])
-        width = np.maximum(self.width * self.shrink**plan.level, self.spacing())
-        return Tree(plan, start, chord, bow, length, s0, width)
+        return Tree(plan, start, chord, bow, length, still.s0, still.width)
 
     def gates(self, tree: Tree) -> tuple[np.ndarray, np.ndarray]:
         """How far each branch lets its beads through at its start and its
@@ -693,19 +749,32 @@ class Branches(Op, op="branches"):
             end[lo:hi] *= start[lo:hi]
         return start, end
 
-    def near(self, p: np.ndarray, where: tuple[Any, ...]) -> tuple[np.ndarray, np.ndarray]:
-        """Each pair of a point of `p` and a branch that may light it now
-        (`_near`), kept while the points (`where`: their arrays, the origin
-        and the squash) and the tree's shape hold. While the tree sways,
-        found again every REFRESH seconds for every place each branch
-        reaches until the next time."""
+    def points(self, p: np.ndarray) -> _Points:
+        """Points `p` with their still parts, kept while the points hold
+        their values. Points of other values let go of the pairs (`near`)."""
+        held = self._points
+        if held is None or not np.array_equal(held.p, p):
+            q = p.astype(np.float64)
+            held = self._points = _Points(p.copy(), np.sqrt((q * q).sum(1)))
+            self._pairs = None
+        return held
+
+    def near(self, points: _Points) -> tuple[np.ndarray, np.ndarray]:
+        """Each pair of a point of `points` and a branch that may light it
+        now (`_near`), kept while the points and the tree's shape hold.
+        While the tree sways, found again every REFRESH seconds for every
+        place each branch reaches until the next time."""
+        p, shape = points.p, self._shape()
         epoch = math.floor(self.clock / REFRESH) if self.sway else 0
-        key = (*self._shape(), epoch, *where[3:])
-        if self._pairs is not None and self._pairs[0] == key and all(
-                a is b for a, b in zip(self._pairs[1], where[:3], strict=True)):
-            return self._pairs[2], self._pairs[3]
+        key = (*shape, epoch)
+        if self._pairs is not None and self._pairs[0] == key:
+            return self._pairs[1], self._pairs[2]
         if self.sway:
-            now, then = self.grow_at(epoch * REFRESH), self.grow_at((epoch + 1) * REFRESH)
+            # The last search grew the tree at this refresh: the same clock, so the same tree.
+            ahead = self._next
+            now = ahead[1] if ahead is not None and ahead[0] == key else self.grow_at(epoch * REFRESH)
+            then = self.grow_at((epoch + 1) * REFRESH)
+            self._next = ((*shape, epoch + 1), then)
             moved = np.maximum(np.sqrt(((then.start - now.start) ** 2).sum(1)),
                                np.sqrt(((then.start + then.chord - now.start - now.chord) ** 2).sum(1)))
             moved += np.sqrt(((then.bow - now.bow) ** 2).sum(1))
@@ -714,17 +783,15 @@ class Branches(Op, op="branches"):
         else:
             tree = self.tree()
             rows, cols = _near(p, tree, tree.width + np.sqrt((tree.bow * tree.bow).sum(1)))
-        # Only points that cannot change under the same arrays are kept.
-        if not any(a.flags.writeable for a in where[:3]):
-            self._pairs = (key, where[:3], rows, cols)
+        self._pairs = (key, rows, cols)
         return rows, cols
 
-    def light(self, p: np.ndarray, where: tuple[Any, ...]) -> np.ndarray:
+    def light(self, p: np.ndarray) -> np.ndarray:
         """The tree's light at points `p` ((N, 3) float32, about the origin,
         squashed across the plane as the tree is): the brightest of each
         branch's soft glow, times its beads."""
-        tree = self.tree()
-        rows, cols = self.near(p, where)
+        tree, points = self.tree(), self.points(p)
+        rows, cols = self.near(points)
         out = np.zeros(len(p), np.float32)
         reach = self.grow * tree.tips
         drawn = tree.s0[cols] <= reach
@@ -742,30 +809,31 @@ class Branches(Op, op="branches"):
         width = tree.width[cols]
         glow = np.clip(1.0 - (off * off).sum(1) / (width * width), 0.0, 1.0) ** 3
         through = gate0[cols] + (gate1[cols] - gate0[cols]) * t
-        bead = self.beads_at(p)[rows]
+        bead = self.beads_at(points)[rows]
         np.maximum.at(out, rows, (glow * (self.floor + (1.0 - self.floor) * bead * through)).astype(np.float32))
         return out
 
-    def beads_at(self, p: np.ndarray) -> np.ndarray:
-        """The beads' light at points `p`, 0 to 1. A bead's place is its
+    def beads_at(self, points: _Points) -> np.ndarray:
+        """The beads' light at `points`, 0 to 1. A bead's place is its
         distance from the origin, nudged by a still, smooth field as far as
         `jitter`, so beads leave the origin down every branch and at a fork
         go on down both arms; and a point sees one train of beads, `flow` a
         second, where glows overlap and while the tree sways."""
-        q = p.astype(np.float64)
-        at = np.sqrt((q * q).sum(1)) / self.beads
+        at = points.distance / self.beads
         if self.jitter:
-            way, offset = _uneven(self.ctx.key)
-            at += self.jitter * UNEVEN * np.sin(q @ way + offset).mean(1)
+            field = points.field
+            if field is None:
+                way, offset = _uneven(self.ctx.key)
+                field = points.field = np.sin(points.p.astype(np.float64) @ way + offset).mean(1)
+            at += self.jitter * UNEVEN * field
         return (0.5 + 0.5 * np.cos(TWO_PI * (at - self.phase("flow")))) ** 2
 
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def branches(c: Coords) -> np.ndarray:
             x, y, z = np.broadcast_arrays(*c.xyz)
             origin = self.ctx.at((self.cx, self.cy, self.cz))
-            squash, normal = self.squash, self.normal
             p = np.stack([x - origin[0], y - origin[1], z - origin[2]], axis=1).astype(np.float32)
-            p[:, normal] *= squash
-            return self.light(p, (c.x, c.y, c.z, origin, squash, normal))
+            p[:, self.normal] *= self.squash
+            return self.light(p)
 
         return branches

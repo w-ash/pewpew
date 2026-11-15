@@ -18,7 +18,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from pewpew.fx.field import Lattice, blur
+from pewpew.fx.field import Lattice, _box
 from pewpew.fx.op import BindCtx, Cost, FrameCtx, Op, Rate
 from pewpew.fx.ops.sims import arrivals
 from pewpew.fx.ops.source import DRIFT
@@ -113,7 +113,14 @@ class Particles(Op, op="particles"):
         # so a glow past the map's edge slides off it, never held on it.
         at = [p * (0.5 / o) + 0.5 for p, o in zip(self.pos[live].T, outer)]
         wide = tuple(reversed([n + 2 * pad for n in self.lattice.counts]))
-        glow = blur(deposit(at, brightness, wide), reach)[(slice(pad, -pad),) * d]
+        glow = deposit(at, brightness, wide)
+        # Two box passes along each axis, a tent, as `blur` gives. Each axis
+        # is cut back once its last pass is done, so the later passes run on less.
+        for last in (False, True):
+            for axis in range(d):
+                glow = _box(glow, reach, axis)
+                if last:
+                    glow = glow[(slice(None),) * axis + (slice(pad, -pad),)]
         self.shown = np.minimum(glow * self.lattice.peak(self.size), 1.0)
 
     def level(self, age: np.ndarray) -> np.ndarray:

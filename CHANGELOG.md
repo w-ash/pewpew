@@ -956,6 +956,10 @@ series (batch mode).
 
 ### Changed
 
+- `branches` and `particles` cost less per frame, with the same pixels: `branches`
+  keeps which branches pass near which points while the points hold their places,
+  under a `mirror`, `rotate` or `modulate` too (at 3,072 points, a frame under a
+  `mirror` from about 1.8 ms to 0.09 ms), and `particles` blurs a smaller field.
 - DDP output dithers in time (ADR-002): each pixel carries its rounding error into
   its next frame while it fades, so a dim fade steps by fractions of a level;
   a held color rounds plainly and does not shimmer.

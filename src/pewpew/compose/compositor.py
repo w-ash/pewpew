@@ -210,6 +210,11 @@ class Compositor:
         self._unbound: set[str] = set()
         self._timings: Mapping[str, float] = {}
         self._glides: dict[str, _Glide] = {}
+        self._live_colorways: Colorways = {}
+        # Each live colorway's knobs with their values, and the active
+        # colorway as last found, with the own values it was found at.
+        self._colorway_knobs: tuple[tuple[str, tuple[tuple[Knob, Any], ...]], ...] = ()
+        self._active: tuple[tuple[Any, ...], tuple[Any, ...], str | None] | None = None
         self._bind(mapping)
         self._install(tuple(self._build(layer) for layer in layers), strict=True)
 
@@ -285,12 +290,18 @@ class Compositor:
         return sets, None
 
     def colorway(self) -> str | None:
-        """The active colorway, or None (module docstring)."""
-        controls = self._controls
-        for name, values in self._live_colorways.items():
-            if all(_json_value(controls, path) == value for path, value in values.items()):
-                return name
-        return None
+        """The active colorway, or None (module docstring). Found again
+        only when a knob a colorway sets holds another value object."""
+        knobs = self._colorway_knobs
+        own = tuple(knob.params[knob.name] for _, pairs in knobs for knob, _ in pairs)
+        held = self._active
+        if held is not None and held[0] is knobs and all(a is b for a, b in zip(held[1], own, strict=True)):
+            return held[2]
+        name = next((name for name, pairs in knobs if all(
+            knob.params.declarations[knob.name].to_json(knob.params[knob.name]) == value for knob, value in pairs)),
+            None)
+        self._active = (knobs, own, name)
+        return name
 
     def mod(self) -> Mapping[str, float]:
         """Each knob a route drives, at its value as of the last frame, by
@@ -445,9 +456,12 @@ class Compositor:
         self._modulation.bind(controls, strict=strict)
         self._layers = layers
         self._controls = controls
-        live = ({path: value for path, value in values.items() if _whole(controls, path)}
-                for values in self._colorways.values())
+        whole = {path: knob for values in self._colorways.values() for path in values
+                 if (knob := _whole(controls, path)) is not None}
+        live = ({path: value for path, value in values.items() if path in whole} for values in self._colorways.values())
         self._live_colorways = {name: values for name, values in zip(self._colorways, live, strict=True) if values}
+        self._colorway_knobs = tuple((name, tuple((whole[path], value) for path, value in values.items()))
+                                     for name, values in self._live_colorways.items())
 
     # ---- the frame path ------------------------------------------------------
 
@@ -526,16 +540,8 @@ class Compositor:
         return frame, live.renderer.error is None
 
 
-def _whole(controls: Controls, path: str) -> bool:
-    """Whether `path` names a whole knob among `controls`."""
+def _whole(controls: Controls, path: str) -> Knob | None:
+    """The whole knob at `path` among `controls`, or None when `path`
+    names none or names a part."""
     knob = controls.find(path)
-    return knob is not None and not knob.part
-
-
-def _json_value(controls: Controls, path: str) -> Any:
-    """The own value, JSON form, of the whole knob at `path` among
-    `controls`, or None when there is none."""
-    knob = controls.find(path)
-    if knob is None or knob.part:
-        return None
-    return knob.params.declarations[knob.name].to_json(knob.params[knob.name])
+    return knob if knob is not None and not knob.part else None
