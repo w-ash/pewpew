@@ -632,6 +632,15 @@ test("while a trigger holds a look, the header says so and what is under it wait
   expect(document.querySelector(".look-block")?.hasAttribute("inert")).toBe(false);
 });
 
+test("pressing undo while a trigger holds a look does not say the hold twice", async () => {
+  const { screen, receive } = await renderWired(<Editor />);
+  receive(aura({ triggers: { ...AURA.triggers!, armed: true, held: { trigger: "door", look: "cool", until: 9 } } }));
+  (screen.getByRole("button", { name: "undo", exact: true }).element() as HTMLElement).click(); // off, but it says why when pressed
+  await expect.element(screen.getByText("door is playing cool: edit when it ends")).toBeVisible();
+  const said = () => (document.querySelector(".look-head")!.textContent!.match(/door is playing cool: edit when it ends/g) ?? []).length;
+  await expect.poll(said).toBe(1);
+});
+
 test("revert, in the look's settings while it is changed, recalls it with no fade in two presses", async () => {
   const { screen, sent, receive } = await renderWired(<Editor />);
   await screen.getByRole("button", { name: "look settings" }).click();
@@ -752,20 +761,50 @@ test("a refusal puts back what the control was waiting on", async () => {
   await expect.element(master).toHaveAttribute("aria-valuenow", "0.8");
 });
 
-test("the brightness steps by its − and +, within its max, and says where a run of steps left it", async () => {
-  const { screen, sent, receive } = await renderWired(
-    <>
-      <Played />
-      <StepStatus />
-    </>,
-  );
-  await screen.getByRole("button", { name: "brightness down 5%" }).click();
+test("the brightness steps by its − and +, within its max", async () => {
+  const { screen, sent, receive } = await renderWired(<Played />);
+  await screen.getByRole("button", { name: "decrease brightness" }).click();
   expect(sent.at(-1)).toEqual({ type: "master", value: 0.75 });
   receive(aura({ master: 0.75 }));
   receive(aura({ master: 0.97 }));
-  await screen.getByRole("button", { name: "brightness up 5%" }).click();
+  await screen.getByRole("button", { name: "increase brightness" }).click();
   expect(sent.at(-1)).toEqual({ type: "master", value: 1 });
-  await expect.element(screen.getByRole("status").filter({ hasText: /^brightness/ })).toHaveTextContent("brightness 100%");
+});
+
+test("a brightness typed into its entry is sent on Enter", async () => {
+  const { screen, sent } = await renderWired(<Played />);
+  const entry = screen.getByRole("spinbutton", { name: "brightness" });
+  await entry.fill("40");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "master", value: 0.4 });
+});
+
+test("a brightness typed between steps or past the max sends what its note says, and the note clears on the next change", async () => {
+  const { screen, sent } = await renderWired(<Played />);
+  const entry = screen.getByRole("spinbutton", { name: "brightness" });
+  await entry.fill("37");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "master", value: 0.35 });
+  await expect.element(screen.getByText(/37 is between steps of 5: kept to 35/)).toBeVisible();
+  await entry.fill("120");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "master", value: 1 });
+  await expect.element(screen.getByText(/kept to 100/)).toBeVisible();
+  await screen.getByRole("button", { name: "decrease brightness" }).click();
+  await expect.element(screen.getByRole("status").filter({ hasText: /kept to/ })).not.toBeInTheDocument();
+});
+
+test("while a cue holds a look, a look still takes two presses over the edits it returns to", async () => {
+  const { screen, sent, receive } = await renderWired(<Played />);
+  const held = { ...AURA.triggers!, armed: true, held: { trigger: "door", look: "cool", until: 9 } };
+  receive(aura({ looks: { ...AURA.looks!, changed: false, held_changed: true }, triggers: held }));
+  const cool = screen.getByRole("button", { name: /^cool/ });
+  await cool.click();
+  expect(sent).toEqual([]);
+  await expect.element(screen.getByText("press cool again to drop the edits to warm")).toBeVisible();
+  pastDoubleTap();
+  await cool.click();
+  expect(sent).toEqual([{ type: "recall", name: "cool", fade: null }]);
 });
 
 test("over unsaved edits a look recalls in two presses, by tap or key, and a note under the looks says what the second does", async () => {
@@ -857,7 +896,7 @@ test("at 360 px nothing slides the deck sideways; the ⋯'s sign ends the looks'
   await expect.element(screen.getByRole("button", { name: MORE })).toBeVisible();
   expect(rows.scrollWidth).toBeLessThanOrEqual(rows.clientWidth);
   const edge = Math.round(rows.getBoundingClientRect().right - parseFloat(getComputedStyle(rows).paddingRight));
-  const [looks, more, steps] = [".looks", ".deck .more", ".master .joined"].map((part) => document.querySelector(part)!.getBoundingClientRect());
+  const [looks, more, steps] = [".looks", ".deck .more", ".master .number-entry"].map((part) => document.querySelector(part)!.getBoundingClientRect());
   expect(Math.round(more!.left)).toBeGreaterThanOrEqual(Math.round(looks!.right));
   // Its icon reaches 2 past the edge, the room its 16-unit grid keeps round the glyph, so the dots' ink ends on it.
   expect(Math.round(document.querySelector(".deck .more .icon")!.getBoundingClientRect().right)).toBe(edge + 2);

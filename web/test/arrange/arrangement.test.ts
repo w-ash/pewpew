@@ -10,6 +10,7 @@ import {
   entityOf,
   explodeGroup,
   fixturesOf,
+  flatPose,
   flip,
   freshId,
   poseOf,
@@ -70,6 +71,18 @@ describe("edits", () => {
     const a2 = addFixture(a1.arrangement, "clen-rgbw-bar-1m");
     expect([a1.id, a2.id]).toEqual(["bar-1", "bar-2"]);
     expect(freshId(a2.arrangement, "inner")).toBe("inner-2");
+  });
+
+  it("places a new bar in the plane the rig lies in, beside the last fixture", () => {
+    // Bars along x in the plane y = 0, as a ceiling canopy lies (the +y column of each matrix is the bar's direction).
+    const along = (x: number, z: number) => compiledFixture({ id: "a", type_id: "strip", pixel_start: 0, pixel_count: 1, matrix: [0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, x, 0, z, 1] });
+    const pose = flatPose([along(1.6, -0.8), along(2.8, -0.8)])!;
+    expect(pose.position_m).toEqual([2.8, 0, -0.9]);
+    expect(pose.quat_xyzw).toEqual(matrixPose(along(0, 0).matrix).quat_xyzw);
+    // Off the plane, or with no fixture, the default upright pose stays.
+    expect(flatPose([along(1, 0), compiledFixture({ id: "b", type_id: "strip", pixel_start: 0, pixel_count: 1, matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0.5, 0.3, 1] })])).toBeNull();
+    expect(flatPose([])).toBeNull();
+    expect(flatPose(undefined)).toBeNull();
   });
 
   it("duplicates beside the original and selects the copy", () => {

@@ -1,6 +1,6 @@
 import { Accordion } from "@ark-ui/react/accordion";
-import { useEffect, useId, useRef, useState } from "react";
-import { argParts, brings, fits, newLayer, newText, offReason, PARTS_SHELF, shelve, shortText, sourceLabels, type Card, type Example } from "./catalog";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { argParts, brings, fits, matches, newLayer, newText, offReason, PARTS_SHELF, SHELVES, shelve, shortText, sourceLabels, type Card, type Example, type Shelf } from "./catalog";
 import { holdReason } from "../aura/looks";
 import { useLayers, useRefusal, useSender, useWire, type Refusal } from "../wire/store";
 import { Icon } from "../design/Icon";
@@ -13,14 +13,22 @@ import { useOnChange } from "../design/useOnChange";
  * example brings a source. A card adds its example right above layer `above`, the one picked, as the title
  * says, or on top when that is the top one. An add waits for its layer to run, which then `onAdded`
  * names, or for the engine's refusal, shown here; meanwhile the cards take no other press. While a cue
- * holds a look the cards wait, inert, and say why, as the editor does: an add would end the hold early. */
+ * holds a look the cards wait, inert, and say why, as the editor does: an add would end the hold early.
+ *
+ * Above the shelves a search box (as the list of every look has) takes focus when the panel opens and keeps
+ * its typed keys from the page's shortcuts. Typing keeps the cards whose name, label, summary or shelf hold
+ * every word typed, case aside, and opens the shelves that have one (they stay open while the box has text);
+ * ArrowDown moves focus to the first card, and Enter adds the one card left when only one matches. While the box has text the shelf headers are
+ * disabled: they cannot close a shelf the search holds open. Esc clears the box before a second Esc closes the panel. */
 export function AddLayerPanel({ above, onClose, onAdded }: { above: string | null; onClose(): void; onAdded(id: string): void }) {
   const catalog = useWire((s) => s.catalog);
   const dims = useWire((s) => s.aura?.stack.dims ?? 3);
   const held = holdReason(useWire((s) => s.aura?.triggers ?? null), "add a layer");
   const ids = useLayers().map((l) => l.id);
   const sender = useSender();
-  const first = useRef<HTMLButtonElement>(null);
+  const box = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [shelfOpen, setShelfOpen] = useState<string[]>(["sources"]);
   const [pending, setPending] = useState<{ readonly key: string; readonly ids: readonly string[] } | null>(null);
   // Set at once, so a second press before the page draws the pending card sends nothing.
   const adding = useRef(false);
@@ -35,7 +43,6 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
   useEffect(() => {
     if (added) onAdded(added);
   }, [added, onAdded]);
-  useEffect(() => first.current?.focus({ preventScroll: true }), []);
   // Under the layer over the picked one; on top when it is the top one, or none is picked.
   const at = above === null ? -1 : ids.indexOf(above);
   const below = at < 0 ? null : (ids[at + 1] ?? null);
@@ -48,35 +55,74 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
   };
   const cards = catalog?.cards ?? [];
   const sources = sourceLabels(cards);
-  const shelves = [...shelve(cards)].map(([shelf, held]) => ({ shelf, held })).filter((s) => s.held.length);
+  const searching = query.trim() !== "";
+  const shelves = [...shelve(cards)]
+    .map(([shelf, held]) => ({ shelf, held: searching ? held.filter((h) => matches(h.card, shelf, query)) : held }))
+    .filter((s) => s.held.length);
+  const list = useRef<HTMLDivElement>(null);
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    const hits = searching ? [...(list.current?.querySelectorAll<HTMLButtonElement>(".card-add") ?? [])] : [];
+    const first = hits.find((h) => !h.disabled);
+    if (e.key === "ArrowDown" && first) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.key === "Enter" && hits.length === 1) {
+      e.preventDefault();
+      hits[0]!.click();
+    } else if (e.key === "Escape" && query) {
+      e.preventDefault(); // the panel closes on an Esc nobody handled
+      setQuery("");
+    }
+  };
   return (
-    <Panel title={below === null ? "add layer" : `add above ${above}`} onClose={onClose}>
+    <Panel title={below === null ? "add layer" : `add above ${above}`} onClose={onClose} focusRef={box}>
+      <label className="all-looks-search">
+        <Icon name="search" />
+        <input
+          ref={box}
+          type="text"
+          aria-label="search parts"
+          placeholder="search parts"
+          value={query}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          onChange={(e) => setQuery(e.currentTarget.value)}
+          onKeyDown={onKeyDown}
+        />
+      </label>
       {refused && (
         <p className="refusal" role="alert">
           {refused.reason}
         </p>
       )}
       {!catalog && <p className="note">no catalog from the aura yet</p>}
+      {catalog && searching && !shelves.length && (
+        <p className="note" role="status">
+          no part matches
+        </p>
+      )}
       {held && (
         <p className="note held-note" role="status" tabIndex={-1}>
           {held}
         </p>
       )}
-      <Accordion.Root className="shelves" inert={!!held} collapsible lazyMount unmountOnExit defaultValue={["sources"]}>
+      <Accordion.Root ref={list} className="shelves" inert={!!held} collapsible lazyMount unmountOnExit value={searching ? shelves.map((s) => encodeURIComponent(s.shelf)) : shelfOpen} onValueChange={(d) => !searching && setShelfOpen(d.value)}>
         {shelves.map(({ shelf, held }, i) => [
-          i === 0 && (
+          i === 0 && !isParts(shelf) && (
             <h3 key="ready" className="group-head t-heading">
               ready to play
             </h3>
           ),
-          shelf === PARTS_SHELF && (
+          isParts(shelf) && (i === 0 || !isParts(shelves[i - 1]!.shelf)) && (
             <h3 key="parts" className="group-head t-heading">
               new layer from parts (advanced)
             </h3>
           ),
           // Its value goes into the ids its region is labelled by, which a space would split.
           <Accordion.Item key={shelf} value={encodeURIComponent(shelf)}>
-            <Accordion.ItemTrigger ref={i === 0 ? first : undefined}>
+            <Accordion.ItemTrigger disabled={searching}>
               <Accordion.ItemIndicator>
                 <Icon name="chevron" />
               </Accordion.ItemIndicator>
@@ -104,6 +150,9 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
     </Panel>
   );
 }
+
+/** Whether `shelf` is one of the parts a new layer is built from, not a ready layer. */
+const isParts = (shelf: Shelf) => SHELVES.indexOf(shelf) >= SHELVES.indexOf(PARTS_SHELF);
 
 /** `text`, an arg's name in it (in backticks) set as a token. */
 function Gist({ text }: { text: string }) {

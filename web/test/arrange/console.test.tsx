@@ -66,6 +66,13 @@ test("without a rig, the layout panel has no editor", async () => {
   await expect.element(screen.getByTestId("entity-list")).not.toBeInTheDocument();
 });
 
+test("a rig that does not lie in one plane has no 2D layout tools, and the panel says so", async () => {
+  const bent = RIG_RUN.map((m) => (m.type === "layout" ? { ...m, is3d: true, room: null } : m));
+  const { screen } = await openLayout(bent.map((m) => (m.type === "hello" ? hello({ capabilities: ["ack"] }) : m)));
+  await expect.element(screen.getByText("layout tools need a rig that lies in one plane; use the 3D view")).toBeVisible();
+  await expect.element(screen.getByText(/layout tools need an arrangement/)).not.toBeInTheDocument();
+});
+
 test("quick edits send exactly one `arrange` once they settle, with the last of them", async () => {
   const { screen, sent } = await openLayout();
   const name = screen.getByRole("textbox", { name: "Name" });
@@ -115,7 +122,7 @@ test("undo sends the arrangement it restores, and a refusal shows the engine's r
 test("the editor's keys work only while the layout panel is open", async () => {
   const { screen } = await renderWired(<App />, RIG_RUN);
   await userEvent.keyboard("?");
-  await expect.element(screen.getByText("undo")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("undo", { exact: true })).not.toBeInTheDocument(); // the editor's undo is not in the list
   await userEvent.keyboard("{Escape}");
   await screen.getByRole("button", { name: "layout" }).click();
   await expect.element(screen.getByRole("region", { name: "layout" })).toBeVisible();

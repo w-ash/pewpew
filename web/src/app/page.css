@@ -204,7 +204,7 @@
 }
 
 /* The canvas: about a third of a phone screen, the rest when wide. When the deck grows on a short phone
-   screen the editor gives way first, to a floor, and the canvas only after it. */
+   screen the canvas gives way first, to a floor, and the editor only after it. */
 /* Each in whole pixels, so every row under it lands on the pixel. */
 .stage-area {
   position: relative;
@@ -217,6 +217,16 @@
 .stack > .slot {
   min-height: 20svh;
   min-height: round(down, 20svh, 1px);
+}
+/* On a portrait phone the canvas is smaller (the bars themselves are what is watched) and gives way to a
+   lower floor, so the editor, the part a finger works in, keeps the larger share. */
+@media (pointer: coarse) and (max-width: 600px) and (orientation: portrait) {
+  .stage-area {
+    flex-basis: 18svh;
+    flex-basis: round(down, 18svh, 1px);
+    min-height: 12svh;
+    min-height: round(down, 12svh, 1px);
+  }
 }
 /* On a phone the editor's foot fades into the 16 it keeps under its last row, so a row scrolled under the deck
    dissolves rather than being cut. */
@@ -666,15 +676,27 @@
   gap: var(--space-2xs);
   margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
 }
+/* A line tall, its parts laid out from the right: where they do not all fit, the turn ("1 min ·"), the
+   first part, wraps out of sight whole rather than being cut mid-word. */
 .shuffle-status {
   display: inline-flex;
-  gap: 0.3em;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0 0.3em;
+  height: var(--lh-body);
   min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
 }
+.shuffle-status > .t-value {
+  order: 1;
+}
+.shuffle-status > .t-label {
+  order: 2;
+}
 .shuffle-each {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  order: 3;
 }
 .shuffle-open > .icon {
   color: var(--text-2);
@@ -844,16 +866,12 @@
   margin-left: auto;
   min-width: calc(2 * var(--control-h) + var(--entry));
 }
-.master > .disclosure-note {
+.master > :is(.disclosure-note, .master-note) {
   grid-column: 1 / -1;
 }
-/* The readout gives the max over the level only where its words are not drawn. */
-.readout-word {
-  display: none;
-}
-/* On touch one row, blackout on its own under it: ☀ names it, then the slider, all the width the steps (and
-   the max's "?", or the "⋯" of a run without looks) leave it, then the steps, the readout giving the max,
-   small, over the level, as wide at 5% as at 100%. The word stays for assistive tech. */
+/* On touch one row, blackout on its own under it: ☀ names it, then the slider, all the width the entry (and
+   the max's "?", or the "⋯" of a run without looks) leaves it, then the entry, as wide at 5% as at 100%.
+   The word stays for assistive tech. */
 @media (pointer: coarse) {
   /* Its columns: ☀, the slider, the steps, the "?" or "⋯". Each but the first is set off by its margin, not
      a gap, so a column with nothing in it takes no room, and a row can span them all. */
@@ -879,12 +897,12 @@
     display: none;
   }
   .master > [data-part="control"],
-  .master > .joined,
+  .master > .number-entry,
   .master-head > :is(.about, .more) {
     grid-row: 1;
     margin-left: var(--space-xs);
   }
-  .master > .joined {
+  .master > .number-entry {
     order: 1;
   }
   .master-head > :is(.about, .more) {
@@ -892,6 +910,9 @@
   }
   .master > .disclosure-note {
     grid-row: 2;
+  }
+  .master > .master-note {
+    grid-row: 4;
   }
   /* A wide touch screen keeps blackout in the head: it takes a row of its own under the slider's, at the
      column's edge, as with a mouse; the max's note comes last, as it does there. */
@@ -904,72 +925,18 @@
   }
   /* As wide at 5% as at 100%: on a phone as wide as a knob's entry, so its − lines up with theirs; where
      the deck is narrower (a 360 px phone), four figures wide, so the slider keeps its room. */
-  .master > .joined > .readout {
+  .master > .number-entry .value-box {
     min-width: calc(4ch + 2 * var(--space-xs));
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end;
   }
   @container (min-width: 350px) {
-    .master > .joined > .readout {
+    .master > .number-entry .value-box {
       min-width: var(--entry);
     }
-  }
-  .readout-word {
-    display: flex;
-    align-items: center;
-    color: var(--text-2);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
-  .readout-word > .icon {
-    width: 12px;
-    height: 12px;
   }
 }
 /* On a phone blackout has a row of its own, the whole width, last, under the thumb. */
 .blackout-row > .blackout {
   flex: 1 1 auto;
-}
-/* − readout + joined into one control, a knob's typed entry to the pixel: one well of the page's ground with
-   one strong outer edge, its value at its right inset. */
-.joined {
-  display: flex;
-  align-items: stretch;
-  flex: 0 0 auto;
-}
-.joined > .button {
-  border-color: var(--border-strong);
-  background-color: var(--surface-page);
-}
-.joined > .button:hover {
-  background-image: linear-gradient(var(--state-hover), var(--state-hover));
-}
-.joined > .button:active {
-  background-image: linear-gradient(var(--state-press), var(--state-press));
-}
-.joined > .button:first-child {
-  border-radius: var(--radius-control) 0 0 var(--radius-control);
-  border-right-width: 0;
-}
-.joined > .button:last-child {
-  border-radius: 0 var(--radius-control) var(--radius-control) 0;
-  border-left-width: 0;
-}
-.joined > .readout {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: var(--entry);
-  padding-right: var(--space-xs);
-  border: 1px solid var(--border-strong);
-  border-inline-color: var(--border-subtle);
-  background: var(--surface-page);
-  font-size: var(--fs-field);
-}
-.readout > .level {
-  display: flex;
-  align-items: baseline;
 }
 /* The cue buttons keep their width; what they do wraps after them, and a cue's outcome lies in its room for
    a moment, so neither moves the deck. */
@@ -1117,6 +1084,17 @@
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
   border-left-color: color-mix(in srgb, var(--on-accent) 35%, var(--accent));
 }
+/* Undo and redo join the look's actions. Where the name would get under 10rem beside them (a phone, while
+   save shows), the actions go onto a line of their own under it, at its end, so the name never breaks into
+   a letter or three a line. A line under the name starts where the controls hanging past its line end. */
+.look-head {
+  flex-wrap: wrap;
+  row-gap: calc((var(--control-h) - var(--head-lh)) / 2);
+}
+.look-head > .look-title {
+  flex-basis: 0;
+  min-width: min(100%, 10rem);
+}
 /* The look's name, whole: a long one wraps rather than being cut, so the header names a look that its tile
    cuts short on a phone. */
 .look-name-text {
@@ -1185,6 +1163,10 @@
 .colorways:not(:last-child) {
   margin-bottom: var(--space-sm);
 }
+/* The drift toggle hangs past the head's line, as a knob's marks do: the head keeps that room, and 4 more. */
+.colorways > .param-head {
+  margin-bottom: calc(max(0px, (var(--control-h) - var(--lh-body)) / 2) + var(--space-2xs));
+}
 .colorway-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1221,7 +1203,7 @@
    the "?" last, so showing the others never moves it. ↺ shows while the knob is off its saved value: it is
    the knob's "changed". Off its default with no saved look, it shows under a pointer or with focus. With a
    mouse the pin and the "?" show under a pointer or with focus, and the "?" while open; on touch the "?"
-   always shows, and the pin while the "?" is open. */
+   always shows, and the pin of a knob in an open layer; a main knob's (.look-knobs) while the "?" is open. */
 /* Its marks are controls, 8 apart, centred on the label's line and hanging past it, so the head is a line of
    text tall on every pointer: 4 from its control, 12 from the knob before. With its note open, the head keeps
    the room its "?" takes below the line, so the note starts under the "?". */
@@ -1235,6 +1217,12 @@
   width: var(--control-h);
   height: var(--control-h);
   margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
+}
+/* The colorways' drift toggle names itself: a word beside its sign, as wide as they are, in a chip's own
+   edge and selected fill. */
+.knob-end > .button.drift {
+  width: auto;
+  padding: 0 var(--space-sm);
 }
 .param-head:has(> .knob-end > .about[aria-expanded="true"]) {
   margin-bottom: calc((var(--control-h) - var(--lh-body)) / 2 - var(--space-2xs));
@@ -1253,7 +1241,7 @@
 }
 @media (pointer: coarse) {
   .param:not(:focus-within) .reset:not([data-changed]),
-  .knob-end:not(:has(> .about[aria-expanded="true"])) > .pin {
+  .look-knobs .knob-end:not(:has(> .about[aria-expanded="true"])) > .pin {
     display: none;
   }
 }
@@ -1306,6 +1294,13 @@
   color: var(--text-2);
   text-align: start;
   cursor: pointer;
+}
+/* A disabled header (a search holds its shelf open) shows no chevron and no pointer. */
+[data-scope="accordion"][data-part="item-trigger"][data-disabled] {
+  cursor: default;
+}
+[data-scope="accordion"][data-part="item-trigger"][data-disabled] [data-part="item-indicator"] {
+  visibility: hidden;
 }
 [data-scope="accordion"][data-part="item-trigger"] .section-name {
   flex: 0 0 auto;
@@ -1563,58 +1558,81 @@
   flex: 0 0 auto;
 }
 
-/* The gradient, with a marker under each stop; the picked stop's editor below. */
+/* A preset list on a line; the gradient, with a dot under each stop; the picked stop's editor below. */
 .palette-control {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
 }
-/* Its ends where a slider's thumb sits at 0 and at 1. */
+.palette-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.palette-tools > select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Its ends where a slider's thumb sits at 0 and at 1. A press on it adds a stop. */
 .palette-strip {
   position: relative;
-  height: 1.5rem;
+  height: 2rem;
   margin: 0 calc(var(--thumb) / 2) var(--control-h);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
+  cursor: copy;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
-/* A target as wide as a touch, centred under its stop; the dot shows the stop's colour. */
+/* A target as wide as a touch, centred under its stop; the dot shows the stop's colour. A sideways pull drags
+   it; one that goes up or down first scrolls the page (pan-y), as a slider's thumb does. */
 .stop-marker {
   position: absolute;
   top: 100%;
   width: var(--control-h);
   height: var(--control-h);
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.stop-marker[data-end] {
   cursor: pointer;
 }
 .stop-marker::before {
   content: "";
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: currentColor;
   border: 2px solid var(--border-strong);
 }
-.stop-marker[aria-pressed="true"]::before {
+/* An end stays where it is: square, where a stop that moves is round. */
+.stop-marker[data-end]::before {
+  border-radius: 3px;
+}
+/* The picked stop lies over the others, so in a pile it is the one shown and the one a press takes. */
+.stop-marker[aria-current="true"] {
+  z-index: 1;
+}
+.stop-marker[aria-current="true"]::before {
   border-color: var(--text-1);
   outline: 2px solid var(--text-1);
 }
 /* Focus rings the dot, round as its picked ring, not the target box. */
 .stop-marker:focus-visible {
   outline: none;
+  z-index: 2;
 }
 .stop-marker:focus-visible::before {
   box-shadow:
     0 0 0 2px var(--surface-region),
     0 0 0 4px var(--focus);
 }
-/* Under a finger the marker's box is --hit square; its dot stays 12 px. The strip's bottom margin grows by the
+/* Under a finger the dot's box is --hit square; its dot stays 14 px. The strip's bottom margin grows by the
    same 4 px so the box clears the row below. */
 @media (pointer: coarse) {
   .palette-strip {
@@ -1631,24 +1649,31 @@
   align-items: center;
   gap: var(--space-xs);
 }
-.stop-head > span {
-  color: var(--text-2);
+/* Which stop, between the steps to the one before and the one after. */
+.stop-step {
+  display: flex;
+  align-items: center;
   margin-right: auto;
+}
+.stop-step > span {
+  color: var(--text-2);
   white-space: nowrap;
+  min-width: 6.5em;
+  text-align: center;
 }
 /* Its two actions keep together, and wrap under its name as one, ending at the column's edge. */
 .stop-actions {
   display: flex;
   margin-left: auto;
 }
-/* A stop's position, labelled above as a knob is. */
-.stop-position {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
+/* A stop's position strip shows the two fades the stop sits between: a thumb high, so they can be read. */
+.stop-editor [data-channel="at"] [data-part="track"] {
+  height: var(--thumb);
+  border-radius: var(--radius-control);
 }
-.stop-position .param-head > .field-label {
-  flex: 0 1 auto;
+/* The stop's parts lie at the editor's edge, under its head. */
+.stop-editor > .color-control {
+  padding-left: 0;
 }
 
 /* ---- layers: the list, the picked row, and the catalog ---------------------------------------- */
@@ -1687,9 +1712,61 @@
 .layer[data-picked] > .layer-head {
   background: var(--surface-selected);
 }
-.layer-head > .row-title {
+.layer-head > .layer-title {
   grid-column: 1;
   display: flex;
+  min-width: 0;
+}
+.layer-title > .row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+/* The grip at a row's start: a press on it drags the row; touch-action only here, so the list still scrolls
+   from anywhere else. A line at the row's edge shows where the dragged row will land. */
+.layer {
+  --grip-w: var(--icon);
+}
+@media (pointer: coarse) {
+  .layer {
+    --grip-w: calc(var(--icon) + 2 * var(--space-xs));
+  }
+}
+.layer .grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: var(--grip-w);
+  color: var(--text-2);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.layer[data-dragging] {
+  opacity: 0.6;
+}
+.layer[data-dragging] .grip {
+  cursor: grabbing;
+}
+.layer[data-drop] {
+  position: relative;
+}
+.layer[data-drop]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 3;
+}
+.layer[data-drop="above"]::after {
+  top: -1px;
+}
+.layer[data-drop="below"]::after {
+  bottom: -1px;
 }
 .layer-head > .layer-on {
   grid-column: 4;
@@ -1726,8 +1803,10 @@
   min-width: 0;
   color: var(--text-1);
 }
+/* Short of room, what the layer makes shortens first: it gives up its width long before the name does. */
 @media (pointer: fine) {
   .layer-head .runs {
+    flex-shrink: 1000;
     margin-left: calc(var(--space-2xs) - var(--space-xs));
   }
 }
@@ -1811,7 +1890,7 @@
 /* The open row: what the layer runs, its mix and its knobs, starting where its name does, its one cue of
    nesting; its actions 8 under the row's fill, its last knob 16 over the next row. */
 .layer > .layer-body {
-  padding: var(--space-xs) 0 var(--space-md) calc(var(--icon) + var(--space-xs));
+  padding: var(--space-xs) 0 var(--space-md) calc(var(--grip-w) + var(--icon) + var(--space-xs));
 }
 /* The open row's own actions first: ▲ ▼, and remove at the column's edge; its defaults under its knobs. */
 .layer-actions > .button:last-child {

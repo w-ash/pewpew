@@ -51,6 +51,16 @@ test("the health panel opens in the slot, so blackout stays in reach", async () 
   await expect.element(panel).not.toBeInTheDocument();
 });
 
+test("turning layout on closes an open panel, so the layout tools show", async () => {
+  const { screen, receive } = await renderWired(<App />);
+  receive({ type: "health", ...health([board({})]) });
+  await screen.getByRole("button", { name: /aura health/ }).click();
+  await expect.element(screen.getByRole("region", { name: "aura health" })).toBeVisible();
+  await screen.getByRole("button", { name: "layout" }).click();
+  await expect.element(screen.getByText(NO_ROOM)).toBeVisible();
+  await expect.element(screen.getByRole("region", { name: "aura health" })).not.toBeInTheDocument();
+});
+
 test("an opened panel takes focus to its title, so Esc closes it, and hands focus back", async () => {
   const { screen, receive } = await renderWired(<App />);
   receive({ type: "health", ...health([board({})]) });

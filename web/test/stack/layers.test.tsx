@@ -48,7 +48,7 @@ test("a look of one layer has no layer chrome: its knobs under its heading, then
   expect(knob.bottom).toBeLessThan(add.element().getBoundingClientRect().top);
   await add.click();
   await expect.element(screen.getByRole("region", { name: "add layer" })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "sources" })).toHaveFocus();
+  await expect.element(screen.getByRole("textbox", { name: "search parts" })).toHaveFocus();
   await expect.element(screen.getByRole("textbox", { name: "look name" })).not.toBeInTheDocument(); // hidden under it
   await screen.getByRole("button", { name: "close add layer" }).click();
   await expect.element(screen.getByRole("button", { name: "+ layer" })).toHaveFocus();
@@ -141,14 +141,15 @@ test("the open row opens under its name, its knobs starting where the name does,
   expect(knobs.every((k) => k.getBoundingClientRect().bottom <= base.top)).toBe(true); // the next row comes after them
 });
 
-test("a mix knob the look lists in front shows there too; with a mouse its row's slider is its one home in the stack", async () => {
+test("a mix knob the look lists in front shows there too; with a mouse its row's slider sets it too, and the open row holds the full knob", async () => {
   const { screen, receive, sent } = await app("base", "top");
   receive(aura({ stack: { ...AURA.stack, layers: ["base", "top"].map((id) => ({ id, nodes: zoo })), routes: [], front: ["layers.top.opacity"] } }));
   receive({ type: "params", values: { "layers.top.opacity": 0.6, "layers.top.blend": "screen", "layers.base.opacity": 0.5 } });
   await screen.getByRole("button", { name: "top zoo (changed)" }).click();
   await expect.poll(() => document.querySelectorAll('[role="slider"][aria-labelledby]').length).toBeGreaterThan(1);
   const opacities = [...document.querySelectorAll<HTMLElement>('[role="slider"]')].filter((el) => el.getAttribute("aria-valuetext") === "60%");
-  expect(opacities).toHaveLength(2); // the front knob, as the author chose, and the row's head; the open row holds the blend alone
+  expect(opacities).toHaveLength(3); // the front knob, as the author chose, the row's head, and the open row's own knob
+  await expect.element(screen.getByRole("spinbutton", { name: "opacity · top" }).last()).toHaveValue("60"); // typed entry, in the open row
   await expect.element(screen.getByRole("combobox", { name: "blend · top" })).toBeVisible();
   expect([...document.querySelectorAll(".mix-glance")].map((el) => el.textContent)).toEqual(["screen · 60%", "50%"]);
   // The rows' sliders and readouts share columns, whatever each readout says.
@@ -196,7 +197,7 @@ test("the layers list the top one first; the picked row's mix goes to its layer"
   // Picking the other row shows its controls and its knobs instead.
   await screen.getByRole("button", { name: "base zoo failed" }).click();
   await expect.element(screen.getByRole("slider", { name: "level · base" }).last()).toBeVisible(); // its knobs in its row
-  screen.getByRole("slider", { name: "opacity · base" }).element().focus();
+  screen.getByRole("slider", { name: "opacity · base" }).first().element().focus();
   await userEvent.keyboard("{ArrowLeft}");
   expect(last(sent)).toEqual({ type: "set", name: "layers.base.opacity", value: 0.995 });
 });
@@ -405,3 +406,114 @@ test("▲ that moves a layer to the top hands focus to its ▼; a press on + lay
   await expect.element(screen.getByRole("region", { name: "add layer" })).not.toBeInTheDocument();
 });
 
+
+test("a route that moves a layer's opacity marks its row's slider at the live value", async () => {
+  const { screen, receive } = await app("base", "top");
+  receive({ type: "params", values: { "layers.top.opacity": 0.7 } });
+  await screen.getByRole("button", { name: "top zoo (changed)" }).click(); // the open row's own knob
+  const row = () => document.querySelector(".layer .mix-opacity")!;
+  expect(row().querySelector(".live-mark")).toBeNull();
+  receive({ type: "mod", values: { "layers.top.opacity": 0.531 } });
+  await expect.poll(() => row().querySelector(".live-mark")?.getAttribute("data-value")).toBe("0.531");
+  expect(screen.getByRole("slider", { name: "opacity · top" }).first().element().getAttribute("aria-valuetext")).toBe("70%"); // the set value, as the knob's
+});
+
+/** Drags layer `id`'s grip to `y`, in as many moves as `steps`, with real mouse events; ends at the mouse up when `drop`. */
+const grip = (id: string) => document.querySelector(`.layer:has([aria-label="layer ${id}"]) .grip`) as HTMLElement;
+const middle = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+
+test("dragging a row's grip above the top row sends one move_layer, to the index that puts it on top", async () => {
+  const { screen, sent, receive } = await app("base", "mid", "top");
+  const at = middle(grip("mid"));
+  const top = document.querySelector(".layer")!.getBoundingClientRect();
+  await userEvent.dragAndDrop(grip("mid"), document.querySelector(".layer .layer-head")!, { sourcePosition: { x: 4, y: 4 }, targetPosition: { x: 40, y: 1 } });
+  expect(at.y).toBeGreaterThan(top.bottom);
+  expect(sent.filter((m) => m.type === "move_layer")).toEqual([{ type: "move_layer", lid: "mid", to: 2 }]);
+  for (const msg of stacked("base", "top", "mid")) receive(msg);
+  await expect.poll(() => [...document.querySelectorAll(".layer .layer-id")].map((el) => el.textContent)).toEqual(["mid", "top", "base"]);
+  await expect.element(screen.getByRole("status").filter({ hasText: "mid moved to 1 of 3, top first" })).toBeInTheDocument();
+  expect(document.querySelector("[data-drop]")).toBeNull();
+});
+
+test("a drag that ends where the row started, or that Esc or a cancelled press ends, sends nothing", async () => {
+  const { sent } = await app("base", "mid", "top");
+  const el = grip("mid");
+  // Synthetic pointers have no capture to set.
+  el.setPointerCapture = () => {};
+  el.releasePointerCapture = () => {};
+  el.hasPointerCapture = () => true;
+  const fire = (type: string, target: Element, y: number) =>
+    target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 7, button: 0, clientX: 40, clientY: y }));
+  const top = document.querySelector(".layer")!.getBoundingClientRect();
+  const drag = () => {
+    fire("pointerdown", el, middle(el).y);
+    fire("pointermove", el, top.top + 2);
+  };
+  drag();
+  await expect.poll(() => document.querySelector('.layer[data-drop="below"], .layer[data-drop="above"]')).not.toBeNull();
+  expect(document.querySelector(".layer[data-dragging] .layer-id")?.textContent).toBe("mid");
+  document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  await expect.poll(() => document.querySelector("[data-drop], [data-dragging]")).toBeNull();
+  fire("pointermove", el, top.top + 2);
+  fire("pointerup", el, top.top + 2);
+  drag();
+  fire("pointercancel", el, top.top + 2);
+  await expect.poll(() => document.querySelector("[data-drop], [data-dragging]")).toBeNull();
+  fire("pointerup", el, top.top + 2);
+  // Back where it started.
+  fire("pointerdown", el, middle(el).y);
+  fire("pointerup", el, middle(el).y);
+  expect(sent.filter((m) => m.type === "move_layer")).toEqual([]);
+});
+
+test("the catalog's search box has focus when it opens, keeps typed keys from the page's shortcuts, and filters the parts by name and by what they do", async () => {
+  const { screen, sent } = await app("base", "top");
+  await screen.getByRole("button", { name: "+ layer" }).click();
+  const box = screen.getByRole("textbox", { name: "search parts" });
+  await expect.element(box).toHaveFocus();
+  await userEvent.keyboard("kaleid");
+  await expect.element(box).toHaveValue("kaleid");
+  await expect.element(screen.getByRole("region", { name: /add (layer|above)/ })).toBeVisible(); // the "l" did not switch the panel
+  expect(sent).toEqual([]); // nor armed anything
+  const names = () => [...document.querySelectorAll(".card .card-name")].map((el) => el.textContent?.replace(/^\+\s*/, "").trim());
+  await expect.poll(names).toEqual(["Kaleidoscope"]);
+  // By what a part does: a word of its summary; by its shelf's name.
+  await userEvent.clear(box.element());
+  await userEvent.keyboard("mirror");
+  await expect.poll(names).toEqual(["Kaleidoscope"]);
+  await userEvent.clear(box.element());
+  await userEvent.keyboard("sources");
+  await expect.poll(names).toEqual(["Oscillator"]);
+  await userEvent.clear(box.element());
+  await userEvent.keyboard("zzzz nothing");
+  await expect.element(screen.getByText("no part matches")).toBeVisible();
+  expect(names()).toEqual([]);
+  // Esc clears the box first, a second one closes the panel.
+  await userEvent.keyboard("{Escape}");
+  await expect.element(box).toHaveValue("");
+  await expect.element(screen.getByText("no part matches")).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(box).not.toBeInTheDocument();
+});
+
+test("in the catalog's search, ArrowDown moves to the first part and Enter adds the only one left; the shelf headers cannot be pressed", async () => {
+  const { screen, sent } = await app("base", "top");
+  await screen.getByRole("button", { name: "+ layer" }).click();
+  const box = screen.getByRole("textbox", { name: "search parts" });
+  await userEvent.keyboard("s");
+  await expect.poll(() => document.querySelectorAll(".card").length).toBeGreaterThan(1);
+  await userEvent.keyboard("{Enter}");
+  expect(sent.filter((m) => m.type === "add_layer")).toEqual([]); // several match: Enter adds nothing
+  await userEvent.keyboard("{ArrowDown}");
+  expect(document.activeElement).toBe(document.querySelector(".card-add"));
+  await userEvent.clear(box.element());
+  box.element().focus();
+  await userEvent.keyboard("oscill");
+  await expect.poll(() => document.querySelectorAll(".card").length).toBe(1);
+  expect(document.querySelector<HTMLButtonElement>('[data-part="item-trigger"]')?.disabled).toBe(true);
+  await userEvent.keyboard("{Enter}");
+  expect(sent.filter((m) => m.type === "add_layer")).toHaveLength(1);
+});

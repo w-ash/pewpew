@@ -1,12 +1,12 @@
 import { Field } from "@ark-ui/react/field";
 import { useEffect, useId, useRef, useState } from "react";
 import { formatNumber, percent } from "./format";
-import { defOf, formatValue, readValue, settable as canSet } from "./kinds";
+import { defOf, readValue, settable as canSet } from "./kinds";
 import { caption, type Param, type ValueOf } from "./schema";
 import type { Help } from "../stack/catalog";
 import { depthOf, frontFirst, isOpacity, movedBy, pickedFront, type RouteItem, type SignalItem } from "../stack/stack";
 import { setParam } from "../wire/protocol";
-import { useMod, useParamRefusal, useParamValue, useSender, useWire } from "../wire/store";
+import { useMod, useParamRefusal, useParamValue, useSender, useWire, useWireContext } from "../wire/store";
 import { IconButton, ToggleButton } from "../design/Button";
 import { Details } from "../design/Details";
 import { DisclosureButton, useDisclosure } from "../design/Disclosure";
@@ -15,6 +15,7 @@ import { sayStep } from "../design/StepStatus";
 import { isTextEntry } from "../design/textEntry";
 import { useDraft } from "../design/useDraft";
 import { useOnChange } from "../design/useOnChange";
+import { shownValue } from "./history";
 import { noteSet } from "./lastSet";
 import { controlFor } from "./registry";
 
@@ -34,14 +35,6 @@ interface Props<P extends Param> {
   /** In place of the param's help: null for none, or what its value means, shown while its "?" is
    * pressed, with more behind a disclosure. */
   readonly about?: ((value: ValueOf<P>) => Help) | null;
-}
-
-/** `v` as the control of `p` shows it: a layer's opacity and a color's levels as percents, a
- * choice in lower case. */
-function shownValue<P extends Param>(p: P, v: ValueOf<P>): string {
-  if (isOpacity(p) && typeof v === "number") return percent(v);
-  const text = formatValue(p, v);
-  return p.kind === "choice" ? text.toLowerCase() : text;
 }
 
 /** The addresses of the knobs the look shows first, as its block shows them (`panelOf`). */
@@ -65,6 +58,7 @@ function useFront(): readonly string[] {
 export function ParamField<P extends Param>({ p, context, owner, label, drives, about }: Props<P>) {
   const def = defOf(p);
   const sender = useSender();
+  const { edits } = useWireContext();
   const echoed = useParamValue(p);
   const routes = useWire((s) => s.aura?.stack.routes) ?? NO_ROUTES;
   const signals = useWire((s) => s.aura?.stack.signals) ?? NO_SIGNALS;
@@ -103,10 +97,15 @@ export function ParamField<P extends Param>({ p, context, owner, label, drives, 
   // The saved value while it differs; with none, the default as declared, as defaults sends it: it
   // may sit between steps. "reset to defaults" is the way to a look's defaults.
   const target = saved !== undefined ? (changed ? saved : null) : def.equal(draft.shown, p.default) ? null : p.default;
+  // The control let go: its next set is another undo step.
+  const done = () => {
+    draft.release();
+    edits.seal(p.name);
+  };
   const reset = () => {
     if (target === null) return;
     send(target);
-    draft.release();
+    done();
   };
   const { Control, Glance } = controlFor(p);
   const id = useId();
@@ -208,7 +207,11 @@ export function ParamField<P extends Param>({ p, context, owner, label, drives, 
         p={p}
         value={draft.shown}
         onChange={change}
-        onCommit={draft.release}
+        onCommit={done}
+        onRestore={(v) => {
+          send(v);
+          done();
+        }}
         onNote={setNote}
         labelId={labelId}
         name={name}

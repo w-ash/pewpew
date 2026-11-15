@@ -1,15 +1,16 @@
 import { Slider } from "@ark-ui/react/slider";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { percent } from "../params/format";
-import { capText, MASTER_STEP, stepMaster } from "../aura/master";
+import { fitNumber } from "../params/schema";
+import { capText, MASTER_STEP } from "../aura/master";
+import { NumberEntry } from "../params/controls/NumberEntry";
 import { useRefusal, useSender } from "../wire/store";
-import { IconButton } from "../design/Button";
 import { DisclosureButton, DisclosureNote, useDisclosure } from "../design/Disclosure";
 import { Icon } from "../design/Icon";
 import { SliderBody } from "../design/SliderBody";
-import { sayStep } from "../design/StepStatus";
 import { useDraft } from "../design/useDraft";
 import { useOnChange } from "../design/useOnChange";
+import { useSlideGuard } from "../design/useSlideGuard";
 
 /** What the max is, for its "?". */
 const MAX_ABOUT = "max: the highest brightness allowed in this run, set when the run started";
@@ -24,37 +25,33 @@ interface Props {
 /** The brightness (the master), one control on every screen, laid out as a knob's: its head names it, ☀
  * and the word, with its max and the max's "?", whose note opens under it, and ends with `lead`
  * (blackout); under it its slider, dragged by its thumb (a touch on the track does nothing, so a stray
- * tap cannot jump the room), and − and + joined round its readout, as wide as a knob's entry, so its
- * slider is as long as a knob's. On touch one row: ☀ alone names it, then the slider, the whole width the
- * steps leave, then the steps, the readout giving the max over the level. The readout is drawn only: the
- * slider's value text says it, and a step says where it left the brightness. */
+ * tap cannot jump the room), and a knob's typed entry (`NumberEntry`: − and + step it by 5%, a typed level
+ * goes on Enter or blur, fitted to the 5% grid and the max, and a note says what it became until the
+ * brightness next changes), so its slider is as long as a knob's. On touch one row: ☀ alone
+ * names it, then the slider, the whole width the entry leaves, then the entry. */
 export function Master({ master, cap, lead }: Props) {
   const sender = useSender();
   const about = useDisclosure();
   const draft = useDraft(master, Object.is);
   useOnChange(useRefusal("master"), draft.drop);
+  const [note, setNote] = useState<string | null>(null);
   const change = (v: number) => {
+    setNote(null);
     draft.change(v);
     sender.sendLatest({ type: "master", value: v });
   };
-  const step = (steps: number) => {
-    const v = stepMaster(draft.shown, cap, steps);
-    change(v);
-    draft.release();
-    sayStep(`brightness ${percent(v)}`);
-  };
-  const by = percent(MASTER_STEP);
   const capped = cap < 1;
+  const guard = useSlideGuard(draft.shown, change, draft.release);
+  // The entry types percents on the master's own grid, up to the max.
+  const spec = { lo: 0, hi: Math.round(cap * 100), step: MASTER_STEP * 100, decimals: 0, periodic: false, unit: "%", text: [] };
   return (
     <Slider.Root
       className="master"
       min={0}
       max={cap}
       step={0.01}
-      value={[draft.shown]}
       getAriaValueText={(d) => percent(d.value)}
-      onValueChange={(d) => change(d.value[0] ?? draft.shown)}
-      onValueChangeEnd={draft.release}
+      {...guard}
     >
       <div className="master-head">
         <Slider.Label className="field-label master-label">
@@ -66,22 +63,19 @@ export function Master({ master, cap, lead }: Props) {
         {lead}
       </div>
       <SliderBody />
-      <div className="joined">
-        <IconButton variant="secondary" glyph="−" label={`brightness down ${by}`} onPress={() => step(-1)} />
-        <span className="readout t-value" aria-hidden="true">
-          {capped && (
-            <span className="readout-word">
-              <Icon name="le" />
-              {percent(cap)}
-            </span>
-          )}
-          <span className="level">
-            {Math.round(draft.shown * 100)}
-            <span className="unit">%</span>
-          </span>
-        </span>
-        <IconButton variant="secondary" glyph="+" label={`brightness up ${by}`} onPress={() => step(1)} />
-      </div>
+      <NumberEntry
+        spec={spec}
+        value={Math.round(draft.shown * 100)}
+        label="brightness"
+        onChange={(n) => change(fitNumber(spec, n) / 100)}
+        onCommit={draft.release}
+        onNote={setNote}
+      />
+      {note && (
+        <p className="master-note note" role="status">
+          {note}
+        </p>
+      )}
       {capped && <DisclosureNote disclosure={about}>{MAX_ABOUT}</DisclosureNote>}
     </Slider.Root>
   );

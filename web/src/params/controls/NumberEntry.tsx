@@ -140,7 +140,8 @@ export function NumberEntry({ spec: own, value: raw, label, describedBy, percent
           −
         </NumberInput.DecrementTrigger>
         <span className="value-box" style={{ "--digits": digits } as CSSProperties}>
-          <NumberInput.Input ref={input} className="t-value" aria-label={label} aria-describedby={describedBy} />
+          {/* Whether it holds typed text not yet sent: while it does, a chord is the text's (design/shortcuts.ts). */}
+          <NumberInput.Input ref={input} className="t-value" aria-label={label} aria-describedby={describedBy} data-typed={typed !== null} />
           <span className="unit">{suffix}</span>
         </span>
         <NumberInput.IncrementTrigger aria-label={`increase ${label}`} {...tap(1)}>

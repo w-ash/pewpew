@@ -4,7 +4,7 @@ import {
   countdown, eachItems, eachRequest, eachText, FADES, fadeSeconds, RIGHT_AWAY, rightAway, SHUFFLE_ABOUT, shuffleNote, shuffleOn, shuffleStatus, span, startItems, startRequest, findLook, holdReason, liveLook, lookStatus, MAX_LOOKS, nameHint, offSaved, saveOf, unsaved, varyReason, type LooksState,
 } from "../../src/aura/looks";
 import { param } from "../fixtures/describe";
-import { capText, stepMaster } from "../../src/aura/master";
+import { capText } from "../../src/aura/master";
 import { nowOf, type AuraState } from "../../src/aura/aura";
 import { armable, cueText, lastText } from "../../src/aura/triggers";
 
@@ -15,7 +15,7 @@ const aura = (patch: Partial<AuraState>): AuraState => ({
 });
 /** The looks: none current, made or waiting, idle cycle at its defaults, but for `patch`. */
 const looksOf = (patch: Partial<LooksState>): LooksState => ({
-  items: [], favorites: [], current: null, changed: false, fading: null, progress: null, pending: null, cycling: false, idle: 300, dwell: [60, 60],
+  items: [], favorites: [], current: null, changed: false, held_changed: false, fading: null, progress: null, pending: null, cycling: false, idle: 300, dwell: [60, 60],
   idle_off: false, next: null, made: null, offered: null, saved: null, ...patch,
 });
 /** A cue that holds look cool. */
@@ -67,9 +67,6 @@ test("brightness and its max", () => {
   expect(percent(0.555)).toBe("56%");
   expect(capText(1)).toBe("");
   expect(capText(0.8)).toBe("max 80%");
-  expect(stepMaster(0.6, 1, -1)).toBe(0.55);
-  expect(stepMaster(0.78, 0.8, 1)).toBe(0.8);
-  expect(stepMaster(0.02, 1, -1)).toBe(0);
 });
 
 test("the look's header names what plays: the live look, else a draft, else nothing", () => {

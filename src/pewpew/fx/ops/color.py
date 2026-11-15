@@ -30,7 +30,8 @@ class PaletteOp(Op, op="palette"):
     inputs = (Port("in", Ty.SCALAR),)
     out = Ty.RGB
     palette = Palette(EMBER, presets=PRESETS,
-                      help="Press a dot to edit its color; the left end colors the low parts, the right the high")
+                      help="Drag a dot to move it, press it to edit its color; "
+                           "the left end colors the low parts, the right the high")
     shift = Float(0.0, 0.0, 360.0, "°", periodic=True, help="Turns every color's hue")
     cycle = Rate(0.0, -1.0, 1.0, "/s", flash_sensitive=True, label="Slide",
                  help="Slides the colors along, round and round; give both ends one color for no seam")

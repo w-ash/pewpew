@@ -10,6 +10,8 @@ import { onEngineHost } from "../design/engineHost";
 import { pressable, useShortcuts } from "../design/shortcuts";
 import { useHeightVar } from "../design/useHeightVar";
 import { useOnChange } from "../design/useOnChange";
+import { useLayoutMode } from "../layout/LayoutMode";
+import { useEdits } from "../params/history";
 import { LookKnobs, usePanel } from "../params/ParamPanel";
 import { failedText } from "../status/StatusBar";
 import { Colorways } from "./Colorways";
@@ -22,6 +24,8 @@ export type Awaited = (looks: LooksState) => string | null;
 
 /** Why a run without a looks file cannot save. */
 const NO_LOOKS = "this run can't keep looks";
+/** How long what an undo or a redo did shows under the header. */
+const TOLD_MS = 4000;
 
 /** The look in the room, first in the editor. Its header stays at the slot's top at every depth, its height
  * measured for what pins under it: its name, the only display text, whole, which gives way first on a narrow
@@ -36,6 +40,9 @@ const NO_LOOKS = "this run can't keep looks";
  * opener; "save as new…" and "rename…" take focus to the name box, its text selected, and while it is open, keys on it or
  * its opener are typing, never shortcuts. `k` presses save, or, with nothing to save, says why under the
  * header. Once the engine has made a save, a rename, a revert or a delete, it is announced and the open form closes.
+ * Before save, undo and redo (⌘Z, and ⇧⌘Z or ⌘Y; Ctrl on other systems) take back and do again this page's look
+ * edits (params/history.ts), each saying under the header for a few seconds what it did; with none, or while the
+ * look waits, a press says why there. In layout mode the keys are the layout editor's.
  * While a cue holds a look, or a recall waits for the running fade, the header says so and there is no save,
  * and what is under it waits, inert: edits there would be lost when the hold ends or the recall lands.
  * Without a looks file the header says the look cannot be saved, and on the laptop how to start a run that
@@ -55,6 +62,8 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   const naming = useRef(false);
   const opener = useRef<HTMLElement | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
+  const redoButton = useRef<HTMLButtonElement>(null);
+  const toldTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const forms = useRef<HTMLDivElement>(null);
   const head = useHeightVar("--head-h");
   const ownTitle = useId();
@@ -63,6 +72,9 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   const renameId = useId();
   const settingsId = useId();
   const { view } = usePanel(null);
+  const { edits, canUndo, canRedo } = useEdits();
+  // In layout mode the layout editor's undo takes the keys.
+  const keys = !useLayoutMode().on;
   const failing = useWire((s) => failedText(s.error, s.aura?.stack.layers ?? []));
   const refusal = useRefusal("save");
   const looks = aura?.looks ?? null;
@@ -91,7 +103,11 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
       label: "save the look playing",
       action: () => (save.kind !== "none" && pressable(saveButton.current) ? saveButton.current!.click() : why.toggle(save.kind === "none" ? save.why : "")),
     },
+    ...(keys
+      ? [{ hotkey: "mod+y", label: "redo a look edit", action: () => redoButton.current?.click(), enabled: () => pressable(redoButton.current) }]
+      : []),
   ]);
+  useEffect(() => () => clearTimeout(toldTimer.current), []);
   useEffect(() => {
     if (!open) return;
     // Only the slot scrolls, never the page around it: the form starts under the pinned header.
@@ -145,6 +161,36 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
     setOpen(null);
   };
   const typing = open === "save" || open === "rename" || undefined;
+  const take = (undo: boolean) => () => {
+    const told = undo ? edits.undo() : edits.redo();
+    if (!told) return;
+    why.show(told);
+    clearTimeout(toldTimer.current);
+    toldTimer.current = setTimeout(() => why.close(told), TOLD_MS);
+  };
+  const history = (
+    <>
+      <IconButton
+        icon="undo"
+        label="undo"
+        title="undo the last look edit (⌘Z)"
+        reason={held ?? (canUndo ? null : "no look edit to undo")}
+        note={why}
+        shortcut={keys ? { hotkey: "mod+z", label: "undo a look edit" } : undefined}
+        onPress={take(true)}
+      />
+      <IconButton
+        icon="redo"
+        label="redo"
+        ref={redoButton}
+        title="redo the look edit undone last (⇧⌘Z or ⌘Y)"
+        reason={held ?? (canRedo ? null : "no look edit to redo")}
+        note={why}
+        shortcut={keys ? { hotkey: "mod+shift+z", label: "redo a look edit" } : undefined}
+        onPress={take(false)}
+      />
+    </>
+  );
   return (
     <>
       <div ref={head} className="block-head look-head" onKeyDown={esc}>
@@ -157,54 +203,55 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
             </Badge>
           )}
         </h2>
-        {looks ? (
-          <div className="look-actions">
-            {save.kind !== "none" && (
-              <div className="split-button" role="group" aria-label="save">
-                <Button
-                  ref={saveButton}
-                  variant="primary"
-                  // Only while a layer fails: the confirm's words would widen it at rest.
-                  confirm={failing ? "again to save failing" : undefined}
-                  say={failing ? `save failing? ${failing}; press again to save ${save.name} as it is` : undefined}
-                  busy={saving}
-                  reason={save.kind === "draft" ? save.full : null}
-                  note={why}
-                  title={save.kind === "over" ? `save the edits into ${save.name}` : `keep ${save.name}`}
-                  onPress={press}
-                >
-                  save
-                </Button>
-                <IconButton
-                  variant="primary"
-                  icon="caret"
-                  label="save as new…"
-                  aria-expanded={open === "save"}
-                  aria-controls={saveId}
-                  data-own-keys={typing}
-                  onPress={toggle("save")}
-                />
-              </div>
-            )}
-            {current !== null && (
+        {!looks && <span className="note">not saved: {NO_LOOKS}{onEngineHost() && " (start it with run LOOKS)"}</span>}
+        <div className="look-actions">
+          {history}
+          {looks && save.kind !== "none" && (
+            <div className="split-button" role="group" aria-label="save">
+              <Button
+                ref={saveButton}
+                variant="primary"
+                // Only while a layer fails: the confirm's words would widen it at rest.
+                confirm={failing ? "again to save failing" : undefined}
+                say={failing ? `save failing? ${failing}; press again to save ${save.name} as it is` : undefined}
+                busy={saving}
+                reason={save.kind === "draft" ? save.full : null}
+                note={why}
+                title={save.kind === "over" ? `save the edits into ${save.name}` : `keep ${save.name}`}
+                onPress={press}
+              >
+                save
+              </Button>
               <IconButton
-                icon="more"
-                label="look settings"
-                aria-expanded={open === "settings"}
-                aria-controls={settingsId}
-                onPress={toggle("settings")}
+                variant="primary"
+                icon="caret"
+                label="save as new…"
+                aria-expanded={open === "save"}
+                aria-controls={saveId}
+                data-own-keys={typing}
+                onPress={toggle("save")}
               />
-            )}
-          </div>
-        ) : (
-          <span className="note">not saved: {NO_LOOKS}{onEngineHost() && " (start it with run LOOKS)"}</span>
-        )}
+            </div>
+          )}
+          {looks && current !== null && (
+            <IconButton
+              icon="more"
+              label="look settings"
+              aria-expanded={open === "settings"}
+              aria-controls={settingsId}
+              onPress={toggle("settings")}
+            />
+          )}
+        </div>
         {held && (
           <p className="note held-note" role="status" tabIndex={-1}>
             {held}
           </p>
         )}
-        <DisclosureNote disclosure={why} live />
+        {/* The hold's note stands above: a press that opens the same words does not say them twice. */}
+        <DisclosureNote disclosure={why} live>
+          {held && why.text === held ? "" : undefined}
+        </DisclosureNote>
       </div>
       <div className="block look-block" inert={!!held} onKeyDown={esc}>
         <div ref={forms} className="look-forms" data-own-keys={typing}>

@@ -432,7 +432,7 @@ Colors a pattern through a gradient: its lowest values take the first color and 
 
 Reads `in` (scalar); gives rgb. Dimensions: 1, 2, 3.
 
-- `palette`: palette, default ember. Press a dot to edit its color; the left end colors the low parts, the right the high.
+- `palette`: palette, default ember. Drag a dot to move it, press it to edit its color; the left end colors the low parts, the right the high.
 - `shift`: 0.0 0.0..360.0 °. Turns every color's hue.
 - `cycle`: 0.0 -1.0..1.0 /s. Slides the colors along, round and round; give both ends one color for no seam.
 

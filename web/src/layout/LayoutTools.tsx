@@ -10,12 +10,18 @@ import { BLINK_MS, useLayoutMode } from "./LayoutMode";
 /** Markers at each fixture's input end, and blink a fixture: on the real
  * boards when DDP is on. A click on a fixture in the room blinks it, a tap
  * picks it and a second blinks it (Stage), as a line under the tools says.
- * With `onReport`, a button opens the rig's report. */
+ * With `onReport`, a button opens the rig's report. A rig that does not lie in one plane has no flat room,
+ * so the panel says to use the 3D view. */
 export function LayoutTools({ onReport }: { onReport?: () => void }) {
   const mode = useLayoutMode();
   const fine = useMedia(FINE_POINTER);
-  const room = roomOf(useWire((s) => s.map));
-  if (!room) return <p className="layout-tools empty note">layout tools need an arrangement{onEngineHost() ? " (start the run with --map ARRANGEMENT.json)" : ""}</p>;
+  const map = useWire((s) => s.map);
+  const room = roomOf(map);
+  if (!room) {
+    // A rig that does not lie in one plane has no flat room to draw.
+    if (map?.rig && map.is3d) return <p className="layout-tools empty note">layout tools need a rig that lies in one plane; use the 3D view</p>;
+    return <p className="layout-tools empty note">layout tools need an arrangement{onEngineHost() ? " (start the run with --map ARRANGEMENT.json)" : ""}</p>;
+  }
   const fixture = mode.fixture && room.fixtures.some((f) => f.id === mode.fixture) ? mode.fixture : (room.fixtures[0]?.id ?? null);
   return (
     <div className="row layout-tools">

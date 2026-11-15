@@ -105,7 +105,7 @@ const SHAPES: { readonly [T in ServerMessage["type"]]: Shape } = {
       },
       looks: {
         keys: keys<LooksState>({
-          items: true, favorites: true, current: true, changed: true, fading: true, progress: true, pending: true, cycling: true, idle: true, dwell: true,
+          items: true, favorites: true, current: true, changed: true, held_changed: true, fading: true, progress: true, pending: true, cycling: true, idle: true, dwell: true,
           idle_off: true, next: true, made: true, offered: true, saved: true,
         }),
         fields: { items: { keys: keys<LookItem>({ name: true, cycle: true, fade: true, drift: true }) } },

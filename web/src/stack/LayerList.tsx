@@ -1,13 +1,13 @@
 import { Accordion } from "@ark-ui/react/accordion";
 import { Slider } from "@ark-ui/react/slider";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { percent } from "../params/format";
 import type { BoolParam, ChoiceParam, Param } from "../params/schema";
 import { blendsAbout, showsBlack, type BlendNote } from "./catalog";
 import { liveLook } from "../aura/looks";
 import { chainSaysMore, layerOf, mixAddress, moveTo, runs, summaryOf, type LayerItem } from "./stack";
 import { setParam } from "../wire/protocol";
-import { useAtDefaults, useLayers, useOffSaved, useParamValue, useRefusal, useSender, useWire } from "../wire/store";
+import { useAtDefaults, useLayers, useMod, useOffSaved, useParamValue, useRefusal, useSender, useWire } from "../wire/store";
 import { Badge } from "../design/Badge";
 import { Block } from "../design/Block";
 import { Button, IconButton } from "../design/Button";
@@ -39,14 +39,16 @@ const OPEN_MS = 600;
 
 /** The running look's layers. A look of one layer has no layer chrome (`LoneLayer`). Of more, under
  * "layers" and "+ layer", a row each, the top one first: its id, what it makes in a few words, its mix at
- * a glance and its on switch, the glances of every row in columns. Its opacity has one home: with a mouse
- * its row's slider, on touch its open row (`MixGlance`). The picked row opens under its name, its knobs
+ * a glance and its on switch, the glances of every row in columns. Its opacity is in its open row, and with
+ * a mouse on its row's slider too (`MixGlance`). The picked row opens under its name, its knobs
  * starting where the name does: ▲ ▼ (Alt+↑ ↓ on the row) and remove, its blend, what it runs (its wiring,
  * when that says more than the row does), its own knobs, and defaults. The rows start closed, so the stack reads at a glance. A row
  * opened by hand scrolls up to under the look's header when it would run past the slot's bottom. A control
  * an edit takes away hands focus on: a moved row's to its new place, which stays where it was in the slot,
  * a removed row's to the next; a move says where it put the layer, and a remove which it took, for
- * assistive tech. At MAX_LAYERS, a press on "+ layer" says why it is off, in a note under it. */
+ * assistive tech. A grip at each row's start drags the row up and down (mouse or touch; the page scrolls
+ * from anywhere else): a line shows where it will land, the drop sends one move, and Esc or a cancelled press
+ * sends none. At MAX_LAYERS, a press on "+ layer" says why it is off, in a note under it. */
 export function LayerList({ selection, onAdd }: { selection: LayerSelection; onAdd(): void }) {
   const layers = useLayers();
   const sender = useSender();
@@ -55,6 +57,9 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
   const full = useDisclosure();
   const rows = useRef(new Map<string, HTMLElement>());
   const [moving, setMoving] = useState<{ readonly id: string; readonly by: Mover; readonly top: number } | null>(null);
+  // The row being dragged and the index it would land at (`to`, as `move_layer` counts, bottom first).
+  const [drag, setDrag] = useState<{ readonly id: string; readonly to: number } | null>(null);
+  const dragging = useRef<{ readonly id: string; readonly pointer: number; readonly grip: HTMLElement } | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   // Whether the rows are shut, as each look starts, until opened by hand.
   const [shut, setShut] = useState(true);
@@ -124,13 +129,68 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
     setTimeout(() => watch.disconnect(), OPEN_MS);
   }, [opened]);
 
-  const move = (id: string, up: boolean, by: Mover) => {
-    const to = moveTo(layers, id, up);
-    if (to === null) return;
+  const place = (id: string, to: number, by: Mover) => {
     selection.select(id); // picked by name: the top one by default may be another once it moves
     setMoving({ id, by, top: rows.current.get(id)?.getBoundingClientRect().top ?? 0 });
     sender.send({ type: "move_layer", lid: id, to });
   };
+  const move = (id: string, up: boolean, by: Mover) => {
+    const to = moveTo(layers, id, up);
+    if (to !== null) place(id, to, by);
+  };
+  // Rows over the pointer's height count, by their middles: the dragged row lands over the ones the pointer
+  // has not passed, so it goes above that many rows' worth of index.
+  const dropAt = (id: string, y: number) =>
+    ids.filter((other) => {
+      const r = other !== id && rows.current.get(other)?.getBoundingClientRect();
+      return r && y < r.top + r.height / 2;
+    }).length;
+  const endDrag = () => {
+    const d = dragging.current;
+    dragging.current = null;
+    setDrag(null);
+    return d;
+  };
+  const grip = (id: string) => ({
+    onPointerDown(e: PointerEvent<HTMLElement>) {
+      if (e.button !== 0 || dragging.current) return;
+      e.preventDefault(); // no text selected while it moves
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragging.current = { id, pointer: e.pointerId, grip: e.currentTarget };
+      setDrag({ id, to: ids.indexOf(id) });
+    },
+    onPointerMove(e: PointerEvent<HTMLElement>) {
+      const d = dragging.current;
+      if (d && d.pointer === e.pointerId) setDrag({ id: d.id, to: dropAt(d.id, e.clientY) });
+    },
+    onPointerUp(e: PointerEvent<HTMLElement>) {
+      if (dragging.current?.pointer !== e.pointerId) return;
+      const d = endDrag()!;
+      const to = dropAt(d.id, e.clientY);
+      if (to !== ids.indexOf(d.id)) place(d.id, to, "row");
+    },
+    onPointerCancel(e: PointerEvent<HTMLElement>) {
+      if (dragging.current?.pointer === e.pointerId) endDrag();
+    },
+  });
+  // Esc ends a drag with nothing sent, before the page's own Esc (the panel's) sees it.
+  const dragged = drag !== null;
+  useEffect(() => {
+    if (!dragged) return;
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const d = endDrag();
+      if (d?.grip.hasPointerCapture(d.pointer)) d.grip.releasePointerCapture(d.pointer);
+    };
+    window.addEventListener("keydown", esc, true);
+    return () => window.removeEventListener("keydown", esc, true);
+  }, [dragged]);
+  // The line shows between the rows the dragged one would land under and over, nothing where it stays.
+  const others = drag ? ids.filter((x) => x !== drag.id) : [];
+  const staying = drag !== null && drag.to === ids.indexOf(drag.id);
+  const dropOn = (id: string) => (!drag || staying ? undefined : id === others[drag.to] ? "below" : drag.to === others.length && id === others[drag.to - 1] ? "above" : undefined);
   const remove = (id: string) => {
     const i = ids.indexOf(id);
     const next = ids[i - 1] ?? ids[i + 1]!; // the row under it in the list, else the one over it
@@ -185,6 +245,9 @@ export function LayerList({ selection, onAdd }: { selection: LayerSelection; onA
               if (el) rows.current.set(layer.id, el);
               else rows.current.delete(layer.id);
             }}
+            grip={grip(layer.id)}
+            dragging={drag?.id === layer.id}
+            drop={dropOn(layer.id)}
             up={moveTo(layers, layer.id, true) !== null}
             down={moveTo(layers, layer.id, false) !== null}
             onMove={(up, by) => move(layer.id, up, by)}
@@ -246,6 +309,11 @@ interface RowProps {
   readonly down: boolean;
   onMove(up: boolean, by: Mover): void;
   onRemove(): void;
+  /** The pointer handlers of the row's grip. */
+  readonly grip: Record<string, unknown>;
+  /** Whether it is being dragged, and where a line shows over it while another row is. */
+  readonly dragging: boolean;
+  readonly drop: "above" | "below" | undefined;
 }
 
 /** Layer `id`'s mix knob `knob` among `params`, or undefined. */
@@ -273,14 +341,14 @@ function Chain({ layer, params }: { layer: LayerItem; params: readonly Param[] }
   return chainSaysMore(layer, knobbed) ? <p className="chain">{runs(layer)}</p> : null;
 }
 
-function LayerRow({ layer, bottom, picked, rowRef, up, down, onMove, onRemove }: RowProps) {
+function LayerRow({ layer, bottom, picked, rowRef, up, down, onMove, onRemove, grip, dragging, drop }: RowProps) {
   const { id } = layer;
   const params = useWire((s) => s.params);
   const failed = useWire((s) => s.error?.source === "render" && !!s.error.path && layerOf(s.error.path) === id);
   // A knob of its own off the look as saved, or its program changed since: a save would change it.
   const off = useOffSaved(params.filter((p) => p.layer === id), `layers.${id}.`);
   const opacity = mixOf(params, id, "opacity"), blend = mixOf(params, id, "blend"), enabled = mixOf(params, id, "enabled");
-  // With a mouse, the row's own slider is the opacity's one home.
+  // With a mouse the row's own slider sets the opacity too, for a glance; the open row's field is its full control.
   const rowSlider = useMedia(FINE_POINTER);
   const keys = (e: KeyboardEvent) => {
     if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
@@ -289,26 +357,31 @@ function LayerRow({ layer, bottom, picked, rowRef, up, down, onMove, onRemove }:
   };
   const summary = summaryOf(layer).toLowerCase();
   return (
-    <Accordion.Item ref={rowRef} value={id} className="layer" data-picked={picked || undefined}>
+    <Accordion.Item ref={rowRef} value={id} className="layer" data-picked={picked || undefined} data-dragging={dragging || undefined} data-drop={drop}>
       <div className="layer-head">
-        <h4 className="row-title">
-          <Accordion.ItemTrigger onKeyDownCapture={keys} aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown">
-            <Accordion.ItemIndicator>
-              <Icon name="chevron" />
-            </Accordion.ItemIndicator>
-            <SizedName name={id} className="layer-id" />{" "}
-            <span className="runs">
-              {summary && (
-                <span className="sep" aria-hidden="true">
-                  ·{" "}
-                </span>
-              )}
-              {summary}
-            </span>
-            {off && <ChangedMark />}
-            {failed && <Badge tone="danger">failed</Badge>}
-          </Accordion.ItemTrigger>
-        </h4>
+        <div className="layer-title">
+          <span className="grip" aria-hidden="true" title="drag to move the layer" {...grip}>
+            <Icon name="grip" />
+          </span>
+          <h4 className="row-title">
+            <Accordion.ItemTrigger onKeyDownCapture={keys} aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown">
+              <Accordion.ItemIndicator>
+                <Icon name="chevron" />
+              </Accordion.ItemIndicator>
+              <SizedName name={id} className="layer-id" />{" "}
+              <span className="runs">
+                {summary && (
+                  <span className="sep" aria-hidden="true">
+                    ·{" "}
+                  </span>
+                )}
+                {summary}
+              </span>
+              {off && <ChangedMark />}
+              {failed && <Badge tone="danger">failed</Badge>}
+            </Accordion.ItemTrigger>
+          </h4>
+        </div>
         {opacity && blend && <MixGlance opacity={opacity} blend={blend} id={id} slider={rowSlider} />}
         {enabled?.kind === "bool" && <LayerSwitch p={enabled} id={id} />}
       </div>
@@ -320,7 +393,7 @@ function LayerRow({ layer, bottom, picked, rowRef, up, down, onMove, onRemove }:
             remove
           </Button>
         </div>
-        {opacity && !rowSlider && <ParamField p={opacity} owner={id} />}
+        {opacity && <ParamField p={opacity} owner={id} />}
         {blend && <BlendField blend={blend} bottom={bottom} owner={id} />}
         <Chain layer={layer} params={params} />
         <LayerKnobList layer={id} />
@@ -341,12 +414,12 @@ function RowDefaults({ layer }: { layer: string }) {
 }
 
 /** A layer's mix on its row, open or not: its blend unless normal, and its opacity; with `slider`, the
- * opacity's own slider too, so layers balance against each other in one view. It is named as the knob
- * is. On touch, where a short slider cannot be dragged finely, the open row holds the knob instead,
- * with its steps. */
+ * opacity's own slider too, so layers balance against each other in one view, with a mark where a route
+ * moves it now. It is named as the knob is. The open row holds the full knob, with its steps. */
 function MixGlance({ opacity, blend, id, slider }: { opacity: Param; blend: Param; id: string; slider: boolean }) {
   const sender = useSender();
   const o = useParamValue(opacity);
+  const mod = useMod(opacity.name);
   const b = useParamValue(blend);
   const draft = useDraft(typeof o === "number" ? o : 1, Object.is);
   const mode = blend.kind === "choice" ? (blend.options.find((x) => x.value === b)?.label ?? String(b)) : String(b);
@@ -375,7 +448,7 @@ function MixGlance({ opacity, blend, id, slider }: { opacity: Param; blend: Para
         }}
         onValueChangeEnd={draft.release}
       >
-        <SliderBody />
+        <SliderBody live={mod} />
       </Slider.Root>
       {level}
     </span>

@@ -278,6 +278,23 @@ def test_a_held_look_returns_to_the_live_state_after_its_hold(tmp_path):
     assert r.looks.held is None and r.looks.state()["changed"] is True
 
 
+def test_a_hold_says_whether_the_state_it_returns_to_holds_edits(tmp_path):
+    r = make(tmp_path, HOLD_RED)
+    r.step()
+    r.trig.submit("page", "cue")
+    r.step()
+    assert r.looks.state()["held_changed"] is False  # nothing was edited before the hold
+    assert r.step(30) is not None and r.looks.held is None
+    r.renderer().bound.node_params["solid"].set("green", 0.5)
+    r.trig.submit("page", "cue")
+    r.step()
+    state = r.looks.state()
+    assert (state["changed"], state["held_changed"]) == (False, True)
+    r.step(30)
+    state = r.looks.state()
+    assert r.looks.held is None and (state["changed"], state["held_changed"]) == (True, False)
+
+
 def test_a_retrigger_extends_the_hold_and_keeps_the_journal(tmp_path):
     triggers = {**HOLD_RED, "go": Trigger(look="green", hold=0.5, debounce=0.0, cooldown=0.0)}
     r = make(tmp_path, triggers)

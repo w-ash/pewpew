@@ -4,7 +4,7 @@ import { Field, SelectField } from "../design/Field";
 import { Segments } from "../design/Segments";
 import { Tile } from "../design/Tile";
 import { NumberField, type NumberRange } from "../params/NumberField";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type {
   Arrangement,
   ArrayGroup,
@@ -21,6 +21,7 @@ import {
   duplicate,
   type End,
   explodeGroup,
+  flatPose,
   flip,
   freshId,
   IDENTITY_POSE,
@@ -239,6 +240,7 @@ export function ArrangementPanel({
               const { arrangement: next, id } = addFixture(
                 arrangement,
                 types[0]!.id,
+                flatPose(rigIsCurrent ? rig?.fixtures : undefined) ?? undefined,
               );
               commit(next);
               select({ kind: "fixture", id });
@@ -341,6 +343,11 @@ function SelectionEditor({
   select: (selection: Selection | null) => void;
 }) {
   const pose = poseOf(arrangement, selection, compiled);
+  const top = useRef<HTMLDivElement>(null);
+  // The form is keyed by the selection, so it mounts when one is picked: bring it into view, below a long list.
+  useEffect(() => {
+    top.current?.closest("section")?.scrollIntoView({ block: "nearest" });
+  }, []);
   const group =
     selection.kind === "group"
       ? arrangement.groups.find((g) => g.id === selection.id)
@@ -358,7 +365,7 @@ function SelectionEditor({
 
   return (
     <Block className="fields" title={`Selected · ${selection.id}`}>
-      <div className="row wrap">
+      <div ref={top} className="row wrap">
         <Button
           onPress={() => {
             const r = duplicate(arrangement, selection);

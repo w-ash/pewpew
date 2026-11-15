@@ -75,6 +75,13 @@ export function shelve(cards: readonly Card[]): ReadonlyMap<Shelf, readonly Shel
   return out;
 }
 
+/** Whether `card`, on `shelf`, matches `query`: every word of it is in the card's name, label, summary
+ * or shelf, case aside. A blank query matches every card. */
+export function matches(card: Card, shelf: Shelf, query: string): boolean {
+  const hay = [card.name, card.label, summaryText(card).replaceAll("`", ""), shelf].join(" ").toLowerCase();
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((word) => hay.includes(word));
+}
+
 /** Whether `takes`, a list of map dimensions, holds a map of `dims` dimensions (the stack's: 0 to 3).
  * As the engine counts them, a point runs what a strip runs. */
 function holds(takes: readonly number[], dims: number): boolean {

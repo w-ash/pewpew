@@ -9,6 +9,29 @@ series (batch mode).
 
 ### Added
 
+- The Console's palette editor works on the gradient itself. Drag a dot to move its
+  stop, as far as the stops either side (two at one place make a hard edge); press a
+  dot to edit it, and the editor steps to the previous or next stop, the way to one
+  of several piled together. Press the gradient to add a stop there, in the color the
+  gradient already has, so nothing shifts until you move or color it. A stop's
+  position is a strip that runs from the stop before to the stop after, so stops a few
+  thousandths apart still get its whole width, and it steps by 0.001. The hue,
+  saturation and brightness strips are drawn as the LEDs show them. On a phone a
+  sideways drag moves a dot and a swipe up scrolls the page. Delete or Backspace on
+  a dot removes its stop.
+- The Console undoes and redoes look edits: ⌘Z and ⇧⌘Z (or ⌘Y), or the ↶ ↷ buttons
+  in the look's header, take back a knob drag, a run of key or ± steps, a typed value,
+  a reset, a palette edit or a colorway press, each saying under the header what it
+  did. The history lasts through a save, a rename and a change of the layers, and ends
+  when another look is recalled. A knob that was changed elsewhere since (another
+  page, a colorway that drifted) is left as it is, and the line says so.
+- Layers drag to reorder by a grip on each row; Esc cancels. A layer's opacity is in
+  its open row on every pointer, with typed entry, steps and reset, and its row slider
+  marks a route's live value.
+- Add layer has a search box that filters parts by name and by what they do, and typed
+  letters stay in it; ↓ goes to the first match and Enter adds a lone one.
+- The brightness is typed into as a knob's entry is. Colorway chips are one Tab stop
+  with arrow-key movement, and the colorways' drift toggle says "drift".
 - `particles` takes `fadein` (0.02 to 1) and `fadeout` (0.2 to 1): the share of its
   life a particle spends brightening at the start and fading at the end. A low
   `fadein` lets long-lived particles show at once, so `gravity` at its ends changes
@@ -1576,6 +1599,22 @@ series (batch mode).
 
 ### Fixed
 
+- While a cue holds a look, a tap on another look over unsaved edits takes two
+  presses, as it does otherwise: the edits were dropped on one. The engine's looks
+  state says so with `held_changed`.
+- In the 3D view a click or tap within 8 px of a fixture selects it; only its 1 cm
+  body did. Add › Bar on a flat rig lays the new bar in the rig's plane, so the 2D
+  view and its tools stay, and the 2D tools say why they are off when a rig is not
+  flat. Picking a fixture in the layout list brings its form into view.
+- Turning layout on closes the health panel, the all-looks list or the report, which
+  hid its tools.
+- On a phone, a scroll swipe that starts on a slider's thumb no longer changes the
+  value: only a sideways drag moves it, and a scroll that takes over puts the value
+  back. The pin shows at rest on knobs in an open layer, a portrait phone gives the
+  look's knobs more room than the room preview, and shuffle's status drops "1 min ·"
+  whole on a narrow screen instead of cutting it.
+- A refused colorway drift shows under the colorway row only, not in the status bar
+  too.
 - A palette glide that starts while another runs no longer builds on it without end.
   Each such start nested the last one, so a colorway drift faster than the look's
   fade grew the chain about 30 levels a minute, and each frame's colour table cost
