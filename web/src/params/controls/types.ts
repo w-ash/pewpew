@@ -8,6 +8,8 @@ export interface ControlProps<P extends Param> {
   onChange(v: ValueOf<P>): void;
   /** The control let go. */
   onCommit(): void;
+  /** The control puts back a value it held before: sent as it is, not fitted as an edit is. */
+  onRestore(v: ValueOf<P>): void;
   /** What became of a typed value the control could not take as typed, or null. */
   onNote(note: string | null): void;
   /** The id of the field's label, for controls that name their own parts. */

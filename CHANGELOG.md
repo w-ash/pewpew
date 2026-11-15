@@ -9,6 +9,16 @@ series (batch mode).
 
 ### Added
 
+- The Console's palette editor works on the gradient itself. Drag a dot to move its
+  stop, as far as the stops either side (two at one place make a hard edge); press a
+  dot to edit it, and the editor steps to the previous or next stop, the way to one
+  of several piled together. Press the gradient to add a stop there, in the color the
+  gradient already has, so nothing shifts until you move or color it. Undo beside the
+  preset list takes back one edit at a time. A stop's position is a strip that runs
+  from the stop before to the stop after, so stops a few thousandths apart still get
+  its whole width, and it steps by 0.001 (0.1%). The hue, saturation and brightness
+  strips are drawn as the LEDs show them. On a phone a sideways drag moves a dot and a
+  swipe up scrolls the page.
 - The `branches` source: a tree of light grown out of a point you set. `trunks`
   (1 to 12) leave it and fork level by level for `depth` (1 to 7), each level
   `shrink` as long and as thin, so the channels grow more and finer away from the

@@ -5925,7 +5925,7 @@
           "name": "palette",
           "kind": "palette",
           "label": "Palette",
-          "help": "Press a dot to edit its color; the left end colors the low parts, the right the high",
+          "help": "Drag a dot to move it, press it to edit its color; the left end colors the low parts, the right the high",
           "group": "",
           "widget": "",
           "default": {
@@ -5963,7 +5963,7 @@
               "unit": "",
               "lo": 0.0,
               "hi": 1.0,
-              "step": 0.005,
+              "step": 0.001,
               "decimals": 3,
               "periodic": false,
               "text": []

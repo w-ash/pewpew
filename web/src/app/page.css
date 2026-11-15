@@ -1563,58 +1563,84 @@
   flex: 0 0 auto;
 }
 
-/* The gradient, with a marker under each stop; the picked stop's editor below. */
+/* A preset list and undo on a line; the gradient, with a dot under each stop; the picked stop's editor below. */
 .palette-control {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
 }
-/* Its ends where a slider's thumb sits at 0 and at 1. */
+.palette-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.palette-tools > select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.palette-tools > .button {
+  margin-left: auto;
+}
+/* Its ends where a slider's thumb sits at 0 and at 1. A press on it adds a stop. */
 .palette-strip {
   position: relative;
-  height: 1.5rem;
+  height: 2rem;
   margin: 0 calc(var(--thumb) / 2) var(--control-h);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
+  cursor: copy;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
-/* A target as wide as a touch, centred under its stop; the dot shows the stop's colour. */
+/* A target as wide as a touch, centred under its stop; the dot shows the stop's colour. A sideways pull drags
+   it; one that goes up or down first scrolls the page (pan-y), as a slider's thumb does. */
 .stop-marker {
   position: absolute;
   top: 100%;
   width: var(--control-h);
   height: var(--control-h);
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.stop-marker[data-end] {
   cursor: pointer;
 }
 .stop-marker::before {
   content: "";
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: currentColor;
   border: 2px solid var(--border-strong);
 }
-.stop-marker[aria-pressed="true"]::before {
+/* An end stays where it is: square, where a stop that moves is round. */
+.stop-marker[data-end]::before {
+  border-radius: 3px;
+}
+/* The picked stop lies over the others, so in a pile it is the one shown and the one a press takes. */
+.stop-marker[aria-current="true"] {
+  z-index: 1;
+}
+.stop-marker[aria-current="true"]::before {
   border-color: var(--text-1);
   outline: 2px solid var(--text-1);
 }
 /* Focus rings the dot, round as its picked ring, not the target box. */
 .stop-marker:focus-visible {
   outline: none;
+  z-index: 2;
 }
 .stop-marker:focus-visible::before {
   box-shadow:
     0 0 0 2px var(--surface-region),
     0 0 0 4px var(--focus);
 }
-/* Under a finger the marker's box is --hit square; its dot stays 12 px. The strip's bottom margin grows by the
+/* Under a finger the dot's box is --hit square; its dot stays 14 px. The strip's bottom margin grows by the
    same 4 px so the box clears the row below. */
 @media (pointer: coarse) {
   .palette-strip {
@@ -1631,24 +1657,31 @@
   align-items: center;
   gap: var(--space-xs);
 }
-.stop-head > span {
-  color: var(--text-2);
+/* Which stop, between the steps to the one before and the one after. */
+.stop-step {
+  display: flex;
+  align-items: center;
   margin-right: auto;
+}
+.stop-step > span {
+  color: var(--text-2);
   white-space: nowrap;
+  min-width: 6.5em;
+  text-align: center;
 }
 /* Its two actions keep together, and wrap under its name as one, ending at the column's edge. */
 .stop-actions {
   display: flex;
   margin-left: auto;
 }
-/* A stop's position, labelled above as a knob is. */
-.stop-position {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
+/* A stop's position strip shows the two fades the stop sits between: a thumb high, so they can be read. */
+.stop-editor [data-channel="at"] [data-part="track"] {
+  height: var(--thumb);
+  border-radius: var(--radius-control);
 }
-.stop-position .param-head > .field-label {
-  flex: 0 1 auto;
+/* The stop's parts lie at the editor's edge, under its head. */
+.stop-editor > .color-control {
+  padding-left: 0;
 }
 
 /* ---- layers: the list, the picked row, and the catalog ---------------------------------------- */

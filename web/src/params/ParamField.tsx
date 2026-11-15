@@ -209,6 +209,10 @@ export function ParamField<P extends Param>({ p, context, owner, label, drives, 
         value={draft.shown}
         onChange={change}
         onCommit={draft.release}
+        onRestore={(v) => {
+          send(v);
+          draft.release();
+        }}
         onNote={setNote}
         labelId={labelId}
         name={name}

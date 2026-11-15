@@ -209,7 +209,7 @@
               "unit": "",
               "lo": 0.0,
               "hi": 1.0,
-              "step": 0.005,
+              "step": 0.001,
               "decimals": 3,
               "periodic": false,
               "text": []

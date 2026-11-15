@@ -463,6 +463,15 @@ class Color(Param[HSV]):
         return {"parts": _part_records(self.parts)}
 
 
+class _Position(Float):
+    """A stop's position. Its step is 0.001: the stops of a palette can lie a
+    few thousandths apart, closer than a `Float`'s own step for 0 to 1."""
+
+    @property
+    def step(self) -> float:
+        return 0.001
+
+
 class Palette(Param[Gradient]):
     """A gradient: `Palette(default, presets=...)`, read as a `Gradient`.
 
@@ -485,7 +494,7 @@ class Palette(Param[Gradient]):
     max_label: ClassVar[int] = 64
 
     def __init__(self, default: Gradient | str, *, presets: Iterable[Gradient] = (), **meta: Any) -> None:
-        self._at = Float(0.0, 0.0, 1.0, label="Position")
+        self._at = _Position(0.0, 0.0, 1.0, label="Position")
         self._at.name = "at"
         self._color = Color((0.0, 0.0, 1.0))
         self._stop_parts: dict[str, Float] = {"at": self._at, **self._color.parts}

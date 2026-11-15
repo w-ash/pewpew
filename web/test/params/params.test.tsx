@@ -1,10 +1,11 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ParamField } from "../../src/params/ParamField";
 import { StatusBar } from "../../src/status/StatusBar";
 import { LookKnobs, LookSignals } from "../../src/params/ParamPanel";
 import { SETTLE_MS } from "../../src/design/useDraft";
 import { StepStatus } from "../../src/design/StepStatus";
+import { blendHsv } from "../../src/params/color";
 import { decodeParam } from "../../src/params/kinds";
 import type { Gradient, HSV, PaletteParam } from "../../src/params/schema";
 import type { ClientMessage } from "../../src/wire/protocol";
@@ -407,7 +408,7 @@ test("a palette picks a preset, and shows custom once a stop is edited", async (
   expect(palettes(sent).at(-1)).toEqual(PALETTE.presets[1]!.value);
   receive({ type: "params", values: { palette: PALETTE.presets[1]!.value } });
   await expect.element(presets).toHaveValue("ocean");
-  await screen.getByRole("button", { name: /^stop 1 at/ }).click();
+  await screen.getByRole("slider", { name: "stop 1 of 4" }).click();
   await screen.getByRole("spinbutton", { name: "stop 1 hue" }).fill("100");
   await userEvent.keyboard("{Enter}");
   const edited = palettes(sent).at(-1)!;
@@ -421,29 +422,29 @@ test("a palette picks a preset, and shows custom once a stop is edited", async (
 test("a palette's markers open the stop to edit, and fold it again; the ends stay at 0 and 1", async () => {
   const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
   await expect.element(screen.getByRole("button", { name: "add stop" })).not.toBeInTheDocument(); // no stop editor until one is picked
-  await screen.getByRole("button", { name: "stop 1 at 0.000" }).click();
+  await screen.getByRole("slider", { name: "stop 1 of 4" }).click();
   await expect.element(screen.getByText("starts the gradient, at 0")).toBeVisible();
-  await screen.getByRole("button", { name: "stop 2 at 0.350" }).click();
-  await expect.element(screen.getByRole("button", { name: "stop 2 at 0.350" })).toHaveAttribute("aria-pressed", "true");
+  await screen.getByRole("slider", { name: "stop 2 of 4" }).click();
+  await expect.element(screen.getByRole("slider", { name: "stop 2 of 4" })).toHaveAttribute("aria-current", "true");
   const position = screen.getByRole("spinbutton", { name: "stop 2 position" });
   await expect.element(position).toHaveValue("0.350");
   await position.fill("0.9");
   await userEvent.keyboard("{Enter}");
   expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 0.7, 1]); // stops at the next stop
-  await screen.getByRole("button", { name: "stop 4 at 1.000" }).click();
+  await screen.getByRole("slider", { name: "stop 4 of 4" }).click();
   await expect.element(screen.getByText("ends the gradient, at 1")).toBeVisible();
   await expect.element(screen.getByRole("spinbutton", { name: "stop 4 position" })).not.toBeInTheDocument();
-  await screen.getByRole("button", { name: "stop 4 at 1.000" }).click();
+  await screen.getByRole("slider", { name: "stop 4 of 4" }).click();
   await expect.element(screen.getByText("ends the gradient, at 1")).not.toBeInTheDocument();
 });
 
 test("a palette adds a stop halfway to the next, and keeps at least two", async () => {
   const { screen, sent, receive } = await renderWired(<ParamField p={PALETTE} />);
-  await screen.getByRole("button", { name: "stop 1 at 0.000" }).click();
+  await screen.getByRole("slider", { name: "stop 1 of 4" }).click();
   await screen.getByRole("button", { name: "add stop" }).click();
   const added = palettes(sent).at(-1)!;
   expect(added.stops.map((x) => x.at)).toEqual([0, 0.175, 0.35, 0.7, 1]);
-  expect(added.stops[1]).toMatchObject({ h: 0, s: 1, v: 0 }); // a copy of the stop it follows
+  expect(added.stops[1]).toMatchObject({ h: 4, s: 1, v: 0.045 }); // the gradient's color there, blended in OKLab
   receive({ type: "params", values: { palette: added } });
   await expect.element(screen.getByRole("status").filter({ hasText: "stop 2 of 5" })).toBeVisible(); // said as it changes
   for (let n = 5; n > 2; n--) {
@@ -467,8 +468,104 @@ test("a palette's strip draws the gradient as the LEDs show it", async () => {
   const strip = document.querySelector<HTMLElement>(".palette-strip")!;
   expect(strip.style.backgroundImage).toContain("oklab");
   expect(getComputedStyle(strip).backgroundImage).toContain("gradient");
-  const end = screen.getByRole("button", { name: "stop 4 at 1.000" }).element() as HTMLElement;
+  const end = screen.getByRole("slider", { name: "stop 4 of 4" }).element() as HTMLElement;
   expect(end.style.color).toBe("rgb(255, 229, 148)"); // ember's last stop, (42°, 0.7, 1) at gamma 2.2
+});
+
+const dot = (screen: Awaited<ReturnType<typeof renderWired>>["screen"], k: number) =>
+  screen.getByRole("slider", { name: `stop ${k} of 4` }).element() as HTMLElement;
+const stripBox = () => document.querySelector<HTMLElement>(".palette-strip")!.getBoundingClientRect();
+const ptr = (el: Element, type: string, x: number) =>
+  el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 7, button: 0, clientX: x, clientY: stripBox().top + 5 }));
+/** A press on `el` at `from`, moved through `via`, and let go at the last: a drag. */
+async function drag(el: Element, from: number, via: number[]) {
+  vi.spyOn(HTMLElement.prototype, "setPointerCapture").mockImplementation(() => {}); // a made-up pointer cannot be captured
+  const tick = () => new Promise((done) => setTimeout(done, 20)); // lets the page draw each step before the next
+  ptr(el, "pointerdown", from);
+  for (const x of via) {
+    await tick();
+    ptr(el, "pointermove", x);
+  }
+  await tick();
+  ptr(el, "pointerup", via.at(-1)!);
+  await tick();
+}
+const placeOf = (at: number) => stripBox().left + at * stripBox().width;
+
+test("dragging a dot moves its stop, as far as the next stop, and is one undo step", async () => {
+  const { screen, sent, receive } = await renderWired(<ParamField p={PALETTE} />);
+  const undo = screen.getByRole("button", { name: "undo" });
+  await expect.element(undo).toHaveAttribute("aria-disabled", "true");
+  await drag(dot(screen, 2), placeOf(0.35), [placeOf(0.45), placeOf(0.5)]);
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.5, 0.7, 1]);
+  await drag(dot(screen, 2), placeOf(0.5), [placeOf(0.6), placeOf(0.95)]); // past the next stop: it stops there
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 0.7, 1]);
+  await expect.element(undo).not.toHaveAttribute("aria-disabled", "true");
+  await undo.click();
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.5, 0.7, 1]); // one step back: the second drag
+  await undo.click();
+  expect(palettes(sent).at(-1)).toEqual(PALETTE.default); // the palette as it was, exactly
+  await expect.element(undo).toHaveAttribute("aria-disabled", "true");
+  receive({ type: "params", values: { palette: PALETTE.default } });
+});
+
+test("a drag of an end dot moves nothing and says why", async () => {
+  const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
+  await drag(dot(screen, 1), placeOf(0), [placeOf(0.2)]);
+  expect(palettes(sent)).toHaveLength(0);
+  await expect.element(screen.getByText("the first stop stays at 0")).toBeVisible();
+});
+
+test("undo ends when the palette changes from elsewhere", async () => {
+  const { screen, receive } = await renderWired(<ParamField p={PALETTE} />);
+  const undo = screen.getByRole("button", { name: "undo" });
+  await drag(dot(screen, 2), placeOf(0.35), [placeOf(0.5)]);
+  await expect.element(undo).not.toHaveAttribute("aria-disabled", "true");
+  receive({ type: "params", values: { palette: PALETTE.presets[1]!.value } }); // a colorway, say
+  await expect.element(undo).toHaveAttribute("aria-disabled", "true");
+});
+
+test("a press on the gradient adds a stop there, in the color the gradient has there", async () => {
+  const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
+  const strip = document.querySelector<HTMLElement>(".palette-strip")!;
+  strip.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: placeOf(0.525) }));
+  const stops = palettes(sent).at(-1)!.stops;
+  expect(stops.map((x) => x.at)).toEqual([0, 0.35, 0.525, 0.7, 1]);
+  const want = blendHsv(PALETTE.default.stops[1]!, PALETTE.default.stops[2]!, 0.5);
+  expect(stops[2]!.h).toBeCloseTo(want.h, -0.5); // within the field's own steps
+  expect(Math.abs(stops[2]!.s - want.s)).toBeLessThanOrEqual(0.005);
+  expect(Math.abs(stops[2]!.v - want.v)).toBeLessThanOrEqual(0.005);
+  await expect.element(screen.getByRole("status").filter({ hasText: "stop 3 of 5" })).toBeVisible();
+});
+
+test("the arrow keys step a dot by a thousandth, Shift by ten, Home to its neighbour; the ends stay", async () => {
+  const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
+  dot(screen, 2).focus();
+  await userEvent.keyboard("{ArrowRight}");
+  expect(palettes(sent).at(-1)!.stops[1]!.at).toBeCloseTo(0.351, 6);
+  await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+  expect(palettes(sent).at(-1)!.stops[1]!.at).toBeCloseTo(0.341, 6);
+  await userEvent.keyboard("{End}");
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 0.7, 1]);
+  dot(screen, 1).focus();
+  await userEvent.keyboard("{ArrowRight}");
+  await expect.element(screen.getByText("the first stop stays at 0")).toBeVisible();
+});
+
+test("the editor steps to the stop before and after", async () => {
+  const { screen } = await renderWired(<ParamField p={PALETTE} />);
+  await screen.getByRole("slider", { name: "stop 2 of 4" }).click();
+  const at = (n: number) => expect.element(screen.getByRole("status").filter({ hasText: `stop ${n} of 4` })).toBeVisible();
+  await screen.getByRole("button", { name: "next stop" }).click();
+  await at(3);
+  await screen.getByRole("button", { name: "next stop" }).click();
+  await at(4);
+  await expect.element(screen.getByRole("button", { name: "next stop" })).toHaveAttribute("aria-disabled", "true");
+  for (const n of [3, 2, 1]) {
+    await screen.getByRole("button", { name: "previous stop" }).click();
+    await at(n);
+  }
+  await expect.element(screen.getByRole("button", { name: "previous stop" })).toHaveAttribute("aria-disabled", "true");
 });
 
 test("the main knobs are the look's own block, each also in its own place; a lone layer's are under its heading", async () => {
