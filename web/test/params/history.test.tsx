@@ -229,7 +229,7 @@ test("the look's header holds undo and redo: off with a reason, then each says w
 
 test("a colorway press is undone from the header, every knob it changed put back", async () => {
   const { screen, sent, receive } = await renderWired(<LookPanel />, GREETING);
-  const chips = screen.getByRole("group", { name: "colorways" });
+  const chips = screen.getByRole("toolbar", { name: "colorways" });
   await chips.getByRole("button", { name: "red" }).click();
   receive(values({ [LEVEL]: 0.9 }));
   receive(aura({}, { colorway: "red" }));

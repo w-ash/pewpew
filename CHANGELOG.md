@@ -13,12 +13,21 @@ series (batch mode).
   stop, as far as the stops either side (two at one place make a hard edge); press a
   dot to edit it, and the editor steps to the previous or next stop, the way to one
   of several piled together. Press the gradient to add a stop there, in the color the
-  gradient already has, so nothing shifts until you move or color it. Undo beside the
-  preset list takes back one edit at a time. A stop's position is a strip that runs
-  from the stop before to the stop after, so stops a few thousandths apart still get
-  its whole width, and it steps by 0.001 (0.1%). The hue, saturation and brightness
-  strips are drawn as the LEDs show them. On a phone a sideways drag moves a dot and a
-  swipe up scrolls the page.
+  gradient already has, so nothing shifts until you move or color it. A stop's
+  position is a strip that runs from the stop before to the stop after, so stops a few
+  thousandths apart still get its whole width, and it steps by 0.001. The hue,
+  saturation and brightness strips are drawn as the LEDs show them. On a phone a
+  sideways drag moves a dot and a swipe up scrolls the page.
+- The Console undoes and redoes look edits: ⌘Z and ⇧⌘Z, or the ↶ ↷ buttons in the
+  look's header, take back a knob drag, a typed value, a reset, a palette edit or a
+  colorway press, each saying what it did.
+- Layers drag to reorder by a grip on each row; Esc cancels. A layer's opacity is in
+  its open row on every pointer, with typed entry, steps and reset, and its row slider
+  marks a route's live value.
+- Add layer has a search box that filters parts by name and by what they do, and typed
+  letters stay in it.
+- The brightness is typed into as a knob's entry is. Colorway chips are one Tab stop
+  with arrow-key movement, and the colorways' drift toggle says "drift".
 - The `branches` source: a tree of light grown out of a point you set. `trunks`
   (1 to 12) leave it and fork level by level for `depth` (1 to 7), each level
   `shrink` as long and as thin, so the channels grow more and finer away from the
@@ -1577,6 +1586,13 @@ series (batch mode).
 
 ### Fixed
 
+- On a phone, a scroll swipe that starts on a slider's thumb no longer changes the
+  value: only a sideways drag moves it, and a scroll that takes over puts the value
+  back. The pin shows at rest on knobs in an open layer, a portrait phone gives the
+  look's knobs more room than the room preview, and shuffle's status drops "1 min ·"
+  whole on a narrow screen instead of cutting it.
+- A refused colorway drift shows under the colorway row only, not in the status bar
+  too.
 - The run sends DDP frames evenly at 60 fps on macOS. A plain sleep woke up to about
   4 ms late, so frames went out 13–21 ms apart and bunched at WLED's 15 ms show
   gate, which drops a frame when the next one arrives before it is shown. The frame loop now sleeps until 2 ms
