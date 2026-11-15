@@ -387,15 +387,20 @@ def test_a_round_shape_takes_no_plane_and_a_polygon_no_center_along_its_normal()
     assert paths and not any(".plane" in path for path in paths), paths
 
 
+def _ages(pulse: Any) -> list[float]:
+    """The age in seconds of each shell `pulse` has alive this frame, youngest first."""
+    return sorted(shell.age for shell in pulse.shells())
+
+
 def test_a_steady_pulse_starts_a_shell_every_one_over_rate_seconds_and_a_new_rate_shows_at_once() -> None:
     renderer = hosted(program_of("pulse(0.5, life=3)"), grid(6, 6))
     pulse = op_of(renderer, "pulse")
     renderer.advance_to(1.0)
-    assert pulse.ages() == pytest.approx([1.0])
+    assert _ages(pulse) == pytest.approx([1.0])
     renderer.bound.node_params["pulse"].set("rate", 2.0)
-    assert pulse.ages() == pytest.approx([0.25 + 0.5 * k for k in range(6)]), "the phase held, the spacing is new"
+    assert _ages(pulse) == pytest.approx([0.25 + 0.5 * k for k in range(6)]), "the phase held, the spacing is new"
     renderer.advance_to(1.25)
-    assert pulse.ages()[0] == pytest.approx(0.0, abs=1e-9)
+    assert _ages(pulse)[0] == pytest.approx(0.0, abs=1e-9)
 
 
 def test_pulse_shells_leave_the_point_softly_and_never_pass_full() -> None:
@@ -431,7 +436,7 @@ def test_a_beat_pulse_starts_a_shell_on_each_beat_but_one_too_close_to_the_last(
     clock = SlotClock(FPS)
     for _ in range(int(4.0 * FPS)):
         renderer.advance_to(clock.advance())
-    ages = op_of(renderer, "pulse").ages()
+    ages = _ages(op_of(renderer, "pulse"))
     assert len(ages) >= 3
     np.testing.assert_allclose(np.diff(ages), gap, atol=1e-6)
 
@@ -457,16 +462,17 @@ def test_a_pulse_shell_holds_its_level_and_eases_out_over_the_last_fade_of_its_l
     its life with no kink; a `fade` of 1 eases it out from the start."""
     renderer = hosted(program_of("pulse(0.5, speed=0.12, life=5.5, fade=0.4)"), grid(6, 6))
     pulse = op_of(renderer, "pulse")
-    rise, hold = pulse.rise(), 5.5 * 0.6
+    rise, hold = pulse.rise(pulse.width, pulse.speed), 5.5 * 0.6
     ages = np.linspace(0.0, 5.5, 2201)
-    levels = np.array([pulse.level(float(a)) for a in ages])
+    levels = np.array([pulse.level(float(a), pulse.width, pulse.speed) for a in ages])
     assert levels[0] == 0.0 and levels[-1] == pytest.approx(0.0, abs=1e-12)
     assert np.all(levels[(ages >= rise) & (ages <= hold)] == 1.0)
     assert np.all(np.diff(levels[ages >= hold]) <= 0.0)
     slopes = np.diff(levels) / np.diff(ages)
     assert np.abs(np.diff(slopes)).max() < 0.01, "the slope never jumps"
     renderer.bound.node_params["pulse"].set("fade", 1.0)
-    assert pulse.level(rise) < 1.0 and pulse.level(2.75) == pytest.approx(0.5, abs=0.02)
+    level = partial(pulse.level, width=pulse.width, speed=pulse.speed)
+    assert level(rise) < 1.0 and level(2.75) == pytest.approx(0.5, abs=0.02)
 
 
 def test_pulse_jitter_makes_each_shell_its_own_for_its_whole_life() -> None:
@@ -483,12 +489,12 @@ def test_pulse_jitter_makes_each_shell_its_own_for_its_whole_life() -> None:
             seen.setdefault(key, []).append(shell.level)
     speeds = {speed for speed, _ in seen}
     assert len(speeds) > 10 and min(speeds) >= 0.25 * 0.7 - 1e-9 and max(speeds) <= 0.25 * 1.3 + 1e-9
-    ages = pulse.ages()
+    ages = _ages(pulse)
     assert len(ages) < 12, "some shells are left out"
     assert np.ptp(np.diff(ages)) > 0.3, "uneven"
     even = hosted(program_of("pulse(1.0, life=12)"), grid(6, 6))
     even.advance_to(20.0)
-    np.testing.assert_allclose(np.diff(op_of(even, "pulse").ages()), 1.0)
+    np.testing.assert_allclose(np.diff(_ages(op_of(even, "pulse"))), 1.0)
 
 
 def test_pulse_wander_starts_each_shell_from_its_own_point_near_the_centre() -> None:
@@ -547,9 +553,9 @@ def test_a_beat_pulse_starts_with_the_train_the_beat_would_have_sent() -> None:
     the gate's one second."""
     renderer = hosted(program_of('pulse(sync="beat", life=8)'), grid(6, 6), features=_Beats(3.0))
     renderer.advance_to(1 / FPS)
-    assert op_of(renderer, "pulse").ages() == []
+    assert _ages(op_of(renderer, "pulse")) == []
     renderer.advance_to(2 / FPS)
-    ages = op_of(renderer, "pulse").ages()
+    ages = _ages(op_of(renderer, "pulse"))
     assert ages[0] == pytest.approx(2 / FPS, abs=1e-9) and ages[-1] > 7.0
     np.testing.assert_allclose(np.diff(ages), 2.0 / 3.0, atol=1e-9)
     chain = 'pulse(sync="beat", speed=0.12, width=0.14, life=5.4, fade=0.3).palette("ember")'

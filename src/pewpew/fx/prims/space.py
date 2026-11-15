@@ -99,9 +99,14 @@ def polar(p: VecLike, plane: Plane = "xy", center: Center = MID) -> Vec:
     i, j = plane_axes(plane, q)
     center = plain_center(center)
     a, b = q[i] - center[i], q[j] - center[j]
-    turn = np.arctan2(b, a) * (1.0 / TWO_PI) % 1.0
-    # A tiny negative angle rounds up to 1.0 in float32; it is the turn 0.
-    return _with(q, {i: np.hypot(a, b), j: np.where(turn < 1.0, turn, np.float32(0.0))})
+    return _with(q, {i: np.hypot(a, b), j: wrap_turn(np.arctan2(b, a) * (1.0 / TWO_PI))})
+
+
+def wrap_turn(turn: F32) -> F32:
+    """`turn` wrapped into [0, 1). A tiny negative turn rounds up to 1.0
+    in float32; it is the turn 0."""
+    turn = turn % 1.0
+    return np.where(turn < 1.0, turn, np.float32(0.0))
 
 
 def spherical(p: VecLike, plane: Plane = "xy", center: Center = MID) -> Vec:

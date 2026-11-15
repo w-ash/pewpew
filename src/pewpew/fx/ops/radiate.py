@@ -31,6 +31,7 @@ from pewpew.fx.op import (
     Op,
     Rate,
     auto_plane,
+    centre_across,
     centre_args,
     normal_axis,
     stream,
@@ -233,7 +234,7 @@ class Pulse(Op, op="pulse"):
         `wander`, each drawn once for it (`_draws`)."""
         jitter, wander = self.jitter, self.wander
         if not jitter and not wander:
-            return Shell(age, self.speed, self.width, self.level(age))
+            return Shell(age, self.speed, self.width, self.level(age, self.width, self.speed))
         draws = _draws(self.ctx.key, n)
         speed = self.speed * (1.0 + SPEED * jitter * (2.0 * draws[1] - 1.0))
         width = self.width * (1.0 + WIDTH * jitter * (2.0 * draws[2] - 1.0))
@@ -245,23 +246,17 @@ class Pulse(Op, op="pulse"):
         x, y, z = (wander * v for v in draws[5:8])
         return Shell(age, speed, width, peak * self.level(age, width, speed), (x, y, z))
 
-    def ages(self) -> list[float]:
-        """The age in seconds of each shell alive this frame, youngest first."""
-        return sorted(shell.age for shell in self.shells())
-
-    def rise(self, width: float | None = None, speed: float | None = None) -> float:
-        """Seconds a shell takes to fade in: as long as it takes to move its
-        own width off the point, so the point brightens as the shell swells
-        rather than switching on; at least FADE_IN and at most half its life.
-        A shell of its own `width` and `speed`, or the node's."""
-        width = self.width if width is None else width
-        speed = self.speed if speed is None else speed
+    def rise(self, width: float, speed: float) -> float:
+        """Seconds a shell of `width` and `speed` takes to fade in: as long
+        as it takes to move its own width off the point, so the point
+        brightens as the shell swells rather than switching on; at least
+        FADE_IN and at most half its life."""
         return min(max(width / speed, FADE_IN), self.life / 2.0)
 
-    def level(self, age: float, width: float | None = None, speed: float | None = None) -> float:
-        """How bright a shell `age` seconds old is, 0 to 1: up over `rise`,
-        full, then down over the last `fade` of its life, each a smoothstep,
-        so it has no kink."""
+    def level(self, age: float, width: float, speed: float) -> float:
+        """How bright a shell of `width` and `speed` is at `age` seconds,
+        0 to 1: up over `rise`, full, then down over the last `fade` of its
+        life, each a smoothstep, so it has no kink."""
         fading = self.fade * self.life
         return ease(age / self.rise(width, speed)) * (1.0 - ease((age - (self.life - fading)) / fading))
 
@@ -276,7 +271,7 @@ class Pulse(Op, op="pulse"):
                     away = length([axis - m for axis, m in zip(c.xyz, point, strict=True)])
                 else:
                     if d is None:
-                        d = length([axis - m for axis, m in zip(c.xyz, self.ctx.at(fractions), strict=True)])
+                        d = length([axis - m for axis, m in zip(c.xyz, self.point(), strict=True)])
                     away = d
                 band = (away - shell.speed * shell.age) * (1.0 / shell.width)
                 dark *= 1.0 - shell.level * np.exp(-(band * band))
@@ -441,6 +436,11 @@ def _uneven(key: int) -> tuple[np.ndarray, np.ndarray]:
     return way, TWO_PI * draw.random(WAVES)
 
 
+def _length(v: np.ndarray) -> np.ndarray:
+    """The length of each row of `v`."""
+    return np.sqrt((v * v).sum(-1))
+
+
 def _unit(v: np.ndarray) -> np.ndarray:
     """Each row of `v` scaled to length 1."""
     return v / np.maximum(np.sqrt((v * v).sum(-1, keepdims=True)), 1e-12)
@@ -454,7 +454,7 @@ def _across(d: np.ndarray, normal: int, squash: float, turn: np.ndarray) -> np.n
     j, k = (normal + 1) % 3, (normal + 2) % 3
     first = np.zeros_like(d)  # the normal crossed with `d`: across it, in the plane
     first[:, k], first[:, j] = d[:, j], -d[:, k]
-    size = np.sqrt((first * first).sum(-1))
+    size = _length(first)
     lone = size < 1e-9  # `d` along the normal
     first[lone, j], size[lone] = 1.0, 1.0
     first /= size[:, None]
@@ -568,8 +568,7 @@ class Branches(Op, op="branches"):
         volume = sum(spanned(spans)) >= 3
         if name == "flat" and not volume:
             return False
-        if name in CENTRE_ALONG and volume and args["flat"] >= 1.0 and (
-                AXES.index(CENTRE_ALONG[name]) == normal_axis(auto_plane(spans))):
+        if volume and args["flat"] >= 1.0 and centre_across(name, auto_plane(spans)):
             return False
         return super().shows(name, a, b, args, spans)
 
@@ -754,8 +753,7 @@ class Branches(Op, op="branches"):
         their values. Points of other values let go of the pairs (`near`)."""
         held = self._points
         if held is None or not np.array_equal(held.p, p):
-            q = p.astype(np.float64)
-            held = self._points = _Points(p.copy(), np.sqrt((q * q).sum(1)))
+            held = self._points = _Points(p.copy(), _length(p.astype(np.float64)))
             self._pairs = None
         return held
 
@@ -775,14 +773,14 @@ class Branches(Op, op="branches"):
             now = ahead[1] if ahead is not None and ahead[0] == key else self.grow_at(epoch * REFRESH)
             then = self.grow_at((epoch + 1) * REFRESH)
             self._next = ((*shape, epoch + 1), then)
-            moved = np.maximum(np.sqrt(((then.start - now.start) ** 2).sum(1)),
-                               np.sqrt(((then.start + then.chord - now.start - now.chord) ** 2).sum(1)))
-            moved += np.sqrt(((then.bow - now.bow) ** 2).sum(1))
-            bow = np.maximum(np.sqrt((now.bow * now.bow).sum(1)), np.sqrt((then.bow * then.bow).sum(1)))
+            moved = np.maximum(_length(then.start - now.start),
+                               _length(then.start + then.chord - now.start - now.chord))
+            moved += _length(then.bow - now.bow)
+            bow = np.maximum(_length(now.bow), _length(then.bow))
             rows, cols = _near(p, now, now.width + bow + MOTION * moved)
         else:
             tree = self.tree()
-            rows, cols = _near(p, tree, tree.width + np.sqrt((tree.bow * tree.bow).sum(1)))
+            rows, cols = _near(p, tree, tree.width + _length(tree.bow))
         self._pairs = (key, rows, cols)
         return rows, cols
 
@@ -831,7 +829,7 @@ class Branches(Op, op="branches"):
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def branches(c: Coords) -> np.ndarray:
             x, y, z = np.broadcast_arrays(*c.xyz)
-            origin = self.ctx.at((self.cx, self.cy, self.cz))
+            origin = self.point()
             p = np.stack([x - origin[0], y - origin[1], z - origin[2]], axis=1).astype(np.float32)
             p[:, self.normal] *= self.squash
             return self.light(p)

@@ -15,11 +15,11 @@ from typing import Any
 
 import numpy as np
 
-from pewpew.fx.op import CENTRE_ALONG, BindCtx, Cost, Op, Rate, centre_args, normal_axis, plane_choice, plane_of
+from pewpew.fx.op import CENTRE_ALONG, BindCtx, Cost, Op, Rate, centre_across, centre_args, plane_choice, plane_of
 from pewpew.fx.op import axis_choice as _axis_choice
 from pewpew.fx.prims import noise as prim
 from pewpew.fx.prims import sdf
-from pewpew.fx.prims.vec import AXES, F32, TWO_PI, plane_axes, wave
+from pewpew.fx.prims.vec import F32, TWO_PI, plane_axes, wave
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.params import Choice, Float, Int
 
@@ -175,13 +175,13 @@ class Shape(Op, op="shape"):
         polygon = args["sides"] >= 3
         if name == "plane" and not polygon:
             return False
-        if name in CENTRE_ALONG and polygon and AXES.index(CENTRE_ALONG[name]) == normal_axis(plane_of(args, spans)):
+        if polygon and centre_across(name, plane_of(args, spans)):
             return False
         return super().shows(name, a, b, args, spans)
 
     def build(self, inputs: Sequence[Fn]) -> Fn:
         def shape(c: Coords) -> np.ndarray:
-            centre = self.ctx.at((self.cx, self.cy, self.cz))
+            centre = self.point()
             if self.sides < 3:
                 d = sdf.sphere(c.xyz, self.radius, centre)
             else:
