@@ -6,6 +6,7 @@ import { palette } from "../kinds/palette";
 import type { ColorParam, Gradient, PaletteParam, Stop } from "../schema";
 import { useWire } from "../../wire/store";
 import { Button, IconButton } from "../../design/Button";
+import { sayStep } from "../../design/StepStatus";
 import { DisclosureNote, useDisclosure } from "../../design/Disclosure";
 import { ColorParts, PartStrip } from "./color";
 import { stepKeys } from "./stepKeys";
@@ -18,7 +19,10 @@ const SLOP = 4;
 const FAVOR = 6;
 
 interface Drag {
-  readonly k: number;
+  /** The stop that drags; in a pile, the first sideways move chooses it. */
+  k: number;
+  /** The stops at the pressed place, in order: more than one in a pile. */
+  readonly pile: readonly number[];
   readonly id: number;
   /** Where the press began, and how far that was from the stop's own place. */
   readonly x: number;
@@ -32,9 +36,10 @@ interface Drag {
 /** palette: a preset list; the gradient as the LEDs show it, with a dot under it per stop; and,
  * once a dot is pressed, that stop's editor. A dot drags left and right as far as its neighbours, where two
  * stops at one place make a hard edge; the ends stay at 0 and 1. A press takes the nearest dot, the picked
- * one first in a pile. A dot is a slider: the arrow keys step it (ten steps with Shift or a Page key), Home
- * and End take it to its neighbours, Enter or Space opens its editor. A press on the gradient adds a stop
- * there, in the color the gradient has there, so the room keeps its colors until the stop is moved or
+ * one first in a pile; when it moves, the last of a pile goes if it moves right and the first if it moves left.
+ * A dot is a slider: the arrow keys step it (ten steps with Shift or a Page key), Home and End take it to its
+ * neighbours, Enter or Space opens its editor, Delete or Backspace removes it (an end stop or one of two says
+ * why not) and focus goes to the dot before. A press on the gradient adds a stop there, in the color the gradient has there, so the room keeps its colors until the stop is moved or
  * colored. The editor says which stop of how many (said as it changes), steps to the stop before or after
  * (the way to one of several in a pile), adds a stop halfway to the next and removes one (in two presses),
  * and holds the stop's parts as strips: its position, on a strip that runs from the stop before to the stop
@@ -62,6 +67,7 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
   const send = (next: readonly Stop[], commit: boolean) => put({ label: "", stops: next }, commit);
   const editStop = (patch: Partial<Stop>) => send(stops.with(i, { ...stop, ...patch }), false);
   const full = stops.length >= p.maxStops, few = stops.length <= 2;
+  const fewWhy = "a palette needs two stops";
   const fullWhy = `a palette has at most ${p.maxStops} stops`;
   /** A new stop at `at`, after stop `k`, in the color the gradient has there. */
   const insert = (k: number, at: number) => {
@@ -108,7 +114,8 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
     dot.focus();
     dot.setPointerCapture(e.pointerId);
     const grab = e.clientX - place(k);
-    drag.current = { k, id: e.pointerId, x: e.clientX, y: e.clientY, grab, from: value, moved: false };
+    const pile = stops.flatMap((s, n) => (Math.abs(s.at - stops[k]!.at) < 1e-9 ? [n] : []));
+    drag.current = { k, pile, id: e.pointerId, x: e.clientX, y: e.clientY, grab, from: value, moved: false };
   };
   const pull = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
@@ -118,6 +125,11 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
       const dx = Math.abs(e.clientX - d.x);
       if (dx < SLOP || dx < Math.abs(e.clientY - d.y)) return;
       d.moved = true;
+      // In a pile the way it moves decides which stop goes: the one that is free to move that way.
+      if (d.pile.length > 1) {
+        d.k = (e.clientX > d.x ? d.pile.at(-1) : d.pile[0])!;
+        (e.currentTarget.parentElement!.children[d.k] as HTMLElement).focus();
+      }
       if (isEnd(d.k)) why.show(endWhy(d.k));
       else why.close();
       if (open) pick(d.k);
@@ -146,6 +158,18 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       return toggle(k);
+    }
+    if (e.key === "Delete" || e.key === "Backspace") {
+      // Not the field's reset, which this key would otherwise reach.
+      e.preventDefault();
+      e.stopPropagation();
+      if (isEnd(k)) return why.show(`the ${k === 0 ? "first" : "last"} stop stays: it holds ${k === 0 ? "0" : "1"}`);
+      if (few) return why.show(fewWhy);
+      why.close();
+      send(stops.toSpliced(k, 1), true);
+      if (open) pick(k - 1);
+      (strip.current!.children[k - 1] as HTMLElement).focus();
+      return sayStep(`stop ${k + 1} removed`);
     }
     const to = (at: number) => {
       if (isEnd(k)) return why.show(endWhy(k));
@@ -212,7 +236,7 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
             aria-valuetext={formatNumber(p.stop.at, s.at)}
             aria-readonly={isEnd(k) || undefined}
             aria-current={open && k === i ? "true" : undefined}
-            title={isEnd(k) ? "press to edit this stop" : "drag to move this stop; press to edit it"}
+            title={isEnd(k) ? "press to edit this stop" : "drag to move this stop; press to edit it; Delete removes it"}
             style={{ left: `${s.at * 100}%`, color: cssRgb(displayRgb(s, gamma)) }}
             onPointerDown={press}
             onPointerMove={pull}
@@ -239,7 +263,7 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
               <Button variant="tertiary" reason={full ? fullWhy : null} note={why} onPress={add}>
                 add stop
               </Button>
-              <Button variant="tertiary" tone="danger" reason={few ? "a palette needs two stops" : null} note={why} confirm="again to remove" disarmOn={stops.length} onPress={remove}>
+              <Button variant="tertiary" tone="danger" reason={few ? fewWhy : null} note={why} confirm="again to remove" disarmOn={stops.length} onPress={remove}>
                 remove stop
               </Button>
             </div>

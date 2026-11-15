@@ -1163,6 +1163,10 @@
 .colorways:not(:last-child) {
   margin-bottom: var(--space-sm);
 }
+/* The drift toggle hangs past the head's line, as a knob's marks do: the head keeps that room, and 4 more. */
+.colorways > .param-head {
+  margin-bottom: calc(max(0px, (var(--control-h) - var(--lh-body)) / 2) + var(--space-2xs));
+}
 .colorway-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1290,6 +1294,13 @@
   color: var(--text-2);
   text-align: start;
   cursor: pointer;
+}
+/* A disabled header (a search holds its shelf open) shows no chevron and no pointer. */
+[data-scope="accordion"][data-part="item-trigger"][data-disabled] {
+  cursor: default;
+}
+[data-scope="accordion"][data-part="item-trigger"][data-disabled] [data-part="item-indicator"] {
+  visibility: hidden;
 }
 [data-scope="accordion"][data-part="item-trigger"] .section-name {
   flex: 0 0 auto;
@@ -1792,8 +1803,10 @@
   min-width: 0;
   color: var(--text-1);
 }
+/* Short of room, what the layer makes shortens first: it gives up its width long before the name does. */
 @media (pointer: fine) {
   .layer-head .runs {
+    flex-shrink: 1000;
     margin-left: calc(var(--space-2xs) - var(--space-xs));
   }
 }
