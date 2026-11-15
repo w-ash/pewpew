@@ -12,6 +12,7 @@ import type { LayerItem } from "../stack/stack";
 import type { Arrangement } from "../arrange/types";
 import type { ErrorSource, ExportedMessage, Frame, RefusedControl, RigIssue, RigShape, Sender, ServerMessage } from "./protocol";
 import type { RigReport } from "../rig/types.gen";
+import type { EditHistory } from "../params/history";
 
 export interface Refusal {
   readonly control: RefusedControl;
@@ -324,7 +325,9 @@ export class WireStore {
 
 export interface Wire {
   readonly store: WireStore;
+  /** The edit history's sender (`edits.sender`), which records the look edits it sends. */
   readonly sender: Sender;
+  readonly edits: EditHistory;
 }
 
 export const WireContext = createContext<Wire | null>(null);

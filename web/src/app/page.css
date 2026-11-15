@@ -1084,6 +1084,17 @@
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
   border-left-color: color-mix(in srgb, var(--on-accent) 35%, var(--accent));
 }
+/* Undo and redo join the look's actions. Where the name would get under 10rem beside them (a phone, while
+   save shows), the actions go onto a line of their own under it, at its end, so the name never breaks into
+   a letter or three a line. A line under the name starts where the controls hanging past its line end. */
+.look-head {
+  flex-wrap: wrap;
+  row-gap: calc((var(--control-h) - var(--head-lh)) / 2);
+}
+.look-head > .look-title {
+  flex-basis: 0;
+  min-width: min(100%, 10rem);
+}
 /* The look's name, whole: a long one wraps rather than being cut, so the header names a look that its tile
    cuts short on a phone. */
 .look-name-text {
@@ -1536,7 +1547,7 @@
   flex: 0 0 auto;
 }
 
-/* A preset list and undo on a line; the gradient, with a dot under each stop; the picked stop's editor below. */
+/* A preset list on a line; the gradient, with a dot under each stop; the picked stop's editor below. */
 .palette-control {
   display: flex;
   flex-direction: column;
@@ -1550,9 +1561,6 @@
 .palette-tools > select {
   flex: 1 1 auto;
   min-width: 0;
-}
-.palette-tools > .button {
-  margin-left: auto;
 }
 /* Its ends where a slider's thumb sits at 0 and at 1. A press on it adds a stop. */
 .palette-strip {

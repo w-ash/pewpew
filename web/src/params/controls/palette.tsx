@@ -16,8 +16,6 @@ const PLAIN = { help: "", group: "", widget: "", layer: "", node: "" } as const;
 const SLOP = 4;
 /** How much nearer, in px, the picked stop counts to a press: in a pile, a press takes it. */
 const FAVOR = 6;
-/** How many edits back undo goes. */
-const UNDO = 50;
 
 interface Drag {
   readonly k: number;
@@ -31,15 +29,7 @@ interface Drag {
   moved: boolean;
 }
 
-/** What undo holds: the palettes before each edit made here, oldest first, and the palette the last of them
- * left. A palette that came from elsewhere (a colorway, another tab, a refusal) is not `mine`, and ends it. */
-interface Edits {
-  readonly past: readonly Gradient[];
-  readonly mine: Gradient | null;
-}
-const NO_EDITS: Edits = { past: [], mine: null };
-
-/** palette: a preset list and an undo; the gradient as the LEDs show it, with a dot under it per stop; and,
+/** palette: a preset list; the gradient as the LEDs show it, with a dot under it per stop; and,
  * once a dot is pressed, that stop's editor. A dot drags left and right as far as its neighbours, where two
  * stops at one place make a hard edge; the ends stay at 0 and 1. A press takes the nearest dot, the picked
  * one first in a pile. A dot is a slider: the arrow keys step it (ten steps with Shift or a Page key), Home
@@ -49,48 +39,27 @@ const NO_EDITS: Edits = { past: [], mine: null };
  * (the way to one of several in a pile), adds a stop halfway to the next and removes one (in two presses),
  * and holds the stop's parts as strips: its position, on a strip that runs from the stop before to the stop
  * after and shows the two fades it sits between, so stops a few thousandths apart still have the strip's
- * whole width; then its color, as a color param's. A second press on the dot folds the editor. Undo takes
- * back one edit made here: a drag, a typed value, an added or removed stop, a preset. What cannot be done
- * says why when pressed. Any edit of a stop makes the palette custom. */
+ * whole width; then its color, as a color param's. A second press on the dot folds the editor. Each drag,
+ * typed value, added or removed stop and preset is one step of the page's undo (params/history.ts). What
+ * cannot be done says why when pressed. Any edit of a stop makes the palette custom. */
 export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote }: ControlProps<PaletteParam>) {
   // A param exists only after a hello, which brings the gamma.
   const gamma = useWire((s) => s.gamma) ?? 1;
   const [picked, pick] = useState<number | null>(null);
-  const [edits, setEdits] = useState(NO_EDITS);
-  if (edits.mine && !palette.equal(value, edits.mine)) setEdits(NO_EDITS);
   const why = useDisclosure();
   const strip = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
-  // Whether an edit is under way: a drag's later moves belong to the undo step its first one made.
-  const held = useRef(false);
   const { stops } = value;
   const last = stops.length - 1;
   const i = Math.min(picked ?? 0, last);
   const stop = stops[i]!;
   const open = picked !== null;
   const preset = p.presets.find((x) => palette.equal(x.value, value));
-  const put = (raw: Gradient, commit: boolean) => {
-    // As the field fits it, so a palette that comes back other than this one is known to be another's.
-    const next = palette.normalize(p, raw, value);
-    const first = !held.current;
-    held.current = !commit;
-    setEdits((e) => ({ past: first ? [...e.past, value].slice(-UNDO) : e.past, mine: next }));
+  const put = (next: Gradient, commit: boolean) => {
     onChange(next);
     if (commit) onCommit();
   };
   const send = (next: readonly Stop[], commit: boolean) => put({ label: "", stops: next }, commit);
-  const commit = () => {
-    held.current = false;
-    onCommit();
-  };
-  const undo = () => {
-    const back = edits.past.at(-1);
-    if (!back) return;
-    why.close();
-    held.current = false;
-    setEdits({ past: edits.past.slice(0, -1), mine: back });
-    onRestore(back);
-  };
   const editStop = (patch: Partial<Stop>) => send(stops.with(i, { ...stop, ...patch }), false);
   const full = stops.length >= p.maxStops, few = stops.length <= 2;
   const fullWhy = `a palette has at most ${p.maxStops} stops`;
@@ -162,7 +131,7 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     drag.current = null;
-    if (d.moved) commit();
+    if (d.moved) onCommit();
     else toggle(d.k);
   };
   /** The browser took the press (the page scrolls): the stop goes back, and the drag leaves no undo step. */
@@ -171,8 +140,6 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
     if (!d || d.id !== e.pointerId) return;
     drag.current = null;
     if (!d.moved || isEnd(d.k)) return;
-    held.current = false;
-    setEdits((was) => ({ past: was.past.slice(0, -1), mine: d.from }));
     onRestore(d.from);
   };
   const keys = (k: number) => (e: KeyboardEvent<HTMLDivElement>) => {
@@ -201,8 +168,8 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
   };
   return (
     <div className="control palette-control">
-      <div className="palette-tools">
-        {p.presets.length > 0 && (
+      {p.presets.length > 0 && (
+        <div className="palette-tools">
           <Field.Select
             value={preset?.label ?? ""}
             onChange={(e) => {
@@ -221,11 +188,8 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
               </option>
             ))}
           </Field.Select>
-        )}
-        <Button variant="tertiary" title="take back the last edit of this palette" reason={edits.past.length ? null : "no edit of this palette to undo"} note={why} onPress={undo}>
-          undo
-        </Button>
-      </div>
+        </div>
+      )}
       <div
         ref={strip}
         className="palette-strip"
@@ -305,11 +269,11 @@ export function PaletteControl({ p, value, onChange, onCommit, onRestore, onNote
                 percent={false}
                 track={`linear-gradient(to right in oklab, ${css(before)}, ${css(stop)} ${+(((stop.at - before.at) / (after.at - before.at)) * 100).toFixed(2)}%, ${css(after)})`}
                 onChange={(x) => editStop({ at: x })}
-                onCommit={commit}
+                onCommit={onCommit}
                 onNote={onNote}
               />
             )}
-            <ColorParts p={color} value={stop} onChange={(c) => editStop(c)} onCommit={commit} onNote={onNote} name={name} />
+            <ColorParts p={color} value={stop} onChange={(c) => editStop(c)} onCommit={onCommit} onNote={onNote} name={name} />
           </div>
         </div>
       )}

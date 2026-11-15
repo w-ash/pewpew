@@ -115,7 +115,7 @@ test("undo sends the arrangement it restores, and a refusal shows the engine's r
 test("the editor's keys work only while the layout panel is open", async () => {
   const { screen } = await renderWired(<App />, RIG_RUN);
   await userEvent.keyboard("?");
-  await expect.element(screen.getByRole("region", { name: "layout" })).not.toBeInTheDocument(); // the editor, with its undo, is shut
+  await expect.element(screen.getByText("undo", { exact: true })).not.toBeInTheDocument(); // the editor's undo is not in the list
   await userEvent.keyboard("{Escape}");
   await screen.getByRole("button", { name: "layout" }).click();
   await expect.element(screen.getByRole("region", { name: "layout" })).toBeVisible();

@@ -41,6 +41,9 @@ const ICONS = {
   approx: { stroke: "M3 6.25c1.67-1.5 3.33-1.5 5 0s3.33 1.5 5 0M3 10.25c1.67-1.5 3.33-1.5 5 0s3.33 1.5 5 0" },
   // ≋ a look's colorway drift: wind, the colours moving on by themselves
   drift: { stroke: "M2 5.5h7.5a2 2 0 1 0-2-2M2 8.5h10a2 2 0 1 1-2 2M2 11.5h4.5" },
+  // ↶ ↷ undo, redo
+  undo: { stroke: "M5.5 2.5l-3 3 3 3M2.5 5.5h7a3.5 3.5 0 0 1 0 7H6" },
+  redo: { stroke: "M10.5 2.5l3 3-3 3M13.5 5.5h-7a3.5 3.5 0 0 0 0 7H10" },
   // ★ favorite
   star: { fill: "M8 1.8l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.2l-3.7 2.1.8-4.2L2 6.2l4.2-.5z" },
   // ≤ ≥

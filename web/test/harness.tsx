@@ -3,6 +3,7 @@ import { act } from "react";
 import { render } from "vitest-browser-react";
 import type { ClientMessage, Sender, ServerMessage } from "../src/wire/protocol";
 import { WireContext, WireStore } from "../src/wire/store";
+import { EditHistory } from "../src/params/history";
 import { ArmClockContext, CONFIRM_MIN_MS, type ArmClock } from "../src/design/useArm";
 import { LayoutProvider } from "../src/layout/LayoutMode";
 import { LayerList } from "../src/stack/LayerList";
@@ -17,7 +18,7 @@ import { greeting } from "./fixtures/messages";
 let now = 0;
 const clock: ArmClock = { now: () => now, after: () => () => {} };
 
-/** A page wired to a store, and a sender that records what it sends. The store has heard `heard`: an
+/** A page wired to a store, an edit history, and a sender that records what it sends. The store has heard `heard`: an
  * engine's greeting whose knobs are op `heard`'s (`greeting`), or those messages. What the page `ask`s
  * waits until `answer` settles it, as the engine's ack or refusal would. */
 export async function renderWired(ui: ReactNode, heard: string | readonly ServerMessage[] = "zoo_test") {
@@ -33,8 +34,9 @@ export async function renderWired(ui: ReactNode, heard: string | readonly Server
       return new Promise((resolve) => asked.push(resolve));
     },
   };
+  const edits = new EditHistory(store, sender);
   const screen = await render(
-    <WireContext.Provider value={{ store, sender }}>
+    <WireContext.Provider value={{ store, sender: edits.sender, edits }}>
       <ArmClockContext.Provider value={clock}>
         <LayoutProvider>{ui}</LayoutProvider>
       </ArmClockContext.Provider>
@@ -45,7 +47,7 @@ export async function renderWired(ui: ReactNode, heard: string | readonly Server
   const receive = (msg: ServerMessage) => act(() => store.receive(msg));
   /** Settle the oldest request still asked: taken, unless `took` is false. */
   const answer = (took = true) => act(async () => asked.shift()?.(took));
-  return { screen, store, sent, receive, answer };
+  return { screen, store, sent, receive, answer, edits };
 }
 
 /** Wait out the double-tap guard, so the next press of an armed button fires. */
