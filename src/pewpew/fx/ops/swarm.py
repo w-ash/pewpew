@@ -24,18 +24,13 @@ from pewpew.fx.ops.sims import arrivals
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import noise as prim
 from pewpew.fx.prims.grid import deposit
-from pewpew.fx.prims.vec import TWO_PI, fade
+from pewpew.fx.prims.vec import TWO_PI, fade, smoothstep
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.params import Choice, Float, Int
 
 # Lattice nodes per point spacing for a glow: a blob a point wide still
 # spans a few cells, so it moves smoothly between the points.
 GLOW = 2
-
-
-def _smoothstep(lo: float, hi: float, x: np.ndarray) -> np.ndarray:
-    t = np.clip((x - lo) * (1.0 / (hi - lo)), 0.0, 1.0)
-    return t * t * (3.0 - 2.0 * t)
 
 
 class Particles(Op, op="particles"):
@@ -125,7 +120,7 @@ class Particles(Op, op="particles"):
         """The brightness of a particle at `age`, a share of its life: it
         rises over the first `fadein` share and falls over the last
         `fadeout` share."""
-        return _smoothstep(0.0, self.fadein, age) * (1.0 - _smoothstep(1.0 - self.fadeout, 1.0, age))
+        return smoothstep(age, 0.0, self.fadein) * (1.0 - smoothstep(age, 1.0 - self.fadeout, 1.0))
 
     def births(self, count: int, rng: np.random.Generator) -> np.ndarray:
         """Where `count` new particles start, in world units from the centre."""

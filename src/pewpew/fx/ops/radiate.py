@@ -35,7 +35,7 @@ from pewpew.fx.op import (
     normal_axis,
     stream,
 )
-from pewpew.fx.prims.vec import AXES, F32, TWO_PI, ease, length
+from pewpew.fx.prims.vec import AXES, F32, TWO_PI, ease, length, smoothstep
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.mapping import spanned
 from pewpew.params import Choice, Float, Int
@@ -409,12 +409,6 @@ def _uneven(key: int) -> tuple[np.ndarray, np.ndarray]:
     return way, TWO_PI * draw.random(WAVES)
 
 
-def _smooth(x: np.ndarray) -> np.ndarray:
-    """Smoothstep of `x` clamped to 0..1, per element."""
-    x = np.clip(x, 0.0, 1.0)
-    return x * x * (3.0 - 2.0 * x)
-
-
 def _unit(v: np.ndarray) -> np.ndarray:
     """Each row of `v` scaled to length 1."""
     return v / np.maximum(np.sqrt((v * v).sum(-1, keepdims=True)), 1e-12)
@@ -607,8 +601,8 @@ class Branches(Op, op="branches"):
         levels = [(0, n)]
         for depth in range(1, self.depth):
             kids = draws[depth][ids[:, None] * SLOTS + np.arange(SLOTS)]  # (parents, slot, draw)
-            grown = np.stack([np.ones(len(ids)), 1.0 - _smooth((SINGLE * jitter - kids[:, 1, FORK]) / ARM_EASE),
-                              _smooth((THIRD * jitter - kids[:, 2, FORK]) / ARM_EASE)], axis=1)
+            grown = np.stack([np.ones(len(ids)), 1.0 - smoothstep((SINGLE * jitter - kids[:, 1, FORK]) / ARM_EASE),
+                              smoothstep((THIRD * jitter - kids[:, 2, FORK]) / ARM_EASE)], axis=1)
             at, by = np.nonzero((grown > 0.0).T)  # slot, then parent
             parent.append(levels[-1][0] + by)
             slot.append(at)
@@ -693,7 +687,7 @@ class Branches(Op, op="branches"):
         if not self.jitter:
             return start, end
         high = _wobble(plan.draws, self.clock, GATE_PERIOD, GATE_PHASE, GATE_RATE)
-        end -= self.jitter * _smooth((high - GATE_AT) / GATE_EASE)
+        end -= self.jitter * smoothstep((high - GATE_AT) / GATE_EASE)
         for lo, hi in plan.levels[1:]:
             start[lo:hi] = end[plan.parent[lo:hi]]
             end[lo:hi] *= start[lo:hi]
