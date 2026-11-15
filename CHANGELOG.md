@@ -17,15 +17,19 @@ series (batch mode).
   position is a strip that runs from the stop before to the stop after, so stops a few
   thousandths apart still get its whole width, and it steps by 0.001. The hue,
   saturation and brightness strips are drawn as the LEDs show them. On a phone a
-  sideways drag moves a dot and a swipe up scrolls the page.
-- The Console undoes and redoes look edits: ⌘Z and ⇧⌘Z, or the ↶ ↷ buttons in the
-  look's header, take back a knob drag, a typed value, a reset, a palette edit or a
-  colorway press, each saying what it did.
+  sideways drag moves a dot and a swipe up scrolls the page. Delete or Backspace on
+  a dot removes its stop.
+- The Console undoes and redoes look edits: ⌘Z and ⇧⌘Z (or ⌘Y), or the ↶ ↷ buttons
+  in the look's header, take back a knob drag, a run of key or ± steps, a typed value,
+  a reset, a palette edit or a colorway press, each saying under the header what it
+  did. The history lasts through a save, a rename and a change of the layers, and ends
+  when another look is recalled. A knob that was changed elsewhere since (another
+  page, a colorway that drifted) is left as it is, and the line says so.
 - Layers drag to reorder by a grip on each row; Esc cancels. A layer's opacity is in
   its open row on every pointer, with typed entry, steps and reset, and its row slider
   marks a route's live value.
 - Add layer has a search box that filters parts by name and by what they do, and typed
-  letters stay in it.
+  letters stay in it; ↓ goes to the first match and Enter adds a lone one.
 - The brightness is typed into as a knob's entry is. Colorway chips are one Tab stop
   with arrow-key movement, and the colorways' drift toggle says "drift".
 - The `branches` source: a tree of light grown out of a point you set. `trunks`

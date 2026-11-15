@@ -8,7 +8,6 @@ import { ChangedMark } from "../design/ChangedMark";
 import { DisclosureNote, useDisclosure } from "../design/Disclosure";
 import { onEngineHost } from "../design/engineHost";
 import { pressable, useShortcuts } from "../design/shortcuts";
-import { sayStep } from "../design/StepStatus";
 import { useHeightVar } from "../design/useHeightVar";
 import { useOnChange } from "../design/useOnChange";
 import { useLayoutMode } from "../layout/LayoutMode";
@@ -165,7 +164,6 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
   const take = (undo: boolean) => () => {
     const told = undo ? edits.undo() : edits.redo();
     if (!told) return;
-    sayStep(told);
     why.show(told);
     clearTimeout(toldTimer.current);
     toldTimer.current = setTimeout(() => why.close(told), TOLD_MS);
