@@ -59,8 +59,8 @@ logger = logging.getLogger(__name__)
 ASK_TIMEOUT_S = 5.0
 STOPPING = "the aura is stopping"
 # `precise_sleep` spins this last part of a wait. macOS wakes a plain sleep
-# up to about 4 ms late, so a 60 fps stream went out at 13-21 ms intervals;
-# with the spin, at 15-18.5 ms, which is as even as the probe could measure.
+# up to about 4 ms late, which alone spaces a 60 fps stream 13-21 ms apart;
+# the spin spaces it 15-18.5 ms apart, as even as the probe can measure.
 SPIN_S = 0.002
 
 R = TypeVar("R")  # what an `ask` closure refuses with

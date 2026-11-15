@@ -319,12 +319,12 @@ def parse_colorways(raw: object, controls: Controls) -> tuple[dict[str, dict[str
     if problems:
         return {}, problems
     assert isinstance(raw, Mapping)  # colorway_shape refuses anything else
-    knobs = list(controls.snapshot_json())
     out: dict[str, dict[str, Any]] = {}
     for name, values in raw.items():
         parsed: dict[str, Any] = {}
         for path, value in values.items():
             if controls.find(path) is None:
+                knobs = list(controls.snapshot_json())
                 found, reason = None, f"unknown key {path!r}{typo_hint(path, knobs)}; expected {', '.join(knobs)}"
             else:
                 found, reason = controls.parse(path, value)

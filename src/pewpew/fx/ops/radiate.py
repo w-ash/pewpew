@@ -420,15 +420,6 @@ def _unit(v: np.ndarray) -> np.ndarray:
     return v / np.maximum(np.sqrt((v * v).sum(-1, keepdims=True)), 1e-12)
 
 
-def _cross(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """The cross product of each row of `a` with the same row of `b`."""
-    out = np.empty_like(a)
-    for i in range(3):
-        j, k = (i + 1) % 3, (i + 2) % 3
-        out[:, i] = a[:, j] * b[:, k] - a[:, k] * b[:, j]
-    return out
-
-
 def _across(d: np.ndarray, normal: int, squash: float, turn: np.ndarray) -> np.ndarray:
     """A unit vector across each direction of `d`, turned by `turn`
     (radians) about it out of the map's plane (`normal` the axis across
@@ -444,7 +435,7 @@ def _across(d: np.ndarray, normal: int, squash: float, turn: np.ndarray) -> np.n
     if not squash:
         return first * np.where(np.cos(turn) < 0.0, -1.0, 1.0)[:, None]
     turn = np.arctan2(squash * np.sin(turn), np.cos(turn))
-    return np.cos(turn)[:, None] * first + np.sin(turn)[:, None] * _cross(d, first)
+    return np.cos(turn)[:, None] * first + np.sin(turn)[:, None] * np.cross(d, first)
 
 
 def _wobble(rows: np.ndarray, clock: float, period: float, phase: int, rate: int, shift: float = 0.0) -> np.ndarray:
@@ -679,7 +670,7 @@ class Branches(Op, op="branches"):
             up = parent[lo:hi] - up_lo
             way, side = d[up_lo:up_hi][up], across[up] * SIDES[slot[lo:hi]][:, None]
             if squash:
-                side += (squash * (slot[lo:hi] == 2))[:, None] * _cross(way, across[up])
+                side += (squash * (slot[lo:hi] == 2))[:, None] * np.cross(way, across[up])
             d[lo:hi] = _unit(np.cos(turns[lo:hi])[:, None] * way + np.sin(turns[lo:hi])[:, None] * side)
         chord = d * length[:, None]
         start = np.zeros((count, 3))
