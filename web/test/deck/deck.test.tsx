@@ -752,20 +752,22 @@ test("a refusal puts back what the control was waiting on", async () => {
   await expect.element(master).toHaveAttribute("aria-valuenow", "0.8");
 });
 
-test("the brightness steps by its − and +, within its max, and says where a run of steps left it", async () => {
-  const { screen, sent, receive } = await renderWired(
-    <>
-      <Played />
-      <StepStatus />
-    </>,
-  );
-  await screen.getByRole("button", { name: "brightness down 5%" }).click();
+test("the brightness steps by its − and +, within its max", async () => {
+  const { screen, sent, receive } = await renderWired(<Played />);
+  await screen.getByRole("button", { name: "decrease brightness" }).click();
   expect(sent.at(-1)).toEqual({ type: "master", value: 0.75 });
   receive(aura({ master: 0.75 }));
   receive(aura({ master: 0.97 }));
-  await screen.getByRole("button", { name: "brightness up 5%" }).click();
+  await screen.getByRole("button", { name: "increase brightness" }).click();
   expect(sent.at(-1)).toEqual({ type: "master", value: 1 });
-  await expect.element(screen.getByRole("status").filter({ hasText: /^brightness/ })).toHaveTextContent("brightness 100%");
+});
+
+test("a brightness typed into its entry is sent on Enter", async () => {
+  const { screen, sent } = await renderWired(<Played />);
+  const entry = screen.getByRole("spinbutton", { name: "brightness" });
+  await entry.fill("40");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "master", value: 0.4 });
 });
 
 test("over unsaved edits a look recalls in two presses, by tap or key, and a note under the looks says what the second does", async () => {
@@ -857,7 +859,7 @@ test("at 360 px nothing slides the deck sideways; the ⋯'s sign ends the looks'
   await expect.element(screen.getByRole("button", { name: MORE })).toBeVisible();
   expect(rows.scrollWidth).toBeLessThanOrEqual(rows.clientWidth);
   const edge = Math.round(rows.getBoundingClientRect().right - parseFloat(getComputedStyle(rows).paddingRight));
-  const [looks, more, steps] = [".looks", ".deck .more", ".master .joined"].map((part) => document.querySelector(part)!.getBoundingClientRect());
+  const [looks, more, steps] = [".looks", ".deck .more", ".master .number-entry"].map((part) => document.querySelector(part)!.getBoundingClientRect());
   expect(Math.round(more!.left)).toBeGreaterThanOrEqual(Math.round(looks!.right));
   // Its icon reaches 2 past the edge, the room its 16-unit grid keeps round the glyph, so the dots' ink ends on it.
   expect(Math.round(document.querySelector(".deck .more .icon")!.getBoundingClientRect().right)).toBe(edge + 2);

@@ -5,6 +5,7 @@ import { PARTS } from "../kinds/color";
 import type { ReactNode } from "react";
 import type { ColorParam, HSV, NumberSpec } from "../schema";
 import { useWire } from "../../wire/store";
+import { useSlideGuard } from "../../design/useSlideGuard";
 import { NumberEntry } from "./NumberEntry";
 import { stepKeys } from "./stepKeys";
 import type { ControlProps, GlanceProps } from "./types";
@@ -45,6 +46,7 @@ interface StripProps {
  * them). A `percent` part reads as one, on the strip as in the entry. Its keys step by the part's own step,
  * a hue wrapping. */
 export function PartStrip({ channel, spec, min, max, value, caption, label, percent, track, onChange, onCommit, onNote }: StripProps) {
+  const guard = useSlideGuard(value, onChange, onCommit);
   return (
     <div className="color-part">
       <span className="field-label" aria-hidden="true">
@@ -55,9 +57,7 @@ export function PartStrip({ channel, spec, min, max, value, caption, label, perc
         min={min ?? spec.lo}
         max={max ?? spec.hi}
         step={spec.step}
-        value={[value]}
-        onValueChange={(d) => onChange(d.value[0] ?? value)}
-        onValueChangeEnd={onCommit}
+        {...guard}
         onKeyDownCapture={stepKeys((n) => {
           onChange(value + n * spec.step);
           onCommit();
