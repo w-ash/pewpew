@@ -1,6 +1,7 @@
 import { Slider } from "@ark-ui/react/slider";
 import { useState, type ReactNode } from "react";
 import { percent } from "../params/format";
+import { fitNumber } from "../params/schema";
 import { capText, MASTER_STEP } from "../aura/master";
 import { NumberEntry } from "../params/controls/NumberEntry";
 import { useRefusal, useSender } from "../wire/store";
@@ -25,20 +26,22 @@ interface Props {
  * and the word, with its max and the max's "?", whose note opens under it, and ends with `lead`
  * (blackout); under it its slider, dragged by its thumb (a touch on the track does nothing, so a stray
  * tap cannot jump the room), and a knob's typed entry (`NumberEntry`: − and + step it by 5%, a typed level
- * goes on Enter or blur, up to the max), so its slider is as long as a knob's. On touch one row: ☀ alone
+ * goes on Enter or blur, fitted to the 5% grid and the max, and a note says what it became until the
+ * brightness next changes), so its slider is as long as a knob's. On touch one row: ☀ alone
  * names it, then the slider, the whole width the entry leaves, then the entry. */
 export function Master({ master, cap, lead }: Props) {
   const sender = useSender();
   const about = useDisclosure();
   const draft = useDraft(master, Object.is);
   useOnChange(useRefusal("master"), draft.drop);
+  const [note, setNote] = useState<string | null>(null);
   const change = (v: number) => {
+    setNote(null);
     draft.change(v);
     sender.sendLatest({ type: "master", value: v });
   };
   const capped = cap < 1;
   const guard = useSlideGuard(draft.shown, change, draft.release);
-  const [note, setNote] = useState<string | null>(null);
   // The entry types percents on the master's own grid, up to the max.
   const spec = { lo: 0, hi: Math.round(cap * 100), step: MASTER_STEP * 100, decimals: 0, periodic: false, unit: "%", text: [] };
   return (
@@ -64,7 +67,7 @@ export function Master({ master, cap, lead }: Props) {
         spec={spec}
         value={Math.round(draft.shown * 100)}
         label="brightness"
-        onChange={(n) => change(n / 100)}
+        onChange={(n) => change(fitNumber(spec, n) / 100)}
         onCommit={draft.release}
         onNote={setNote}
       />

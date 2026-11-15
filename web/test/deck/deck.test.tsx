@@ -770,6 +770,21 @@ test("a brightness typed into its entry is sent on Enter", async () => {
   expect(sent.at(-1)).toEqual({ type: "master", value: 0.4 });
 });
 
+test("a brightness typed between steps or past the max sends what its note says, and the note clears on the next change", async () => {
+  const { screen, sent } = await renderWired(<Played />);
+  const entry = screen.getByRole("spinbutton", { name: "brightness" });
+  await entry.fill("37");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "master", value: 0.35 });
+  await expect.element(screen.getByText(/37 is between steps of 5: kept to 35/)).toBeVisible();
+  await entry.fill("120");
+  await userEvent.keyboard("{Enter}");
+  expect(sent.at(-1)).toEqual({ type: "master", value: 1 });
+  await expect.element(screen.getByText(/kept to 100/)).toBeVisible();
+  await screen.getByRole("button", { name: "decrease brightness" }).click();
+  await expect.element(screen.getByRole("status").filter({ hasText: /kept to/ })).not.toBeInTheDocument();
+});
+
 test("over unsaved edits a look recalls in two presses, by tap or key, and a note under the looks says what the second does", async () => {
   const { screen, sent, receive } = await renderWired(<Played />);
   receive(aura({ looks: { ...AURA.looks!, changed: true } }));

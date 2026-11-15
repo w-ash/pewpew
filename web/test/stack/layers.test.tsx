@@ -498,3 +498,22 @@ test("the catalog's search box has focus when it opens, keeps typed keys from th
   await userEvent.keyboard("{Escape}");
   await expect.element(box).not.toBeInTheDocument();
 });
+
+test("in the catalog's search, ArrowDown moves to the first part and Enter adds the only one left; the shelf headers cannot be pressed", async () => {
+  const { screen, sent } = await app("base", "top");
+  await screen.getByRole("button", { name: "+ layer" }).click();
+  const box = screen.getByRole("textbox", { name: "search parts" });
+  await userEvent.keyboard("s");
+  await expect.poll(() => document.querySelectorAll(".card").length).toBeGreaterThan(1);
+  await userEvent.keyboard("{Enter}");
+  expect(sent.filter((m) => m.type === "add_layer")).toEqual([]); // several match: Enter adds nothing
+  await userEvent.keyboard("{ArrowDown}");
+  expect(document.activeElement).toBe(document.querySelector(".card-add"));
+  await userEvent.clear(box.element());
+  box.element().focus();
+  await userEvent.keyboard("oscill");
+  await expect.poll(() => document.querySelectorAll(".card").length).toBe(1);
+  expect(document.querySelector<HTMLButtonElement>('[data-part="item-trigger"]')?.disabled).toBe(true);
+  await userEvent.keyboard("{Enter}");
+  expect(sent.filter((m) => m.type === "add_layer")).toHaveLength(1);
+});

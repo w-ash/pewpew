@@ -510,6 +510,30 @@ test("dragging a dot moves its stop, as far as the next stop, and each drag is o
   expect(edits.can(true)).toBe(false);
 });
 
+test("a hard edge pulls apart both ways: right moves the last stop of the pile, left the first", async () => {
+  const { screen, sent, receive } = await renderWired(<ParamField p={PALETTE} />);
+  const echo = () => receive({ type: "params", values: { palette: palettes(sent).at(-1)! } });
+  await drag(dot(screen, 2), placeOf(0.35), [placeOf(0.7)]);
+  echo();
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 0.7, 1]);
+  await drag(dot(screen, 2), placeOf(0.7), [placeOf(0.8)]);
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 0.8, 1]);
+  await drag(dot(screen, 2), placeOf(0.7), [placeOf(0.6)]);
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.6, 0.8, 1]);
+});
+
+test("Delete or Backspace on a stop dot removes that stop, not the field's value; an end stop says why not", async () => {
+  const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
+  dot(screen, 2).focus();
+  await userEvent.keyboard("{Delete}");
+  expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 1]);
+  expect(document.activeElement?.getAttribute("aria-label")).toBe("stop 1 of 3");
+  const before = palettes(sent).length;
+  await userEvent.keyboard("{Backspace}");
+  expect(palettes(sent)).toHaveLength(before);
+  await expect.element(screen.getByText(/the first stop stays/)).toBeVisible();
+});
+
 test("a drag of an end dot moves nothing and says why", async () => {
   const { screen, sent } = await renderWired(<ParamField p={PALETTE} />);
   await drag(dot(screen, 1), placeOf(0), [placeOf(0.2)]);

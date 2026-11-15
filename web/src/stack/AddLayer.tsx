@@ -18,7 +18,8 @@ import { useOnChange } from "../design/useOnChange";
  * Above the shelves a search box (as the list of every look has) takes focus when the panel opens and keeps
  * its typed keys from the page's shortcuts. Typing keeps the cards whose name, label, summary or shelf hold
  * every word typed, case aside, and opens the shelves that have one (they stay open while the box has text);
- * Esc clears the box before a second Esc closes the panel. */
+ * ArrowDown moves focus to the first card, and Enter adds the one card left when only one matches. While the box has text the shelf headers are
+ * disabled: they cannot close a shelf the search holds open. Esc clears the box before a second Esc closes the panel. */
 export function AddLayerPanel({ above, onClose, onAdded }: { above: string | null; onClose(): void; onAdded(id: string): void }) {
   const catalog = useWire((s) => s.catalog);
   const dims = useWire((s) => s.aura?.stack.dims ?? 3);
@@ -58,10 +59,20 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
   const shelves = [...shelve(cards)]
     .map(([shelf, held]) => ({ shelf, held: searching ? held.filter((h) => matches(h.card, shelf, query)) : held }))
     .filter((s) => s.held.length);
+  const list = useRef<HTMLDivElement>(null);
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Escape" || !query) return;
-    e.preventDefault(); // the panel closes on an Esc nobody handled
-    setQuery("");
+    const hits = searching ? [...(list.current?.querySelectorAll<HTMLButtonElement>(".card-add") ?? [])] : [];
+    const first = hits.find((h) => !h.disabled);
+    if (e.key === "ArrowDown" && first) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.key === "Enter" && hits.length === 1) {
+      e.preventDefault();
+      hits[0]!.click();
+    } else if (e.key === "Escape" && query) {
+      e.preventDefault(); // the panel closes on an Esc nobody handled
+      setQuery("");
+    }
   };
   return (
     <Panel title={below === null ? "add layer" : `add above ${above}`} onClose={onClose} focusRef={box}>
@@ -97,7 +108,7 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
           {held}
         </p>
       )}
-      <Accordion.Root className="shelves" inert={!!held} collapsible lazyMount unmountOnExit value={searching ? shelves.map((s) => encodeURIComponent(s.shelf)) : shelfOpen} onValueChange={(d) => !searching && setShelfOpen(d.value)}>
+      <Accordion.Root ref={list} className="shelves" inert={!!held} collapsible lazyMount unmountOnExit value={searching ? shelves.map((s) => encodeURIComponent(s.shelf)) : shelfOpen} onValueChange={(d) => !searching && setShelfOpen(d.value)}>
         {shelves.map(({ shelf, held }, i) => [
           i === 0 && !isParts(shelf) && (
             <h3 key="ready" className="group-head t-heading">
@@ -111,7 +122,7 @@ export function AddLayerPanel({ above, onClose, onAdded }: { above: string | nul
           ),
           // Its value goes into the ids its region is labelled by, which a space would split.
           <Accordion.Item key={shelf} value={encodeURIComponent(shelf)}>
-            <Accordion.ItemTrigger>
+            <Accordion.ItemTrigger disabled={searching}>
               <Accordion.ItemIndicator>
                 <Icon name="chevron" />
               </Accordion.ItemIndicator>
