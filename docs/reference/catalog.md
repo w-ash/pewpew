@@ -146,7 +146,7 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 
 ### `particles` — Particles
 
-Sparks that drift, rise and fade: up to 256 at once, each born where the emit choice says, setting off in a random direction, falling or rising, drifting on a breeze and fading in and out. `rate` are born a second, each sets off at `speed`, falls or rises under `gravity`, drifts on a curl-noise breeze (`swirl`), and fades over its `life`. Sparks fly fast from the center and fall; snow drifts down from the top; fireflies hang anywhere and wander.
+Sparks that drift, rise and fade: up to 256 at once, each born where the emit choice says, setting off in a random direction, falling or rising, drifting on a breeze and fading in and out. `rate` are born a second, each sets off at `speed`, falls or rises under `gravity`, drifts on a curl-noise breeze (`swirl`), and fades over its `life`: in over the first `fadein` share, out over the last `fadeout` share. One that leaves the map keeps going and its glow slides off the edge, so it fades as it goes. Sparks fly fast from the center and fall; snow drifts down from the top; fireflies hang anywhere and wander.
 
 Reads none; gives scalar. Dimensions: 1, 2, 3.
 
@@ -157,6 +157,8 @@ Reads none; gives scalar. Dimensions: 1, 2, 3.
 - `swirl`: 0.0 0.0..1.0 /s. How fast the breeze they drift on swirls.
 - `emit`: 'centre' of centre, bottom, top, anywhere. Where they are born: the center, along the bottom or top edge, or anywhere.
 - `size`: 0.06 0.02..0.3. Radius of each particle's glow.
+- `fadein`: 0.2 0.02..1.0. The share of its life each spends brightening at the start: low values make sparks that pop.
+- `fadeout`: 0.6 0.2..1.0. The share of its life each spends fading out at the end: 1 fades it from birth.
 
     particles(30, 1.2, 0.8, -1, emit="centre")
     particles(12, 6, 0.05, -0.1, 0.3, "top").palette("ice")

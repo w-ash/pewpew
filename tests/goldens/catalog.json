@@ -1956,7 +1956,7 @@
       "op": "particles",
       "sig": "source",
       "label": "Particles",
-      "doc": "Sparks that drift, rise and fade: up to 256 at once, each born where the emit choice says, setting off in a random direction, falling or rising, drifting on a breeze and fading in and out. `rate` are born a second, each sets off at `speed`, falls or rises under `gravity`, drifts on a curl-noise breeze (`swirl`), and fades over its `life`. Sparks fly fast from the center and fall; snow drifts down from the top; fireflies hang anywhere and wander.",
+      "doc": "Sparks that drift, rise and fade: up to 256 at once, each born where the emit choice says, setting off in a random direction, falling or rising, drifting on a breeze and fading in and out. `rate` are born a second, each sets off at `speed`, falls or rises under `gravity`, drifts on a curl-noise breeze (`swirl`), and fades over its `life`: in over the first `fadein` share, out over the last `fadeout` share. One that leaves the map keeps going and its glow slides off the edge, so it fades as it goes. Sparks fly fast from the center and fall; snow drifts down from the top; fireflies hang anywhere and wander.",
       "inputs": [],
       "out": "scalar",
       "dims": [
@@ -2118,6 +2118,48 @@
           "sweet": [
             0.03,
             0.15
+          ],
+          "flash_sensitive": false
+        },
+        {
+          "name": "fadein",
+          "kind": "float",
+          "label": "Fade in",
+          "help": "The share of its life each spends brightening at the start: low values make sparks that pop",
+          "group": "",
+          "widget": "",
+          "default": 0.2,
+          "unit": "",
+          "lo": 0.02,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.05,
+            0.4
+          ],
+          "flash_sensitive": false
+        },
+        {
+          "name": "fadeout",
+          "kind": "float",
+          "label": "Fade out",
+          "help": "The share of its life each spends fading out at the end: 1 fades it from birth",
+          "group": "",
+          "widget": "",
+          "default": 0.6,
+          "unit": "",
+          "lo": 0.2,
+          "hi": 1.0,
+          "step": 0.005,
+          "decimals": 3,
+          "periodic": false,
+          "text": [],
+          "sweet": [
+            0.3,
+            0.8
           ],
           "flash_sensitive": false
         }
