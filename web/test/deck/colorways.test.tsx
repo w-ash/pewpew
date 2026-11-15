@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import type { AuraState } from "../../src/aura/aura";
 import { LookPanel } from "../../src/deck/LookPanel";
 import { StatusBar } from "../../src/status/StatusBar";
@@ -9,7 +10,7 @@ const stack = (patch: Partial<AuraState["stack"]>) => ({ type: "aura" as const, 
 
 test("the look's colorways are chips above its knobs, the active one pressed, and a press sends the colorway", async () => {
   const { screen, sent, receive } = await renderWired(<LookPanel />);
-  const chips = screen.getByRole("group", { name: "colorways" });
+  const chips = screen.getByRole("toolbar", { name: "colorways" });
   const green = chips.getByRole("button", { name: "green" });
   const red = chips.getByRole("button", { name: "red" });
   await expect.element(green).toHaveAttribute("aria-pressed", "true");
@@ -35,7 +36,7 @@ test("24 colorways wrap onto lines inside a phone's column, every chip in reach"
     </div>,
   );
   receive(stack({ colorways: names, colorway: names[5]! }));
-  const chips = screen.getByRole("group", { name: "colorways" });
+  const chips = screen.getByRole("toolbar", { name: "colorways" });
   await expect.element(chips.getByRole("button", { name: names[23]! })).toBeVisible();
   const group = chips.element().getBoundingClientRect();
   const boxes = [...chips.element().querySelectorAll("button")].map((b) => b.getBoundingClientRect());
@@ -50,7 +51,7 @@ test("24 colorways wrap onto lines inside a phone's column, every chip in reach"
 test("a look with no colorways shows no row", async () => {
   const { screen, receive } = await renderWired(<LookPanel />);
   receive(stack({ colorways: [], colorway: null }));
-  await expect.element(screen.getByRole("group", { name: "colorways" })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("toolbar", { name: "colorways" })).not.toBeInTheDocument();
 });
 
 const looks = (patch: Partial<NonNullable<AuraState["looks"]>>) => ({ type: "aura" as const, ...AURA, looks: { ...AURA.looks!, ...patch } });
@@ -91,4 +92,27 @@ test("a refused drift shows under the colorway row, and not in the status bar", 
   receive(refused("drift", "the looks file is read-only"));
   await expect.element(screen.getByRole("alert")).toHaveTextContent("the looks file is read-only");
   expect(document.querySelector(".status-bar")?.textContent).toBe("");
+});
+
+test("the chips are one tab stop, the pressed one, and the arrow keys, Home and End move between them", async () => {
+  const names = ["green", "red", "blue", "gold"];
+  const { screen, receive } = await renderWired(<LookPanel />);
+  receive(stack({ colorways: names, colorway: "red" }));
+  const chips = screen.getByRole("toolbar", { name: "colorways" });
+  const buttons = [...chips.element().querySelectorAll("button")];
+  expect(buttons.map((b) => b.tabIndex)).toEqual([-1, 0, -1, -1]);
+  buttons[1]!.focus();
+  await userEvent.keyboard("{ArrowRight}");
+  expect(document.activeElement).toBe(buttons[2]);
+  await userEvent.keyboard("{End}");
+  expect(document.activeElement).toBe(buttons[3]);
+  await userEvent.keyboard("{ArrowRight}");
+  expect(document.activeElement).toBe(buttons[0]);
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(document.activeElement).toBe(buttons[3]);
+  await userEvent.keyboard("{Home}");
+  expect(document.activeElement).toBe(buttons[0]);
+  // With none pressed, the first takes Tab.
+  receive(stack({ colorways: names, colorway: null }));
+  expect([...chips.element().querySelectorAll("button")].map((b) => b.tabIndex)).toEqual([0, -1, -1, -1]);
 });

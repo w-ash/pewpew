@@ -1720,9 +1720,61 @@
 .layer[data-picked] > .layer-head {
   background: var(--surface-selected);
 }
-.layer-head > .row-title {
+.layer-head > .layer-title {
   grid-column: 1;
   display: flex;
+  min-width: 0;
+}
+.layer-title > .row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+/* The grip at a row's start: a press on it drags the row; touch-action only here, so the list still scrolls
+   from anywhere else. A line at the row's edge shows where the dragged row will land. */
+.layer {
+  --grip-w: var(--icon);
+}
+@media (pointer: coarse) {
+  .layer {
+    --grip-w: calc(var(--icon) + 2 * var(--space-xs));
+  }
+}
+.layer .grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: var(--grip-w);
+  color: var(--text-2);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.layer[data-dragging] {
+  opacity: 0.6;
+}
+.layer[data-dragging] .grip {
+  cursor: grabbing;
+}
+.layer[data-drop] {
+  position: relative;
+}
+.layer[data-drop]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 3;
+}
+.layer[data-drop="above"]::after {
+  top: -1px;
+}
+.layer[data-drop="below"]::after {
+  bottom: -1px;
 }
 .layer-head > .layer-on {
   grid-column: 4;
@@ -1844,7 +1896,7 @@
 /* The open row: what the layer runs, its mix and its knobs, starting where its name does, its one cue of
    nesting; its actions 8 under the row's fill, its last knob 16 over the next row. */
 .layer > .layer-body {
-  padding: var(--space-xs) 0 var(--space-md) calc(var(--icon) + var(--space-xs));
+  padding: var(--space-xs) 0 var(--space-md) calc(var(--grip-w) + var(--icon) + var(--space-xs));
 }
 /* The open row's own actions first: ▲ ▼, and remove at the column's edge; its defaults under its knobs. */
 .layer-actions > .button:last-child {
