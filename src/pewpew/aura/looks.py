@@ -106,14 +106,16 @@ class _Recall(NamedTuple):
     """A recall that starts later: the look's name (None for the
     journalled live state), the call that starts it at a frame's engine
     time, whether a trigger hold queued it (a hold's own look, or its
-    return) rather than the operator, whether it is a hold's return, and
-    whether it is still the live state (no held look has started since)."""
+    return) rather than the operator, whether it is a hold's return,
+    whether it is still the live state (no held look has started since),
+    and whether that live state held unsaved edits."""
 
     name: str | None
     start: Callable[[float], str | None]
     by_hold: bool = False
     returning: bool = False
     live: bool = False
+    edits: bool = False
 
 
 @dataclass(frozen=True)
@@ -253,6 +255,9 @@ class Looks:
             "favorites": book.favorite_names,
             "current": book.current,
             "changed": changed,
+            # A trigger holds a look, and the live state it returns to holds unsaved edits:
+            # `changed` is False meanwhile, but a recall now would lose them.
+            "held_changed": self._hold is not None and self._hold.journal.edits,
             "fading": fading,
             # Coarse, so the state message changes a few times per fade
             # rather than on every frame.
@@ -636,7 +641,7 @@ class Looks:
                 self._recalled = recalled
             return reason
 
-        return _Recall(current, back, live=True)
+        return _Recall(current, back, live=True, edits=self.changed())
 
     def before_frame(self, t: float) -> None:
         """Before the frame at engine time `t` renders: start a recall that

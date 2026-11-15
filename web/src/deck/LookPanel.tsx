@@ -248,7 +248,10 @@ export function LookPanel({ titleId: given }: { titleId?: string }) {
             {held}
           </p>
         )}
-        <DisclosureNote disclosure={why} live />
+        {/* The hold's note stands above: a press that opens the same words does not say them twice. */}
+        <DisclosureNote disclosure={why} live>
+          {held && why.text === held ? "" : undefined}
+        </DisclosureNote>
       </div>
       <div className="block look-block" inert={!!held} onKeyDown={esc}>
         <div ref={forms} className="look-forms" data-own-keys={typing}>

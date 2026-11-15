@@ -18,6 +18,7 @@ import {
   matrixPose,
   type PoseQ,
   resolvePose,
+  roundVec,
 } from "./pose";
 
 /** A fixture as the engine compiled it: a compiled rig's (`CompiledRig`), or the `rig` of the
@@ -164,6 +165,33 @@ export function addFixture(
 }
 
 const OFFSET_M = 0.1;
+
+/** How far off an axis a position or a bar's direction may be, and still lie in the plane it is the normal of. */
+const FLAT_TOL = 1e-3;
+
+/** A pose for a new bar that lies in the plane the `compiled` fixtures all lie in (an axis-aligned plane, every
+ * bar along it): the last fixture's rotation, OFFSET_M beside it across its length, in that plane. Null with no
+ * fixtures or no such plane: the new bar then takes `addFixture`'s upright default. */
+export function flatPose(compiled: readonly Placed[] | undefined): PoseQ | null {
+  const last = compiled?.at(-1);
+  if (!compiled || !last) return null;
+  const at = (m: Placed, i: number) => m.matrix[i] ?? 0;
+  const k = [0, 1, 2].find((a) =>
+    compiled.every((m) => Math.abs(at(m, 12 + a) - at(last, 12 + a)) <= FLAT_TOL && Math.abs(at(m, 4 + a)) <= FLAT_TOL),
+  );
+  if (k === undefined) return null;
+  // The plane's normal (axis k) crossed with the last bar's direction (its +y column) runs across the bar, in the plane.
+  const [dx, dy, dz] = [at(last, 4), at(last, 5), at(last, 6)];
+  const n = [k === 0 ? 1 : 0, k === 1 ? 1 : 0, k === 2 ? 1 : 0] as const;
+  const across = [n[1] * dz - n[2] * dy, n[2] * dx - n[0] * dz, n[0] * dy - n[1] * dx] as const;
+  const len = Math.hypot(...across) || 1;
+  const here = matrixPose(last.matrix);
+  const [x, y, z] = here.position_m;
+  return {
+    position_m: roundVec([x + (OFFSET_M * across[0]) / len, y + (OFFSET_M * across[1]) / len, z + (OFFSET_M * across[2]) / len]),
+    quat_xyzw: here.quat_xyzw,
+  };
+}
 
 function offset<P extends { position_m?: [number, number, number] }>(
   pose: P | undefined,

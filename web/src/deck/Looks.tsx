@@ -1,5 +1,5 @@
 import { useId, useRef, type CSSProperties, type ReactNode, type Ref } from "react";
-import { edited, fadeSeconds, favoriteLooks, liveLook, lookStatus, shuffleOn, unsaved, type LookItem, type LooksState } from "../aura/looks";
+import { edited, fadeSeconds, favoriteLooks, liveLook, losesEdits, lookStatus, shuffleOn, type LookItem, type LooksState } from "../aura/looks";
 import type { TriggersState } from "../aura/triggers";
 import { useSender } from "../wire/store";
 import { Button } from "../design/Button";
@@ -54,11 +54,11 @@ export const ALL_LOOKS = "all-looks";
 /** The keys that press the first nine favorites, in the page's order (`byName`). */
 export const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-/** What a second press of `pressed` (a look's name, or surprise me) does over unsaved edits: drops them.
- * Empty when there are none. */
+/** What a second press of `pressed` (a look's name, or surprise me) does over unsaved edits, including
+ * those a cue's hold will return to: drops them. Empty when there are none. */
 export function dropLine(pressed: string, looks: LooksState): string {
   const look = edited(looks);
-  if (!unsaved(looks) || !look) return "";
+  if (!losesEdits(looks) || !look) return "";
   if (pressed === looks.current) return `press ${pressed} again to drop its edits`;
   return `press ${pressed} again to drop ${looks.current ? `the edits to ${look}` : `${look} and its edits`}`;
 }
@@ -101,7 +101,7 @@ export function LookTile({ looks, play, triggers, item, note, flat, favorite, ta
   const st = lookStatus(looks, triggers, item.name);
   const marks = cycleMarks(looks);
   const marked = (marks === "in" && item.cycle) || (marks === "out" && !item.cycle);
-  const edits = unsaved(looks);
+  const edits = losesEdits(looks);
   return (
     <Tile
       ref={ref}

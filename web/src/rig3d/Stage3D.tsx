@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Suspense, use, useEffect, useMemo, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, ToggleButton } from "../design/Button";
 import { ErrorBoundary } from "../design/ErrorBoundary";
 import { Segments } from "../design/Segments";
@@ -17,6 +17,7 @@ import { CameraRig, REDUCED_MOTION, SPIN_SPEED, useAccent, useCameraView, VIEW_I
 import type { ViewRig } from "./instances";
 import { loadParts } from "../rig/loadParts";
 import { useModels } from "./models";
+import { type Near, NearPick } from "./NearPick";
 import { Rig } from "./Rig";
 import { FOV, rigBounds, type ViewName } from "./views";
 
@@ -101,6 +102,15 @@ export default function Stage3D({ editing }: { editing: boolean }) {
     useGizmoTools.setState({ shown });
     return () => useGizmoTools.setState({ shown: false });
   }, [shown]);
+  // Set by NearPick, inside the canvas, for the canvas's miss handler.
+  const near = useRef<Near | null>(null);
+  const setNear = useCallback((pick: Near | null) => {
+    near.current = pick;
+  }, []);
+  const pickFixture = (i: number) => {
+    const f = fixtures?.[i];
+    if (f) useDoc.getState().select(entityOf(useDoc.getState().history.present, f));
+  };
   return (
     <div className="stage stage-3d">
       <Canvas
@@ -110,13 +120,15 @@ export default function Stage3D({ editing }: { editing: boolean }) {
         camera={{ fov: FOV, near: 0.01, far: 500, position: [6, 5, 6] }}
         role="img"
         aria-label="3D preview of the LEDs"
-        onPointerMissed={() => {
+        onPointerMissed={(e) => {
           if (!editing || gizmoActivity.hovering || performance.now() - gizmoActivity.releasedAt < 300) return;
+          if (near.current?.(e)) return;
           useDoc.getState().select(null);
         }}
       >
         <OrbitControls makeDefault enableDamping dampingFactor={0.08} autoRotate={spin && !still} autoRotateSpeed={SPIN_SPEED} />
         <CameraRig view={camera.view} bounds={bounds} generation={camera.generation} onUserMove={camera.release} />
+        {editing && rig && <NearPick rig={rig} onPick={pickFixture} near={setNear} />}
         {/* A GLB that fails to load or parse takes only the rig down, not the canvas. */}
         <ErrorBoundary key={models.key} fallback={null} onError={models.onError}>
           <Suspense fallback={null}>
@@ -127,14 +139,7 @@ export default function Stage3D({ editing }: { editing: boolean }) {
                 catalog={catalog}
                 selected={editing ? selected : NO_SELECTION}
                 accent={accent}
-                onPick={
-                  editing
-                    ? (i) => {
-                        const f = fixtures?.[i];
-                        if (f) useDoc.getState().select(entityOf(useDoc.getState().history.present, f));
-                      }
-                    : noPick
-                }
+                onPick={editing ? pickFixture : noPick}
               />
             )}
           </Suspense>

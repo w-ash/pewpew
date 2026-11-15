@@ -65,3 +65,39 @@ test("without a check, an imported arrangement is an edit like any other, which 
   await screen.getByRole("button", { name: "Undo" }).click();
   expect(useDoc.getState().history.present).toBe(DEFAULT_ARRANGEMENT);
 });
+
+test("picking a fixture from a long list brings its form into view", async () => {
+  const many: Arrangement = {
+    ...DEFAULT_ARRANGEMENT,
+    groups: [],
+    fixtures: Array.from({ length: 60 }, (_, i) => ({ id: `f${i + 1}`, type: "clen-rgbw-bar-1m" })),
+  };
+  useDoc.getState().load(many);
+  useDoc.getState().select(null);
+  const screen = await render(
+    <div className="scroller" style={{ height: 400, overflow: "auto" }} data-testid="slot">
+      <DocPanel catalog={partsCatalog} rig={null} rigIsCurrent={false} />
+    </div>,
+  );
+  const slot = screen.getByTestId("slot").element();
+  await screen.getByRole("button", { name: /^f60/ }).click();
+  const form = screen.getByRole("heading", { name: "Selected · f60" }).element().getBoundingClientRect();
+  const box = slot.getBoundingClientRect();
+  expect(form.top).toBeGreaterThanOrEqual(box.top - 1);
+  expect(form.top).toBeLessThan(box.bottom);
+});
+
+test("Add › Bar puts the new bar in the plane of a flat rig, not upright at the origin", async () => {
+  const flat: Arrangement = {
+    ...DEFAULT_ARRANGEMENT,
+    groups: [],
+    fixtures: [{ id: "a", type: "clen-rgbw-bar-1m", pose: { aim: { axis: [1, 0, 0] } } }],
+  };
+  useDoc.getState().load(flat);
+  const along = { ...threeBarRig.fixtures[0]!, id: "a", group: null, matrix: [0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, -1, 1] };
+  const rig: CompiledRig = { ...threeBarRig, fixtures: [along] };
+  const screen = await render(<DocPanel catalog={partsCatalog} rig={rig} rigIsCurrent />);
+  await screen.getByRole("button", { name: "Bar" }).click();
+  const added = useDoc.getState().history.present.fixtures.at(-1)!;
+  expect(added.pose?.position_m).toEqual([2, 0, -1.1]);
+});

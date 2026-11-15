@@ -120,6 +120,12 @@ function Shell() {
   // others. Closed, the slot shows the layout panel while layout mode is on.
   const [opened, setSlotPanel] = useState<Exclude<SlotPanel, "arrange">>(null);
   const toggle = (which: "health" | "looks") => () => setSlotPanel(opened === which ? null : which);
+  // Turning layout mode on closes whatever is open, so the layout panel shows.
+  const [wasOn, setWasOn] = useState(mode.on);
+  if (wasOn !== mode.on) {
+    setWasOn(mode.on);
+    if (mode.on) setSlotPanel(null);
+  }
   const slotPanel: SlotPanel = opened ?? (mode.on && arranges ? "arrange" : null);
   const openReport = hasRig ? () => setSlotPanel("report") : undefined;
   const [helpOpen, setHelpOpen] = useState(false);

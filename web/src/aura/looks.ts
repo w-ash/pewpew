@@ -23,6 +23,9 @@ export interface LooksState {
   readonly current: string | null;
   /** A layer, a param or a stored master has moved off `current`, or off the made look. */
   readonly changed: boolean;
+  /** A trigger holds a look, and the state it returns to holds edits: `changed` is false meanwhile, but a
+   * recall now would lose them. */
+  readonly held_changed: boolean;
   /** The look fading in. */
   readonly fading: string | null;
   /** How far `fading` has faded in, 0..1 in steps of 0.05; null between fades. */
@@ -174,6 +177,12 @@ export function pendingText(looks: LooksState | null): string | null {
  * held look's layers). */
 export function unsaved(looks: LooksState | null): boolean {
   return !!(looks?.current ?? looks?.made) && looks!.changed && !looks!.pending;
+}
+
+/** Whether a recall now would lose edits: `unsaved`, or, while a cue holds a look, edits of the state it
+ * returns to, which the recall replaces. */
+export function losesEdits(looks: LooksState | null): boolean {
+  return unsaved(looks) || (!!(looks?.current ?? looks?.made) && !!looks!.held_changed && !looks!.pending);
 }
 
 /** Whether a knob of `ps`, at `value`, is off `saved` (each knob's value as the look was saved, by

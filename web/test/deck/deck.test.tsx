@@ -632,6 +632,15 @@ test("while a trigger holds a look, the header says so and what is under it wait
   expect(document.querySelector(".look-block")?.hasAttribute("inert")).toBe(false);
 });
 
+test("pressing undo while a trigger holds a look does not say the hold twice", async () => {
+  const { screen, receive } = await renderWired(<Editor />);
+  receive(aura({ triggers: { ...AURA.triggers!, armed: true, held: { trigger: "door", look: "cool", until: 9 } } }));
+  (screen.getByRole("button", { name: "undo", exact: true }).element() as HTMLElement).click(); // off, but it says why when pressed
+  await expect.element(screen.getByText("door is playing cool: edit when it ends")).toBeVisible();
+  const said = () => (document.querySelector(".look-head")!.textContent!.match(/door is playing cool: edit when it ends/g) ?? []).length;
+  await expect.poll(said).toBe(1);
+});
+
 test("revert, in the look's settings while it is changed, recalls it with no fade in two presses", async () => {
   const { screen, sent, receive } = await renderWired(<Editor />);
   await screen.getByRole("button", { name: "look settings" }).click();
@@ -783,6 +792,19 @@ test("a brightness typed between steps or past the max sends what its note says,
   await expect.element(screen.getByText(/kept to 100/)).toBeVisible();
   await screen.getByRole("button", { name: "decrease brightness" }).click();
   await expect.element(screen.getByRole("status").filter({ hasText: /kept to/ })).not.toBeInTheDocument();
+});
+
+test("while a cue holds a look, a look still takes two presses over the edits it returns to", async () => {
+  const { screen, sent, receive } = await renderWired(<Played />);
+  const held = { ...AURA.triggers!, armed: true, held: { trigger: "door", look: "cool", until: 9 } };
+  receive(aura({ looks: { ...AURA.looks!, changed: false, held_changed: true }, triggers: held }));
+  const cool = screen.getByRole("button", { name: /^cool/ });
+  await cool.click();
+  expect(sent).toEqual([]);
+  await expect.element(screen.getByText("press cool again to drop the edits to warm")).toBeVisible();
+  pastDoubleTap();
+  await cool.click();
+  expect(sent).toEqual([{ type: "recall", name: "cool", fade: null }]);
 });
 
 test("over unsaved edits a look recalls in two presses, by tap or key, and a note under the looks says what the second does", async () => {
