@@ -37,30 +37,55 @@ def gradient_lut(gradient: Gradient, shift: float = 0.0) -> np.ndarray:
     and loses chroma until it fits: no channel is clamped on its own.
     Cached by value, and the cache shares each table, so it is read-only.
 
-    A gradient that glides (`Gradient.glide`) is the tables of its start
-    and of itself, each turned by `shift`, mixed entry by entry in OKLab,
-    so two gradients of any stops, hard edges too, blend exactly.
+    A gradient that glides (`Gradient.glide`) is the OKLab colors of its
+    start and of itself, each turned by `shift`, mixed entry by entry and
+    then moved into the gamut, so two gradients of any stops, hard edges
+    too, blend exactly. A gradient with a `table` (`flat`) is that table
+    turned by `shift`.
     """
-    if gradient.glide is not None:
-        start, w = gradient.glide
-        a, b = oklab(gradient_lut(start, shift)), oklab(gradient_lut(replace(gradient, glide=None), shift))
-        lut = _into_gamut(a + (b - a) * np.float32(w))
-        lut.setflags(write=False)
-        return lut
-    stops = gradient.stops
-    at = np.array([stop.at for stop in stops], dtype=np.float32)
-    lab = oklab(hsv([s.color.turn for s in stops], [s.color.s for s in stops], [s.color.v for s in stops]))
-    if shift:
-        lab = turned(lab, shift)
-    x = (np.arange(LUT_SIZE, dtype=np.float32) + np.float32(0.5)) / np.float32(LUT_SIZE)
-    # The stop each entry follows; at a hard edge (two stops at one
-    # position), the later of the two.
-    j = np.clip(np.searchsorted(at, x, side="right") - 1, 0, len(stops) - 2)
-    width = at[j + 1] - at[j]
-    w = np.divide(x - at[j], width, out=np.ones_like(x), where=width > 0)
-    lut = _into_gamut(lab[j] + (lab[j + 1] - lab[j]) * w[:, None])
+    lut = _into_gamut(_lab(gradient, shift))
     lut.setflags(write=False)
     return lut
+
+
+@lru_cache(maxsize=256)
+def _lab(gradient: Gradient, shift: float) -> np.ndarray:
+    """`gradient_lut`'s table in OKLab, turned by `shift`, before it is
+    moved into the gamut. Read-only."""
+    if gradient.glide is not None:
+        start, w = gradient.glide
+        a, b = _lab(start, shift), _lab(replace(gradient, glide=None), shift)
+        lab = a + (b - a) * np.float32(w)
+    elif gradient.table is not None:
+        lab = np.frombuffer(gradient.table, dtype=np.float32).reshape(LUT_SIZE, 3)
+        lab = turned(lab, shift) if shift else lab
+    else:
+        stops = gradient.stops
+        at = np.array([stop.at for stop in stops], dtype=np.float32)
+        colors = oklab(hsv([s.color.turn for s in stops], [s.color.s for s in stops], [s.color.v for s in stops]))
+        if shift:
+            colors = turned(colors, shift)
+        x = (np.arange(LUT_SIZE, dtype=np.float32) + np.float32(0.5)) / np.float32(LUT_SIZE)
+        # The stop each entry follows; at a hard edge (two stops at one
+        # position), the later of the two.
+        j = np.clip(np.searchsorted(at, x, side="right") - 1, 0, len(stops) - 2)
+        width = at[j + 1] - at[j]
+        w = np.divide(x - at[j], width, out=np.ones_like(x), where=width > 0)
+        lab = colors[j] + (colors[j + 1] - colors[j]) * w[:, None]
+    lab.setflags(write=False)
+    return lab
+
+
+@lru_cache(maxsize=16)
+def flat(gradient: Gradient) -> Gradient:
+    """`gradient` with no glide: a gliding gradient becomes the OKLab
+    table it shows at a shift of 0, held as its `table`. A turn and a glide's
+    mix are both linear in OKLab, so at every shift it shows what the
+    glide showed. A glide that starts mid-glide starts from this, so a
+    glide holds at most one start, whatever ran before."""
+    if gradient.glide is None:
+        return gradient
+    return Gradient(gradient.stops, gradient.label, table=_lab(gradient, 0.0).tobytes())
 
 
 def sample(lut: np.ndarray, t: ArrayLike) -> np.ndarray:

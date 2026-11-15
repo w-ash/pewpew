@@ -181,6 +181,8 @@ def particles(
     swirl: float | Expr = ...,
     emit: str = ...,
     size: float | Expr = ...,
+    fadein: float | Expr = ...,
+    fadeout: float | Expr = ...,
 ) -> Expr: ...
 def prev() -> Expr: ...
 def pulse(

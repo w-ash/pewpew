@@ -27,6 +27,7 @@ from pewpew.fx.op import (
     Rate,
     U,
     axis_choice,
+    centre_across,
     centre_args,
     normal_axis,
     plane_choice,
@@ -148,22 +149,21 @@ class Polar(_Coord, op="polar"):
         """As `Op.shows`, but the center along the plane's normal moves
         the picture only through `spiral`, and `spiral` only on a map that
         spreads along the normal."""
-        normal = normal_axis(plane_of(args, spans))
+        plane = plane_of(args, spans)
         if name == "spiral":
-            return spanned(spans)[normal]
-        if name in CENTRE_ALONG and AXES.index(CENTRE_ALONG[name]) == normal and args["spiral"] == 0.0:
+            return spanned(spans)[normal_axis(plane)]
+        if centre_across(name, plane) and args["spiral"] == 0.0:
             return False
         return super().shows(name, a, b, args, spans)
 
     def warp(self, c: Coords) -> Coords:
         plane = self.ctx.plane(self.plane)
-        centre = self.ctx.at((self.cx, self.cy, self.cz))
+        centre = self.point()
         q = space.polar(c.xyz, plane, centre)
         if self.spiral:
             j, k = plane_axes(plane, q)[1], normal_axis(plane)
-            turn = (q[j] + self.spiral * (c.xyz[k] - centre[k])) % 1.0
-            # A tiny negative turn rounds up to 1.0 in float32; it is the turn 0.
-            q = tuple(np.where(turn < 1.0, turn, np.float32(0.0)) if a == j else axis for a, axis in enumerate(q))
+            turn = space.wrap_turn(q[j] + self.spiral * (c.xyz[k] - centre[k]))
+            q = tuple(turn if a == j else axis for a, axis in enumerate(q))
         return c.moved(q)
 
 
@@ -194,7 +194,7 @@ class Spherical(_Coord, op="spherical"):
     cost = Cost(6.1, 14.0)
 
     def warp(self, c: Coords) -> Coords:
-        centre = self.ctx.at((self.cx, self.cy, self.cz))
+        centre = self.point()
         plane = self.ctx.plane(self.plane)
         q = space.spherical(c.xyz, plane, centre)
         if self.distance == "log":

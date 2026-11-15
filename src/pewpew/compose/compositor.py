@@ -87,7 +87,7 @@ from pewpew.compose.controls import (
     layer_address,
 )
 from pewpew.compose.modulation import Modulation
-from pewpew.compose.stack import Colorways, Layer, Look, Route, layer_seed, stack_problems
+from pewpew.compose.stack import Colorways, Layer, Look, Route, kept_colorways, layer_seed, stack_problems
 from pewpew.errors import describe_exception, unknown
 from pewpew.features import FakeFeatures, FeatureSource, memo
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
@@ -116,12 +116,11 @@ class LayerError(Exception):
 
 @dataclass(frozen=True, slots=True, eq=False)
 class _Glide:
-    """One knob gliding (`Compositor.paint`): the knob, where it started,
-    the own value it glides to, and the engine time and seconds it takes."""
+    """One knob gliding (`Compositor.paint`): the knob, and the engine time
+    and seconds it takes. Its binding holds where it starts and ends
+    (`Bound.glide`)."""
 
     knob: Knob
-    start: Any
-    end: Any
     t0: float
     seconds: float
 
@@ -210,6 +209,11 @@ class Compositor:
         self._unbound: set[str] = set()
         self._timings: Mapping[str, float] = {}
         self._glides: dict[str, _Glide] = {}
+        self._live_colorways: Colorways = {}
+        # Each live colorway's knobs with their values, and the active
+        # colorway as last found, with the own values it was found at.
+        self._colorway_knobs: tuple[tuple[str, tuple[tuple[Knob, Any], ...]], ...] = ()
+        self._active: tuple[tuple[Any, ...], tuple[Any, ...], str | None] | None = None
         self._bind(mapping)
         self._install(tuple(self._build(layer) for layer in layers), strict=True)
 
@@ -285,12 +289,18 @@ class Compositor:
         return sets, None
 
     def colorway(self) -> str | None:
-        """The active colorway, or None (module docstring)."""
-        controls = self._controls
-        for name, values in self._live_colorways.items():
-            if all(_json_value(controls, path) == value for path, value in values.items()):
-                return name
-        return None
+        """The active colorway, or None (module docstring). Found again
+        only when a knob a colorway sets holds another value object."""
+        knobs = self._colorway_knobs
+        own = tuple(knob.params[knob.name] for _, pairs in knobs for knob, _ in pairs)
+        held = self._active
+        if held is not None and held[0] is knobs and all(a is b for a, b in zip(held[1], own, strict=True)):
+            return held[2]
+        name = next((name for name, pairs in knobs if all(
+            knob.params.declarations[knob.name].to_json(knob.params[knob.name]) == value for knob, value in pairs)),
+            None)
+        self._active = (knobs, own, name)
+        return name
 
     def mod(self) -> Mapping[str, float]:
         """Each knob a route drives, at its value as of the last frame, by
@@ -380,10 +390,13 @@ class Compositor:
                 continue
             end = knob.params[name]
             if bound is None or seconds <= 0 or start == end or not knob.params.declarations[name].glides:
-                self._glides.pop(path, None)  # the set landed it
+                # The set landed it. The binding lets go of its glide too: it knows the
+                # base it glides to by identity, and a set of an equal value may store the same object.
+                if self._glides.pop(path, None) is not None and bound is not None:
+                    bound.unglide(name)
                 continue
-            self._glides[path] = _Glide(knob, start, end, self._t, float(seconds))
-            bound.glide(name, start, 0.0)
+            self._glides[path] = _Glide(knob, self._t, float(seconds))
+            bound.glide(name, start)
 
     def gliding(self) -> list[str]:
         """The address of each knob that glides now. Loop thread only."""
@@ -442,9 +455,11 @@ class Compositor:
         self._modulation.bind(controls, strict=strict)
         self._layers = layers
         self._controls = controls
-        live = ({path: value for path, value in values.items() if _whole(controls, path)}
-                for values in self._colorways.values())
-        self._live_colorways = {name: values for name, values in zip(self._colorways, live, strict=True) if values}
+        whole = {path: knob for values in self._colorways.values() for path in values
+                 if (knob := _whole(controls, path)) is not None}
+        self._live_colorways = kept_colorways(self._colorways, lambda path, _: path in whole)
+        self._colorway_knobs = tuple((name, tuple((whole[path], value) for path, value in values.items()))
+                                     for name, values in self._live_colorways.items())
 
     # ---- the frame path ------------------------------------------------------
 
@@ -492,8 +507,7 @@ class Compositor:
             bound, w = knob.params.bound, (t - glide.t0) / glide.seconds
             found = self._controls.find(path)
             if bound is not None and w < 1.0 and found is not None and found.params is knob.params \
-                    and knob.params[knob.name] is glide.end:
-                bound.glide(knob.name, glide.start, w)
+                    and bound.weigh(knob.name, w):
                 continue
             del self._glides[path]
             if bound is not None:
@@ -523,16 +537,8 @@ class Compositor:
         return frame, live.renderer.error is None
 
 
-def _whole(controls: Controls, path: str) -> bool:
-    """Whether `path` names a whole knob among `controls`."""
+def _whole(controls: Controls, path: str) -> Knob | None:
+    """The whole knob at `path` among `controls`, or None when `path`
+    names none or names a part."""
     knob = controls.find(path)
-    return knob is not None and not knob.part
-
-
-def _json_value(controls: Controls, path: str) -> Any:
-    """The own value, JSON form, of the whole knob at `path` among
-    `controls`, or None when there is none."""
-    knob = controls.find(path)
-    if knob is None or knob.part:
-        return None
-    return knob.params.declarations[knob.name].to_json(knob.params[knob.name])
+    return knob if knob is not None and not knob.part else None

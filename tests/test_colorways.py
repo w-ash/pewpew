@@ -7,6 +7,7 @@ what names no knob; the lab renders, explains and gates a look in each."""
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from params_zoo import ZOO
 from pewpew import lab
 from pewpew.__main__ import main
 from pewpew.aura.book import CycleConfig, parse_looks
-from pewpew.color import EMBER, ICE, MONO, gradient_lut, oklab
+from pewpew.color import CANDY, EMBER, ICE, MONO, flat, gradient_lut, oklab
 from pewpew.compose import Layer
 from pewpew.compose.stack import Drift, kept_drift, with_colorway
 from pewpew.fx import expr, surprise
@@ -187,11 +188,52 @@ def test_a_palette_glides_in_oklab_whatever_stops_each_has():
             shown = kind.mix(start, end, w)
             assert (shown.stops, shown.glide) == (end.stops, (start, w)), "the target's stops, gliding from the start"
             a, b = oklab(gradient_lut(start)), oklab(gradient_lut(end))
-            np.testing.assert_allclose(oklab(gradient_lut(shown)), a + (b - a) * w, atol=2e-3)
+            mixed = oklab(gradient_lut(shown))
+            np.testing.assert_allclose(mixed[:, 0], (a + (b - a) * w)[:, 0], atol=2e-3)
+            if edge not in (start, end):
+                np.testing.assert_allclose(mixed, a + (b - a) * w, atol=2e-3)
+            # The edge's blue leaves the gamut between its stops: the glide mixes the colours
+            # before they move into the gamut, and that move keeps each one's lightness.
         assert kind.mix(start, end, 1.0) is end
         np.testing.assert_allclose(gradient_lut(kind.mix(start, end, 0.0)), gradient_lut(start), atol=1e-5)
     assert kind.mix(EMBER, ICE, 0.3).glide == (EMBER, 38 / 128), "the weight steps in 1/128ths"
     assert kind.parse("p", kind.mix(EMBER, ICE, 0.5)) == (ICE, None), "a set of a gliding value lands the target"
+
+
+def test_a_glide_that_starts_mid_glide_starts_flat_and_shows_what_the_chain_showed():
+    kind, shown = Palette(EMBER), EMBER
+    for i in range(300):
+        end = (ICE, CANDY, MONO)[i % 3]
+        start = kind.mix(shown, end, 0.0)
+        assert start.glide is not None and start.glide[0].glide is None, "one start, never a chain"
+        nested = Gradient(end.stops, end.label, (shown, 0.375))  # the chain an unflattened glide holds
+        then = kind.mix(shown, end, 0.375)  # a step of the weight, as `nested`'s is
+        if i % 50 == 0:
+            for shift in (0.0, 40.0, 137.5, 300.0):
+                np.testing.assert_allclose(gradient_lut(start, shift), gradient_lut(shown, shift), atol=1e-4,
+                                           err_msg="no jump where the glide starts")
+                np.testing.assert_allclose(gradient_lut(then, shift), gradient_lut(nested, shift), atol=1e-4,
+                                           err_msg="flat shows what the chain shows, at every shift")
+        shown = then
+    assert shown.glide is not None and shown.glide[0].glide is None
+
+
+def test_a_glide_costs_the_same_after_300_glides_that_overlap():
+    kind = Palette(EMBER)
+
+    def cost(shown: Gradient, first: float) -> float:
+        best = float("inf")
+        for k in range(30):  # a new shift each time: no cached table
+            t = time.perf_counter()
+            gradient_lut(shown, first + k * 0.5)
+            best = min(best, time.perf_counter() - t)
+        return best
+
+    shown = EMBER
+    for i in range(300):
+        shown = kind.mix(shown, (ICE, CANDY)[i % 2], 0.4)
+    one = kind.mix(EMBER, ICE, 0.4)
+    assert cost(shown, 100.0) < 3.0 * cost(one, 200.0)
 
 
 def target(rig, path: str):
@@ -227,7 +269,8 @@ def test_a_press_mid_glide_glides_on_from_what_shows():
     assert rig.control.colorway("ember") is None
     rig.calls.drain()
     now = target(rig, PALETTE)
-    assert now.glide == (before, 0.0) and now.stops == EMBER.stops, "it starts from what showed, not from ice"
+    assert now.glide == (flat(before), 0.0) and now.stops == EMBER.stops, "it starts from what showed, not from ice"
+    assert now.glide[0].glide is None, "flat: one start, never a chain"
     np.testing.assert_allclose(gradient_lut(now), gradient_lut(before), atol=1e-5)
     rig.frame(rig.clock.advance(121))
     assert target(rig, PALETTE) == EMBER
@@ -261,6 +304,21 @@ def test_a_look_that_cuts_changes_colour_at_once_and_a_choice_never_glides():
     rig.calls.drain()
     assert target(rig, "layers.base.blend") == "screen", "a choice switches at the start"
     assert rig.fader.current.gliding() == ["layers.base.opacity"]
+
+
+def test_a_press_at_once_lands_a_glide_to_the_same_colorway():
+    rig = dusk()
+    assert rig.control.colorway("ice") is None
+    rig.calls.drain()
+    rig.frame(rig.clock.advance(60))  # half way to ice
+    assert target(rig, "layers.base.opacity") == pytest.approx(0.9, abs=0.01)
+    assert rig.looks.set_fade("dusk", 0.0) is None
+    assert rig.control.colorway("ice") is None
+    rig.calls.drain()
+    rig.frame(rig.clock.advance())
+    assert rig.fader.current.gliding() == []
+    assert target(rig, "layers.base.opacity") == 0.8, "the op reads the knob's own value, not where the glide was"
+    assert target(rig, PALETTE) == ICE
 
 
 # ---- the drift ---------------------------------------------------------------------
@@ -350,6 +408,20 @@ def test_a_drift_is_the_look_playing_not_an_edit():
     assert rig.looks.changed(), "an edit of another knob stays an edit across a drift"
 
 
+def test_a_drift_faster_than_the_fade_glides_from_one_flat_start():
+    doc = {**DRIFTING, "fade": 5.0, "colorway_drift": {"every": 2},
+           "signals": {"breath": {"op": "lfo", "args": {"rate": 0.05}}}}
+    rig = dusk(decoded(doc))
+    changes, seen = 0, stack_state(rig)["colorway"]
+    for _ in range(600):  # a minute at 10 fps
+        rig.frame(rig.clock.advance(6))
+        shown = target(rig, PALETTE)
+        assert shown.glide is None or shown.glide[0].glide is None, "a glide never holds more than one start"
+        if (now := stack_state(rig)["colorway"]) != seen:
+            changes, seen = changes + 1, now
+    assert changes >= 25, "each change starts a glide while the last one runs"
+
+
 def test_a_press_holds_the_drift_off_for_a_dwell_and_a_recall_starts_it_again():
     rig = dusk(decoded(DRIFTING))
     drifted(rig, 5.0)
@@ -435,6 +507,34 @@ def test_the_cycle_starts_each_look_in_a_seeded_colorway_the_same_way_every_run(
     saved = shuffled(False)
     assert {colorway for _, colorway, _ in saved[1:]} == {"ember"}, "off, each look plays as saved"
     assert [name for name, _, _ in saved] == [name for name, _, _ in runs[0]], "the order is the cycle's own"
+
+
+def one_look_cycle() -> tuple[list[tuple[float, str | None]], bool, bool]:
+    """A cycle of one look, `a`, with its colorways on, over 90 s: each change of the active colorway (its
+    time and name), whether one renderer ran throughout, and whether the look ever read changed."""
+    look = replace(decoded({**DOC, "colorways": THREE}), cycle=True)
+    cycle = CycleConfig(idle=1.0, each=6.0, seed=3, window=0, colorways=True)
+    rig = aura_rig(look, looks={"a": look}, current="a", cycle=cycle)
+    assert restore(rig) is None
+    rig.frame(rig.clock.advance())
+    renderer, seen, out, changed = rig.renderer(), stack_state(rig)["colorway"], [], False
+    end = rig.clock.t + 90.0
+    while rig.clock.t < end:
+        rig.frame(rig.clock.advance(6))
+        changed = changed or rig.looks.changed()
+        if (now := stack_state(rig)["colorway"]) != seen:
+            out.append((round(rig.clock.t, 4), now))
+            seen = now
+    return out, rig.renderer() is renderer, changed
+
+
+def test_the_cycle_glides_a_look_that_is_already_current_to_the_colorway_it_draws():
+    runs = [one_look_cycle() for _ in range(2)]
+    assert runs[0] == runs[1], "same seed, same engine times: the same picks"
+    picks, same_renderer, changed = runs[0]
+    assert len(picks) >= 5 and {name for _, name in picks} == set(THREE), "each slot draws a colorway"
+    assert same_renderer, "no recall: its motion carries on"
+    assert not changed, "a pick is the look playing, not an unsaved edit"
 
 
 def test_the_cycle_leaves_a_look_that_drifts_to_its_drift():

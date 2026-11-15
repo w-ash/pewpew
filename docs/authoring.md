@@ -756,8 +756,9 @@ skips, are up to the wall clock:
 With `colorways` true, each look the cycle plays that has colorways (§4)
 and no colorway drift of its own that is on starts in one of them, drawn
 from the cycle's `seed` and the slot, settled rather than gliding, since
-the look fades in. It is the look playing, not an unsaved edit, so the
-cycle runs on. A look that drifts keeps its own drift. Left out, it is
+the look fades in; a slot of the look already playing as saved glides to
+it instead, its motion carrying on. It is the look playing, not an
+unsaved edit, so the cycle runs on. A look that drifts keeps its own drift. Left out, it is
 false, and a file written before it replays to the same frames.
 
 Any operator input stops the cycle, and it starts again after `idle` more
