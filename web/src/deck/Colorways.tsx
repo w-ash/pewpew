@@ -29,14 +29,15 @@ export function Colorways({ stack, looks }: { stack: StackState; looks: LooksSta
         {drifts && (
           <span className="knob-end">
             <ToggleButton
-              variant="tertiary"
+              variant="secondary"
               icon="drift"
               className="drift"
-              label="drift"
               pressed={current.drift}
               title={current.drift ? "drift: the colours move on by themselves now and then (press to hold them)" : "drift: let the colours move on by themselves now and then"}
               onPressedChange={(on) => sender.send({ type: "drift", name: current.name, on })}
-            />
+            >
+              drift
+            </ToggleButton>
           </span>
         )}
       </div>

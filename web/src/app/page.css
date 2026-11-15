@@ -204,7 +204,7 @@
 }
 
 /* The canvas: about a third of a phone screen, the rest when wide. When the deck grows on a short phone
-   screen the editor gives way first, to a floor, and the canvas only after it. */
+   screen the canvas gives way first, to a floor, and the editor only after it. */
 /* Each in whole pixels, so every row under it lands on the pixel. */
 .stage-area {
   position: relative;
@@ -217,6 +217,16 @@
 .stack > .slot {
   min-height: 20svh;
   min-height: round(down, 20svh, 1px);
+}
+/* On a portrait phone the canvas is smaller (the bars themselves are what is watched) and gives way to a
+   lower floor, so the editor, the part a finger works in, keeps the larger share. */
+@media (pointer: coarse) and (max-width: 600px) and (orientation: portrait) {
+  .stage-area {
+    flex-basis: 18svh;
+    flex-basis: round(down, 18svh, 1px);
+    min-height: 12svh;
+    min-height: round(down, 12svh, 1px);
+  }
 }
 /* On a phone the editor's foot fades into the 16 it keeps under its last row, so a row scrolled under the deck
    dissolves rather than being cut. */
@@ -666,15 +676,27 @@
   gap: var(--space-2xs);
   margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
 }
+/* A line tall, its parts laid out from the right: where they do not all fit, the turn ("1 min ·"), the
+   first part, wraps out of sight whole rather than being cut mid-word. */
 .shuffle-status {
   display: inline-flex;
-  gap: 0.3em;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0 0.3em;
+  height: var(--lh-body);
   min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
 }
+.shuffle-status > .t-value {
+  order: 1;
+}
+.shuffle-status > .t-label {
+  order: 2;
+}
 .shuffle-each {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  order: 3;
 }
 .shuffle-open > .icon {
   color: var(--text-2);
@@ -844,16 +866,12 @@
   margin-left: auto;
   min-width: calc(2 * var(--control-h) + var(--entry));
 }
-.master > .disclosure-note {
+.master > :is(.disclosure-note, .master-note) {
   grid-column: 1 / -1;
 }
-/* The readout gives the max over the level only where its words are not drawn. */
-.readout-word {
-  display: none;
-}
-/* On touch one row, blackout on its own under it: ☀ names it, then the slider, all the width the steps (and
-   the max's "?", or the "⋯" of a run without looks) leave it, then the steps, the readout giving the max,
-   small, over the level, as wide at 5% as at 100%. The word stays for assistive tech. */
+/* On touch one row, blackout on its own under it: ☀ names it, then the slider, all the width the entry (and
+   the max's "?", or the "⋯" of a run without looks) leaves it, then the entry, as wide at 5% as at 100%.
+   The word stays for assistive tech. */
 @media (pointer: coarse) {
   /* Its columns: ☀, the slider, the steps, the "?" or "⋯". Each but the first is set off by its margin, not
      a gap, so a column with nothing in it takes no room, and a row can span them all. */
@@ -879,12 +897,12 @@
     display: none;
   }
   .master > [data-part="control"],
-  .master > .joined,
+  .master > .number-entry,
   .master-head > :is(.about, .more) {
     grid-row: 1;
     margin-left: var(--space-xs);
   }
-  .master > .joined {
+  .master > .number-entry {
     order: 1;
   }
   .master-head > :is(.about, .more) {
@@ -892,6 +910,9 @@
   }
   .master > .disclosure-note {
     grid-row: 2;
+  }
+  .master > .master-note {
+    grid-row: 4;
   }
   /* A wide touch screen keeps blackout in the head: it takes a row of its own under the slider's, at the
      column's edge, as with a mouse; the max's note comes last, as it does there. */
@@ -904,72 +925,18 @@
   }
   /* As wide at 5% as at 100%: on a phone as wide as a knob's entry, so its − lines up with theirs; where
      the deck is narrower (a 360 px phone), four figures wide, so the slider keeps its room. */
-  .master > .joined > .readout {
+  .master > .number-entry .value-box {
     min-width: calc(4ch + 2 * var(--space-xs));
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end;
   }
   @container (min-width: 350px) {
-    .master > .joined > .readout {
+    .master > .number-entry .value-box {
       min-width: var(--entry);
     }
-  }
-  .readout-word {
-    display: flex;
-    align-items: center;
-    color: var(--text-2);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
-  .readout-word > .icon {
-    width: 12px;
-    height: 12px;
   }
 }
 /* On a phone blackout has a row of its own, the whole width, last, under the thumb. */
 .blackout-row > .blackout {
   flex: 1 1 auto;
-}
-/* − readout + joined into one control, a knob's typed entry to the pixel: one well of the page's ground with
-   one strong outer edge, its value at its right inset. */
-.joined {
-  display: flex;
-  align-items: stretch;
-  flex: 0 0 auto;
-}
-.joined > .button {
-  border-color: var(--border-strong);
-  background-color: var(--surface-page);
-}
-.joined > .button:hover {
-  background-image: linear-gradient(var(--state-hover), var(--state-hover));
-}
-.joined > .button:active {
-  background-image: linear-gradient(var(--state-press), var(--state-press));
-}
-.joined > .button:first-child {
-  border-radius: var(--radius-control) 0 0 var(--radius-control);
-  border-right-width: 0;
-}
-.joined > .button:last-child {
-  border-radius: 0 var(--radius-control) var(--radius-control) 0;
-  border-left-width: 0;
-}
-.joined > .readout {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: var(--entry);
-  padding-right: var(--space-xs);
-  border: 1px solid var(--border-strong);
-  border-inline-color: var(--border-subtle);
-  background: var(--surface-page);
-  font-size: var(--fs-field);
-}
-.readout > .level {
-  display: flex;
-  align-items: baseline;
 }
 /* The cue buttons keep their width; what they do wraps after them, and a cue's outcome lies in its room for
    a moment, so neither moves the deck. */
@@ -1221,7 +1188,7 @@
    the "?" last, so showing the others never moves it. ↺ shows while the knob is off its saved value: it is
    the knob's "changed". Off its default with no saved look, it shows under a pointer or with focus. With a
    mouse the pin and the "?" show under a pointer or with focus, and the "?" while open; on touch the "?"
-   always shows, and the pin while the "?" is open. */
+   always shows, and the pin of a knob in an open layer; a main knob's (.look-knobs) while the "?" is open. */
 /* Its marks are controls, 8 apart, centred on the label's line and hanging past it, so the head is a line of
    text tall on every pointer: 4 from its control, 12 from the knob before. With its note open, the head keeps
    the room its "?" takes below the line, so the note starts under the "?". */
@@ -1235,6 +1202,12 @@
   width: var(--control-h);
   height: var(--control-h);
   margin-block: calc((var(--lh-body) - var(--control-h)) / 2);
+}
+/* The colorways' drift toggle names itself: a word beside its sign, as wide as they are, in a chip's own
+   edge and selected fill. */
+.knob-end > .button.drift {
+  width: auto;
+  padding: 0 var(--space-sm);
 }
 .param-head:has(> .knob-end > .about[aria-expanded="true"]) {
   margin-bottom: calc((var(--control-h) - var(--lh-body)) / 2 - var(--space-2xs));
@@ -1253,7 +1226,7 @@
 }
 @media (pointer: coarse) {
   .param:not(:focus-within) .reset:not([data-changed]),
-  .knob-end:not(:has(> .about[aria-expanded="true"])) > .pin {
+  .look-knobs .knob-end:not(:has(> .about[aria-expanded="true"])) > .pin {
     display: none;
   }
 }

@@ -87,7 +87,7 @@ test("on a wide touch screen blackout has a row of its own under the brightness'
     receive({ type: "aura", ...AURA, cap: 0.8 }); // a max, with its ?
     const blackout = screen.getByRole("button", { name: "blackout" });
     await expect.element(blackout).toBeVisible();
-    const [sun, slider, steps, row] = [".master-label", ".master [data-part=control]", ".master .joined", ".master"].map((sel) => document.querySelector(sel)!.getBoundingClientRect());
+    const [sun, slider, steps, row] = [".master-label", ".master [data-part=control]", ".master .number-entry", ".master"].map((sel) => document.querySelector(sel)!.getBoundingClientRect());
     const b = blackout.element().getBoundingClientRect();
     // The slider takes all the room between ☀ and the steps.
     expect(slider!.left - sun!.right).toBeLessThanOrEqual(16);
