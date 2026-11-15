@@ -88,7 +88,7 @@ import numpy as np
 from pewpew.color import PRESETS
 from pewpew.compose.controls import LayerControls, layer_address, look_controls, signal_address, signal_of
 from pewpew.compose.modulation import route_problems
-from pewpew.compose.stack import Look, Route, is_seed, kept_drift
+from pewpew.compose.stack import Look, Route, is_seed, kept_colorways, kept_drift
 from pewpew.errors import did_you_mean, typo_hint
 from pewpew.fx.compile import check
 from pewpew.fx.expr import Expr, Routed, layer, look, namespace
@@ -1157,9 +1157,7 @@ def _pruned(made: Look, signals: Sequence[Node], routes: Sequence[Route]) -> Loo
     gone = {node.id for node in signals} - {node.id for node in left}
     front = tuple(path for path in made.front
                   if signal_of(path) not in gone and not route_problems((), (path,), controls))
-    painted = ({path: value for path, value in values.items()
-                if signal_of(path) not in gone and controls.parse(path, value)[1] is None}
-               for values in made.colorways.values())
-    colorways = {name: values for name, values in zip(made.colorways, painted, strict=True) if values}
+    colorways = kept_colorways(
+        made.colorways, lambda path, value: signal_of(path) not in gone and controls.parse(path, value)[1] is None)
     return replace(made, signals=Graph(tuple(left)) if left else None, routes=tuple(kept), front=front,
                    colorways=colorways, drift=kept_drift(made.drift, list(colorways)))

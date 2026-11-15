@@ -87,7 +87,7 @@ from pewpew.compose.controls import (
     layer_address,
 )
 from pewpew.compose.modulation import Modulation
-from pewpew.compose.stack import Colorways, Layer, Look, Route, layer_seed, stack_problems
+from pewpew.compose.stack import Colorways, Layer, Look, Route, kept_colorways, layer_seed, stack_problems
 from pewpew.errors import describe_exception, unknown
 from pewpew.features import FakeFeatures, FeatureSource, memo
 from pewpew.fx.blend import BLENDS, LIGHTS_BLACK, Blend
@@ -116,12 +116,11 @@ class LayerError(Exception):
 
 @dataclass(frozen=True, slots=True, eq=False)
 class _Glide:
-    """One knob gliding (`Compositor.paint`): the knob, where it started,
-    the own value it glides to, and the engine time and seconds it takes."""
+    """One knob gliding (`Compositor.paint`): the knob, and the engine time
+    and seconds it takes. Its binding holds where it starts and ends
+    (`Bound.glide`)."""
 
     knob: Knob
-    start: Any
-    end: Any
     t0: float
     seconds: float
 
@@ -396,8 +395,8 @@ class Compositor:
                 if self._glides.pop(path, None) is not None and bound is not None:
                     bound.unglide(name)
                 continue
-            self._glides[path] = _Glide(knob, start, end, self._t, float(seconds))
-            bound.glide(name, start, 0.0)
+            self._glides[path] = _Glide(knob, self._t, float(seconds))
+            bound.glide(name, start)
 
     def gliding(self) -> list[str]:
         """The address of each knob that glides now. Loop thread only."""
@@ -458,8 +457,7 @@ class Compositor:
         self._controls = controls
         whole = {path: knob for values in self._colorways.values() for path in values
                  if (knob := _whole(controls, path)) is not None}
-        live = ({path: value for path, value in values.items() if path in whole} for values in self._colorways.values())
-        self._live_colorways = {name: values for name, values in zip(self._colorways, live, strict=True) if values}
+        self._live_colorways = kept_colorways(self._colorways, lambda path, _: path in whole)
         self._colorway_knobs = tuple((name, tuple((whole[path], value) for path, value in values.items()))
                                      for name, values in self._live_colorways.items())
 
@@ -509,8 +507,7 @@ class Compositor:
             bound, w = knob.params.bound, (t - glide.t0) / glide.seconds
             found = self._controls.find(path)
             if bound is not None and w < 1.0 and found is not None and found.params is knob.params \
-                    and knob.params[knob.name] is glide.end:
-                bound.glide(knob.name, glide.start, w)
+                    and bound.weigh(knob.name, w):
                 continue
             del self._glides[path]
             if bound is not None:

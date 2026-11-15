@@ -59,7 +59,7 @@ from pewpew.aura.director import Director, Slot
 from pewpew.aura.master import Master
 from pewpew.aura.variety import Made, Submit, Variety, fade_to, in_background
 from pewpew.compose import DEFAULT_FADE, Layer, Look
-from pewpew.compose.stack import MAX_NAME, Drift, kept_drift, parse_fade, with_colorway
+from pewpew.compose.stack import MAX_NAME, Drift, kept_drift, parse_fade, with_colorway, with_values
 from pewpew.errors import describe_exception, unknown
 from pewpew.fx.graph import Graph
 from pewpew.fx.surprise import Draw
@@ -810,7 +810,7 @@ class Looks:
         if recalled is not None:
             values = stack.colorways[name]
             layers, signals, front = recalled.edited
-            painted = with_colorway(Look(layers, signals, front=front, colorways={name: values}), name)
+            painted = with_values(Look(layers, signals, front=front), values)
             self._recalled = recalled._replace(edited=_edited(painted), values={**recalled.values, **values})
         logger.info("%s took colorway %s", by, name)
 

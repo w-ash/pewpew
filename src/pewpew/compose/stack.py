@@ -40,7 +40,7 @@ import math
 import re
 import zlib
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
@@ -378,6 +378,14 @@ def parse_drift(raw: object, colorways: Sequence[str]) -> tuple[Drift | None, li
     return Drift((ends[0], ends[1]), None if names is None else tuple(names), bool(on)), []
 
 
+def kept_colorways(colorways: Mapping[str, Mapping[str, Any]],
+                   keep: Callable[[str, Any], bool]) -> dict[str, dict[str, Any]]:
+    """`colorways` with only the knobs `keep(address, value)` keeps, less
+    each colorway left with none."""
+    kept = ({path: value for path, value in values.items() if keep(path, value)} for values in colorways.values())
+    return {name: values for name, values in zip(colorways, kept, strict=True) if values}
+
+
 def kept_drift(drift: Drift | None, colorways: Sequence[str]) -> Drift | None:
     """`drift` over colorways named `colorways` now: less each name that
     is gone, or None once fewer than 2 colorways are left to move between."""
@@ -397,6 +405,13 @@ def with_colorway(look: Look, name: str) -> Look:
     values = look.colorways.get(name)
     if values is None:
         raise ValueError(unknown("colorway", name, look.colorways, suggest=True))
+    return with_values(look, values)
+
+
+def with_values(look: Look, values: Mapping[str, Any]) -> Look:
+    """`look` with each knob `values` names by address at its value
+    there: a node's arg, a layer's mix or a signal's arg. An address that
+    names no knob of the look is passed over."""
     layers = []
     for layer in look.layers:
         mix = {key: values[path] for key in MIX if (path := layer_address(layer.id, key)) in values}
