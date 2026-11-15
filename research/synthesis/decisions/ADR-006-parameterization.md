@@ -1086,11 +1086,16 @@ Status stays **Proposed**.
   round, a color by its parts, a palette per position in OKLab; a choice
   or a switch changes at the start. A palette mid-glide is its target's
   stops holding the start gradient and a weight (`Gradient.glide`), and
-  its table is the two tables mixed entry by entry in OKLab, so two
-  gradients of any stop counts, hard edges too, blend exactly; the weight
-  steps in 1/128ths, so a glide builds at most 128 tables. A route moves
-  around the gliding value. A press mid-glide glides on from what shows;
-  a `set` of a gliding knob lands it. An offline render with
+  its table is the two sides' OKLab colours mixed entry by entry, then
+  moved into the gamut once, so two gradients of any stop counts, hard
+  edges too, blend exactly; the weight steps in 1/128ths, so a glide
+  builds at most 128 tables at one shift. A route moves around the
+  gliding value. A press mid-glide glides on from what shows: a start
+  that was gliding itself becomes the OKLab table it showed
+  (`pewpew.color.flat`), exact at every shift since a turn and the mix
+  are both linear in OKLab, so a glide holds one start and costs the
+  same however many glides overlapped before it; a `set` of a gliding
+  knob lands it. An offline render with
   `--colorway` shows the colours settled, so its handles stay
   comparable.
 - **The glide time is the look's `fade`.** It is the look's existing
@@ -1114,8 +1119,8 @@ Status stays **Proposed**.
   `"colorways": true`, a look it plays that has colorways and no drift of
   its own that is on starts in one of them, drawn from the cycle's seed
   and the slot's number, settled (the look fades in anyway), as the look
-  playing rather than an edit. Off by default, so a file written before
-  it replays to the same frames.
+  playing rather than an edit. Off by default, so a file written
+  before it replays to the same frames.
 
 ### Consequences
 

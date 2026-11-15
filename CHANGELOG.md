@@ -1567,6 +1567,16 @@ series (batch mode).
 
 ### Fixed
 
+- A palette glide that starts while another runs no longer builds on it without end.
+  Each such start nested the last one, so a colorway drift faster than the look's
+  fade grew the chain about 30 levels a minute, and each frame's colour table cost
+  more until it raised. The new glide now starts from the colours that showed, held
+  flat as one table, so a glide holds one start and costs the same however many
+  overlapped before it, with no jump where it starts. A glide's two sides now mix
+  before their colours move into the gamut, which changes what a glide between
+  colours past the gamut shows midway.
+- A colorway that lands at once (a fade of 0) no longer leaves its knob showing
+  where an earlier glide to the same value had got to.
 - The run sends DDP frames evenly at 60 fps on macOS. A plain sleep woke up to about
   4 ms late, so frames went out 13–21 ms apart and bunched at WLED's 15 ms show
   gate, which drops a frame when the next one arrives before it is shown. The frame loop now sleeps until 2 ms

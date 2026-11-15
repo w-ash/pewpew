@@ -380,7 +380,10 @@ class Compositor:
                 continue
             end = knob.params[name]
             if bound is None or seconds <= 0 or start == end or not knob.params.declarations[name].glides:
-                self._glides.pop(path, None)  # the set landed it
+                # The set landed it. The binding lets go of its glide too: it knows the
+                # base it glides to by identity, and a set of an equal value may store the same object.
+                if self._glides.pop(path, None) is not None and bound is not None:
+                    bound.unglide(name)
                 continue
             self._glides[path] = _Glide(knob, start, end, self._t, float(seconds))
             bound.glide(name, start, 0.0)

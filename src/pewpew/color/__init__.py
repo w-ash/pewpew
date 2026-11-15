@@ -20,6 +20,7 @@ from pewpew.color.gradient import (
     OCEAN,
     PRESETS,
     SYNTHWAVE,
+    flat,
     gradient_lut,
     sample,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "PRESETS",
     "SYNTHWAVE",
     "bins",
+    "flat",
     "gradient_lut",
     "hsv",
     "linear_srgb",
