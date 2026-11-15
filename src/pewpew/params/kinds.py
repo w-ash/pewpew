@@ -578,11 +578,14 @@ class Palette(Param[Gradient]):
         """`b` holding `a` as its glide's start (`Gradient.glide`): its
         colors `w` of the way from `a`'s to `b`'s at each position, mixed
         in OKLab, whatever stops each has. `a` may glide itself, so a
-        glide that starts mid-glide goes on from what shows."""
+        glide that starts mid-glide goes on from what shows; it starts
+        from `a` made flat (`pewpew.color.flat`), so a glide holds one start."""
+        from pewpew.color import flat  # pewpew.color imports this package
+
         w = round(min(max(w, 0.0), 1.0) * self.glide_steps) / self.glide_steps
         if a == b or w == 1.0:
             return b
-        return Gradient(b.stops, b.label, (a, w))
+        return Gradient(b.stops, b.label, (flat(a), w))
 
     def _extra(self) -> dict[str, Any]:
         return {

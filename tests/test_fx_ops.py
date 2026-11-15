@@ -387,15 +387,20 @@ def test_a_round_shape_takes_no_plane_and_a_polygon_no_center_along_its_normal()
     assert paths and not any(".plane" in path for path in paths), paths
 
 
+def _ages(pulse: Any) -> list[float]:
+    """The age in seconds of each shell `pulse` has alive this frame, youngest first."""
+    return sorted(shell.age for shell in pulse.shells())
+
+
 def test_a_steady_pulse_starts_a_shell_every_one_over_rate_seconds_and_a_new_rate_shows_at_once() -> None:
     renderer = hosted(program_of("pulse(0.5, life=3)"), grid(6, 6))
     pulse = op_of(renderer, "pulse")
     renderer.advance_to(1.0)
-    assert pulse.ages() == pytest.approx([1.0])
+    assert _ages(pulse) == pytest.approx([1.0])
     renderer.bound.node_params["pulse"].set("rate", 2.0)
-    assert pulse.ages() == pytest.approx([0.25 + 0.5 * k for k in range(6)]), "the phase held, the spacing is new"
+    assert _ages(pulse) == pytest.approx([0.25 + 0.5 * k for k in range(6)]), "the phase held, the spacing is new"
     renderer.advance_to(1.25)
-    assert pulse.ages()[0] == pytest.approx(0.0, abs=1e-9)
+    assert _ages(pulse)[0] == pytest.approx(0.0, abs=1e-9)
 
 
 def test_pulse_shells_leave_the_point_softly_and_never_pass_full() -> None:
@@ -431,7 +436,7 @@ def test_a_beat_pulse_starts_a_shell_on_each_beat_but_one_too_close_to_the_last(
     clock = SlotClock(FPS)
     for _ in range(int(4.0 * FPS)):
         renderer.advance_to(clock.advance())
-    ages = op_of(renderer, "pulse").ages()
+    ages = _ages(op_of(renderer, "pulse"))
     assert len(ages) >= 3
     np.testing.assert_allclose(np.diff(ages), gap, atol=1e-6)
 
@@ -457,16 +462,17 @@ def test_a_pulse_shell_holds_its_level_and_eases_out_over_the_last_fade_of_its_l
     its life with no kink; a `fade` of 1 eases it out from the start."""
     renderer = hosted(program_of("pulse(0.5, speed=0.12, life=5.5, fade=0.4)"), grid(6, 6))
     pulse = op_of(renderer, "pulse")
-    rise, hold = pulse.rise(), 5.5 * 0.6
+    rise, hold = pulse.rise(pulse.width, pulse.speed), 5.5 * 0.6
     ages = np.linspace(0.0, 5.5, 2201)
-    levels = np.array([pulse.level(float(a)) for a in ages])
+    levels = np.array([pulse.level(float(a), pulse.width, pulse.speed) for a in ages])
     assert levels[0] == 0.0 and levels[-1] == pytest.approx(0.0, abs=1e-12)
     assert np.all(levels[(ages >= rise) & (ages <= hold)] == 1.0)
     assert np.all(np.diff(levels[ages >= hold]) <= 0.0)
     slopes = np.diff(levels) / np.diff(ages)
     assert np.abs(np.diff(slopes)).max() < 0.01, "the slope never jumps"
     renderer.bound.node_params["pulse"].set("fade", 1.0)
-    assert pulse.level(rise) < 1.0 and pulse.level(2.75) == pytest.approx(0.5, abs=0.02)
+    level = partial(pulse.level, width=pulse.width, speed=pulse.speed)
+    assert level(rise) < 1.0 and level(2.75) == pytest.approx(0.5, abs=0.02)
 
 
 def test_pulse_jitter_makes_each_shell_its_own_for_its_whole_life() -> None:
@@ -483,12 +489,12 @@ def test_pulse_jitter_makes_each_shell_its_own_for_its_whole_life() -> None:
             seen.setdefault(key, []).append(shell.level)
     speeds = {speed for speed, _ in seen}
     assert len(speeds) > 10 and min(speeds) >= 0.25 * 0.7 - 1e-9 and max(speeds) <= 0.25 * 1.3 + 1e-9
-    ages = pulse.ages()
+    ages = _ages(pulse)
     assert len(ages) < 12, "some shells are left out"
     assert np.ptp(np.diff(ages)) > 0.3, "uneven"
     even = hosted(program_of("pulse(1.0, life=12)"), grid(6, 6))
     even.advance_to(20.0)
-    np.testing.assert_allclose(np.diff(op_of(even, "pulse").ages()), 1.0)
+    np.testing.assert_allclose(np.diff(_ages(op_of(even, "pulse"))), 1.0)
 
 
 def test_pulse_wander_starts_each_shell_from_its_own_point_near_the_centre() -> None:
@@ -547,9 +553,9 @@ def test_a_beat_pulse_starts_with_the_train_the_beat_would_have_sent() -> None:
     the gate's one second."""
     renderer = hosted(program_of('pulse(sync="beat", life=8)'), grid(6, 6), features=_Beats(3.0))
     renderer.advance_to(1 / FPS)
-    assert op_of(renderer, "pulse").ages() == []
+    assert _ages(op_of(renderer, "pulse")) == []
     renderer.advance_to(2 / FPS)
-    ages = op_of(renderer, "pulse").ages()
+    ages = _ages(op_of(renderer, "pulse"))
     assert ages[0] == pytest.approx(2 / FPS, abs=1e-9) and ages[-1] > 7.0
     np.testing.assert_allclose(np.diff(ages), 2.0 / 3.0, atol=1e-9)
     chain = 'pulse(sync="beat", speed=0.12, width=0.14, life=5.4, fade=0.3).palette("ember")'
@@ -663,3 +669,47 @@ def test_a_beats_width_shows_only_for_its_pulse() -> None:
                 routes=[beat("fall").to("layers.base.osc.offset", depth=0.25)])
     paths = [probe.path for probe in probe_knobs(ready(made), parse_geometry("line:16"), 0)]
     assert "signals.beat.shape=phase" in paths and not any(path.startswith("signals.beat.width") for path in paths)
+
+
+@pytest.mark.parametrize("program, mapping, nid, name, a, b",
+                         [case for case in every_map_cases("particles") if case.values[3] in ("fadein", "fadeout")])
+def test_particles_fades_change_the_picture_on_each_map_it_takes(
+    program: Program, mapping: np.ndarray, nid: str, name: str, a: object, b: object
+) -> None:
+    test_every_op_arg_set_while_running_changes_the_picture(program, mapping, nid, name, a, b)
+
+
+def test_a_particle_rises_over_its_fadein_share_and_falls_over_its_fadeout_share() -> None:
+    renderer = hosted(program_of("particles(fadein=0.1, fadeout=0.3)"), grid(6, 6))
+    sparks = op_of(renderer, "particles")
+    ages = np.linspace(0.0, 1.0, 101, dtype=np.float32)
+    level = sparks.level(ages)
+    assert level[0] == 0.0 and level[-1] == 0.0
+    assert np.all(np.diff(level[:11]) > 0.0) and level[10] == pytest.approx(1.0)
+    np.testing.assert_allclose(level[10:71], 1.0)
+    assert np.all(np.diff(level[70:]) < 0.0)
+    renderer.bound.node_params["particles"].set("fadein", 0.2)
+    renderer.bound.node_params["particles"].set("fadeout", 0.6)
+    t = np.clip(ages / 0.2, 0.0, 1.0)
+    u = np.clip((ages - 0.4) / 0.6, 0.0, 1.0)
+    np.testing.assert_allclose(sparks.level(ages), t * t * (3 - 2 * t) * (1 - u * u * (3 - 2 * u)), atol=1e-6)
+
+
+@pytest.mark.parametrize("fadein, fadeout", [(0.02, 0.2), (0.02, 1.0), (1.0, 0.2), (1.0, 1.0)])
+def test_particles_at_the_ends_of_their_fades_stay_within_the_flash_limit(fadein: float, fadeout: float) -> None:
+    """A low fade makes sparks that pop; the floors keep them within WCAG's three flashes."""
+    frames = run(program_of(f'particles(fadein={fadein}, fadeout={fadeout}).palette("ember")'), line(32), 600)
+    assert 0.0 < measure(frames, FPS).flash_rate_max <= FLASH_LIMIT
+
+
+@pytest.mark.parametrize("mapping", [line(32), grid(16, 16)])
+def test_a_particle_that_leaves_the_map_fades_as_its_glow_slides_off_the_edge(mapping: np.ndarray) -> None:
+    """It keeps going past the edge and is not held on it, so a light at
+    the edge dims as a particle leaves no faster than a light inside does
+    as one passes."""
+    frames = run(program_of('particles(3, 10, 0.5, 0, 0, "centre", 0.06, 0.02)'), mapping, 240)
+    step = np.abs(np.diff(frames, axis=0)).max(axis=(0, 2))
+    lo, hi = mapping.min(axis=0), mapping.max(axis=0)
+    edge = ((np.isclose(mapping, lo) | np.isclose(mapping, hi)) & (hi > lo)).any(axis=1)
+    assert frames[:, edge].max() > 0.5, "particles reach the edge"
+    assert step[edge].max() <= step[~edge].max() < 0.5

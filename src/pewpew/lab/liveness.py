@@ -63,7 +63,7 @@ import numpy as np
 
 from pewpew.compose import layer_address
 from pewpew.compose.controls import signal_address
-from pewpew.fx.graph import Graph, Node
+from pewpew.compose.stack import with_values
 from pewpew.fx.ops import OPS
 from pewpew.lab.check import Ready
 from pewpew.lab.geometry import Geometry
@@ -127,14 +127,10 @@ def each_probe(staged: Ready, geometry: Geometry, seed: int, *, patient: bool = 
     for, so a caller can stop at the first that fails; with `patient`,
     each that reads dead looked at again for PATIENT_SECONDS."""
     spans = np.ptp(geometry.mapping, axis=0).tolist()
-    knobs: list[tuple[Node, str, Callable[[str, Any], Ready]]] = []
-    for i, layer in enumerate(staged.look.layers):
-        if layer.enabled:
-            knobs += ((node, layer_address(layer.id, node.id), partial(_moved, staged, i, node.id))
-                      for node in layer.program.graph)
-    knobs += ((node, signal_address(node.id), partial(_signal_moved, staged, node.id))
-              for node in staged.look.signals or ())
-    for node, owner, moved in knobs:
+    knobs = [(node, layer_address(layer.id, node.id))
+             for layer in staged.look.layers if layer.enabled for node in layer.program.graph]
+    knobs += ((node, signal_address(node.id)) for node in staged.look.signals or ())
+    for node, owner in knobs:
         op = OPS[node.op]
         values = ParamSet(op, node.args).snapshot_json()
         for record in ParamSet(op).describe():
@@ -144,11 +140,12 @@ def each_probe(staged: Ready, geometry: Geometry, seed: int, *, patient: bool = 
             except ValueError as exc:  # a palette with no preset to move to
                 yield KnobProbe(f"{owner}.{name}", values[name], None, None, False, str(exc))
                 continue
-            shown = _renders(partial(moved, name), geometry, seed, LIVENESS_WARMUP, LIVENESS_FRAMES)
+            moved = partial(_moved, staged, f"{owner}.{name}")
+            shown = _renders(moved, geometry, seed, LIVENESS_WARMUP, LIVENESS_FRAMES)
             ran = (_probe(shown, f"{owner}.{probe}", a, b)
                    for probe, a, b in pairs if op.shows(name, a, b, values, spans))
             frames = int(PATIENT_SECONDS * LIVENESS_FPS)
-            longer = _renders(partial(moved, name), geometry, seed, frames - PATIENT_FRAMES, PATIENT_FRAMES)
+            longer = _renders(moved, geometry, seed, frames - PATIENT_FRAMES, PATIENT_FRAMES)
             if record["kind"] == "choice":
                 # One live option makes the knob live, so the longer look
                 # is for a choice none of whose options shows at once.
@@ -211,23 +208,6 @@ def _probe(shown: Callable[[Any], np.ndarray], path: str, a: Any, b: Any) -> Kno
     return KnobProbe(path, a, b, round(change, 6), change > LIVENESS_RMS)
 
 
-def _moved(staged: Ready, i: int, nid: str, name: str, value: Any) -> Ready:
-    """`staged` with knob `name` of node `nid` of layer `i` at `value`."""
-    look = staged.look
-    layer = look.layers[i]
-    graph = Graph(tuple(_set(node, name, value) if node.id == nid else node for node in layer.program.graph))
-    moved = replace(layer, program=replace(layer.program, graph=graph))
-    return replace(staged, look=replace(look, layers=(*look.layers[:i], moved, *look.layers[i + 1 :])))
-
-
-def _signal_moved(staged: Ready, sid: str, name: str, value: Any) -> Ready:
-    """`staged` with knob `name` of signal `sid` at `value`."""
-    look = staged.look
-    assert look.signals is not None  # `sid` is one of them
-    signals = Graph(tuple(_set(node, name, value) if node.id == sid else node for node in look.signals))
-    return replace(staged, look=replace(look, signals=signals))
-
-
-def _set(node: Node, name: str, value: Any) -> Node:
-    """`node` with arg `name` at `value`."""
-    return Node(node.id, node.op, {**node.args, name: value}, node.inputs)
+def _moved(staged: Ready, path: str, value: Any) -> Ready:
+    """`staged` with the knob at address `path` at `value`."""
+    return replace(staged, look=with_values(staged.look, {path: value}))

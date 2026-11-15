@@ -147,10 +147,21 @@ def normal_axis(plane: str) -> int:
     return 3 - sum(AXES.index(a) for a in plane)
 
 
+def centre_across(name: str, plane: str) -> bool:
+    """Whether arg `name` is one of `centre_args` and acts along the axis
+    normal to `plane`."""
+    return name in CENTRE_ALONG and AXES.index(CENTRE_ALONG[name]) == normal_axis(plane)
+
+
 def plane_of(args: Mapping[str, Any], spans: Sequence[float]) -> Plane:
     """The plane a node of `args`, whose `plane` is a `plane_choice`,
     works in on a map of extent `spans` (`BindCtx.plane`)."""
-    choice = str(args["plane"])
+    return _plane(str(args["plane"]), spans)
+
+
+def _plane(choice: str, spans: Sequence[float]) -> Plane:
+    """The plane a `plane_choice` names on a map of extent `spans`: as
+    chosen, or for `auto` the plane `auto_plane` takes."""
     return auto_plane(spans) if choice == AUTO else next(p for p in PLANES if p == choice)
 
 
@@ -250,9 +261,7 @@ class BindCtx:
     def plane(self, choice: str) -> Plane:
         """The plane a `plane_choice` names: as chosen, or for `auto` the two
         axes the map spreads most along (xy on a tie)."""
-        if choice != AUTO:
-            return next(p for p in PLANES if p == choice)
-        return auto_plane(self.spans)
+        return _plane(choice, self.spans)
 
     @property
     def time_axis(self) -> int:
@@ -398,6 +407,10 @@ class Op(ABC):
         An op that also declares buffers or draws its layout overrides it
         and calls this first."""
         self.ctx = ctx
+
+    def point(self) -> Center:
+        """The point an op of `centre_args` works about (`BindCtx.at`)."""
+        return self.ctx.at(tuple(getattr(self, name) for name in CENTRE_ALONG))
 
     def advance(self, ctx: FrameCtx, inputs: Sequence[Fn]) -> None:
         """Called once per frame before any render, in graph order, for an

@@ -32,6 +32,11 @@ series (batch mode).
   letters stay in it; ↓ goes to the first match and Enter adds a lone one.
 - The brightness is typed into as a knob's entry is. Colorway chips are one Tab stop
   with arrow-key movement, and the colorways' drift toggle says "drift".
+- `particles` takes `fadein` (0.02 to 1) and `fadeout` (0.2 to 1): the share of its
+  life a particle spends brightening at the start and fading at the end. A low
+  `fadein` lets long-lived particles show at once, so `gravity` at its ends changes
+  the picture before they leave; low values make sparks that pop. At their defaults
+  (0.2 and 0.6, the shares it always used) a particle fades as before.
 - The `branches` source: a tree of light grown out of a point you set. `trunks`
   (1 to 12) leave it and fork level by level for `depth` (1 to 7), each level
   `shrink` as long and as thin, so the channels grow more and finer away from the
@@ -974,6 +979,10 @@ series (batch mode).
 
 ### Changed
 
+- `branches` and `particles` cost less per frame, with the same pixels: `branches`
+  keeps which branches pass near which points while the points hold their places,
+  under a `mirror`, `rotate` or `modulate` too (at 3,072 points, a frame under a
+  `mirror` from about 1.8 ms to 0.09 ms), and `particles` blurs a smaller field.
 - DDP output dithers in time (ADR-002): each pixel carries its rounding error into
   its next frame while it fades, so a dim fade steps by fractions of a level;
   a held color rounds plainly and does not shimmer.
@@ -1606,6 +1615,28 @@ series (batch mode).
   whole on a narrow screen instead of cutting it.
 - A refused colorway drift shows under the colorway row only, not in the status bar
   too.
+- A palette glide that starts while another runs no longer builds on it without end.
+  Each such start nested the last one, so a colorway drift faster than the look's
+  fade grew the chain about 30 levels a minute, and each frame's colour table cost
+  more until it raised. The new glide now starts from the colours that showed, held
+  flat as one table, so a glide holds one start and costs the same however many
+  overlapped before it, with no jump where it starts. A glide's two sides now mix
+  before their colours move into the gamut, which changes what a glide between
+  colours past the gamut shows midway.
+- A colorway that lands at once (a fade of 0) no longer leaves its knob showing
+  where an earlier glide to the same value had got to.
+- The idle cycle's `colorways` pick no longer is lost on a look that is already
+  current as saved, as in a cycle of one look: the look glides to the drawn
+  colorway as a drift does, without a recall, and reads unchanged.
+- `fx vary` judges a choice knob as `verify looks` does, by its strongest option: it
+  passes when one option changes the preview by the margin, where an option that
+  changed it a little used to refuse the candidate.
+- A particle that leaves the map fades as it goes. It was drawn held on the map's
+  edge until it was a glow's width out, then deleted at full brightness, and a glow
+  at the edge piled up there, so particles snapped off and lit a bright band along
+  the edge. A particle now keeps going past the edge and its glow slides off it.
+  `ember`, `ember-fountain`, `firefly-ink`, `tide` and `depth-charge` change where
+  their particles reach an edge.
 - The run sends DDP frames evenly at 60 fps on macOS. A plain sleep woke up to about
   4 ms late, so frames went out 13–21 ms apart and bunched at WLED's 15 ms show
   gate, which drops a frame when the next one arrives before it is shown. The frame loop now sleeps until 2 ms

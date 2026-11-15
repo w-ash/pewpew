@@ -97,14 +97,26 @@ class Bound:
         for name in driven:
             self.write(name)
 
-    def glide(self, name: str, start: object, w: float) -> None:
-        """Show `name` `w` of the way (0 to 1) from `start` to its base on
-        the target, until `unglide` or a set of another base, which then
-        shows at once. Raises KeyError for a name the set does not
-        declare."""
+    def glide(self, name: str, start: object) -> None:
+        """Start a glide of `name` from `start` to its base: the target
+        shows `start` until `weigh` moves it on, and the base at once after
+        `unglide` or a set of another base. Raises KeyError for a name the
+        set does not declare."""
         self._check_current()
-        self._glides[name] = (start, self.params[name], float(w))
+        self._glides[name] = (start, self.params[name], 0.0)
         self.write(name)
+
+    def weigh(self, name: str, w: float) -> bool:
+        """Show `name` `w` of the way (0 to 1) along its glide on the
+        target. False, and nothing shown, when `name` does not glide or its
+        base was set since its glide started."""
+        self._check_current()
+        glide = self._glides.get(name)
+        if glide is None or glide[1] is not self.params[name]:
+            return False
+        self._glides[name] = (glide[0], glide[1], float(w))
+        self.write(name)
+        return True
 
     def unglide(self, name: str) -> None:
         """End the glide of `name`: the target reads its base again."""

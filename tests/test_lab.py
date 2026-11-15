@@ -768,6 +768,9 @@ def test_the_look_diff_names_each_signal_route_and_front_change():
     ]
     b["signals"]["breath"]["op"] = "walk"
     assert comparison.look_diff(a, b)[1].path == "signals.breath"  # its op, as a node's is
+    drifts = {**a, "colorway_drift": {"every": [60.0, 180.0]}}
+    assert [(c.path, c.a, c.b) for c in comparison.look_diff(a, drifts)] == [
+        ("colorway_drift", None, {"every": [60.0, 180.0]})]
 
 
 def test_compare_renders_a_look_on_the_map_spec_of_a_so_its_spec_gives_its_handle():

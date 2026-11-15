@@ -122,3 +122,9 @@ def ease(x: float) -> float:
     A Python float."""
     x = min(max(x, 0.0), 1.0)
     return x * x * (3.0 - 2.0 * x)
+
+
+def smoothstep(x: np.ndarray, lo: float = 0.0, hi: float = 1.0) -> np.ndarray:
+    """`ease` per element of `x`, with `lo` to `hi` taken as 0 to 1."""
+    t = np.clip((x - lo) * (1.0 / (hi - lo)), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)

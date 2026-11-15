@@ -24,20 +24,22 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fakes import EXAMPLE_RIG, FLOW_LOOK, aura_rig, filed, in_new_process, solid
+from fakes import EXAMPLE_RIG, FLOW_LOOK, aura_rig, filed, in_new_process, program_of, solid
 from pewpew import lab
 from pewpew.aura.variety import in_background
 from pewpew.color import PRESETS
 from pewpew.compose import Look
 from pewpew.fx import surprise
 from pewpew.fx.codec import decode_look, encode_look
+from pewpew.fx.expr import layer, look
 from pewpew.fx.ops import OPS
 from pewpew.lab.check import ready
 from pewpew.lab.geometry import parse_geometry
 from pewpew.lab.handles import Cache
+from pewpew.lab.liveness import KnobProbe
 from pewpew.lab.rendering import play
 from pewpew.mapping import dimensions, line, parse_map
-from pewpew.metrics import Metrics
+from pewpew.metrics import LIVENESS_RMS, Metrics
 from pewpew.params import Palette, ParamSet
 from pewpew.problems import Code, Refused
 
@@ -236,6 +238,23 @@ def test_the_ops_of_each_role_run_on_the_map_and_a_warp_along_an_axis_runs_on_ev
     warps = {spec: {cls.op for cls in surprise.ops(_space(spec), "warp")} for spec in ("line:16", "grid:4x4")}
     assert warps["line:16"] == {"dither", "mirror", "modulate", "repeat", "scale"}
     assert {"kaleid", "mirror", "polar", "repeat", "rotate", "scale", "tunnel"} <= warps["grid:4x4"]
+
+
+def test_vary_counts_a_choice_by_its_strongest_option_and_every_other_knob_by_each_probe(monkeypatch):
+    staged = ready(look(layer("base", program_of('noise(3).blend(noise(5, 0.2), "normal", 0.5).palette("ember")'))))
+    margin, mode = surprise.LIVE_MARGIN * LIVENESS_RMS, "layers.base.blend_.mode"
+
+    def dead_knob(path: str, *shown: tuple[str, float]) -> str | None:
+        probes = [KnobProbe(f"{path}={to}", "a", to, rms, rms > LIVENESS_RMS) for to, rms in shown]
+        monkeypatch.setattr(surprise, "each_probe", lambda *_: iter(probes))
+        return surprise.dead_knob(staged, _space("grid:4x4"))
+
+    assert dead_knob(mode, ("add", 2.0 * margin), ("screen", 1.5 * LIVENESS_RMS), ("stencil", 0.0)) is None, \
+        "a live option under the margin fails it no more than one that shows as the first"
+    assert dead_knob(mode, ("add", 0.9 * margin), ("screen", 0.5 * margin)) == mode, "none clears the margin"
+    palette = "layers.base.palette"
+    assert dead_knob(f"{palette}.palette", ("ice", 2.0 * margin), ("ocean", 0.9 * margin)) == \
+        f"{palette}.palette=ocean", "a palette is not a choice: each preset must clear it"
 
 
 def test_a_candidate_is_drawn_the_same_from_the_same_seed():

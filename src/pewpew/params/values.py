@@ -58,11 +58,17 @@ class Gradient:
     knob glides (`Palette.mix`): the colors `w` of the way, 0 to 1, from
     gradient `start` to this one, mixed per position in OKLab. A knob's
     own value never holds one, so a save or a snapshot never stores it.
+
+    `table` is set only on a glide's start that was itself gliding
+    (`pewpew.color.flat`): the colors it showed, as the bytes of a
+    float32 OKLab table of `LUT_SIZE` entries, which `gradient_lut` reads
+    in place of the stops.
     """
 
     stops: tuple[Stop, ...]
     label: str = ""
     glide: tuple[Gradient, float] | None = field(default=None, repr=False)
+    table: bytes | None = field(default=None, repr=False)
 
     def rgb(self, t: ArrayLike) -> np.ndarray:
         """This gradient as linear RGB at positions `t`, from 0 (the first
