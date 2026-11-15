@@ -492,21 +492,22 @@ async function drag(el: Element, from: number, via: number[]) {
 }
 const placeOf = (at: number) => stripBox().left + at * stripBox().width;
 
-test("dragging a dot moves its stop, as far as the next stop, and is one undo step", async () => {
-  const { screen, sent, receive } = await renderWired(<ParamField p={PALETTE} />);
-  const undo = screen.getByRole("button", { name: "undo" });
-  await expect.element(undo).toHaveAttribute("aria-disabled", "true");
+test("dragging a dot moves its stop, as far as the next stop, and each drag is one undo step", async () => {
+  const { screen, sent, receive, edits } = await renderWired(<ParamField p={PALETTE} />);
+  const echo = () => receive({ type: "params", values: { palette: palettes(sent).at(-1)! } });
+  expect(edits.can(true)).toBe(false);
   await drag(dot(screen, 2), placeOf(0.35), [placeOf(0.45), placeOf(0.5)]);
   expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.5, 0.7, 1]);
+  echo();
   await drag(dot(screen, 2), placeOf(0.5), [placeOf(0.6), placeOf(0.95)]); // past the next stop: it stops there
   expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.7, 0.7, 1]);
-  await expect.element(undo).not.toHaveAttribute("aria-disabled", "true");
-  await undo.click();
+  echo();
+  edits.undo();
   expect(palettes(sent).at(-1)!.stops.map((x) => x.at)).toEqual([0, 0.5, 0.7, 1]); // one step back: the second drag
-  await undo.click();
+  echo();
+  edits.undo();
   expect(palettes(sent).at(-1)).toEqual(PALETTE.default); // the palette as it was, exactly
-  await expect.element(undo).toHaveAttribute("aria-disabled", "true");
-  receive({ type: "params", values: { palette: PALETTE.default } });
+  expect(edits.can(true)).toBe(false);
 });
 
 test("a drag of an end dot moves nothing and says why", async () => {
@@ -516,13 +517,20 @@ test("a drag of an end dot moves nothing and says why", async () => {
   await expect.element(screen.getByText("the first stop stays at 0")).toBeVisible();
 });
 
-test("undo ends when the palette changes from elsewhere", async () => {
-  const { screen, receive } = await renderWired(<ParamField p={PALETTE} />);
-  const undo = screen.getByRole("button", { name: "undo" });
-  await drag(dot(screen, 2), placeOf(0.35), [placeOf(0.5)]);
-  await expect.element(undo).not.toHaveAttribute("aria-disabled", "true");
-  receive({ type: "params", values: { palette: PALETTE.presets[1]!.value } }); // a colorway, say
-  await expect.element(undo).toHaveAttribute("aria-disabled", "true");
+test("a drag the browser takes over puts the stop back and leaves no undo step", async () => {
+  const { screen, sent, receive, edits } = await renderWired(<ParamField p={PALETTE} />);
+  vi.spyOn(HTMLElement.prototype, "setPointerCapture").mockImplementation(() => {});
+  const tick = () => new Promise((done) => setTimeout(done, 20));
+  const el = dot(screen, 2);
+  ptr(el, "pointerdown", placeOf(0.35));
+  await tick();
+  ptr(el, "pointermove", placeOf(0.5));
+  await tick();
+  receive({ type: "params", values: { palette: palettes(sent).at(-1)! } });
+  ptr(el, "pointercancel", placeOf(0.5)); // the page scrolls
+  await tick();
+  expect(palettes(sent).at(-1)).toEqual(PALETTE.default);
+  expect(edits.can(true)).toBe(false);
 });
 
 test("a press on the gradient adds a stop there, in the color the gradient has there", async () => {
