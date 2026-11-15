@@ -18,11 +18,12 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from pewpew.fx.field import Lattice
+from pewpew.fx.field import Lattice, blur
 from pewpew.fx.op import BindCtx, Cost, FrameCtx, Op, Rate
 from pewpew.fx.ops.sims import arrivals
 from pewpew.fx.ops.source import DRIFT
 from pewpew.fx.prims import noise as prim
+from pewpew.fx.prims.grid import deposit
 from pewpew.fx.prims.vec import TWO_PI, fade
 from pewpew.fx.types import Coords, Fn, Sig, Ty
 from pewpew.params import Choice, Float, Int
@@ -42,9 +43,11 @@ class Particles(Op, op="particles"):
     the emit choice says, setting off in a random direction, falling or
     rising, drifting on a breeze and fading in and out. `rate` are born a
     second, each sets off at `speed`, falls or rises under `gravity`,
-    drifts on a curl-noise breeze (`swirl`), and fades over its `life`.
-    Sparks fly fast from the center and fall; snow drifts down from the
-    top; fireflies hang anywhere and wander."""
+    drifts on a curl-noise breeze (`swirl`), and fades over its `life`:
+    in over the first `fadein` share, out over the last `fadeout` share.
+    One that leaves the map keeps going and its glow slides off the edge,
+    so it fades as it goes. Sparks fly fast from the center and fall;
+    snow drifts down from the top; fireflies hang anywhere and wander."""
 
     sig = Sig.SOURCE
     out = Ty.SCALAR
@@ -57,6 +60,10 @@ class Particles(Op, op="particles"):
     emit = Choice("centre", {"centre": "Center", "bottom": "Bottom", "top": "Top", "anywhere": "Anywhere"},
                   help="Where they are born: the center, along the bottom or top edge, or anywhere")
     size = Float(0.06, 0.02, 0.3, sweet=(0.03, 0.15), help="Radius of each particle's glow")
+    fadein = Float(0.2, 0.02, 1.0, sweet=(0.05, 0.4), label="Fade in",
+                   help="The share of its life each spends brightening at the start: low values make sparks that pop")
+    fadeout = Float(0.6, 0.2, 1.0, sweet=(0.3, 0.8), label="Fade out",
+                    help="The share of its life each spends fading out at the end: 1 fades it from birth")
     examples = (
         'particles(30, 1.2, 0.8, -1, emit="centre")',
         'particles(12, 6, 0.05, -0.1, 0.3, "top").palette("ice")',
@@ -92,6 +99,10 @@ class Particles(Op, op="particles"):
             self.vel[born] = heading * self.speed
             self.age[born] = 0.0
             self.lifetime[born] = self.life * (0.75 + 0.5 * rng.random(len(born)))
+        reach = self.lattice.reach(self.size)
+        pad = 2 * reach + 1  # nodes past each end: a glow centred further out does not reach in
+        cell = np.array([s / (n - 1) for s, n in zip(self.lattice.span, self.lattice.counts)], np.float32)
+        outer = self.half + pad * cell
         live = np.flatnonzero(self.age < 1.0)
         if len(live):
             self.vel[live, d - 1] += self.gravity * dt
@@ -100,13 +111,21 @@ class Particles(Op, op="particles"):
                 move = move + self.breeze(self.pos[live]) * self.swirl
             self.pos[live] += move * dt
             self.age[live] += dt / self.lifetime[live]
-            self.age[live[(np.abs(self.pos[live]) > self.half + self.size).any(axis=1)]] = 1.0
+            self.age[live[(np.abs(self.pos[live]) >= outer).any(axis=1)]] = 1.0
         live = np.flatnonzero(self.age < 1.0)
-        x = self.age[live]
-        brightness = _smoothstep(0.0, 0.2, x) * (1.0 - _smoothstep(0.4, 1.0, x))
-        at = self.lattice.unit(list(self.pos[live].T))
-        glow = self.lattice.glow(at, brightness, self.size) * self.lattice.peak(self.size)
-        self.shown = np.minimum(glow, 1.0)
+        brightness = self.level(self.age[live])
+        # Drawn on the lattice grown by `pad` nodes each way and cut back,
+        # so a glow past the map's edge slides off it, never held on it.
+        at = [p * (0.5 / o) + 0.5 for p, o in zip(self.pos[live].T, outer)]
+        wide = tuple(reversed([n + 2 * pad for n in self.lattice.counts]))
+        glow = blur(deposit(at, brightness, wide), reach)[(slice(pad, -pad),) * d]
+        self.shown = np.minimum(glow * self.lattice.peak(self.size), 1.0)
+
+    def level(self, age: np.ndarray) -> np.ndarray:
+        """The brightness of a particle at `age`, a share of its life: it
+        rises over the first `fadein` share and falls over the last
+        `fadeout` share."""
+        return _smoothstep(0.0, self.fadein, age) * (1.0 - _smoothstep(1.0 - self.fadeout, 1.0, age))
 
     def births(self, count: int, rng: np.random.Generator) -> np.ndarray:
         """Where `count` new particles start, in world units from the centre."""

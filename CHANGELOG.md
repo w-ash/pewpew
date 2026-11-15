@@ -9,6 +9,11 @@ series (batch mode).
 
 ### Added
 
+- `particles` takes `fadein` (0.02 to 1) and `fadeout` (0.2 to 1): the share of its
+  life a particle spends brightening at the start and fading at the end. A low
+  `fadein` lets long-lived particles show at once, so `gravity` at its ends changes
+  the picture before they leave; low values make sparks that pop. At their defaults
+  (0.2 and 0.6, the shares it always used) a particle fades as before.
 - The `branches` source: a tree of light grown out of a point you set. `trunks`
   (1 to 12) leave it and fork level by level for `depth` (1 to 7), each level
   `shrink` as long and as thin, so the channels grow more and finer away from the
@@ -1583,6 +1588,12 @@ series (batch mode).
 - `fx vary` judges a choice knob as `verify looks` does, by its strongest option: it
   passes when one option changes the preview by the margin, where an option that
   changed it a little used to refuse the candidate.
+- A particle that leaves the map fades as it goes. It was drawn held on the map's
+  edge until it was a glow's width out, then deleted at full brightness, and a glow
+  at the edge piled up there, so particles snapped off and lit a bright band along
+  the edge. A particle now keeps going past the edge and its glow slides off it.
+  `ember`, `ember-fountain`, `firefly-ink`, `tide` and `depth-charge` change where
+  their particles reach an edge.
 - The run sends DDP frames evenly at 60 fps on macOS. A plain sleep woke up to about
   4 ms late, so frames went out 13–21 ms apart and bunched at WLED's 15 ms show
   gate, which drops a frame when the next one arrives before it is shown. The frame loop now sleeps until 2 ms

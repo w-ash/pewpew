@@ -663,3 +663,47 @@ def test_a_beats_width_shows_only_for_its_pulse() -> None:
                 routes=[beat("fall").to("layers.base.osc.offset", depth=0.25)])
     paths = [probe.path for probe in probe_knobs(ready(made), parse_geometry("line:16"), 0)]
     assert "signals.beat.shape=phase" in paths and not any(path.startswith("signals.beat.width") for path in paths)
+
+
+@pytest.mark.parametrize("program, mapping, nid, name, a, b",
+                         [case for case in every_map_cases("particles") if case.values[3] in ("fadein", "fadeout")])
+def test_particles_fades_change_the_picture_on_each_map_it_takes(
+    program: Program, mapping: np.ndarray, nid: str, name: str, a: object, b: object
+) -> None:
+    test_every_op_arg_set_while_running_changes_the_picture(program, mapping, nid, name, a, b)
+
+
+def test_a_particle_rises_over_its_fadein_share_and_falls_over_its_fadeout_share() -> None:
+    renderer = hosted(program_of("particles(fadein=0.1, fadeout=0.3)"), grid(6, 6))
+    sparks = op_of(renderer, "particles")
+    ages = np.linspace(0.0, 1.0, 101, dtype=np.float32)
+    level = sparks.level(ages)
+    assert level[0] == 0.0 and level[-1] == 0.0
+    assert np.all(np.diff(level[:11]) > 0.0) and level[10] == pytest.approx(1.0)
+    np.testing.assert_allclose(level[10:71], 1.0)
+    assert np.all(np.diff(level[70:]) < 0.0)
+    renderer.bound.node_params["particles"].set("fadein", 0.2)
+    renderer.bound.node_params["particles"].set("fadeout", 0.6)
+    t = np.clip(ages / 0.2, 0.0, 1.0)
+    u = np.clip((ages - 0.4) / 0.6, 0.0, 1.0)
+    np.testing.assert_allclose(sparks.level(ages), t * t * (3 - 2 * t) * (1 - u * u * (3 - 2 * u)), atol=1e-6)
+
+
+@pytest.mark.parametrize("fadein, fadeout", [(0.02, 0.2), (0.02, 1.0), (1.0, 0.2), (1.0, 1.0)])
+def test_particles_at_the_ends_of_their_fades_stay_within_the_flash_limit(fadein: float, fadeout: float) -> None:
+    """A low fade makes sparks that pop; the floors keep them within WCAG's three flashes."""
+    frames = run(program_of(f'particles(fadein={fadein}, fadeout={fadeout}).palette("ember")'), line(32), 600)
+    assert 0.0 < measure(frames, FPS).flash_rate_max <= FLASH_LIMIT
+
+
+@pytest.mark.parametrize("mapping", [line(32), grid(16, 16)])
+def test_a_particle_that_leaves_the_map_fades_as_its_glow_slides_off_the_edge(mapping: np.ndarray) -> None:
+    """It keeps going past the edge and is not held on it, so a light at
+    the edge dims as a particle leaves no faster than a light inside does
+    as one passes."""
+    frames = run(program_of('particles(3, 10, 0.5, 0, 0, "centre", 0.06, 0.02)'), mapping, 240)
+    step = np.abs(np.diff(frames, axis=0)).max(axis=(0, 2))
+    lo, hi = mapping.min(axis=0), mapping.max(axis=0)
+    edge = ((np.isclose(mapping, lo) | np.isclose(mapping, hi)) & (hi > lo)).any(axis=1)
+    assert frames[:, edge].max() > 0.5, "particles reach the edge"
+    assert step[edge].max() <= step[~edge].max() < 0.5
