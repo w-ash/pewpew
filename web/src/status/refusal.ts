@@ -5,9 +5,9 @@ import { useRefusalExcept, type Refusal } from "../wire/store";
 /** How long a refusal borrows the status bar. */
 const REFUSAL_MS = 4000;
 
-/** The controls whose refusals their own forms show in place: a param, the look editor and the
- * add-layer panel. The bar shows every other. */
-const IN_PLACE = ["set", "save", "delete", "rename", "cycle", "favorite", "fade", "add_layer"] as const;
+/** The controls whose refusals their own forms show in place: a param, the look editor, the
+ * colorway row's drift and the add-layer panel. The bar shows every other. */
+const IN_PLACE = ["set", "save", "delete", "rename", "cycle", "favorite", "fade", "drift", "add_layer"] as const;
 
 /** The latest refusal the bar shows, for REFUSAL_MS after it came, else null. */
 export function useShownRefusal(): Refusal | null {

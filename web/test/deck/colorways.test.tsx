@@ -1,7 +1,8 @@
 import { expect, test } from "vitest";
 import type { AuraState } from "../../src/aura/aura";
 import { LookPanel } from "../../src/deck/LookPanel";
-import { AURA } from "../fixtures/messages";
+import { StatusBar } from "../../src/status/StatusBar";
+import { AURA, refused } from "../fixtures/messages";
 import { renderWired } from "../harness";
 
 const stack = (patch: Partial<AuraState["stack"]>) => ({ type: "aura" as const, ...AURA, stack: { ...AURA.stack, ...patch } });
@@ -78,4 +79,16 @@ test("drift is offered only for a saved look with 2 colorways or more", async ()
   await expect.element(drift).toBeInTheDocument();
   receive(looks({ made: "surprise 7" }));
   await expect.element(drift).not.toBeInTheDocument();
+});
+
+test("a refused drift shows under the colorway row, and not in the status bar", async () => {
+  const { screen, receive } = await renderWired(
+    <>
+      <StatusBar planNote={null} />
+      <LookPanel />
+    </>,
+  );
+  receive(refused("drift", "the looks file is read-only"));
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("the looks file is read-only");
+  expect(document.querySelector(".status-bar")?.textContent).toBe("");
 });
