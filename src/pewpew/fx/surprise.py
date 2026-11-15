@@ -80,6 +80,7 @@ import zlib
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import cache
+from itertools import groupby
 from typing import Any, TypeVar
 
 import numpy as np
@@ -104,7 +105,7 @@ from pewpew.lab.liveness import each_probe
 from pewpew.lab.rendering import limits, play
 from pewpew.mapping import extents, spanned
 from pewpew.metrics import FLASH_LIMIT, LIVENESS_RMS, Metrics, measure
-from pewpew.params import HSV, Gradient, Palette, ParamSet, Stop
+from pewpew.params import HSV, Choice, Gradient, Palette, ParamSet, Stop
 from pewpew.problems import Code, Problem, Refused
 
 T = TypeVar("T")
@@ -918,16 +919,23 @@ def dead_knob(staged: Ready, space: Space) -> str | None:
     """The first knob of `staged` that does not change its preview by
     `LIVE_MARGIN` times the liveness threshold, or cannot be probed, as
     "<path>" or "<path>: <why>"; None when every knob does. Stops at the
-    first, as each probe renders the look twice. An option that shows as
-    the first of a choice another option shows (`KnobProbe.alike`) counts
-    for its knob, which another probe measures."""
-    for probe in each_probe(staged, space.preview, 0):
-        if probe.error is not None:
-            return f"{probe.path}: {probe.error}"
-        if probe.alike:
-            continue
-        if probe.rms is None or probe.rms <= LIVE_MARGIN * LIVENESS_RMS:
-            return probe.path
+    first, as each probe renders the look twice. A choice is one knob, as
+    for the gate (pewpew.lab.liveness): it passes when its strongest
+    option clears the margin, whatever the others show."""
+    controls = look_controls(staged.look)
+    for knob, probes in groupby(each_probe(staged, space.preview, 0), key=lambda probe: probe.path.partition("=")[0]):
+        found = controls.find(knob)
+        choice = found is not None and isinstance(found.params.declarations[found.name], Choice)
+        strongest = 0.0
+        for probe in probes:
+            if probe.error is not None:
+                return f"{probe.path}: {probe.error}"
+            assert probe.rms is not None  # a probe that ran
+            if not choice and probe.rms <= LIVE_MARGIN * LIVENESS_RMS:
+                return probe.path
+            strongest = max(strongest, probe.rms)
+        if choice and strongest <= LIVE_MARGIN * LIVENESS_RMS:
+            return knob
     return None
 
 

@@ -1580,6 +1580,9 @@ series (batch mode).
 - The idle cycle's `colorways` pick no longer is lost on a look that is already
   current as saved, as in a cycle of one look: the look glides to the drawn
   colorway as a drift does, without a recall, and reads unchanged.
+- `fx vary` judges a choice knob as `verify looks` does, by its strongest option: it
+  passes when one option changes the preview by the margin, where an option that
+  changed it a little used to refuse the candidate.
 - The run sends DDP frames evenly at 60 fps on macOS. A plain sleep woke up to about
   4 ms late, so frames went out 13–21 ms apart and bunched at WLED's 15 ms show
   gate, which drops a frame when the next one arrives before it is shown. The frame loop now sleeps until 2 ms
